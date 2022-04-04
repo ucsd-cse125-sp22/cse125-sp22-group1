@@ -1,3 +1,3 @@
-fn main() {
-    println!("Hello, world!");
-}
+mod settings;
+
+pub use settings::GLOBAL_CONFIG;
