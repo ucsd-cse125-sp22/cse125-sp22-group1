@@ -35,10 +35,32 @@ impl std::ops::Div<f64> for Vec3D {
 	}
 }
 
+pub fn magnitude_Vec3D(vec: &Vec3D) -> f64 {
+	return (vec.x*vec.x + vec.y*vec.y + vec.z*vec.z).sqrt();
+}
+
+pub fn normalize_Vec3D(vec: &Vec3D) -> Vec3D {
+	return *vec / magnitude_Vec3D(vec);
+}
+
+pub enum EngineStatus {
+	ACCELERATING,
+	NEUTRAL,
+	BRAKING
+}
+
 pub struct PhysicsProperties {
 	pub position: Vec3D,
-	pub linear_momentum: Vec3D,
+	pub velocity: Vec3D,
+
+	pub linear_momentum: Vec3D, // redundant with velocity; both are used for convenience's sake
 	pub angular_momentum: Vec3D,
 
-	pub mass: f64
+	pub mass: f64,
+
+	// steering / controlled variables
+
+	pub unit_steer_direction: Vec3D, // should be a normalized vector
+	pub engine_status: EngineStatus,
+
 }
