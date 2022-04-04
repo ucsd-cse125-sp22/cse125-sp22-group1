@@ -43,6 +43,7 @@ pub fn normalize_Vec3D(vec: &Vec3D) -> Vec3D {
 	return *vec / magnitude_Vec3D(vec);
 }
 
+#[derive(Copy, Clone)]
 pub enum EngineStatus {
 	ACCELERATING,
 	NEUTRAL,

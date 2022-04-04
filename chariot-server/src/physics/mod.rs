@@ -1,6 +1,7 @@
 use chariot_core::physics_object::PhysicsProperties;
 use chariot_core::physics_object::Vec3D;
 use chariot_core::physics_object::magnitude_Vec3D;
+use chariot_core::physics_object::EngineStatus;
 
 mod constants;
 
@@ -17,7 +18,9 @@ pub fn do_physics_step(previous_props: &PhysicsProperties, time_step: f64) -> Ph
 		velocity: previous_props.velocity + acceleration * time_step,
 		linear_momentum: previous_props.linear_momentum + forces * time_step,
 		angular_momentum: previous_props.angular_momentum,
-		mass: previous_props.mass
+		mass: previous_props.mass,
+		engine_status: previous_props.engine_status,
+		unit_steer_direction: previous_props.unit_steer_direction,
 	};
 }
 
@@ -46,28 +49,28 @@ fn normal_force_on_object(object: &PhysicsProperties) -> Vec3D {
 // tractive force is what's applied by the "engine" == player-applied motive
 // force forwards
 fn tractive_force_on_object(object: &PhysicsProperties) -> Vec3D {
-	match object.engine_status {
-		ACCELERATING => return object.unit_steer_direction * object.mass * constants::CAR_ACCELERATOR,
-		NEUTRAL => (),
-		BRAKING => ()
+	match &object.engine_status {
+		EngineStatus::ACCELERATING => return object.unit_steer_direction * object.mass * constants::CAR_ACCELERATOR,
+		EngineStatus::NEUTRAL => return Vec3D {x:0.0, y:0.0, z:0.0},
+		EngineStatus::BRAKING => return Vec3D {x:0.0, y:0.0, z:0.0},
 	}
 }
 
 fn air_resistance_force_on_object(object: &PhysicsProperties) -> Vec3D
 {
 	// air resistance is proportion to the square of velocity
-	return -1.0 * constants::DRAG_COEFFICIENT * object.velocity * magnitude_Vec3D(object.velocity);
+	return object.velocity * -1.0 * constants::DRAG_COEFFICIENT * magnitude_Vec3D(&object.velocity);
 }
 
 fn rolling_resistance_force_on_object(object: &PhysicsProperties) -> Vec3D
 {
-	return -1.0 * constants::ROLLING_RESISTANCE_COEFFICIENT * object.velocity;
+	return object.velocity * -1.0 * constants::ROLLING_RESISTANCE_COEFFICIENT;
 }
 
 fn braking_resistance_force_on_object(object: &PhysicsProperties) -> Vec3D {
-	match object.engine_status {
-		ACCELERATING => (),
-		NEUTRAL => (),
-		BRAKING => return -1.0 * object.unit_steer_direction * object.mass * constants::CAR_BRAKE,
+	match &object.engine_status {
+		EngineStatus::ACCELERATING => return Vec3D {x:0.0, y:0.0, z:0.0},
+		EngineStatus::NEUTRAL => return Vec3D {x:0.0, y:0.0, z:0.0},
+		EngineStatus::BRAKING => return object.unit_steer_direction * -1.0 * object.mass * constants::CAR_BRAKE,
 	}
 }
