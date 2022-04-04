@@ -4,7 +4,7 @@ use chariot_core::physics_object::Vec3D;
 
 /* Given a set of physical properties, compute and return what next tick's
  * physics properties will be for that object */
-pub fn do_physics_step(previous_props: &PhysicsProperties, time_step: f64) {
+pub fn do_physics_step(previous_props: &PhysicsProperties, time_step: f64) -> PhysicsProperties{
 	let forces = sum_of_forces_on_object(previous_props);
 	let velocity = previous_props.linear_momentum / previous_props.mass;
 
