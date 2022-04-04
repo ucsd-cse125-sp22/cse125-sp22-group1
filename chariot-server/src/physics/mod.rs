@@ -1,4 +1,3 @@
-extern crate chariot_core;
 use chariot_core::physics_object::PhysicsProperties;
 use chariot_core::physics_object::Vec3D;
 
