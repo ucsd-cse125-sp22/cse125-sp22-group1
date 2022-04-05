@@ -1,0 +1,46 @@
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+name: Test
+
+jobs:
+  client_build_test:
+    name: Chariot Client Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path chariot-client/Cargo.toml
+  core_build_test:
+    name: Chariot Core Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path chariot-core/Cargo.toml
+  server_build_test:
+    name: Chariot Server Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path chariot-server/Cargo.toml
+          
