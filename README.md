@@ -5,6 +5,8 @@
 > ronak popped in
 > alistair is shockin em
 
+![build status](https://img.shields.io/github/workflow/status/ucsd-cse125-sp22/cse125-sp22-group1/Build?style=for-the-badge)
+
 ### components
 
 1. [chariot-client](chariot-client) - graphics and input game engine
