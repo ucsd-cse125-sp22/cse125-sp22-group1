@@ -58,19 +58,118 @@ fn tractive_force_on_object(object: &PhysicsProperties) -> Vec3D {
 
 fn air_resistance_force_on_object(object: &PhysicsProperties) -> Vec3D
 {
-	// air resistance is proportion to the square of velocity
-	return object.velocity * -1.0 * constants::DRAG_COEFFICIENT * magnitude_Vec3D(&object.velocity);
+	// air resistance is proportional to the square of velocity
+	return object.velocity * object.mass * -1.0 * constants::DRAG_COEFFICIENT * magnitude_Vec3D(&object.velocity);
 }
 
 fn rolling_resistance_force_on_object(object: &PhysicsProperties) -> Vec3D
 {
-	return object.velocity * -1.0 * constants::ROLLING_RESISTANCE_COEFFICIENT;
+	return object.velocity * object.mass * -1.0 * constants::ROLLING_RESISTANCE_COEFFICIENT;
 }
 
 fn braking_resistance_force_on_object(object: &PhysicsProperties) -> Vec3D {
 	match &object.engine_status {
 		EngineStatus::ACCELERATING => return Vec3D {x:0.0, y:0.0, z:0.0},
 		EngineStatus::NEUTRAL => return Vec3D {x:0.0, y:0.0, z:0.0},
-		EngineStatus::BRAKING => return object.unit_steer_direction * -1.0 * object.mass * constants::CAR_BRAKE,
+		// divide velocity by its magnitude to have a unit vector pointing
+		// opposite current heading
+		EngineStatus::BRAKING => return object.velocity / magnitude_Vec3D(&object.velocity) * -1.0 * object.mass * constants::CAR_BRAKE,
 	}
+}
+
+
+#[test]
+fn test_accelerating() {
+	let mut props = PhysicsProperties {
+		position: Vec3D {x: 20.0, y: 30.0, z: 40.0},
+		velocity: Vec3D {x: 2.0, y: 0.0, z: 1.0},
+
+		linear_momentum: Vec3D {x: 20.0, y: 0.0, z: 10.0},
+		angular_momentum: Vec3D {x: 0.0, y: 0.0, z: 0.0},
+
+		mass: 10.0,
+
+		unit_steer_direction: Vec3D {x: 0.6, y: 0.0, z: 0.8},
+		engine_status: EngineStatus::ACCELERATING,
+	};
+
+	props = do_physics_step(&props, 1.0);
+
+	// since we're accelerating, should have the following changes:
+	// - should have moved forward by previous velocity times time step
+	assert_eq!(props.position, Vec3D {x: 22.0, y: 30.0, z: 41.0});
+	// - velocity should have increased by acceleration amount in steer
+	// direction, and decreased because of drag and rolling resistance
+	let expected_velocity =
+		Vec3D {x: 2.0, y: 0.0, z: 1.0} +
+		Vec3D {x: 0.6, y: 0.0, z: 0.8} * constants::CAR_ACCELERATOR +
+		Vec3D {x: -2.0, y: 0.0, z: -1.0} * constants::DRAG_COEFFICIENT * (5.0 as f64).sqrt()  +
+		Vec3D {x: -2.0, y: 0.0, z: -1.0} * constants::ROLLING_RESISTANCE_COEFFICIENT;
+	assert_eq!(props.velocity, expected_velocity);
+	// momentum is just mass times velocity
+	assert_eq!(props.linear_momentum, expected_velocity * props.mass);
+}
+
+
+#[test]
+fn test_non_accelerating() {
+	let mut props = PhysicsProperties {
+		position: Vec3D {x: 20.0, y: 30.0, z: 40.0},
+		velocity: Vec3D {x: 2.0, y: 0.0, z: 1.0},
+
+		linear_momentum: Vec3D {x: 20.0, y: 0.0, z: 10.0},
+		angular_momentum: Vec3D {x: 0.0, y: 0.0, z: 0.0},
+
+		mass: 10.0,
+
+		unit_steer_direction: Vec3D {x: 0.6, y: 0.0, z: 0.8},
+		engine_status: EngineStatus::NEUTRAL,
+	};
+
+	props = do_physics_step(&props, 1.0);
+
+	// since we're not accelerating, should have the following changes:
+	// - should have moved forward by previous velocity times time step
+	assert_eq!(props.position, Vec3D {x: 22.0, y: 30.0, z: 41.0});
+	// - velocity should only have decreased, due to drag and rolling resistance
+	let expected_velocity =
+		Vec3D {x: 2.0, y: 0.0, z: 1.0} +
+		Vec3D {x: -2.0, y: 0.0, z: -1.0} * constants::DRAG_COEFFICIENT * (5.0 as f64).sqrt()  +
+		Vec3D {x: -2.0, y: 0.0, z: -1.0} * constants::ROLLING_RESISTANCE_COEFFICIENT;
+	assert_eq!(props.velocity, expected_velocity);
+	// momentum is just mass times velocity
+	assert_eq!(props.linear_momentum, expected_velocity * props.mass);
+}
+
+#[test]
+fn test_decelerating() {
+	let mut props = PhysicsProperties {
+		position: Vec3D {x: 20.0, y: 30.0, z: 40.0},
+		velocity: Vec3D {x: 2.0, y: 0.0, z: 1.0},
+
+		linear_momentum: Vec3D {x: 20.0, y: 0.0, z: 10.0},
+		angular_momentum: Vec3D {x: 0.0, y: 0.0, z: 0.0},
+
+		mass: 10.0,
+
+		unit_steer_direction: Vec3D {x: 0.6, y: 0.0, z: 0.8},
+		engine_status: EngineStatus::BRAKING,
+	};
+
+	props = do_physics_step(&props, 1.0);
+
+	// since we're decelerating, should have the following changes:
+	// - should have moved forward by previous velocity times time step
+	assert_eq!(props.position, Vec3D {x: 22.0, y: 30.0, z: 41.0});
+	// - velocity should only have decreased, due to braking, drag, and rolling resistance
+	let prev_velocity = Vec3D {x: 2.0, y: 0.0, z: 1.0};
+	let neg_prev_velocity = Vec3D {x: -2.0, y: 0.0, z: -1.0};
+	let expected_velocity =
+		prev_velocity +
+		(neg_prev_velocity / magnitude_Vec3D(&neg_prev_velocity)) * constants::CAR_BRAKE +
+		neg_prev_velocity * constants::DRAG_COEFFICIENT * (5.0 as f64).sqrt()  +
+		neg_prev_velocity * constants::ROLLING_RESISTANCE_COEFFICIENT;
+	assert_eq!(props.velocity, expected_velocity);
+	// momentum is just mass times velocity
+	assert_eq!(props.linear_momentum, expected_velocity * props.mass);
 }

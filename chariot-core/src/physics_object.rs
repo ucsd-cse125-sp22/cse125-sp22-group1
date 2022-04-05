@@ -4,7 +4,7 @@
  * ironclad one at the moment.
  */
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Vec3D {
 	pub x: f64,
 	pub y: f64,
@@ -33,6 +33,18 @@ impl std::ops::Div<f64> for Vec3D {
 	fn div(self, rhs: f64) -> Vec3D {
 		return Vec3D{x: self.x / rhs, y: self.y / rhs, z: self.z / rhs};
 	}
+}
+
+fn close_enough(a: f64, b: f64) -> bool {
+	return b <= 1.00001 * a && b >= 0.99999 * a;
+}
+
+impl PartialEq for Vec3D {
+    fn eq(&self, other: &Self) -> bool {
+		return close_enough(self.x, other.x) &&
+		close_enough(self.y, other.y) &&
+		close_enough(self.z, other.z)
+    }
 }
 
 pub fn magnitude_Vec3D(vec: &Vec3D) -> f64 {
