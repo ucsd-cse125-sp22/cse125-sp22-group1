@@ -1,8 +1,9 @@
-use std::net::TcpListener;
 use chariot_core::GLOBAL_CONFIG;
 
+mod game;
+
 fn main() {
-    // start the TCP listening service
-    //let listener = TcpListener::bind(&GLOBAL_CONFIG.server_address);
-    println!("Hello, world!, server address {:?}", &GLOBAL_CONFIG.server_address);
+    // kick off the game loop
+    let ip_addr = format!("127.0.0.1:{}", GLOBAL_CONFIG.port);
+    game::GameServer::new(ip_addr).start_loop();
 }
