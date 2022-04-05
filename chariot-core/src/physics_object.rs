@@ -3,7 +3,11 @@
  * objects to which physics apply can be conceived of, cars are the only
  * ironclad one at the moment.
  */
+extern crate glam;
 
+use glam::DVec3;
+
+/*
 #[derive(Copy, Clone, Debug)]
 pub struct Vec3D {
 	pub x: f64,
@@ -54,6 +58,7 @@ pub fn magnitude_Vec3D(vec: &Vec3D) -> f64 {
 pub fn normalize_Vec3D(vec: &Vec3D) -> Vec3D {
 	return *vec / magnitude_Vec3D(vec);
 }
+*/
 
 #[derive(Copy, Clone)]
 pub enum EngineStatus {
@@ -63,17 +68,17 @@ pub enum EngineStatus {
 }
 
 pub struct PhysicsProperties {
-	pub position: Vec3D,
-	pub velocity: Vec3D,
+	pub position: DVec3,
+	pub velocity: DVec3,
 
-	pub linear_momentum: Vec3D, // redundant with velocity; both are used for convenience's sake
-	pub angular_momentum: Vec3D,
+	pub linear_momentum: DVec3, // redundant with velocity; both are used for convenience's sake
+	pub angular_momentum: DVec3,
 
 	pub mass: f64,
 
 	// steering / controlled variables
 
-	pub unit_steer_direction: Vec3D, // should be a normalized vector
+	pub unit_steer_direction: DVec3, // should be a normalized vector
 	pub engine_status: EngineStatus,
 
 }
