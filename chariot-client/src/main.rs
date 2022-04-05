@@ -3,7 +3,9 @@ use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow}
 };
+use chariot_core::GLOBAL_CONFIG;
 
+mod game;
 mod renderer;
 
 #[repr(C)]
@@ -20,32 +22,37 @@ fn vec2(x : f32, y : f32) -> Vertex {
 // index buffers are also created but binding is borked for now
 // also, don't try building for wasm because I don't think that works yet either
 fn main() {
+    // at some point, networking PoC:
+    // let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
+    // let game_client = game::GameClient::new(ip_addr);
+    // game_client.ping();
+
     let event_loop = winit::event_loop::EventLoop::new();
     let context = renderer::Context::new(&event_loop);
     let mut renderer = renderer::Renderer::new(context);
 
-    renderer.register_pass("boring", &renderer::RenderPassDescriptor::Graphics { 
-        source: include_str!("shader.wgsl"), 
+    renderer.register_pass("boring", &renderer::RenderPassDescriptor::Graphics {
+        source: include_str!("shader.wgsl"),
         vertex_buffer_layouts: &[wgpu::VertexBufferLayout {
-            array_stride : 4 * 3, 
+            array_stride : 4 * 3,
             step_mode : wgpu::VertexStepMode::Vertex,
             attributes : &[wgpu::VertexAttribute{
                 format : wgpu::VertexFormat::Float32x2,
                 offset : 0,
                 shader_location : 0
             }]
-        }], 
-        bind_group_layouts: &[], 
-        push_constant_ranges: &[], 
-        targets: None, 
-        primitive_state: wgpu::PrimitiveState::default(), 
-        depth_stencil_state: None, 
-        multisample_state: wgpu::MultisampleState::default(), 
+        }],
+        bind_group_layouts: &[],
+        push_constant_ranges: &[],
+        targets: None,
+        primitive_state: wgpu::PrimitiveState::default(),
+        depth_stencil_state: None,
+        multisample_state: wgpu::MultisampleState::default(),
         multiview: None
     });
 
     let tri_verts : &[Vertex; 3] = &[
-        vec2(-1.0, -1.0), 
+        vec2(-1.0, -1.0),
         vec2(0.0, 1.0),
         vec2(1.0, -1.0)
     ];
@@ -73,15 +80,15 @@ fn main() {
         // Have the closure take ownership of the resources.
         // `event_loop.run` never returns, therefore we must do this to ensure
         // the resources are properly cleaned up.
-        
-        let tri_render_item = renderer::RenderItem::Graphics { 
-            pass_name: "boring", 
-            framebuffer_name: "surface", 
-            num_vertices: 3, 
-            vertex_buffers: &[vertex_buffer.slice(..)], 
-            index_buffer: Some(index_buffer.slice(..)), 
-            index_format: wgpu::IndexFormat::Uint16, 
-            bind_group: &[], 
+
+        let tri_render_item = renderer::RenderItem::Graphics {
+            pass_name: "boring",
+            framebuffer_name: "surface",
+            num_vertices: 3,
+            vertex_buffers: &[vertex_buffer.slice(..)],
+            index_buffer: Some(index_buffer.slice(..)),
+            index_format: wgpu::IndexFormat::Uint16,
+            bind_group: &[],
             push_constants: &[]
         };
 
