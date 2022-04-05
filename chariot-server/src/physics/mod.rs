@@ -99,7 +99,7 @@ fn test_accelerating() {
 
 	// since we're accelerating, should have the following changes:
 	// - should have moved forward by previous velocity times time step
-	assert_eq!(props.position, DVec3::new( 22.0,  30.0,  41.0));
+	assert!(props.position.abs_diff_eq(DVec3::new( 22.0,  30.0,  41.0), 0.001));
 	// - velocity should have increased by acceleration amount in steer
 	// direction, and decreased because of drag and rolling resistance
 	let expected_velocity =
@@ -107,9 +107,9 @@ fn test_accelerating() {
 		DVec3::new( 0.6,  0.0,  0.8) * constants::CAR_ACCELERATOR +
 		DVec3::new( -2.0,  0.0,  -1.0) * constants::DRAG_COEFFICIENT * (5.0 as f64).sqrt()  +
 		DVec3::new( -2.0,  0.0,  -1.0) * constants::ROLLING_RESISTANCE_COEFFICIENT;
-	assert_eq!(props.velocity, expected_velocity);
+	assert!(props.velocity.abs_diff_eq(expected_velocity, 0.001));
 	// momentum is just mass times velocity
-	assert_eq!(props.linear_momentum, expected_velocity * props.mass);
+	assert!(props.linear_momentum.abs_diff_eq(expected_velocity * props.mass, 0.001));
 }
 
 
@@ -132,15 +132,15 @@ fn test_non_accelerating() {
 
 	// since we're not accelerating, should have the following changes:
 	// - should have moved forward by previous velocity times time step
-	assert_eq!(props.position, DVec3::new( 22.0,  30.0,  41.0));
+	assert!(props.position.abs_diff_eq(DVec3::new( 22.0,  30.0,  41.0), 0.001));
 	// - velocity should only have decreased, due to drag and rolling resistance
 	let expected_velocity =
 		DVec3::new( 2.0,  0.0,  1.0) +
 		DVec3::new( -2.0,  0.0,  -1.0) * constants::DRAG_COEFFICIENT * (5.0 as f64).sqrt()  +
 		DVec3::new( -2.0,  0.0,  -1.0) * constants::ROLLING_RESISTANCE_COEFFICIENT;
-	assert_eq!(props.velocity, expected_velocity);
+	assert!(props.velocity.abs_diff_eq(expected_velocity, 0.001));
 	// momentum is just mass times velocity
-	assert_eq!(props.linear_momentum, expected_velocity * props.mass);
+	assert!(props.linear_momentum.abs_diff_eq(expected_velocity * props.mass, 0.001));
 }
 
 #[test]
@@ -162,16 +162,16 @@ fn test_decelerating() {
 
 	// since we're decelerating, should have the following changes:
 	// - should have moved forward by previous velocity times time step
-	assert_eq!(props.position, DVec3::new( 22.0,  30.0,  41.0));
+	assert!(props.position.abs_diff_eq(DVec3::new( 22.0,  30.0,  41.0), 0.001));
 	// - velocity should only have decreased, due to braking, drag, and rolling resistance
 	let prev_velocity = DVec3::new( 2.0,  0.0,  1.0);
 	let neg_prev_velocity = DVec3::new( -2.0,  0.0,  -1.0);
 	let expected_velocity =
 		prev_velocity +
-		(neg_prev_velocity / magnitude_Vec3D(&neg_prev_velocity)) * constants::CAR_BRAKE +
+		(neg_prev_velocity / neg_prev_velocity.length()) * constants::CAR_BRAKE +
 		neg_prev_velocity * constants::DRAG_COEFFICIENT * (5.0 as f64).sqrt()  +
 		neg_prev_velocity * constants::ROLLING_RESISTANCE_COEFFICIENT;
-	assert_eq!(props.velocity, expected_velocity);
+	assert!(props.velocity.abs_diff_eq(expected_velocity, 0.001));
 	// momentum is just mass times velocity
-	assert_eq!(props.linear_momentum, expected_velocity * props.mass);
+	assert!(props.linear_momentum.abs_diff_eq(expected_velocity * props.mass, 0.001));
 }
