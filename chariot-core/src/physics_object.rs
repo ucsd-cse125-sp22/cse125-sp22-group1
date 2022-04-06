@@ -23,7 +23,6 @@ pub enum RotationStatus {
 pub struct PhysicsProperties {
 	pub position: DVec3,
 	pub velocity: DVec3,
-	pub linear_momentum: DVec3, // redundant with velocity; both are used for convenience's sake
 	pub mass: f64,
 
 	// steering / controlled variables

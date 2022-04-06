@@ -13,8 +13,6 @@ pub fn do_physics_step(previous_props: &PhysicsProperties, time_step: f64) -> Ph
 	let forces = sum_of_forces_on_object(previous_props);
 	let acceleration = forces / previous_props.mass;
 
-	let velocity = previous_props.linear_momentum / previous_props.mass;
-
 	let angular_velocity: f64 = match previous_props.rotation_status {
 		RotationStatus::InSpinClockwise => previous_props.angular_velocity + GLOBAL_CONFIG.car_spin,
 		RotationStatus::InSpinCounterclockwise => previous_props.angular_velocity - GLOBAL_CONFIG.car_spin,
@@ -22,9 +20,8 @@ pub fn do_physics_step(previous_props: &PhysicsProperties, time_step: f64) -> Ph
 	};
 
 	return PhysicsProperties {
-		position: previous_props.position + velocity * time_step,
+		position: previous_props.position + previous_props.velocity * time_step,
 		velocity: previous_props.velocity + acceleration * time_step,
-		linear_momentum: previous_props.linear_momentum + forces * time_step,
 		angular_velocity: angular_velocity,
 		mass: previous_props.mass,
 		engine_status: previous_props.engine_status,
@@ -93,8 +90,6 @@ fn test_accelerating() {
 		position: DVec3::new( 20.0,  30.0,  40.0),
 		velocity: DVec3::new( 2.0,  0.0,  1.0),
 
-		linear_momentum: DVec3::new( 20.0,  0.0,  10.0),
-
 		mass: 10.0,
 
 		unit_steer_direction: DVec3::new( 0.6,  0.0,  0.8),
@@ -116,8 +111,6 @@ fn test_accelerating() {
 		DVec3::new( -2.0,  0.0,  -1.0) * GLOBAL_CONFIG.drag_coefficient * (5.0 as f64).sqrt()  +
 		DVec3::new( -2.0,  0.0,  -1.0) * GLOBAL_CONFIG.rolling_resistance_coefficient;
 	assert!(props.velocity.abs_diff_eq(expected_velocity, 0.001));
-	// momentum is just mass times velocity
-	assert!(props.linear_momentum.abs_diff_eq(expected_velocity * props.mass, 0.001));
 }
 
 
@@ -126,8 +119,6 @@ fn test_non_accelerating() {
 	let mut props = PhysicsProperties {
 		position: DVec3::new( 20.0,  30.0,  40.0),
 		velocity: DVec3::new( 2.0,  0.0,  1.0),
-
-		linear_momentum: DVec3::new( 20.0,  0.0,  10.0),
 
 		mass: 10.0,
 
@@ -148,8 +139,6 @@ fn test_non_accelerating() {
 		DVec3::new( -2.0,  0.0,  -1.0) * GLOBAL_CONFIG.drag_coefficient * (5.0 as f64).sqrt()  +
 		DVec3::new( -2.0,  0.0,  -1.0) * GLOBAL_CONFIG.rolling_resistance_coefficient;
 	assert!(props.velocity.abs_diff_eq(expected_velocity, 0.001));
-	// momentum is just mass times velocity
-	assert!(props.linear_momentum.abs_diff_eq(expected_velocity * props.mass, 0.001));
 }
 
 #[test]
@@ -157,8 +146,6 @@ fn test_decelerating() {
 	let mut props = PhysicsProperties {
 		position: DVec3::new( 20.0,  30.0,  40.0),
 		velocity: DVec3::new( 2.0,  0.0,  1.0),
-
-		linear_momentum: DVec3::new( 20.0,  0.0,  10.0),
 
 		mass: 10.0,
 
@@ -182,8 +169,6 @@ fn test_decelerating() {
 		neg_prev_velocity * GLOBAL_CONFIG.drag_coefficient * (5.0 as f64).sqrt()  +
 		neg_prev_velocity * GLOBAL_CONFIG.rolling_resistance_coefficient;
 	assert!(props.velocity.abs_diff_eq(expected_velocity, 0.001));
-	// momentum is just mass times velocity
-	assert!(props.linear_momentum.abs_diff_eq(expected_velocity * props.mass, 0.001));
 }
 
 #[test]
@@ -191,8 +176,6 @@ fn test_spinning() {
 	let mut props = PhysicsProperties {
 		position: DVec3::new( 20.0,  30.0,  40.0),
 		velocity: DVec3::new( 0.0,  0.0,  0.0),
-
-		linear_momentum: DVec3::new( 0.0,  0.0,  0.0),
 
 		mass: 10.0,
 
