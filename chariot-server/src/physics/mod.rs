@@ -51,7 +51,7 @@ fn normal_force_on_object(object: &PhysicsProperties) -> DVec3 {
 	return DVec3::new(0.0, 1.0, 0.0) * object.mass;
 }
 
-// includes two player-applied forces: accelerator and brake.
+// Includes two player-applied forces: accelerator and brake.
 fn player_applied_force_on_object(object: &PhysicsProperties) -> DVec3 {
 	match &object.engine_status {
 		// The accelerator always applies forces in the steer direction; since
@@ -68,6 +68,8 @@ fn player_applied_force_on_object(object: &PhysicsProperties) -> DVec3 {
 	}
 }
 
+// Equations for modelling air resistance and rolling resistance come from
+// https://asawicki.info/Mirror/Car%20Physics%20for%20Games/Car%20Physics%20for%20Games.html
 fn air_resistance_force_on_object(object: &PhysicsProperties) -> DVec3
 {
 	// air resistance is proportional to the square of velocity
