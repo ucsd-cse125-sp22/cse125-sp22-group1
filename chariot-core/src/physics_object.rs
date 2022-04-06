@@ -3,7 +3,6 @@
  * objects to which physics apply can be conceived of, cars are the only
  * ironclad one at the moment.
  */
-extern crate glam;
 
 use glam::DVec3;
 
