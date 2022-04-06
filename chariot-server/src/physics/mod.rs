@@ -4,6 +4,7 @@ use glam::DVec3;
 
 use chariot_core::physics_object::PhysicsProperties;
 use chariot_core::physics_object::EngineStatus;
+use chariot_core::physics_object::RotationStatus;
 
 mod constants;
 
@@ -15,13 +16,20 @@ pub fn do_physics_step(previous_props: &PhysicsProperties, time_step: f64) -> Ph
 
 	let velocity = previous_props.linear_momentum / previous_props.mass;
 
+	let angular_velocity: f64 = match previous_props.rotation_status {
+		RotationStatus::InSpinClockwise => previous_props.angular_velocity + constants::CAR_SPIN,
+		RotationStatus::InSpinCounterclockwise => previous_props.angular_velocity - constants::CAR_SPIN,
+		RotationStatus::NotInSpin => previous_props.angular_velocity * constants::ROTATION_REDUCTION_COEFFICIENT,
+	};
+
 	return PhysicsProperties {
 		position: previous_props.position + velocity * time_step,
 		velocity: previous_props.velocity + acceleration * time_step,
 		linear_momentum: previous_props.linear_momentum + forces * time_step,
-		angular_momentum: previous_props.angular_momentum,
+		angular_velocity: angular_velocity,
 		mass: previous_props.mass,
 		engine_status: previous_props.engine_status,
+		rotation_status: previous_props.rotation_status,
 		unit_steer_direction: previous_props.unit_steer_direction,
 	};
 }
@@ -52,9 +60,9 @@ fn normal_force_on_object(object: &PhysicsProperties) -> DVec3 {
 // force forwards
 fn tractive_force_on_object(object: &PhysicsProperties) -> DVec3 {
 	match &object.engine_status {
-		EngineStatus::ACCELERATING => return object.unit_steer_direction * object.mass * constants::CAR_ACCELERATOR,
-		EngineStatus::NEUTRAL => return DVec3::new(0.0, 0.0, 0.0),
-		EngineStatus::BRAKING => return DVec3::new(0.0, 0.0, 0.0),
+		EngineStatus::Accelerating => return object.unit_steer_direction * object.mass * constants::CAR_ACCELERATOR,
+		EngineStatus::Neutral => return DVec3::new(0.0, 0.0, 0.0),
+		EngineStatus::Braking => return DVec3::new(0.0, 0.0, 0.0),
 	}
 }
 
@@ -71,11 +79,11 @@ fn rolling_resistance_force_on_object(object: &PhysicsProperties) -> DVec3
 
 fn braking_resistance_force_on_object(object: &PhysicsProperties) -> DVec3 {
 	match &object.engine_status {
-		EngineStatus::ACCELERATING => return DVec3::new(0.0, 0.0, 0.0),
-		EngineStatus::NEUTRAL => return DVec3::new(0.0, 0.0, 0.0),
+		EngineStatus::Accelerating => return DVec3::new(0.0, 0.0, 0.0),
+		EngineStatus::Neutral => return DVec3::new(0.0, 0.0, 0.0),
 		// divide velocity by its magnitude to have a unit vector pointing
 		// opposite current heading
-		EngineStatus::BRAKING => return object.velocity / object.velocity.length() * -1.0 * object.mass * constants::CAR_BRAKE,
+		EngineStatus::Braking => return object.velocity / object.velocity.length() * -1.0 * object.mass * constants::CAR_BRAKE,
 	}
 }
 
@@ -87,12 +95,13 @@ fn test_accelerating() {
 		velocity: DVec3::new( 2.0,  0.0,  1.0),
 
 		linear_momentum: DVec3::new( 20.0,  0.0,  10.0),
-		angular_momentum: DVec3::new( 0.0,  0.0,  0.0),
 
 		mass: 10.0,
 
 		unit_steer_direction: DVec3::new( 0.6,  0.0,  0.8),
-		engine_status: EngineStatus::ACCELERATING,
+		angular_velocity: 0.0,
+		engine_status: EngineStatus::Accelerating,
+		rotation_status: RotationStatus::NotInSpin,
 	};
 
 	props = do_physics_step(&props, 1.0);
@@ -120,12 +129,13 @@ fn test_non_accelerating() {
 		velocity: DVec3::new( 2.0,  0.0,  1.0),
 
 		linear_momentum: DVec3::new( 20.0,  0.0,  10.0),
-		angular_momentum: DVec3::new( 0.0,  0.0,  0.0),
 
 		mass: 10.0,
 
 		unit_steer_direction: DVec3::new( 0.6,  0.0,  0.8),
-		engine_status: EngineStatus::NEUTRAL,
+		angular_velocity: 0.0,
+		engine_status: EngineStatus::Neutral,
+		rotation_status: RotationStatus::NotInSpin,
 	};
 
 	props = do_physics_step(&props, 1.0);
@@ -150,12 +160,13 @@ fn test_decelerating() {
 		velocity: DVec3::new( 2.0,  0.0,  1.0),
 
 		linear_momentum: DVec3::new( 20.0,  0.0,  10.0),
-		angular_momentum: DVec3::new( 0.0,  0.0,  0.0),
 
 		mass: 10.0,
 
 		unit_steer_direction: DVec3::new( 0.6,  0.0,  0.8),
-		engine_status: EngineStatus::BRAKING,
+		angular_velocity: 0.0,
+		engine_status: EngineStatus::Braking,
+		rotation_status: RotationStatus::NotInSpin,
 	};
 
 	props = do_physics_step(&props, 1.0);
@@ -174,4 +185,28 @@ fn test_decelerating() {
 	assert!(props.velocity.abs_diff_eq(expected_velocity, 0.001));
 	// momentum is just mass times velocity
 	assert!(props.linear_momentum.abs_diff_eq(expected_velocity * props.mass, 0.001));
+}
+
+#[test]
+fn test_spinning() {
+	let mut props = PhysicsProperties {
+		position: DVec3::new( 20.0,  30.0,  40.0),
+		velocity: DVec3::new( 0.0,  0.0,  0.0),
+
+		linear_momentum: DVec3::new( 0.0,  0.0,  0.0),
+
+		mass: 10.0,
+
+		unit_steer_direction: DVec3::new( 0.6,  0.0,  0.8),
+		angular_velocity: 0.0,
+		engine_status: EngineStatus::Braking,
+		rotation_status: RotationStatus::InSpinClockwise,
+	};
+
+	props = do_physics_step(&props, 1.0);
+	assert_eq!(props.angular_velocity, constants::CAR_SPIN);
+
+	props.rotation_status = RotationStatus::NotInSpin;
+	props = do_physics_step(&props, 1.0);
+	assert_eq!(props.angular_velocity, constants::CAR_SPIN * constants::ROTATION_REDUCTION_COEFFICIENT);
 }

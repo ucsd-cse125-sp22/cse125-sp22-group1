@@ -9,22 +9,27 @@ use glam::DVec3;
 
 #[derive(Copy, Clone)]
 pub enum EngineStatus {
-	ACCELERATING,
-	NEUTRAL,
-	BRAKING
+	Accelerating,
+	Neutral,
+	Braking
+}
+
+#[derive(Copy, Clone)]
+pub enum RotationStatus {
+	InSpinClockwise,
+	InSpinCounterclockwise,
+	NotInSpin
 }
 
 pub struct PhysicsProperties {
 	pub position: DVec3,
 	pub velocity: DVec3,
-
 	pub linear_momentum: DVec3, // redundant with velocity; both are used for convenience's sake
-	pub angular_momentum: DVec3,
-
 	pub mass: f64,
 
 	// steering / controlled variables
-
 	pub unit_steer_direction: DVec3, // should be a normalized vector
+	pub angular_velocity: f64, // in radians per time unit
 	pub engine_status: EngineStatus,
+	pub rotation_status: RotationStatus,
 }
