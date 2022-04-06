@@ -4,7 +4,9 @@ use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow}
 };
+use chariot_core::GLOBAL_CONFIG;
 
+mod game;
 mod renderer;
 
 #[repr(C)]
@@ -27,6 +29,11 @@ fn vec2(x : f32, y : f32) -> Vertex {
 // index buffers are also created but binding is borked for now
 // also, don't try building for wasm because I don't think that works yet either
 fn main() {
+    // at some point, networking PoC:
+    // let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
+    // let game_client = game::GameClient::new(ip_addr);
+    // game_client.ping();
+
     let event_loop = winit::event_loop::EventLoop::new();
     let context = renderer::Context::new(&event_loop);
     let mut renderer = renderer::Renderer::new(context);
@@ -47,7 +54,7 @@ fn main() {
     });
 
     let tri_verts : &[Vertex; 3] = &[
-        vec2(-1.0, -1.0), 
+        vec2(-1.0, -1.0),
         vec2(0.0, 1.0),
         vec2(1.0, -1.0)
     ];
