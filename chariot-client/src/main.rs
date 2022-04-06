@@ -1,3 +1,4 @@
+use std::mem;
 use wgpu::util::DeviceExt;
 use winit::{
     event::{Event, WindowEvent},
@@ -12,6 +13,12 @@ struct Vertex {
     position: [f32; 2]
 }
 
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+struct Local {
+    scale : f32
+}
+
 fn vec2(x : f32, y : f32) -> Vertex {
     Vertex{position : [x, y]}
 }
@@ -24,21 +31,16 @@ fn main() {
     let context = renderer::Context::new(&event_loop);
     let mut renderer = renderer::Renderer::new(context);
 
+    let vertex_size = mem::size_of::<Vertex>();
     renderer.register_pass("boring", &renderer::RenderPassDescriptor::Graphics { 
         source: include_str!("shader.wgsl"), 
-        vertex_buffer_layouts: &[wgpu::VertexBufferLayout {
-            array_stride : 4 * 3, 
-            step_mode : wgpu::VertexStepMode::Vertex,
-            attributes : &[wgpu::VertexAttribute{
-                format : wgpu::VertexFormat::Float32x2,
-                offset : 0,
-                shader_location : 0
-            }]
-        }], 
-        bind_group_layouts: &[], 
         push_constant_ranges: &[], 
         targets: None, 
-        primitive_state: wgpu::PrimitiveState::default(), 
+        primitive_state: wgpu::PrimitiveState {
+            topology: wgpu::PrimitiveTopology::TriangleStrip,
+            strip_index_format: Some(wgpu::IndexFormat::Uint16),
+            ..wgpu::PrimitiveState::default()
+        },
         depth_stencil_state: None, 
         multisample_state: wgpu::MultisampleState::default(), 
         multiview: None
@@ -68,6 +70,21 @@ fn main() {
         }
     );
 
+    let uniform_data = &[Local {
+        scale: 0.5
+    }];
+
+    let uniform_buffer = renderer.device.create_buffer_init(
+        &wgpu::util::BufferInitDescriptor {
+            label: Some("uniform_buf"),
+            contents: bytemuck::cast_slice(uniform_data),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST
+        }
+    );
+
+    let bind_group = renderer.create_bind_group("boring", 0, 
+        &[uniform_buffer.as_entire_binding()]
+    );
 
     event_loop.run(move |event, _, control_flow| {
         // Have the closure take ownership of the resources.
@@ -81,7 +98,7 @@ fn main() {
             vertex_buffers: &[vertex_buffer.slice(..)], 
             index_buffer: Some(index_buffer.slice(..)), 
             index_format: wgpu::IndexFormat::Uint16, 
-            bind_group: &[], 
+            bind_group: &[&bind_group], 
             push_constants: &[]
         };
 
