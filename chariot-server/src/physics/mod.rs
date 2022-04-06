@@ -35,10 +35,9 @@ pub fn sum_of_forces_on_object(object: &PhysicsProperties) -> DVec3
 {
 	return gravitational_force_on_object(object) +
 		normal_force_on_object(object) +
-		tractive_force_on_object(object) +
+		player_applied_force_on_object(object) +
 		air_resistance_force_on_object(object) +
-		rolling_resistance_force_on_object(object) +
-		braking_resistance_force_on_object(object);
+		rolling_resistance_force_on_object(object);
 }
 
 
@@ -52,13 +51,20 @@ fn normal_force_on_object(object: &PhysicsProperties) -> DVec3 {
 	return DVec3::new(0.0, 1.0, 0.0) * object.mass;
 }
 
-// tractive force is what's applied by the "engine" == player-applied motive
-// force forwards
-fn tractive_force_on_object(object: &PhysicsProperties) -> DVec3 {
+// includes two player-applied forces: accelerator and brake.
+fn player_applied_force_on_object(object: &PhysicsProperties) -> DVec3 {
 	match &object.engine_status {
+		// The accelerator always applies forces in the steer direction; since
+		// rotation is free, this is the intuitive direction. Braking, however,
+		// is directionless, so the force of braking applies in a different
+		// direction: specifically, it acts against whatever the current
+		// direction of travel is. (which is not the steering direction!)
 		EngineStatus::Accelerating => return object.unit_steer_direction * object.mass * GLOBAL_CONFIG.car_accelerator,
+		// divide velocity by its magnitude to have a unit vector pointing
+		// towards current heading, then apply the force in the reverse direction
+		EngineStatus::Braking => return object.velocity / object.velocity.length() * -1.0 * object.mass * GLOBAL_CONFIG.car_brake,
+		// And there is no player-applied force when not accelerating or braking
 		EngineStatus::Neutral => return DVec3::new(0.0, 0.0, 0.0),
-		EngineStatus::Braking => return DVec3::new(0.0, 0.0, 0.0),
 	}
 }
 
@@ -71,16 +77,6 @@ fn air_resistance_force_on_object(object: &PhysicsProperties) -> DVec3
 fn rolling_resistance_force_on_object(object: &PhysicsProperties) -> DVec3
 {
 	return object.velocity * object.mass * -1.0 * GLOBAL_CONFIG.rolling_resistance_coefficient;
-}
-
-fn braking_resistance_force_on_object(object: &PhysicsProperties) -> DVec3 {
-	match &object.engine_status {
-		EngineStatus::Accelerating => return DVec3::new(0.0, 0.0, 0.0),
-		EngineStatus::Neutral => return DVec3::new(0.0, 0.0, 0.0),
-		// divide velocity by its magnitude to have a unit vector pointing
-		// opposite current heading
-		EngineStatus::Braking => return object.velocity / object.velocity.length() * -1.0 * object.mass * GLOBAL_CONFIG.car_brake,
-	}
 }
 
 
