@@ -8,6 +8,8 @@ use chariot_core::GLOBAL_CONFIG;
 
 mod game;
 mod renderer;
+mod drawable;
+mod application;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -36,81 +38,10 @@ fn main() {
 
     let event_loop = winit::event_loop::EventLoop::new();
     let context = renderer::Context::new(&event_loop);
-    let mut renderer = renderer::Renderer::new(context);
-
-    let vertex_size = mem::size_of::<Vertex>();
-    renderer.register_pass("boring", &renderer::RenderPassDescriptor::Graphics { 
-        source: include_str!("shader.wgsl"), 
-        push_constant_ranges: &[], 
-        targets: None, 
-        primitive_state: wgpu::PrimitiveState {
-            topology: wgpu::PrimitiveTopology::TriangleStrip,
-            strip_index_format: Some(wgpu::IndexFormat::Uint16),
-            ..wgpu::PrimitiveState::default()
-        },
-        depth_stencil_state: None, 
-        multisample_state: wgpu::MultisampleState::default(), 
-        multiview: None
-    });
-
-    let tri_verts : &[Vertex; 3] = &[
-        vec2(-1.0, -1.0),
-        vec2(0.0, 1.0),
-        vec2(1.0, -1.0)
-    ];
-
-    let tri_inds : &[u16] = &[
-        0, 1, 2
-    ];
-
-    let vertex_buffer = renderer.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("tri_verts"),
-        contents: bytemuck::cast_slice(tri_verts),
-        usage: wgpu::BufferUsages::VERTEX,
-    });
-
-    let index_buffer = renderer.device.create_buffer_init(
-        &wgpu::util::BufferInitDescriptor {
-            label: Some("tri_inds"),
-            contents: bytemuck::cast_slice(tri_inds),
-            usage: wgpu::BufferUsages::INDEX,
-        }
-    );
-
-    let uniform_data = &[Local {
-        scale: 0.5
-    }];
-
-    let uniform_buffer = renderer.device.create_buffer_init(
-        &wgpu::util::BufferInitDescriptor {
-            label: Some("uniform_buf"),
-            contents: bytemuck::cast_slice(uniform_data),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST
-        }
-    );
-
-    let bind_group = renderer.create_bind_group("boring", 0, 
-        &[uniform_buffer.as_entire_binding()]
-    );
+    let renderer = renderer::Renderer::new(context);
+	let mut application = application::Application::new(renderer);
 
     event_loop.run(move |event, _, control_flow| {
-        // Have the closure take ownership of the resources.
-        // `event_loop.run` never returns, therefore we must do this to ensure
-        // the resources are properly cleaned up.
-        
-        let tri_render_item = renderer::RenderItem::Graphics { 
-            pass_name: "boring", 
-            framebuffer_name: "surface", 
-            num_vertices: 3, 
-            vertex_buffers: &[vertex_buffer.slice(..)], 
-            index_buffer: Some(index_buffer.slice(..)), 
-            index_format: wgpu::IndexFormat::Uint16, 
-            bind_group: &[&bind_group], 
-            push_constants: &[]
-        };
-
-        let mut render_job = renderer::RenderJob::new();
-        render_job.add_item(tri_render_item);
 
         *control_flow = ControlFlow::Wait;
         match event {
@@ -118,15 +49,40 @@ fn main() {
                 event: WindowEvent::Resized(size),
                 ..
             } => {
-                renderer.handle_surface_resize(size);
+                application.renderer.handle_surface_resize(size);
             }
             Event::RedrawRequested(_) => {
-                renderer.render(&render_job)
+                application.render();
             }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
             } => *control_flow = ControlFlow::Exit,
+			Event::WindowEvent { 
+				event: WindowEvent::KeyboardInput { 
+					device_id, 
+					input, 
+					is_synthetic 
+				},
+				..
+			} => println!("keyboard input!!"), // call application.on_keyboard_input()
+			Event::WindowEvent { 
+				event: WindowEvent::MouseInput { 
+					device_id, 
+					state, 
+					button, 
+					modifiers 
+				},
+				..
+			} => println!("mouse input!!"), // call application.on_mouse_input()
+			Event::WindowEvent { 
+				event: WindowEvent::CursorMoved { 
+					device_id, 
+					position, 
+					modifiers 
+				},
+				..
+			} => println!("mouse moved!!"), // call application.on_mouse_moved()
             _ => {}
         }
     });
