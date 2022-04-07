@@ -1,5 +1,4 @@
 **/target
 **/node_modules
 .idea
-chariot-core/Cargo.lock # https://doc.rust-lang.org/cargo/faq.html#why-do-binaries-have-cargolock-in-version-control-but-not-libraries
-.vscode/
+Cargo.lock
