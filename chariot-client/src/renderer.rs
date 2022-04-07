@@ -3,9 +3,12 @@ use std::{collections::{HashMap, hash_map::{Iter, Values}}, string::String,
     borrow::Cow, num::NonZeroU32, sync::atomic::{AtomicUsize, Ordering}
 };
 
+use wgpu::util::DeviceExt;
 use wgpu::BindGroupLayout;
 use winit::dpi::PhysicalSize;
 use naga;
+
+use crate::drawable::StaticMeshDrawable;
 
 pub struct Context {
     window : winit::window::Window,
@@ -81,17 +84,16 @@ pub struct PushConstantData<'a> {
     data : &'a [u8]
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub enum RenderItem<'a> {
     Graphics {
         pass_name : &'a str,
         framebuffer_name : &'a str,
-        num_vertices : u32,
-        vertex_buffers : &'a [wgpu::BufferSlice<'a>],
+        num_elements : u32,
+        vertex_buffers : Vec<wgpu::BufferSlice<'a>>,
         index_buffer : Option<wgpu::BufferSlice<'a>>,
         index_format : wgpu::IndexFormat,
-        bind_group : &'a [&'a wgpu::BindGroup],
-        push_constants : &'a [PushConstantData<'a>]
+        bind_group : Vec<&'a wgpu::BindGroup>
     },
     Compute {
         pass_name : &'a str,
@@ -741,6 +743,11 @@ impl Renderer {
         })
     }
 
+	pub fn create_texture(&self, desc : &wgpu::TextureDescriptor, data : &[u8]) -> wgpu::Texture {
+		self.device.create_texture_with_data(&self.queue, desc, data)
+		// TODO: mipmapping
+	}
+
     pub fn render(&mut self, render_job : &RenderJob) {
         let frame = self.context.surface
             .get_current_texture()
@@ -825,12 +832,11 @@ impl Renderer {
                     if let RenderItem::Graphics { 
                         pass_name : _, 
                         framebuffer_name : _, 
-                        num_vertices,
+                        num_elements,
                         vertex_buffers, 
                         index_buffer, 
                         index_format, 
-                        bind_group, 
-                        push_constants : _ 
+                        bind_group
                     } = render_item {
                         for (idx, buffer) in vertex_buffers.iter().enumerate() {
                             rpass.set_vertex_buffer(
@@ -854,8 +860,8 @@ impl Renderer {
                         // TODO: push constants
 
                         match index_buffer {
-                            Some(_) => rpass.draw_indexed(0..*num_vertices, 0, 0..1),
-                            None => rpass.draw(0..*num_vertices, 0..1)
+                            Some(_) => rpass.draw_indexed(0..*num_elements, 0, 0..1),
+                            None => rpass.draw(0..*num_elements, 0..1)
                         }
                     }
                     else {
