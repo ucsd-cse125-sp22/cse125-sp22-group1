@@ -1,6 +1,6 @@
 use glam::DVec3;
-use chariot_core::physics_object::PlayerInputs;
-use chariot_core::physics_object::EntityLocation;
+use chariot_core::player_inputs::PlayerInputs;
+use chariot_core::entity_location::EntityLocation;
 
 pub struct PlayerEntity {
 	pub velocity: DVec3,

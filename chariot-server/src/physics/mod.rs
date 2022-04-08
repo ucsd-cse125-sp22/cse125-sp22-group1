@@ -1,10 +1,10 @@
 use glam::DVec3;
 
 use chariot_core::GLOBAL_CONFIG;
-use chariot_core::physics_object::EngineStatus;
-use chariot_core::physics_object::RotationStatus;
-use chariot_core::physics_object::PlayerInputs;
-use chariot_core::physics_object::EntityLocation;
+use chariot_core::player_inputs::EngineStatus;
+use chariot_core::player_inputs::RotationStatus;
+use chariot_core::player_inputs::PlayerInputs;
+use chariot_core::entity_location::EntityLocation;
 
 mod player_entity;
 
