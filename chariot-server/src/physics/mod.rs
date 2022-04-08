@@ -10,84 +10,85 @@ mod player_entity;
 
 use player_entity::PlayerEntity;
 
-/* Given a set of physical properties, compute and return what next tick's
- * physics properties will be for that object */
-pub fn do_physics_step(previous_props: &PlayerEntity, time_step: f64) -> PlayerEntity{
-	let forces = sum_of_forces_on_object(previous_props);
-	let acceleration = forces / previous_props.mass;
+impl PlayerEntity {
+	/* Given a set of physical properties, compute and return what next tick's
+	* physics properties will be for that object */
+	pub fn do_physics_step(&self, time_step: f64) -> PlayerEntity{
+		let forces = self.sum_of_forces_on_object();
+		let acceleration = forces / self.mass;
 
-	let angular_velocity: f64 = match previous_props.player_inputs.rotation_status {
-		RotationStatus::InSpinClockwise => previous_props.angular_velocity + GLOBAL_CONFIG.car_spin,
-		RotationStatus::InSpinCounterclockwise => previous_props.angular_velocity - GLOBAL_CONFIG.car_spin,
-		RotationStatus::NotInSpin => previous_props.angular_velocity * GLOBAL_CONFIG.rotation_reduction_coefficient,
-	};
+		let angular_velocity: f64 = match self.player_inputs.rotation_status {
+			RotationStatus::InSpinClockwise => self.angular_velocity + GLOBAL_CONFIG.car_spin,
+			RotationStatus::InSpinCounterclockwise => self.angular_velocity - GLOBAL_CONFIG.car_spin,
+			RotationStatus::NotInSpin => self.angular_velocity * GLOBAL_CONFIG.rotation_reduction_coefficient,
+		};
 
-	return PlayerEntity {
-		player_inputs: PlayerInputs {
-			engine_status: previous_props.player_inputs.engine_status,
-			rotation_status: previous_props.player_inputs.rotation_status,
-		},
+		return PlayerEntity {
+			player_inputs: PlayerInputs {
+				engine_status: self.player_inputs.engine_status,
+				rotation_status: self.player_inputs.rotation_status,
+			},
 
-		entity_location: EntityLocation {
-			position: previous_props.entity_location.position + previous_props.velocity * time_step,
-			unit_steer_direction: previous_props.entity_location.unit_steer_direction,
-		},
+			entity_location: EntityLocation {
+				position: self.entity_location.position + self.velocity * time_step,
+				unit_steer_direction: self.entity_location.unit_steer_direction,
+			},
 
-		velocity: previous_props.velocity + acceleration * time_step,
-		angular_velocity: angular_velocity,
-		mass: previous_props.mass,
-	};
-}
-
-
-pub fn sum_of_forces_on_object(object: &PlayerEntity) -> DVec3
-{
-	return gravitational_force_on_object(object) +
-		normal_force_on_object(object) +
-		player_applied_force_on_object(object) +
-		air_resistance_force_on_object(object) +
-		rolling_resistance_force_on_object(object);
-}
-
-
-fn gravitational_force_on_object(object: &PlayerEntity) -> DVec3 {
-	return DVec3::new(0.0, -1.0, 0.0) * object.mass * GLOBAL_CONFIG.gravity_coefficient;
-}
-
-// unjustified temporary assumption we'll invalidate later: we're always on flat
-// ground (otherwise, there's a horizontal component to normal force)
-fn normal_force_on_object(object: &PlayerEntity) -> DVec3 {
-	return DVec3::new(0.0, 1.0, 0.0) * object.mass;
-}
-
-// Includes two player-applied forces: accelerator and brake.
-fn player_applied_force_on_object(object: &PlayerEntity) -> DVec3 {
-	match &object.player_inputs.engine_status {
-		// The accelerator always applies forces in the steer direction; since
-		// rotation is free, this is the intuitive direction. Braking, however,
-		// is directionless, so the force of braking applies in a different
-		// direction: specifically, it acts against whatever the current
-		// direction of travel is. (which is not the steering direction!)
-		EngineStatus::Accelerating => return object.entity_location.unit_steer_direction * object.mass * GLOBAL_CONFIG.car_accelerator,
-		// divide velocity by its magnitude to have a unit vector pointing
-		// towards current heading, then apply the force in the reverse direction
-		EngineStatus::Braking => return object.velocity / object.velocity.length() * -1.0 * object.mass * GLOBAL_CONFIG.car_brake,
-		// And there is no player-applied force when not accelerating or braking
-		EngineStatus::Neutral => return DVec3::new(0.0, 0.0, 0.0),
+			velocity: self.velocity + acceleration * time_step,
+			angular_velocity: angular_velocity,
+			mass: self.mass,
+		};
 	}
-}
 
-// Equations for modelling air resistance and rolling resistance come from
-// https://asawicki.info/Mirror/Car%20Physics%20for%20Games/Car%20Physics%20for%20Games.html
-fn air_resistance_force_on_object(object: &PlayerEntity) -> DVec3
-{
-	// air resistance is proportional to the square of velocity
-	return object.velocity * object.mass * -1.0 * GLOBAL_CONFIG.drag_coefficient * object.velocity.length();
-}
+	pub fn sum_of_forces_on_object(&self) -> DVec3
+	{
+		return self.gravitational_force_on_object() +
+			self.normal_force_on_object() +
+			self.player_applied_force_on_object() +
+			self.air_resistance_force_on_object() +
+			self.rolling_resistance_force_on_object();
+	}
 
-fn rolling_resistance_force_on_object(object: &PlayerEntity) -> DVec3
-{
-	return object.velocity * object.mass * -1.0 * GLOBAL_CONFIG.rolling_resistance_coefficient;
+	fn gravitational_force_on_object(&self) -> DVec3 {
+		return DVec3::new(0.0, -1.0, 0.0) * self.mass * GLOBAL_CONFIG.gravity_coefficient;
+	}
+
+	// unjustified temporary assumption we'll invalidate later: we're always on flat
+	// ground (otherwise, there's a horizontal component to normal force)
+	fn normal_force_on_object(&self) -> DVec3 {
+		return DVec3::new(0.0, 1.0, 0.0) * self.mass;
+	}
+
+	// Includes two player-applied forces: accelerator and brake.
+	fn player_applied_force_on_object(&self) -> DVec3 {
+		match self.player_inputs.engine_status {
+			// The accelerator always applies forces in the steer direction; since
+			// rotation is free, this is the intuitive direction. Braking, however,
+			// is directionless, so the force of braking applies in a different
+			// direction: specifically, it acts against whatever the current
+			// direction of travel is. (which is not the steering direction!)
+			EngineStatus::Accelerating => return self.entity_location.unit_steer_direction * self.mass * GLOBAL_CONFIG.car_accelerator,
+			// divide velocity by its magnitude to have a unit vector pointing
+			// towards current heading, then apply the force in the reverse direction
+			EngineStatus::Braking => return self.velocity / self.velocity.length() * -1.0 * self.mass * GLOBAL_CONFIG.car_brake,
+			// And there is no player-applied force when not accelerating or braking
+			EngineStatus::Neutral => return DVec3::new(0.0, 0.0, 0.0),
+		}
+	}
+
+	// Equations for modelling air resistance and rolling resistance come from
+	// https://asawicki.info/Mirror/Car%20Physics%20for%20Games/Car%20Physics%20for%20Games.html
+	fn air_resistance_force_on_object(&self) -> DVec3
+	{
+		// air resistance is proportional to the square of velocity
+		return self.velocity * self.mass * -1.0 * GLOBAL_CONFIG.drag_coefficient * self.velocity.length();
+	}
+
+	fn rolling_resistance_force_on_object(&self) -> DVec3
+	{
+		return self.velocity * self.mass * -1.0 * GLOBAL_CONFIG.rolling_resistance_coefficient;
+	}
+
 }
 
 
@@ -109,7 +110,7 @@ fn test_accelerating() {
 		mass: 10.0,
 	};
 
-	props = do_physics_step(&props, 1.0);
+	props = props.do_physics_step(1.0);
 
 	// since we're accelerating, should have the following changes:
 	// - should have moved forward by previous velocity times time step
@@ -143,7 +144,7 @@ fn test_non_accelerating() {
 		mass: 10.0,
 	};
 
-	props = do_physics_step(&props, 1.0);
+	props = props.do_physics_step(1.0);
 
 	// since we're not accelerating, should have the following changes:
 	// - should have moved forward by previous velocity times time step
@@ -174,7 +175,7 @@ fn test_decelerating() {
 		mass: 10.0,
 	};
 
-	props = do_physics_step(&props, 1.0);
+	props = props.do_physics_step(1.0);
 
 	// since we're decelerating, should have the following changes:
 	// - should have moved forward by previous velocity times time step
@@ -208,10 +209,10 @@ fn test_spinning() {
 		mass: 10.0,
 	};
 
-	props = do_physics_step(&props, 1.0);
+	props = props.do_physics_step(1.0);
 	assert_eq!(props.angular_velocity, GLOBAL_CONFIG.car_spin);
 
 	props.player_inputs.rotation_status = RotationStatus::NotInSpin;
-	props = do_physics_step(&props, 1.0);
+	props = props.do_physics_step(1.0);
 	assert_eq!(props.angular_velocity, GLOBAL_CONFIG.car_spin * GLOBAL_CONFIG.rotation_reduction_coefficient);
 }
