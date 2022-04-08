@@ -157,62 +157,74 @@ fn test_non_accelerating() {
 	assert!(props.velocity.abs_diff_eq(expected_velocity, 0.001));
 }
 
-#[test]
-fn test_decelerating() {
-	let mut props = PlayerEntity {
-		player_inputs: PlayerInputs {
-			engine_status: EngineStatus::Braking,
-			rotation_status: RotationStatus::NotInSpin,
-		},
+mod tests {
+	use glam::DVec3;
 
-		entity_location: EntityLocation {
-			position: DVec3::new( 20.0,  30.0,  40.0),
-			unit_steer_direction: DVec3::new( 0.6,  0.0,  0.8),
-		},
+	use chariot_core::GLOBAL_CONFIG;
+	use chariot_core::player_inputs::EngineStatus;
+	use chariot_core::player_inputs::RotationStatus;
+	use chariot_core::player_inputs::PlayerInputs;
+	use chariot_core::entity_location::EntityLocation;
 
-		velocity: DVec3::new( 2.0,  0.0,  1.0),
-		angular_velocity: 0.0,
-		mass: 10.0,
-	};
+	use crate::physics::player_entity::PlayerEntity;
 
-	props = props.do_physics_step(1.0);
+	#[test]
+	fn test_decelerating() {
+		let mut props = PlayerEntity {
+			player_inputs: PlayerInputs {
+				engine_status: EngineStatus::Braking,
+				rotation_status: RotationStatus::NotInSpin,
+			},
 
-	// since we're decelerating, should have the following changes:
-	// - should have moved forward by previous velocity times time step
-	assert!(props.entity_location.position.abs_diff_eq(DVec3::new( 22.0,  30.0,  41.0), 0.001));
-	// - velocity should only have decreased, due to braking, drag, and rolling resistance
-	let prev_velocity = DVec3::new( 2.0,  0.0,  1.0);
-	let neg_prev_velocity = DVec3::new( -2.0,  0.0,  -1.0);
-	let expected_velocity =
-		prev_velocity +
-		(neg_prev_velocity / neg_prev_velocity.length()) * GLOBAL_CONFIG.car_brake +
-		neg_prev_velocity * GLOBAL_CONFIG.drag_coefficient * (5.0 as f64).sqrt()  +
-		neg_prev_velocity * GLOBAL_CONFIG.rolling_resistance_coefficient;
-	assert!(props.velocity.abs_diff_eq(expected_velocity, 0.001));
-}
+			entity_location: EntityLocation {
+				position: DVec3::new( 20.0,  30.0,  40.0),
+				unit_steer_direction: DVec3::new( 0.6,  0.0,  0.8),
+			},
 
-#[test]
-fn test_spinning() {
-	let mut props = PlayerEntity {
-		player_inputs: PlayerInputs {
-			engine_status: EngineStatus::Braking,
-			rotation_status: RotationStatus::InSpinClockwise,
-		},
+			velocity: DVec3::new( 2.0,  0.0,  1.0),
+			angular_velocity: 0.0,
+			mass: 10.0,
+		};
 
-		entity_location: EntityLocation {
-			position: DVec3::new( 20.0,  30.0,  40.0),
-			unit_steer_direction: DVec3::new( 0.6,  0.0,  0.8),
-		},
+		props = props.do_physics_step(1.0);
 
-		velocity: DVec3::new( 0.0,  0.0,  0.0),
-		angular_velocity: 0.0,
-		mass: 10.0,
-	};
+		// since we're decelerating, should have the following changes:
+		// - should have moved forward by previous velocity times time step
+		assert!(props.entity_location.position.abs_diff_eq(DVec3::new( 22.0,  30.0,  41.0), 0.001));
+		// - velocity should only have decreased, due to braking, drag, and rolling resistance
+		let prev_velocity = DVec3::new( 2.0,  0.0,  1.0);
+		let neg_prev_velocity = DVec3::new( -2.0,  0.0,  -1.0);
+		let expected_velocity =
+			prev_velocity +
+			(neg_prev_velocity / neg_prev_velocity.length()) * GLOBAL_CONFIG.car_brake +
+			neg_prev_velocity * GLOBAL_CONFIG.drag_coefficient * (5.0 as f64).sqrt()  +
+			neg_prev_velocity * GLOBAL_CONFIG.rolling_resistance_coefficient;
+		assert!(props.velocity.abs_diff_eq(expected_velocity, 0.001));
+	}
 
-	props = props.do_physics_step(1.0);
-	assert_eq!(props.angular_velocity, GLOBAL_CONFIG.car_spin);
+	#[test]
+	fn test_spinning() {
+		let mut props = PlayerEntity {
+			player_inputs: PlayerInputs {
+				engine_status: EngineStatus::Braking,
+				rotation_status: RotationStatus::InSpinClockwise,
+			},
 
-	props.player_inputs.rotation_status = RotationStatus::NotInSpin;
-	props = props.do_physics_step(1.0);
-	assert_eq!(props.angular_velocity, GLOBAL_CONFIG.car_spin * GLOBAL_CONFIG.rotation_reduction_coefficient);
+			entity_location: EntityLocation {
+				position: DVec3::new( 20.0,  30.0,  40.0),
+				unit_steer_direction: DVec3::new( 0.6,  0.0,  0.8),
+			},
+
+			velocity: DVec3::new( 0.0,  0.0,  0.0),
+			angular_velocity: 0.0,
+			mass: 10.0,
+		};
+
+		props = props.do_physics_step(1.0);
+		assert_eq!(props.angular_velocity, GLOBAL_CONFIG.car_spin);
+
+		props.player_inputs.rotation_status = RotationStatus::NotInSpin;
+		props = props.do_physics_step(1.0);
+		assert_eq!(props.angular_velocity, GLOBAL_CONFIG.car_spin * GLOBAL_CONFIG.rotation_reduction_coefficient);
+	}
 }
