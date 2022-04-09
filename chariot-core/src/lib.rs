@@ -1,6 +1,6 @@
-mod settings;
+pub mod entity_location;
 pub mod packets;
 pub mod player_inputs;
-pub mod entity_location;
+mod settings;
 
 pub use settings::GLOBAL_CONFIG;
