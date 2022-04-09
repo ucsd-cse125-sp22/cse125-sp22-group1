@@ -18,7 +18,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --manifest-path chariot-client/Cargo.toml
+          args: --manifest-path chariot-client/Cargo.toml --check
   core_build_test:
     name: Chariot Core Linter
     runs-on: ubuntu-latest
@@ -30,7 +30,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --manifest-path chariot-core/Cargo.toml
+          args: --manifest-path chariot-core/Cargo.toml --check
   server_build_test:
     name: Chariot Server Linter
     runs-on: ubuntu-latest
@@ -42,5 +42,5 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --manifest-path chariot-server/Cargo.toml
+          args: --manifest-path chariot-server/Cargo.toml --check
           
