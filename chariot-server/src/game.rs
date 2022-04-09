@@ -2,7 +2,7 @@ use std::net::TcpListener;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use chariot_core::networking::{ClientConnection, ServerUpdatingPacket};
+use chariot_core::networking::{ClientConnection, ClientUpdatingPacket, ServerUpdatingPacket};
 use chariot_core::GLOBAL_CONFIG;
 
 pub struct GameServer {
@@ -22,6 +22,7 @@ impl GameServer {
         }
     }
 
+    // WARNING: this function never returns
     pub fn start_loop(&mut self) {
         let max_server_tick_duration = Duration::from_millis(GLOBAL_CONFIG.server_tick_ms);
 
@@ -30,11 +31,15 @@ impl GameServer {
 
             let start_time = Instant::now();
 
-            self.fetch_client_events();
+            // poll for input events and add them to the incoming packet queue
+            self.connections.iter_mut().for_each(|con| con.sync_incoming());
+
             self.process_incoming_packets();
             self.simulate_game();
             self.sync_state();
-            self.process_outgoing_packets();
+
+            // empty outgoing packet queue and send to clients
+            self.connections.iter_mut().for_each(|con| con.sync_outgoing());
 
             // wait until server tick time has elapsed
             let remaining_tick_duration = max_server_tick_duration
@@ -57,20 +62,14 @@ impl GameServer {
         }
     }
 
-    // poll for input events and add them to the incoming packet queue
-    fn fetch_client_events(&mut self) {
-        for connection in self.connections.iter_mut() {
-            connection.sync_incoming();
-        }
-    }
-
     // handle every packet in received order
     fn process_incoming_packets(&mut self) {
         for (i, connection) in self.connections.iter_mut().enumerate() {
             while let Some(packet) = connection.pop_incoming() {
                 match packet {
                     ServerUpdatingPacket::Ping => {
-                        println!("Received a Ping packet from client #{}!", i)
+                        println!("Received a Ping packet from client #{}!", i);
+                        connection.push_outgoing(ClientUpdatingPacket::Pong);
                     }
                 }
             }
@@ -82,7 +81,4 @@ impl GameServer {
 
     // queue up sending updated game state
     fn sync_state(&mut self) {}
-
-    // process sending outgoing packets
-    fn process_outgoing_packets(&mut self) {}
 }

@@ -17,15 +17,14 @@ pub enum ClientUpdatingPacket {
 }
 
 pub trait Packet: Serialize + DeserializeOwned {
-    fn parse_packet<R: Read>(reader: R) -> Result<Self> {
+    fn parse_packet<R: Read>(reader: &mut R) -> Result<Self> {
         DefaultOptions::new().deserialize_from(reader)
     }
-    fn write_packet<W: Write>(&self, mut write: W) -> Result<()> {
-        let options = DefaultOptions::new();
-        let size = options.serialized_size(self)?;
-
-        write.write_all(&[(size >> 8) as u8, size as u8])?;
-        options.serialize_into(&mut write, self)
+    fn packet_size(&self) -> Result<u64> {
+        DefaultOptions::new().serialized_size(self)
+    }
+    fn write_packet<W: Write>(&self, write: &mut W) -> Result<()> {
+        DefaultOptions::new().serialize_into(write, self)
     }
 }
 

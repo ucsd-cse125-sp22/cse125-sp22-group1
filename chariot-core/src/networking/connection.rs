@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
-use std::io::{ErrorKind, Read};
+use std::io::{ErrorKind, Read, Write};
 use std::net::TcpStream;
 
 use super::Packet;
@@ -63,7 +63,7 @@ impl<T: Packet, V: Packet> Connection<T, V> {
             // if we parsed a packet size, let's go ahead and read that amount,
             // this time blocking until we've parsed the entire thing
             self.set_blocking();
-            let packet = T::parse_packet(self.tcp_stream.by_ref().take(packet_size as u64))
+            let packet = T::parse_packet(&mut Read::by_ref(&mut self.tcp_stream).take(packet_size as u64))
                 .expect("Failed to deserialize packet");
 
             self.incoming_packets.push_back(packet);
@@ -72,5 +72,21 @@ impl<T: Packet, V: Packet> Connection<T, V> {
 
     pub fn pop_incoming(&mut self) -> Option<T> {
         self.incoming_packets.pop_front()
+    }
+
+    pub fn push_outgoing(&mut self, packet: V) -> () {
+        self.outgoing_packets.push_back(packet);
+    }
+
+    // send packets on this connection until exhausted
+    pub fn sync_outgoing(&mut self) {
+        while let Some(packet) = self.outgoing_packets.pop_front() {
+            let size = packet.packet_size()
+                .expect("failed to get serialize packet size");
+            self.tcp_stream.write_all(&[(size >> 8) as u8, size as u8])
+                .expect("failed to write packet size");
+            packet.write_packet(&mut self.tcp_stream)
+                .expect("failed to write packet");
+        }
     }
 }
