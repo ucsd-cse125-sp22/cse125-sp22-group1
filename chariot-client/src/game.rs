@@ -7,7 +7,8 @@ pub struct GameClient {
 
 impl GameClient {
     pub fn new(ip_addr: String) -> GameClient {
-        let connection = TcpStream::connect(&ip_addr).expect("could not connect to game server");
+        let connection = TcpStream::connect(&ip_addr)
+			.expect("could not connect to game server");
         // disable the Nagle algorithm to allow for real-time transfers
         connection
             .set_nodelay(true)
