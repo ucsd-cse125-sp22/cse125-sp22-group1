@@ -1,8 +1,8 @@
 use std::io::{Read, Write};
 
 use bincode::{DefaultOptions, Options, Result};
-use serde::{Deserialize, Serialize};
 use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 pub enum ServerUpdatingPacket {
