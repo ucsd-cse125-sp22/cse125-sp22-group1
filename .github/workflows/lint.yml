@@ -4,10 +4,10 @@ on:
     branches:
       - main
 
-name: Build
+name: Lint
 
 jobs:
-  client_build_test:
+  client_linter:
     name: Chariot Client Linter
     runs-on: ubuntu-latest
     steps:
@@ -17,9 +17,9 @@ jobs:
           toolchain: stable
       - uses: actions-rs/cargo@v1
         with:
-          command: fmt
-          args: --manifest-path chariot-client/Cargo.toml --check
-  core_build_test:
+          command: clippy
+          args: --manifest-path chariot-client/Cargo.toml -- --no-deps
+  core_linter:
     name: Chariot Core Linter
     runs-on: ubuntu-latest
     steps:
@@ -29,9 +29,9 @@ jobs:
           toolchain: stable
       - uses: actions-rs/cargo@v1
         with:
-          command: fmt
-          args: --manifest-path chariot-core/Cargo.toml --check
-  server_build_test:
+          command: clippy
+          args: --manifest-path chariot-core/Cargo.toml -- --no-deps
+  server_linter:
     name: Chariot Server Linter
     runs-on: ubuntu-latest
     steps:
@@ -41,6 +41,6 @@ jobs:
           toolchain: stable
       - uses: actions-rs/cargo@v1
         with:
-          command: fmt
-          args: --manifest-path chariot-server/Cargo.toml --check
+          command: clippy
+          args: --manifest-path chariot-server/Cargo.toml -- --no-deps
           
