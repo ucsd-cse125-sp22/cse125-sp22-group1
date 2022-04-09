@@ -91,39 +91,50 @@ impl PlayerEntity {
 
 }
 
+mod tests {
+	use glam::DVec3;
 
-#[test]
-fn test_accelerating() {
-	let mut props = PlayerEntity {
-		player_inputs: PlayerInputs {
-			engine_status: EngineStatus::Accelerating,
-			rotation_status: RotationStatus::NotInSpin,
-		},
+	use chariot_core::GLOBAL_CONFIG;
+	use chariot_core::player_inputs::EngineStatus;
+	use chariot_core::player_inputs::RotationStatus;
+	use chariot_core::player_inputs::PlayerInputs;
+	use chariot_core::entity_location::EntityLocation;
 
-		entity_location: EntityLocation {
-			position: DVec3::new( 20.0,  30.0,  40.0),
-			unit_steer_direction: DVec3::new( 0.6,  0.0,  0.8),
-		},
+	use crate::physics::player_entity::PlayerEntity;
 
-		velocity: DVec3::new( 2.0,  0.0,  1.0),
-		angular_velocity: 0.0,
-		mass: 10.0,
-	};
 
-	props = props.do_physics_step(1.0);
+	#[test]
+	fn test_accelerating() {
+		let mut props = PlayerEntity {
+			player_inputs: PlayerInputs {
+				engine_status: EngineStatus::Accelerating,
+				rotation_status: RotationStatus::NotInSpin,
+			},
 
-	// since we're accelerating, should have the following changes:
-	// - should have moved forward by previous velocity times time step
-	assert!(props.entity_location.position.abs_diff_eq(DVec3::new( 22.0,  30.0,  41.0), 0.001));
-	// - velocity should have increased by acceleration amount in steer
-	// direction, and decreased because of drag and rolling resistance
-	let expected_velocity =
-		DVec3::new( 2.0,  0.0,  1.0) +
-		DVec3::new( 0.6,  0.0,  0.8) * GLOBAL_CONFIG.car_accelerator +
-		DVec3::new( -2.0,  0.0,  -1.0) * GLOBAL_CONFIG.drag_coefficient * (5.0 as f64).sqrt()  +
-		DVec3::new( -2.0,  0.0,  -1.0) * GLOBAL_CONFIG.rolling_resistance_coefficient;
-	assert!(props.velocity.abs_diff_eq(expected_velocity, 0.001));
-}
+			entity_location: EntityLocation {
+				position: DVec3::new( 20.0,  30.0,  40.0),
+				unit_steer_direction: DVec3::new( 0.6,  0.0,  0.8),
+			},
+
+			velocity: DVec3::new( 2.0,  0.0,  1.0),
+			angular_velocity: 0.0,
+			mass: 10.0,
+		};
+
+		props = props.do_physics_step(1.0);
+
+		// since we're accelerating, should have the following changes:
+		// - should have moved forward by previous velocity times time step
+		assert!(props.entity_location.position.abs_diff_eq(DVec3::new( 22.0,  30.0,  41.0), 0.001));
+		// - velocity should have increased by acceleration amount in steer
+		// direction, and decreased because of drag and rolling resistance
+		let expected_velocity =
+			DVec3::new( 2.0,  0.0,  1.0) +
+			DVec3::new( 0.6,  0.0,  0.8) * GLOBAL_CONFIG.car_accelerator +
+			DVec3::new( -2.0,  0.0,  -1.0) * GLOBAL_CONFIG.drag_coefficient * (5.0 as f64).sqrt()  +
+			DVec3::new( -2.0,  0.0,  -1.0) * GLOBAL_CONFIG.rolling_resistance_coefficient;
+		assert!(props.velocity.abs_diff_eq(expected_velocity, 0.001));
+	}
 
 
 #[test]
@@ -156,18 +167,6 @@ fn test_non_accelerating() {
 		DVec3::new( -2.0,  0.0,  -1.0) * GLOBAL_CONFIG.rolling_resistance_coefficient;
 	assert!(props.velocity.abs_diff_eq(expected_velocity, 0.001));
 }
-
-mod tests {
-	use glam::DVec3;
-
-	use chariot_core::GLOBAL_CONFIG;
-	use chariot_core::player_inputs::EngineStatus;
-	use chariot_core::player_inputs::RotationStatus;
-	use chariot_core::player_inputs::PlayerInputs;
-	use chariot_core::entity_location::EntityLocation;
-
-	use crate::physics::player_entity::PlayerEntity;
-
 	#[test]
 	fn test_decelerating() {
 		let mut props = PlayerEntity {
