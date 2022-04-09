@@ -7,7 +7,7 @@ pub struct Settings {
     pub port: String,
     pub server_address: String,
     pub server_tick_ms: u64,
-    pub player_amount: usize
+    pub player_amount: usize,
 }
 
 impl Settings {
