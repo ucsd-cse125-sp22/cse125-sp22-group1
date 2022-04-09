@@ -24,7 +24,7 @@ impl ServerUpdatingPacket {
         let options = DefaultOptions::new();
         let size = options.serialized_size(self)?;
 
-        write.write(&[(size >> 8) as u8, size as u8])?;
+        write.write_all(&[(size >> 8) as u8, size as u8])?;
         options.serialize_into(&mut write, self)
     }
 }
