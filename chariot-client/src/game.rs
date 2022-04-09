@@ -1,4 +1,4 @@
-use chariot_core::packets::{Packet, ServerUpdatingPacket};
+use chariot_core::networking::{Packet, ServerUpdatingPacket};
 use std::net::TcpStream;
 
 pub struct GameClient {
