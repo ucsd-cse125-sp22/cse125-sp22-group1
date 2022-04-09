@@ -2,6 +2,7 @@ use std::io::{Read, Write};
 
 use bincode::{DefaultOptions, Options, Result};
 use serde::{Deserialize, Serialize};
+use serde::de::DeserializeOwned;
 
 #[derive(Serialize, Deserialize)]
 pub enum ServerUpdatingPacket {
@@ -15,12 +16,11 @@ pub enum ClientUpdatingPacket {
     //GameStateUpdate(GameState),
 }
 
-impl ServerUpdatingPacket {
-    pub fn parse_packet<R: Read>(reader: R) -> Result<ServerUpdatingPacket> {
+pub trait Packet: Serialize + DeserializeOwned {
+    fn parse_packet<R: Read>(reader: R) -> Result<Self> {
         DefaultOptions::new().deserialize_from(reader)
     }
-
-    pub fn write_packet<W: Write>(&self, mut write: W) -> Result<()> {
+    fn write_packet<W: Write>(&self, mut write: W) -> Result<()> {
         let options = DefaultOptions::new();
         let size = options.serialized_size(self)?;
 
@@ -28,3 +28,6 @@ impl ServerUpdatingPacket {
         options.serialize_into(&mut write, self)
     }
 }
+
+impl Packet for ClientUpdatingPacket {}
+impl Packet for ServerUpdatingPacket {}

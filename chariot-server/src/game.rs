@@ -4,7 +4,7 @@ use std::net::{TcpListener, TcpStream};
 use std::time::{Duration, Instant};
 use std::{io, thread};
 
-use chariot_core::packets::ServerUpdatingPacket;
+use chariot_core::packets::{Packet, ServerUpdatingPacket};
 use chariot_core::GLOBAL_CONFIG;
 
 pub struct GameServer {
