@@ -1,8 +1,8 @@
-use std::net::{TcpListener};
-use std::time::{Duration, Instant};
+use std::net::TcpListener;
 use std::thread;
+use std::time::{Duration, Instant};
 
-use chariot_core::networking::{ServerUpdatingPacket, ClientConnection};
+use chariot_core::networking::{ClientConnection, ServerUpdatingPacket};
 use chariot_core::GLOBAL_CONFIG;
 
 pub struct GameServer {
@@ -18,7 +18,7 @@ impl GameServer {
         println!("game server now listening on {}", ip_addr);
         GameServer {
             listener,
-            connections: Vec::new()
+            connections: Vec::new(),
         }
     }
 
@@ -69,7 +69,9 @@ impl GameServer {
         for (i, connection) in self.connections.iter_mut().enumerate() {
             while let Some(packet) = connection.pop_incoming() {
                 match packet {
-                    ServerUpdatingPacket::Ping => println!("Received a Ping packet from client #{}!", i),
+                    ServerUpdatingPacket::Ping => {
+                        println!("Received a Ping packet from client #{}!", i)
+                    }
                 }
             }
         }

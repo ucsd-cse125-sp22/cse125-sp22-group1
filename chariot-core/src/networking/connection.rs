@@ -1,13 +1,13 @@
-use std::net::TcpStream;
 use std::collections::VecDeque;
-use std::io::{Read, ErrorKind};
+use std::io::{ErrorKind, Read};
+use std::net::TcpStream;
 
-use super::{Packet};
+use super::Packet;
 
 pub struct Connection<T: Packet, V: Packet> {
     tcp_stream: TcpStream,
     incoming_packets: VecDeque<T>,
-    outgoing_packets: VecDeque<V>
+    outgoing_packets: VecDeque<V>,
 }
 
 impl<T: Packet, V: Packet> Connection<T, V> {
@@ -19,7 +19,7 @@ impl<T: Packet, V: Packet> Connection<T, V> {
         Connection {
             tcp_stream,
             incoming_packets: VecDeque::new(),
-            outgoing_packets: VecDeque::new()
+            outgoing_packets: VecDeque::new(),
         }
     }
 
@@ -63,9 +63,8 @@ impl<T: Packet, V: Packet> Connection<T, V> {
             // if we parsed a packet size, let's go ahead and read that amount,
             // this time blocking until we've parsed the entire thing
             self.set_blocking();
-            let packet =
-                T::parse_packet(self.tcp_stream.by_ref().take(packet_size as u64))
-                    .expect("Failed to deserialize packet");
+            let packet = T::parse_packet(self.tcp_stream.by_ref().take(packet_size as u64))
+                .expect("Failed to deserialize packet");
 
             self.incoming_packets.push_back(packet);
         }
