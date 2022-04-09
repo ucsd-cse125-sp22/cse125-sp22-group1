@@ -1,0 +1,58 @@
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+name: Format
+
+jobs:
+  client_format:
+    name: Chariot Client Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --manifest-path chariot-client/Cargo.toml -- --emit files
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: rustfmt
+          file_pattern: '*.rs'
+  core_format:
+    name: Chariot Core Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --manifest-path chariot-core/Cargo.toml -- --emit files
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: rustfmt
+          file_pattern: '*.rs'
+  server_format:
+    name: Chariot Server Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --manifest-path chariot-server/Cargo.toml -- --emit files
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: rustfmt
+          file_pattern: '*.rs'
+          
