@@ -32,14 +32,18 @@ impl GameServer {
             let start_time = Instant::now();
 
             // poll for input events and add them to the incoming packet queue
-            self.connections.iter_mut().for_each(|con| con.sync_incoming());
+            self.connections
+                .iter_mut()
+                .for_each(|con| con.sync_incoming());
 
             self.process_incoming_packets();
             self.simulate_game();
             self.sync_state();
 
             // empty outgoing packet queue and send to clients
-            self.connections.iter_mut().for_each(|con| con.sync_outgoing());
+            self.connections
+                .iter_mut()
+                .for_each(|con| con.sync_outgoing());
 
             // wait until server tick time has elapsed
             let remaining_tick_duration = max_server_tick_duration

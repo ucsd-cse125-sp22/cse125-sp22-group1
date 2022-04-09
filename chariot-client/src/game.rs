@@ -10,7 +10,7 @@ impl GameClient {
         let connection = TcpStream::connect(&ip_addr).expect("could not connect to game server");
         println!("game client now listening on {}", ip_addr);
         GameClient {
-            connection: ServerConnection::new(connection)
+            connection: ServerConnection::new(connection),
         }
     }
 
