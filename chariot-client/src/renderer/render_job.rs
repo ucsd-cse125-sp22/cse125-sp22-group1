@@ -1,29 +1,34 @@
-use std::{num::NonZeroU32, collections::{hash_map::{Values, Iter}, HashMap}};
+use std::{
+    collections::{
+        hash_map::{Iter, Values},
+        HashMap,
+    },
+    num::NonZeroU32,
+};
 
 pub struct FramebufferDescriptor {
-    pub(super) color_attachments : Vec<wgpu::TextureView>,
-    pub(super) depth_stencil_attachment : Option<wgpu::TextureView>,
-    pub(super) clear_color : bool,
-    pub(super) clear_depth : bool
+    pub(super) color_attachments: Vec<wgpu::TextureView>,
+    pub(super) depth_stencil_attachment: Option<wgpu::TextureView>,
+    pub(super) clear_color: bool,
+    pub(super) clear_depth: bool,
 }
 
 pub enum RenderPassDescriptor<'a> {
     Graphics {
-        source : &'a str,
-        push_constant_ranges : &'a [wgpu::PushConstantRange],
-        targets : Option<&'a [wgpu::ColorTargetState]>,
-        primitive_state : wgpu::PrimitiveState,
-        outputs_depth : bool,
-        multisample_state : wgpu::MultisampleState,
-        multiview : Option<NonZeroU32>
+        source: &'a str,
+        push_constant_ranges: &'a [wgpu::PushConstantRange],
+        targets: Option<&'a [wgpu::ColorTargetState]>,
+        primitive_state: wgpu::PrimitiveState,
+        outputs_depth: bool,
+        multisample_state: wgpu::MultisampleState,
+        multiview: Option<NonZeroU32>,
     },
     Compute {
-        source : &'a str,
-        bind_group_layouts : &'a [&'a wgpu::BindGroupLayout],
-        push_constant_ranges : &'a [wgpu::PushConstantRange],
-    }
+        source: &'a str,
+        bind_group_layouts: &'a [&'a wgpu::BindGroupLayout],
+        push_constant_ranges: &'a [wgpu::PushConstantRange],
+    },
 }
-
 
 /*
  * A render pass encapsulates everything needed for pipeline setup.
@@ -33,26 +38,26 @@ pub enum RenderPassDescriptor<'a> {
  */
 pub enum RenderPass {
     Graphics {
-        shader : wgpu::ShaderModule,
-        pipeline_layout : wgpu::PipelineLayout,
-        render_pipeline : wgpu::RenderPipeline
+        shader: wgpu::ShaderModule,
+        pipeline_layout: wgpu::PipelineLayout,
+        render_pipeline: wgpu::RenderPipeline,
     },
     Compute {
-        shader : wgpu::ShaderModule,
-        pipeline_layout : wgpu::PipelineLayout,
-        compute_pipeline : wgpu::ComputePipeline
-    }
+        shader: wgpu::ShaderModule,
+        pipeline_layout: wgpu::PipelineLayout,
+        compute_pipeline: wgpu::ComputePipeline,
+    },
 }
 
 /*
  * Ignore this push constant stuff since I've kind of forgotten about it and it's just more work.
- * It's just a way to store small amounts of data in a faster to access way. For now in our game, 
+ * It's just a way to store small amounts of data in a faster to access way. For now in our game,
  * any uniforms will just be stored in a uniform buffer and accessed through a bind group.
  */
 pub struct PushConstantData<'a> {
-    stages : wgpu::ShaderStages,
-    offset : u32,
-    data : &'a [u8]
+    stages: wgpu::ShaderStages,
+    offset: u32,
+    data: &'a [u8],
 }
 
 /*
@@ -61,48 +66,48 @@ pub struct PushConstantData<'a> {
 #[derive(Clone)]
 pub enum RenderItem<'a> {
     Graphics {
-        pass_name : &'a str,
-        framebuffer_name : &'a str,
-        num_elements : u32,
-        vertex_buffers : Vec<wgpu::BufferSlice<'a>>,
-        index_buffer : Option<wgpu::BufferSlice<'a>>,
-        index_format : wgpu::IndexFormat,
-        bind_group : Vec<&'a wgpu::BindGroup>
+        pass_name: &'a str,
+        framebuffer_name: &'a str,
+        num_elements: u32,
+        vertex_buffers: Vec<wgpu::BufferSlice<'a>>,
+        index_buffer: Option<wgpu::BufferSlice<'a>>,
+        index_format: wgpu::IndexFormat,
+        bind_group: Vec<&'a wgpu::BindGroup>,
     },
     Compute {
-        pass_name : &'a str,
-        bind_group : &'a [&'a wgpu::BindGroup],
-        push_constants : &'a [PushConstantData<'a>]
+        pass_name: &'a str,
+        bind_group: &'a [&'a wgpu::BindGroup],
+        push_constants: &'a [PushConstantData<'a>],
     },
     Custom {
-        pass_name : &'a str,
-    }
+        pass_name: &'a str,
+    },
 }
 
 /*
  * kinda ugly but whatevs
- * Encapsulates a list of RenderItems organized by framebuffer and render pass. 
+ * Encapsulates a list of RenderItems organized by framebuffer and render pass.
  * It just does a bit of work when adding render items to organize everything properly.
- * Otherwise it doesn't care to organize further into vertex buffer or bind group bindings. 
+ * Otherwise it doesn't care to organize further into vertex buffer or bind group bindings.
  */
 pub struct RenderJob<'a> {
-    graphics_items : HashMap<String, HashMap<String, Vec<RenderItem<'a>>>>,
-    compute_items : HashMap<String, Vec<RenderItem<'a>>>
+    graphics_items: HashMap<String, HashMap<String, Vec<RenderItem<'a>>>>,
+    compute_items: HashMap<String, Vec<RenderItem<'a>>>,
 }
 
 impl<'a> RenderJob<'a> {
     pub fn new() -> Self {
-        RenderJob { 
-            graphics_items: HashMap::new(), 
-            compute_items: HashMap::new() 
+        RenderJob {
+            graphics_items: HashMap::new(),
+            compute_items: HashMap::new(),
         }
     }
 
-    pub fn add_item(&mut self, item : RenderItem<'a>) {
+    pub fn add_item(&mut self, item: RenderItem<'a>) {
         match item {
-            RenderItem::Graphics { 
-                pass_name, 
-                framebuffer_name, 
+            RenderItem::Graphics {
+                pass_name,
+                framebuffer_name,
                 ..
             } => {
                 self.graphics_items
@@ -112,10 +117,7 @@ impl<'a> RenderJob<'a> {
                     .or_default()
                     .push(item);
             }
-            RenderItem::Compute { 
-                pass_name,
-                ..
-            } => {
+            RenderItem::Compute { pass_name, .. } => {
                 self.compute_items
                     .entry(String::from(pass_name))
                     .or_default()
