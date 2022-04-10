@@ -1,14 +1,21 @@
-use core::num;
 use std::{collections::{HashMap}};
 use wgpu::util::DeviceExt;
 
 use crate::renderer::*;
-use crate::application::*;
+use crate::resources::*;
 
+// This file contains the Drawable trait and a simple StaticMeshDrawable
+
+/*
+ * A drawable just produces a render item every frame.
+ */
 pub trait Drawable {
-	fn render_item<'a>(&'a self, resources : &'a ResourceManager) -> RenderItem<'a>;
+	fn render_item<'a>(&'a self, resources : &'a ResourceManager) -> render_job::RenderItem<'a>;
 }
 
+/*
+ * A material encapsulates the render pass it should be a part of and the resources it should bind.
+ */
 #[derive(Default)]
 pub struct Material {
 	pub pass_name : String,
@@ -21,6 +28,15 @@ pub struct Material {
 
 pub type IndexRange = (std::ops::Bound<u64>, std::ops::Bound<u64>);
 
+/*
+ * Theoretically, a single mesh could have multiple draw calls. For example, a car mesh could 
+ * have one mesh for the body that uses a "shiny car body" material, another mesh for the windows
+ * which use another "glass window" material, and another for the tires which have their own material.
+ * However, all these draw calls use different slices of the same index and vertex buffers.
+ * 
+ * To simplify things, for now I require submeshes to all have the same material. During gltf import I just
+ * make a new static mesh for each gltf primitive (submesh equivalent).
+ */
 pub struct SubMesh {
 	vertex_ranges : Vec<IndexRange>,
 	index_range : Option<IndexRange>,
@@ -34,6 +50,13 @@ pub struct StaticMesh {
 	submeshes : Vec<SubMesh>
 }
 
+/*
+ * A StaticMeshDrawable produces render items for a single static mesh 
+ * (or more specifically, a single submesh of a static mesh - weird naming, I know)
+ * 
+ * xform contains the model matrix as well as the view * proj matrix although usually 
+ * by xform people mean just the model matrix.
+ */
 pub struct StaticMeshDrawable {
 	material : MaterialHandle,
 	static_mesh : StaticMeshHandle,
@@ -43,18 +66,18 @@ pub struct StaticMeshDrawable {
 }
 
 impl StaticMeshDrawable {
-	fn new(renderer : &Renderer, resources : &ResourceManager, material : MaterialHandle, static_mesh : StaticMeshHandle, submesh_idx : usize) -> Self {
-		let uniform_init = glam::Mat4::IDENTITY;
+	pub fn new(renderer : &Renderer, resources : &ResourceManager, material : MaterialHandle, static_mesh : StaticMeshHandle, submesh_idx : usize) -> Self {
+		let uniform_init = [glam::Mat4::IDENTITY; 2];
 		let xform_buffer = renderer.device.create_buffer_init(
 			&wgpu::util::BufferInitDescriptor {
 				label: Some("uniform_buf"),
 				contents: unsafe { 
 					core::slice::from_raw_parts(
-						core::slice::from_ref(&uniform_init).as_ptr() as *const u8, 
-						std::mem::size_of::<glam::Mat4>()
+						uniform_init.as_ptr() as *const u8, 
+						std::mem::size_of::<[glam::Mat4; 2]>()
 					) 
 				},
-				usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST
+				usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_WRITE
 			}
 		);
 		let pass_name = &resources.materials.get(&material)
@@ -72,10 +95,15 @@ impl StaticMeshDrawable {
 			xform_bind_group: xform_bind_group 
 		}
 	}
+
+	pub fn update_xforms(&self, renderer : &Renderer, proj_view : &glam::Mat4, model : &glam::Mat4) {
+		let upload_data = [*proj_view, *model];
+		renderer.write_buffer(&self.xform_buffer, &upload_data);
+	}
 }
 
 impl Drawable for StaticMeshDrawable {
-	fn render_item<'a>(&'a self, resources : &'a ResourceManager) -> RenderItem<'a> {
+	fn render_item<'a>(&'a self, resources : &'a ResourceManager) -> render_job::RenderItem<'a> {
 		let static_mesh = resources.meshes.get(&self.static_mesh)
 			.expect("invalid static mesh handle");
 		let material = resources.materials.get(&self.material)
@@ -86,7 +114,7 @@ impl Drawable for StaticMeshDrawable {
 
 		let mut bind_group_refs = vec![&self.xform_bind_group];
 		bind_group_refs.extend(material.bind_groups.values());
-		RenderItem::Graphics { 
+		render_job::RenderItem::Graphics { 
             pass_name: material.pass_name.as_str(), 
             framebuffer_name: "surface", 
             num_elements: static_mesh.submeshes[self.submesh_idx].num_elements, 
@@ -105,17 +133,13 @@ impl Drawable for StaticMeshDrawable {
 	}
 }
 
-impl<'a> specs::Component for StaticMeshDrawable {
-    // This uses `VecStorage`, because all entities have a position.
-    type Storage = specs::VecStorage<StaticMeshDrawable>;
-}
-
+// Helper struct for building materials
 enum MatResourceIdx {
 	Buffer(usize),
 	Texture(usize),
 	Sampler(usize)
 }
-struct MaterialBuilder<'a> {
+pub struct MaterialBuilder<'a> {
 	pass_name : &'a str,
 	renderer : &'a Renderer,
 	bind_group_resources : HashMap<u32, HashMap<u32, MatResourceIdx>>,
@@ -126,7 +150,7 @@ struct MaterialBuilder<'a> {
 }
 
 impl<'a> MaterialBuilder<'a> {
-	fn new(renderer : &'a Renderer, pass_name : &'a str) -> Self {
+	pub fn new(renderer : &'a Renderer, pass_name : &'a str) -> Self {
 		MaterialBuilder { 
 			pass_name, 
 			renderer,
@@ -137,7 +161,7 @@ impl<'a> MaterialBuilder<'a> {
 		}
 	}
 
-	fn buffer_resource<'b>(&'b mut self, group : u32, binding : u32, buffer : wgpu::Buffer) -> &'b mut Self {
+	pub fn buffer_resource<'b>(&'b mut self, group : u32, binding : u32, buffer : wgpu::Buffer) -> &'b mut Self {
 		self.buffers.push(buffer);
 
 		self.bind_group_resources.entry(group)
@@ -146,7 +170,7 @@ impl<'a> MaterialBuilder<'a> {
 		self
 	}
 
-	fn texture_resource<'b>(&'b mut self, group : u32, binding : u32, texture : wgpu::TextureView) -> &'b mut Self {
+	pub fn texture_resource<'b>(&'b mut self, group : u32, binding : u32, texture : wgpu::TextureView) -> &'b mut Self {
 		self.textures.push(texture);
 
 		self.bind_group_resources.entry(group)
@@ -155,7 +179,7 @@ impl<'a> MaterialBuilder<'a> {
 		self
 	}
 
-	fn sampler_resource<'b>(&'b mut self, group : u32, binding : u32, sampler : wgpu::Sampler) -> &'b mut Self {
+	pub fn sampler_resource<'b>(&'b mut self, group : u32, binding : u32, sampler : wgpu::Sampler) -> &'b mut Self {
 		self.samplers.push(sampler);
 
 		self.bind_group_resources.entry(group)
@@ -164,7 +188,7 @@ impl<'a> MaterialBuilder<'a> {
 		self
 	}
 
-	fn produce(&mut self) -> Material {
+	pub fn produce(&mut self) -> Material {
 		let lookup_binding_resource = |(_, resource_idx) : (&u32, &MatResourceIdx)| 	{
 			match resource_idx {
 				MatResourceIdx::Buffer(idx) => self.buffers[*idx].as_entire_binding(),
@@ -194,6 +218,7 @@ impl<'a> MaterialBuilder<'a> {
 	}
 }
 
+// Helper struct for building meshes
 pub struct MeshBuilder<'a> {
 	renderer : &'a Renderer,
 	label : wgpu::Label<'a>,

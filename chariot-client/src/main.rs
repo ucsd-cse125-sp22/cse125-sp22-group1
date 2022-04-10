@@ -1,4 +1,5 @@
 use std::mem;
+use specs::{WorldExt, Builder};
 use wgpu::util::DeviceExt;
 use winit::{
     event::{Event, WindowEvent},
@@ -7,29 +8,11 @@ use winit::{
 use chariot_core::GLOBAL_CONFIG;
 
 mod game;
-mod renderer;
 mod drawable;
+mod renderer;
+mod resources;
 mod application;
 
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct Vertex {
-    position: [f32; 2]
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct Local {
-    scale : f32
-}
-
-fn vec2(x : f32, y : f32) -> Vertex {
-    Vertex{position : [x, y]}
-}
-
-// for anyone skimming this: vertex buffers are created & set up in code but not actually used by the shader (yet),
-// index buffers are also created but binding is borked for now
-// also, don't try building for wasm because I don't think that works yet either
 fn main() {
     // at some point, networking PoC:
     // let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
@@ -37,12 +20,30 @@ fn main() {
     // game_client.ping();
 
     let event_loop = winit::event_loop::EventLoop::new();
-    let context = renderer::Context::new(&event_loop);
+    let context = renderer::context::Context::new(&event_loop);
     let renderer = renderer::Renderer::new(context);
 	let mut application = application::Application::new(renderer);
 
-    event_loop.run(move |event, _, control_flow| {
+	let material_handle = application.resources.import_material(
+		&mut application.renderer, 
+		include_str!("shader.wgsl"), 
+		"boring"
+	);
 
+	let import_result = application.resources.import_gltf(
+		&application.renderer, "models/FlightHelmet/FlightHelmet.gltf"
+	);
+
+	if import_result.is_ok() {
+		for static_mesh_handle in import_result.unwrap().2.iter() {
+			let drawable = drawable::StaticMeshDrawable::new(
+				&application.renderer, &application.resources, material_handle, *static_mesh_handle, 0
+			);
+			application.drawables.push(drawable);
+		}
+	}
+
+    event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
         match event {
             Event::WindowEvent {
