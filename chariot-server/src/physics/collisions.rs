@@ -27,12 +27,20 @@ impl PlayerEntity {
         let y_2 = self.y_size / 2.0;
         let z_2 = self.z_size / 2.0;
 
-        // Angles are measured from the (1, 0, 0) axis; i think this is what the trig spits out
-        let heading_x = self.entity_location.unit_steer_direction[0];
-        let heading_z = self.entity_location.unit_steer_direction[2];
-        let theta = (heading_z / heading_x).tan();
-        // i hope we never get div-by-0 here but tbh we prolly will, right
-        // maybe inelegant hack to fix that but ya know
+        // Angles are measured from the (1, 0, 0) axis
+        let heading = DVec2::new(
+            self.entity_location.unit_steer_direction[0],
+            self.entity_location.unit_steer_direction[2],
+        );
+        let zero_angle_vec = DVec2::new(1.0, 0.0);
+
+        // Since the range of arccos is [0, pi], we add the extra pi if turned around more than that
+        let theta;
+        if heading[1] >= 0.0 {
+            theta = heading.dot(zero_angle_vec).acos();
+        } else {
+            theta = heading.dot(zero_angle_vec).acos() + std::f64::consts::PI;
+        }
 
         let center = DVec3::new(
             self.entity_location.position[0],
@@ -60,7 +68,8 @@ impl PlayerEntity {
     }
 }
 
-pub fn are_players_colliding(p1: &PlayerEntity, p2: &PlayerEntity) -> bool {
+// Check whether any portion of p1 is within p2
+fn check_collision(p1: &PlayerEntity, p2: &PlayerEntity) -> bool {
     let p1_corners = p1.get_corners_of_hitbox();
     let p2_corners = p2.get_corners_of_hitbox();
 
@@ -106,6 +115,10 @@ pub fn are_players_colliding(p1: &PlayerEntity, p2: &PlayerEntity) -> bool {
     return false;
 }
 
+fn are_players_colliding(p1: &PlayerEntity, p2: &PlayerEntity) -> bool {
+    return check_collision(&p1, &p2) || check_collision(&p2, &p1);
+}
+
 pub fn collide_players(p1: &PlayerEntity, p2: &PlayerEntity) {}
 
 mod tests {
@@ -126,7 +139,7 @@ mod tests {
 
             entity_location: EntityLocation {
                 position: DVec3::new(0.0, 0.0, 0.0),
-                unit_steer_direction: DVec3::new(0.6, 0.0, 0.8),
+                unit_steer_direction: DVec3::new(1.0, 0.0, 0.0),
             },
 
             velocity: DVec3::new(0.0, 0.0, 0.0),
@@ -143,5 +156,75 @@ mod tests {
     fn test_collision_with_self() {
         let origin_cube = get_origin_cube();
         assert!(are_players_colliding(&origin_cube, &origin_cube));
+    }
+
+    #[test]
+    fn test_engulfed_collision() {
+        let big_origin_cube = get_origin_cube();
+        let mut smol_origin_cube = get_origin_cube();
+        smol_origin_cube.x_size = 1.0;
+        smol_origin_cube.y_size = 1.0;
+        smol_origin_cube.z_size = 1.0;
+        assert!(are_players_colliding(&big_origin_cube, &smol_origin_cube))
+    }
+
+    #[test]
+    fn test_collision_on_corner() {
+        let origin_cube = get_origin_cube();
+        let mut not_origin_cube = get_origin_cube();
+        not_origin_cube.entity_location.position = DVec3::new(10.0, 10.0, 10.0);
+        assert!(are_players_colliding(&origin_cube, &not_origin_cube))
+    }
+
+    #[test]
+    fn test_noncollision_on_corner() {
+        let origin_cube = get_origin_cube();
+        let mut not_origin_cube = get_origin_cube();
+        not_origin_cube.entity_location.position = DVec3::new(10.1, 10.1, 10.1);
+        assert!(!are_players_colliding(&origin_cube, &not_origin_cube))
+    }
+
+    // we have different logic for the y-direction, might as well test that
+    #[test]
+    fn test_noncollision_when_above_or_below() {
+        let origin_cube = get_origin_cube();
+        let mut high_cube = get_origin_cube();
+        let mut low_cube = get_origin_cube();
+        high_cube.entity_location.position = DVec3::new(0.0, 20.0, 0.0);
+        low_cube.entity_location.position = DVec3::new(0.0, -20.0, 0.0);
+        assert!(!are_players_colliding(&origin_cube, &high_cube));
+        assert!(!are_players_colliding(&origin_cube, &low_cube));
+        assert!(!are_players_colliding(&high_cube, &low_cube)); // just for good measure
+    }
+
+    #[test]
+    fn test_collision_when_above_or_below() {
+        let origin_cube = get_origin_cube();
+        let mut high_cube = get_origin_cube();
+        let mut low_cube = get_origin_cube();
+        high_cube.entity_location.position = DVec3::new(0.0, 8.0, 0.0);
+        low_cube.entity_location.position = DVec3::new(0.0, -8.0, 0.0);
+        assert!(are_players_colliding(&origin_cube, &high_cube));
+        assert!(are_players_colliding(&origin_cube, &low_cube));
+        assert!(!are_players_colliding(&high_cube, &low_cube)); // just for good measure
+    }
+
+    #[test]
+    fn test_collision_on_rotated_edges() {
+        // uwu what if i was a cube with edge length 10 centered at the origin
+        // and rotated 45 degrees
+        // and you were owo a cube with edge length 10 also rotated 45 degrees
+        // but centered 10sqrt(2) units away in the x-direction
+        // and we :flushed: :point_right: :point_left: touched edges :pleading:
+        let mut owo_cube = get_origin_cube();
+        let mut uwu_cube = get_origin_cube();
+
+        owo_cube.entity_location.unit_steer_direction =
+            DVec3::new(2.0_f64.sqrt() / 2.0, 0.0, 2.0_f64.sqrt() / 2.0);
+        uwu_cube.entity_location.unit_steer_direction =
+            DVec3::new(2.0_f64.sqrt() / 2.0, 0.0, 2.0_f64.sqrt() / 2.0);
+
+        uwu_cube.entity_location.position = DVec3::new(10.0 * 2.0_f64.sqrt() - 0.1, 0.0, 0.0);
+        assert!(are_players_colliding(&owo_cube, &uwu_cube));
     }
 }
