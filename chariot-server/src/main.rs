@@ -1,6 +1,7 @@
 use chariot_core::GLOBAL_CONFIG;
 
 mod game;
+mod physics;
 
 fn main() {
     // kick off the game loop

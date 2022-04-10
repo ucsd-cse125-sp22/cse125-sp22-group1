@@ -1,0 +1,46 @@
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+name: Lint
+
+jobs:
+  client_linter:
+    name: Chariot Client Linter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --manifest-path chariot-client/Cargo.toml -- --no-deps
+  core_linter:
+    name: Chariot Core Linter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --manifest-path chariot-core/Cargo.toml -- --no-deps
+  server_linter:
+    name: Chariot Server Linter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --manifest-path chariot-server/Cargo.toml -- --no-deps
+          
