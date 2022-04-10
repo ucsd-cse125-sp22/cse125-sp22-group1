@@ -1,5 +1,6 @@
 use chariot_core::GLOBAL_CONFIG;
 use specs::{Builder, WorldExt};
+use specs::{Builder, WorldExt};
 use std::mem;
 use wgpu::util::DeviceExt;
 use winit::{
