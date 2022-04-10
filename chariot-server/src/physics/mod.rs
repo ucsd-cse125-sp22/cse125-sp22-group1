@@ -6,6 +6,7 @@ use chariot_core::player_inputs::PlayerInputs;
 use chariot_core::player_inputs::RotationStatus;
 use chariot_core::GLOBAL_CONFIG;
 
+mod collisions;
 mod player_entity;
 
 use player_entity::PlayerEntity;
