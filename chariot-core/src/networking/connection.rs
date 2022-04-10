@@ -94,3 +94,66 @@ impl<T: Packet, V: Packet> Connection<T, V> {
         }
     }
 }
+
+mod tests {
+    #[test]
+    fn test_connection() {
+        use crate::networking::ClientUpdatingPacket::Pong;
+        use crate::networking::ServerUpdatingPacket::Ping;
+        use crate::networking::{
+            connection::Connection, ClientUpdatingPacket, ServerUpdatingPacket,
+        };
+        use std::net::{TcpListener, TcpStream};
+
+        let listener: TcpListener =
+            TcpListener::bind("127.0.0.1:24247").expect("Couldn't create test listener!");
+
+        let client_stream =
+            TcpStream::connect("127.0.0.1:24247").expect("Couldn't create test stream!");
+        let mut client_connection: Connection<ClientUpdatingPacket, ServerUpdatingPacket> =
+            Connection::new(client_stream);
+
+        let server_stream = listener.accept().expect("Can't accept connection!");
+        let mut server_connection: Connection<ServerUpdatingPacket, ClientUpdatingPacket> =
+            Connection::new(server_stream.0);
+
+        // Send some packets from client to server
+
+        client_connection.push_outgoing(Ping);
+        client_connection.push_outgoing(Ping);
+        client_connection.sync_outgoing();
+
+        server_connection.sync_incoming();
+
+        assert!(matches!(
+            server_connection.pop_incoming().expect("Network failed"),
+            Ping
+        ));
+        assert!(matches!(
+            server_connection.pop_incoming().expect("Network failed"),
+            Ping
+        ));
+
+        // trying to read a third packet when two were sent is an error
+        assert!(matches!(server_connection.pop_incoming(), None));
+
+        // And send some more the other way from server to client
+
+        server_connection.push_outgoing(Pong);
+        server_connection.push_outgoing(Pong);
+        server_connection.sync_outgoing();
+
+        client_connection.sync_incoming();
+
+        assert!(matches!(
+            client_connection.pop_incoming().expect("Network failed"),
+            Pong
+        ));
+        assert!(matches!(
+            client_connection.pop_incoming().expect("Network failed"),
+            Pong
+        ));
+
+        assert!(matches!(server_connection.pop_incoming(), None));
+    }
+}
