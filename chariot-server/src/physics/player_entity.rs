@@ -7,6 +7,10 @@ pub struct PlayerEntity {
     pub angular_velocity: f64, // in radians per time unit
     pub mass: f64,
 
+    pub x_size: f64,
+    pub y_size: f64,
+    pub z_size: f64,
+
     pub player_inputs: PlayerInputs,
     pub entity_location: EntityLocation,
 }
