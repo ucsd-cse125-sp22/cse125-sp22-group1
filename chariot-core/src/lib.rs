@@ -1,5 +1,5 @@
 pub mod entity_location;
-pub mod packets;
+pub mod networking;
 pub mod player_inputs;
 mod settings;
 
