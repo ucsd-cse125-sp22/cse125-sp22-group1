@@ -211,11 +211,11 @@ mod tests {
 
     #[test]
     fn test_collision_on_rotated_edges() {
-        // uwu what if i was a cube with edge length 10 centered at the origin
-        // and rotated 45 degrees
-        // and you were owo a cube with edge length 10 also rotated 45 degrees
-        // but centered 10sqrt(2) units away in the x-direction
-        // and we :flushed: :point_right: :point_left: touched edges :pleading:
+        // uwu w-wat if i was a cube with edge wength 10 (⁄ ⁄•⁄ω⁄•⁄ ⁄) centewed
+        // at the o-owigin and wotated 45 degwees (>ω^)
+        // a-and u (☆ω☆) wewe a cube with edge wength 10 a-awso wotated 45
+        // degwees (o･ω･o) but c-centewed 10sqwt(2) units away in the
+        // x-diwection Owo a-and we 😳 👉 👈 t-touched edges 🥺
         let mut owo_cube = get_origin_cube();
         let mut uwu_cube = get_origin_cube();
 
