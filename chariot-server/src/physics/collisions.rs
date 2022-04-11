@@ -119,7 +119,38 @@ fn are_players_colliding(p1: &PlayerEntity, p2: &PlayerEntity) -> bool {
     return check_collision(&p1, &p2) || check_collision(&p2, &p1);
 }
 
-pub fn collide_players(p1: &PlayerEntity, p2: &PlayerEntity) {}
+pub fn collide_players(
+    p1: PlayerEntity,
+    p2: PlayerEntity,
+    time_step: f64,
+) -> (PlayerEntity, PlayerEntity) {
+    if !are_players_colliding(&p1, &p2) {
+        return (p1, p2);
+    }
+
+    // Given two force vectors a, b corresponding to objects A, B colliding: the
+    // force on A is equal to a - proj_b a, since proj_b a corresponds to the
+    // component of force acting in the same direction. Similarly, the force on
+    // B is b - proj_a b.
+
+    let p1_momentum = p1.velocity * p1.mass;
+    let p2_momentum = p2.velocity * p2.mass;
+    let delta_p1_momentum = p1_momentum - p1_momentum.project_onto(p2_momentum);
+    let delta_p2_momentum = p2_momentum - p2_momentum.project_onto(p1_momentum);
+
+    let new_pe = PlayerEntity {
+        velocity: p1.velocity,
+        angular_velocity: p1.angular_velocity,
+        mass: p1.mass,
+        x_size: p1.x_size,
+        y_size: p1.y_size,
+        z_size: p1.z_size,
+        player_inputs: p1.player_inputs,
+        entity_location: p1.entity_location,
+    };
+
+    return (new_pe, p2);
+}
 
 mod tests {
     use chariot_core::{
@@ -225,6 +256,22 @@ mod tests {
             DVec3::new(2.0_f64.sqrt() / 2.0, 0.0, 2.0_f64.sqrt() / 2.0);
 
         uwu_cube.entity_location.position = DVec3::new(10.0 * 2.0_f64.sqrt() - 0.1, 0.0, 0.0);
+        assert!(are_players_colliding(&owo_cube, &uwu_cube));
+    }
+
+    #[test]
+    fn test_collision_on_30_deg_rotated_edges() {
+        // uwu owo yadda yadda
+        let mut owo_cube = get_origin_cube();
+        let mut uwu_cube = get_origin_cube();
+
+        // upper right corner is located at x = 5sqrt(6) / 2, z = 5sqrt(2) / 2
+        owo_cube.entity_location.unit_steer_direction =
+            DVec3::new(1.0 / 2.0, 0.0, 3.0_f64.sqrt() / 2.0);
+        uwu_cube.entity_location.unit_steer_direction =
+            DVec3::new(-1.0 / 2.0, 0.0, 3.0_f64.sqrt() / 2.0);
+
+        uwu_cube.entity_location.position = DVec3::new(5.0 * 6.0_f64.sqrt(), 0.0, 0.0);
         assert!(are_players_colliding(&owo_cube, &uwu_cube));
     }
 }
