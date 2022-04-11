@@ -5,9 +5,17 @@ use std::time::{Duration, Instant};
 use chariot_core::networking::{ClientConnection, ClientUpdatingPacket, ServerUpdatingPacket};
 use chariot_core::GLOBAL_CONFIG;
 
+use crate::physics::player_entity::PlayerEntity;
+
 pub struct GameServer {
     listener: TcpListener,
     connections: Vec<ClientConnection>,
+
+    game_state: ServerGameState,
+}
+
+pub struct ServerGameState {
+    players: Vec<PlayerEntity>,
 }
 
 impl GameServer {
@@ -19,6 +27,9 @@ impl GameServer {
         GameServer {
             listener,
             connections: Vec::new(),
+            game_state: ServerGameState {
+                players: Vec::new(),
+            },
         }
     }
 
@@ -81,7 +92,14 @@ impl GameServer {
     }
 
     // update game state
-    fn simulate_game(&mut self) {}
+    fn simulate_game(&mut self) {
+        for (index, player) in self.game_state.players.iter().enumerate() {
+            let mut other_players = Vec::clone(&self.game_state.players);
+            other_players.remove(index);
+
+            player.do_physics_step(1.0, other_players);
+        }
+    }
 
     // queue up sending updated game state
     fn sync_state(&mut self) {}
