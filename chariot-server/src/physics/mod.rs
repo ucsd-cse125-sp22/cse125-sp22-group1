@@ -17,7 +17,7 @@ impl PlayerEntity {
     pub fn do_physics_step(
         &self,
         time_step: f64,
-        potential_colliders: [&PlayerEntity; 4],
+        potential_colliders: [Option<&PlayerEntity>; 4],
     ) -> PlayerEntity {
         let self_forces = self.sum_of_self_forces();
         let acceleration = self_forces / self.mass;
@@ -52,9 +52,14 @@ impl PlayerEntity {
         };
 
         for collider in potential_colliders {
-            match post_physics_PlayerEntity.collide_players(collider, time_step) {
-                Some(result) => {
-                    post_physics_PlayerEntity = result;
+            match collider {
+                Some(other_entity) => {
+                    match post_physics_PlayerEntity.collide_players(other_entity, time_step) {
+                        Some(result) => {
+                            post_physics_PlayerEntity = result;
+                        }
+                        None => (),
+                    }
                 }
                 None => (),
             }
@@ -156,7 +161,7 @@ mod tests {
             z_size: 1.0,
         };
 
-        props = props.do_physics_step(1.0);
+        props = props.do_physics_step(1.0, [None, None, None, None]);
 
         // since we're accelerating, should have the following changes:
         // - should have moved forward by previous velocity times time step
@@ -195,7 +200,7 @@ mod tests {
             z_size: 1.0,
         };
 
-        props = props.do_physics_step(1.0);
+        props = props.do_physics_step(1.0, [None, None, None, None]);
 
         // since we're not accelerating, should have the following changes:
         // - should have moved forward by previous velocity times time step
@@ -231,7 +236,7 @@ mod tests {
             z_size: 1.0,
         };
 
-        props = props.do_physics_step(1.0);
+        props = props.do_physics_step(1.0, [None, None, None, None]);
 
         // since we're decelerating, should have the following changes:
         // - should have moved forward by previous velocity times time step
@@ -271,11 +276,11 @@ mod tests {
             z_size: 1.0,
         };
 
-        props = props.do_physics_step(1.0);
+        props = props.do_physics_step(1.0, [None, None, None, None]);
         assert_eq!(props.angular_velocity, GLOBAL_CONFIG.car_spin);
 
         props.player_inputs.rotation_status = RotationStatus::NotInSpin;
-        props = props.do_physics_step(1.0);
+        props = props.do_physics_step(1.0, [None, None, None, None]);
         assert_eq!(
             props.angular_velocity,
             GLOBAL_CONFIG.car_spin * GLOBAL_CONFIG.rotation_reduction_coefficient
