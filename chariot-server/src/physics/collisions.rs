@@ -119,37 +119,42 @@ fn are_players_colliding(p1: &PlayerEntity, p2: &PlayerEntity) -> bool {
     return check_collision(&p1, &p2) || check_collision(&p2, &p1);
 }
 
-pub fn collide_players(
-    p1: PlayerEntity,
-    p2: PlayerEntity,
-    time_step: f64,
-) -> (PlayerEntity, PlayerEntity) {
-    if !are_players_colliding(&p1, &p2) {
-        return (p1, p2);
+impl PlayerEntity {
+    pub fn collide_players(&self, other: &PlayerEntity, time_step: f64) -> Option<PlayerEntity> {
+        if !are_players_colliding(&self, other) {
+            return None;
+        }
+
+        // Uses the angle-free equation from
+        // https://en.wikipedia.org/wiki/Elastic_collision#Two-dimensional
+        // Which applies symmetrically so it shouldn't be much of a performance
+        // hit to call this method once for each member of a colliding pair -
+        // and the formula should be fast anyways.
+
+        let v1 = self.velocity;
+        let v2 = other.velocity;
+        let m1 = self.mass;
+        let m2 = other.mass;
+        let x1 = self.entity_location.position;
+        let x2 = other.entity_location.position;
+
+        let term1 = (2.0 * m2) / (m1 + m2);
+        let term2 = (v1 - v2).dot(x1 - x2) / (x1 - x2).length_squared();
+        let term3 = x1 - x2;
+
+        let new_v1 = v1 - term1 * term2 * term3;
+
+        return Some(PlayerEntity {
+            velocity: new_v1,
+            angular_velocity: self.angular_velocity,
+            mass: self.mass,
+            x_size: self.x_size,
+            y_size: self.y_size,
+            z_size: self.z_size,
+            player_inputs: self.player_inputs,
+            entity_location: self.entity_location,
+        });
     }
-
-    // Given two force vectors a, b corresponding to objects A, B colliding: the
-    // force on A is equal to a - proj_b a, since proj_b a corresponds to the
-    // component of force acting in the same direction. Similarly, the force on
-    // B is b - proj_a b.
-
-    let p1_momentum = p1.velocity * p1.mass;
-    let p2_momentum = p2.velocity * p2.mass;
-    let delta_p1_momentum = p1_momentum - p1_momentum.project_onto(p2_momentum);
-    let delta_p2_momentum = p2_momentum - p2_momentum.project_onto(p1_momentum);
-
-    let new_pe = PlayerEntity {
-        velocity: p1.velocity,
-        angular_velocity: p1.angular_velocity,
-        mass: p1.mass,
-        x_size: p1.x_size,
-        y_size: p1.y_size,
-        z_size: p1.z_size,
-        player_inputs: p1.player_inputs,
-        entity_location: p1.entity_location,
-    };
-
-    return (new_pe, p2);
 }
 
 mod tests {
