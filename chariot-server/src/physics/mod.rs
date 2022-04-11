@@ -52,16 +52,12 @@ impl PlayerEntity {
         };
 
         for collider in potential_colliders {
-            match collider {
-                Some(other_entity) => {
-                    match post_physics_PlayerEntity.collide_players(other_entity, time_step) {
-                        Some(result) => {
-                            post_physics_PlayerEntity = result;
-                        }
-                        None => (),
-                    }
+            if let Some(other_entity) = collider {
+                if let Some(result) =
+                    post_physics_PlayerEntity.collide_players(other_entity, time_step)
+                {
+                    post_physics_PlayerEntity = result;
                 }
-                None => (),
             }
         }
 
