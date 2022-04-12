@@ -35,18 +35,11 @@ impl PlayerEntity {
         let zero_angle_vec = DVec2::new(1.0, 0.0);
 
         // Since the range of arccos is [0, pi], we add the extra pi if turned around more than that
-        let theta;
-        if heading[1] >= 0.0 {
-            theta = heading.dot(zero_angle_vec).acos();
+        let theta: f64 = if heading[1] >= 0.0 {
+            heading.dot(zero_angle_vec).acos()
         } else {
-            theta = heading.dot(zero_angle_vec).acos() + std::f64::consts::PI;
-        }
-
-        let center = DVec3::new(
-            self.entity_location.position[0],
-            self.entity_location.position[1],
-            self.entity_location.position[2],
-        );
+            heading.dot(zero_angle_vec).acos() + std::f64::consts::PI
+        };
 
         // If the center were at (0, 0, 0), then each corner of the hitbox would
         // have coordinates of the form (+-x_2, +-y_2, +-z_2) -- each corner has
@@ -56,14 +49,14 @@ impl PlayerEntity {
         // hitbox.
 
         return [
-            center + flat_rotate_vector(&DVec3::new(x_2, y_2, z_2), theta),
-            center + flat_rotate_vector(&DVec3::new(x_2, y_2, -z_2), theta),
-            center + flat_rotate_vector(&DVec3::new(x_2, -y_2, z_2), theta),
-            center + flat_rotate_vector(&DVec3::new(x_2, -y_2, -z_2), theta),
-            center + flat_rotate_vector(&DVec3::new(x_2, y_2, z_2), theta),
-            center + flat_rotate_vector(&DVec3::new(x_2, y_2, -z_2), theta),
-            center + flat_rotate_vector(&DVec3::new(x_2, -y_2, z_2), theta),
-            center + flat_rotate_vector(&DVec3::new(x_2, -y_2, -z_2), theta),
+            self.entity_location.position + flat_rotate_vector(&DVec3::new(x_2, y_2, z_2), theta),
+            self.entity_location.position + flat_rotate_vector(&DVec3::new(x_2, y_2, -z_2), theta),
+            self.entity_location.position + flat_rotate_vector(&DVec3::new(x_2, -y_2, z_2), theta),
+            self.entity_location.position + flat_rotate_vector(&DVec3::new(x_2, -y_2, -z_2), theta),
+            self.entity_location.position + flat_rotate_vector(&DVec3::new(x_2, y_2, z_2), theta),
+            self.entity_location.position + flat_rotate_vector(&DVec3::new(x_2, y_2, -z_2), theta),
+            self.entity_location.position + flat_rotate_vector(&DVec3::new(x_2, -y_2, z_2), theta),
+            self.entity_location.position + flat_rotate_vector(&DVec3::new(x_2, -y_2, -z_2), theta),
         ];
     }
 }

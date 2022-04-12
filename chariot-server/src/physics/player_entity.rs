@@ -2,7 +2,7 @@ use chariot_core::entity_location::EntityLocation;
 use chariot_core::player_inputs::PlayerInputs;
 use glam::DVec3;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct PlayerEntity {
     pub velocity: DVec3,
     pub angular_velocity: f64, // in radians per time unit

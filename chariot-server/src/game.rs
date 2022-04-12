@@ -94,10 +94,14 @@ impl GameServer {
     // update game state
     fn simulate_game(&mut self) {
         for (index, player) in self.game_state.players.iter().enumerate() {
-            let mut other_players = Vec::clone(&self.game_state.players);
-            other_players.remove(index);
+            let others = self
+                .game_state
+                .players
+                .iter()
+                .filter(|&other_player| other_player != player)
+                .map(|player_entity| *player_entity);
 
-            player.do_physics_step(1.0, other_players);
+            player.do_physics_step(1.0, others.collect());
         }
     }
 
