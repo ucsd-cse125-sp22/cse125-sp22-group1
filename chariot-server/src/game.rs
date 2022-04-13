@@ -93,7 +93,7 @@ impl GameServer {
 
     // update game state
     fn simulate_game(&mut self) {
-        for (index, player) in self.game_state.players.iter().enumerate() {
+        for player in self.game_state.players.iter() {
             let others = self
                 .game_state
                 .players

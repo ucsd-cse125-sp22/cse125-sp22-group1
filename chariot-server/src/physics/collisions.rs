@@ -2,27 +2,20 @@ use glam::{DVec2, DVec3};
 
 use super::player_entity::PlayerEntity;
 
-// Given a 3D vector, rotate it in the XZ plane by theta radians counterclockwise.
+// Given a 2D vector, rotate it by theta radians counterclockwise.
 // Refer to https://en.wikipedia.org/wiki/Rotation_matrix for the formula used here
-fn flat_rotate_vector(v: &DVec3, theta: f64) -> DVec3 {
+fn flat_rotate_vector(v: &DVec2, theta: f64) -> DVec2 {
     let x = v[0];
-    let y = v[1];
-    let z = v[2];
+    let z = v[1];
 
     let sin_theta = theta.sin();
     let cos_theta = theta.cos();
 
-    return DVec3::new(
-        x * cos_theta - z * sin_theta,
-        y,
-        x * sin_theta + z * cos_theta,
-    );
+    return DVec2::new(x * cos_theta - z * sin_theta, x * sin_theta + z * cos_theta);
 }
 
 impl PlayerEntity {
-    // Given the hitbox of an entity, return the coordinates of its corners when
-    // rotated counterclockwise in the XZ plane by a given number of radians
-    fn get_corners_of_hitbox(&self) -> [DVec3; 8] {
+    fn get_bounding_box_corners(&self) -> [[f64; 2]; 3] {
         let x_2 = self.x_size / 2.0;
         let y_2 = self.y_size / 2.0;
         let z_2 = self.z_size / 2.0;
@@ -34,86 +27,75 @@ impl PlayerEntity {
         );
         let zero_angle_vec = DVec2::new(1.0, 0.0);
 
-        // Since the range of arccos is [0, pi], we add the extra pi if turned around more than that
-        let theta: f64 = if heading[1] >= 0.0 {
-            heading.dot(zero_angle_vec).acos()
-        } else {
-            heading.dot(zero_angle_vec).acos() + std::f64::consts::PI
-        };
+        // Since the range of arccos is [0, pi], and bounding boxes are
+        // reflectionally symmetrical over the X and Z axes, we can thus
+        // constrain (for the purposes of bounding-box calculation) the rotation
+        // angle to be in [0, pi/2].
+        let mut theta: f64 = heading.dot(zero_angle_vec).acos();
+        if theta > std::f64::consts::FRAC_PI_2 {
+            theta -= std::f64::consts::FRAC_PI_2;
+        }
 
-        // If the center were at (0, 0, 0), then each corner of the hitbox would
-        // have coordinates of the form (+-x_2, +-y_2, +-z_2) -- each corner has
-        // a unique combination of positive and negative signs for the
-        // coordinates. We rotate all those vectors by the given angle, and then
-        // translate by the center of the object to get the corners of the real
-        // hitbox.
+        // These two vectors and -1 times these two vectors define the four
+        // corners of the bounding box (source: trust me bro)
+        let one_corner = flat_rotate_vector(&DVec2::new(x_2, z_2), theta);
+        let other_corner =
+            flat_rotate_vector(&DVec2::new(-x_2, -z_2), std::f64::consts::PI - theta);
 
-        return [
-            self.entity_location.position + flat_rotate_vector(&DVec3::new(x_2, y_2, z_2), theta),
-            self.entity_location.position + flat_rotate_vector(&DVec3::new(x_2, y_2, -z_2), theta),
-            self.entity_location.position + flat_rotate_vector(&DVec3::new(x_2, -y_2, z_2), theta),
-            self.entity_location.position + flat_rotate_vector(&DVec3::new(x_2, -y_2, -z_2), theta),
-            self.entity_location.position + flat_rotate_vector(&DVec3::new(x_2, y_2, z_2), theta),
-            self.entity_location.position + flat_rotate_vector(&DVec3::new(x_2, y_2, -z_2), theta),
-            self.entity_location.position + flat_rotate_vector(&DVec3::new(x_2, -y_2, z_2), theta),
-            self.entity_location.position + flat_rotate_vector(&DVec3::new(x_2, -y_2, -z_2), theta),
+        let xs = [
+            one_corner.x,
+            other_corner.x,
+            (-1.0 * one_corner).x,
+            (-1.0 * other_corner).x,
         ];
+        let zs = [
+            one_corner.y,
+            other_corner.y,
+            (-1.0 * one_corner).y,
+            (-1.0 * other_corner).y,
+        ];
+
+        let min_x = self.entity_location.position.x + xs.into_iter().reduce(f64::min).unwrap();
+        let max_x = self.entity_location.position.x + xs.into_iter().reduce(f64::max).unwrap();
+
+        let min_z = self.entity_location.position.z + zs.into_iter().reduce(f64::min).unwrap();
+        let max_z = self.entity_location.position.z + zs.into_iter().reduce(f64::max).unwrap();
+
+        let min_y = self.entity_location.position.y - y_2;
+        let max_y = self.entity_location.position.y + y_2;
+
+        return [[min_x, max_x], [min_y, max_y], [min_z, max_z]];
     }
 }
+fn check_bounding_box_collisions(p1: &PlayerEntity, p2: &PlayerEntity) -> bool {
+    let bounding_box_1 = p1.get_bounding_box_corners();
+    let bounding_box_2 = p2.get_bounding_box_corners();
 
-// Check whether any portion of p1 is within p2
-fn check_collision(p1: &PlayerEntity, p2: &PlayerEntity) -> bool {
-    let p1_corners = p1.get_corners_of_hitbox();
-    let p2_corners = p2.get_corners_of_hitbox();
+    let mut collision_dimensions = [false, false, false];
 
-    // Two steps: check if the y-value is fine (easy cause we're always
-    // spinning flat), and if it is then check whether (x, z) is within the 2d
-    // rectangle
+    for dimension in 0..=2 {
+        let [min_1, max_1] = bounding_box_1[dimension];
+        let [min_2, max_2] = bounding_box_2[dimension];
 
-    for p1_corner in p1_corners {
-        let high_y = p2_corners[0][1];
-        let low_y = p2_corners[2][1];
-
-        // If not in the y-range, this corner can't be in the bounding box; move on to the next corner
-        if p1_corner[1] > high_y || p1_corner[1] < low_y {
-            continue;
-        }
-
-        // Otherwise, check using the 2d rectangle defined by x's and z's
-        // I do not pretend to understand this formula, but it's taken from
-        // https://math.stackexchange.com/a/190373
-        let M_x = p1_corner[0];
-        let M_z = p1_corner[2];
-
-        let A_x = p2_corners[0][0];
-        let A_z = p2_corners[0][2];
-        let B_x = p2_corners[1][0];
-        let B_z = p2_corners[1][2];
-        let D_x = p2_corners[4][0];
-        let D_z = p2_corners[4][2];
-
-        let AM = DVec2::new(M_x - A_x, M_z - A_z);
-        let AB = DVec2::new(B_x - A_x, B_z - A_z);
-        let AD = DVec2::new(D_x - A_x, D_z - A_z);
-
-        if 0.0 <= AM.dot(AB)
-            && AM.dot(AB) <= AB.dot(AB)
-            && 0.0 <= AM.dot(AD)
-            && AM.dot(AD) <= AD.dot(AD)
-        {
-            return true;
+        if {
+            (min_2 <= min_1 && min_1 <= max_2) // min_1 is inside 2
+                || (min_2 <= max_1 && max_1 <= max_2) // max_1 is inside 2
+                || (min_1 <= min_2 && min_2 <= max_1) // min_2 is inside 1
+                || (min_1 <= max_2 && max_2 <= max_1) // max_2 is inside 1
+        } {
+            collision_dimensions[dimension] = true;
         }
     }
 
-    return false;
+    return collision_dimensions.iter().all(|&x| x);
 }
 
 fn are_players_colliding(p1: &PlayerEntity, p2: &PlayerEntity) -> bool {
-    return check_collision(&p1, &p2) || check_collision(&p2, &p1);
+    return check_bounding_box_collisions(&p1, &p2) || check_bounding_box_collisions(&p2, &p1);
 }
 
 impl PlayerEntity {
-    pub fn collide_players(&self, other: &PlayerEntity, time_step: f64) -> Option<PlayerEntity> {
+    pub fn collide_players(&self, other: &PlayerEntity) -> Option<PlayerEntity> {
         if !are_players_colliding(&self, other) {
             return None;
         }
