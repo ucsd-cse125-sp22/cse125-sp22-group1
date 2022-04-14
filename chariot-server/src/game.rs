@@ -16,10 +16,14 @@ impl GameServer {
         let listener =
             TcpListener::bind(&ip_addr).expect("could not bind to configured server address");
         println!("game server now listening on {}", ip_addr);
-        GameServer {
+
+        // start the Web Socket Service
+        println!("start web socket service here as well");
+
+        return GameServer {
             listener,
             connections: Vec::new(),
-        }
+        };
     }
 
     // WARNING: this function never returns
