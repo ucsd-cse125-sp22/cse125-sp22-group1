@@ -13,6 +13,7 @@ mod drawable;
 mod game;
 mod renderer;
 mod resources;
+mod scenegraph;
 
 fn main() {
     // at some point, networking PoC:
