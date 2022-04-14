@@ -93,13 +93,14 @@ impl GameServer {
 
     // update game state
     fn simulate_game(&mut self) {
-        for player in self.game_state.players.iter() {
+        for (this_index, player) in self.game_state.players.iter().enumerate() {
             let others = self
                 .game_state
                 .players
                 .iter()
-                .filter(|&other_player| other_player != player)
-                .map(|player_entity| *player_entity);
+                .enumerate()
+                .filter(|(other_index, _)| *other_index != this_index)
+                .map(|(_, &player_entity)| player_entity);
 
             player.do_physics_step(1.0, others.collect());
         }

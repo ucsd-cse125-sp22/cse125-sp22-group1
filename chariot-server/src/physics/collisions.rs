@@ -15,7 +15,7 @@ fn flat_rotate_vector(v: &DVec2, theta: f64) -> DVec2 {
 }
 
 impl PlayerEntity {
-    fn get_bounding_box_corners(&self) -> [[f64; 2]; 3] {
+    fn get_bounding_box_dimensions(&self) -> [[f64; 2]; 3] {
         let x_2 = self.x_size / 2.0;
         let y_2 = self.y_size / 2.0;
         let z_2 = self.z_size / 2.0;
@@ -55,11 +55,14 @@ impl PlayerEntity {
             (-1.0 * other_corner).y,
         ];
 
-        let min_x = self.entity_location.position.x + xs.into_iter().reduce(f64::min).unwrap();
-        let max_x = self.entity_location.position.x + xs.into_iter().reduce(f64::max).unwrap();
+        // This will always be nonnegative (since we're centered around the origin)
+        let x_dist = xs.into_iter().reduce(f64::max).unwrap();
+        let min_x = self.entity_location.position.x - x_dist;
+        let max_x = self.entity_location.position.x + x_dist;
 
-        let min_z = self.entity_location.position.z + zs.into_iter().reduce(f64::min).unwrap();
-        let max_z = self.entity_location.position.z + zs.into_iter().reduce(f64::max).unwrap();
+        let z_dist = zs.into_iter().reduce(f64::max).unwrap();
+        let min_z = self.entity_location.position.z - z_dist;
+        let max_z = self.entity_location.position.z + z_dist;
 
         let min_y = self.entity_location.position.y - y_2;
         let max_y = self.entity_location.position.y + y_2;
@@ -67,9 +70,10 @@ impl PlayerEntity {
         return [[min_x, max_x], [min_y, max_y], [min_z, max_z]];
     }
 }
+
 fn check_bounding_box_collisions(p1: &PlayerEntity, p2: &PlayerEntity) -> bool {
-    let bounding_box_1 = p1.get_bounding_box_corners();
-    let bounding_box_2 = p2.get_bounding_box_corners();
+    let bounding_box_1 = p1.get_bounding_box_dimensions();
+    let bounding_box_2 = p2.get_bounding_box_dimensions();
 
     let mut collision_dimensions = [false, false, false];
 
@@ -90,13 +94,9 @@ fn check_bounding_box_collisions(p1: &PlayerEntity, p2: &PlayerEntity) -> bool {
     return collision_dimensions.iter().all(|&x| x);
 }
 
-fn are_players_colliding(p1: &PlayerEntity, p2: &PlayerEntity) -> bool {
-    return check_bounding_box_collisions(&p1, &p2) || check_bounding_box_collisions(&p2, &p1);
-}
-
 impl PlayerEntity {
     pub fn collide_players(&self, other: &PlayerEntity) -> Option<PlayerEntity> {
-        if !are_players_colliding(&self, other) {
+        if !check_bounding_box_collisions(&self, other) {
             return None;
         }
 
@@ -139,7 +139,7 @@ mod tests {
     };
     use glam::DVec3;
 
-    use crate::physics::{collisions::are_players_colliding, PlayerEntity};
+    use crate::physics::{collisions::check_bounding_box_collisions, PlayerEntity};
 
     fn get_origin_cube() -> PlayerEntity {
         return PlayerEntity {
@@ -166,7 +166,7 @@ mod tests {
     #[test]
     fn test_collision_with_self() {
         let origin_cube = get_origin_cube();
-        assert!(are_players_colliding(&origin_cube, &origin_cube));
+        assert!(check_bounding_box_collisions(&origin_cube, &origin_cube));
     }
 
     #[test]
@@ -176,7 +176,10 @@ mod tests {
         smol_origin_cube.x_size = 1.0;
         smol_origin_cube.y_size = 1.0;
         smol_origin_cube.z_size = 1.0;
-        assert!(are_players_colliding(&big_origin_cube, &smol_origin_cube))
+        assert!(check_bounding_box_collisions(
+            &big_origin_cube,
+            &smol_origin_cube
+        ))
     }
 
     #[test]
@@ -184,7 +187,10 @@ mod tests {
         let origin_cube = get_origin_cube();
         let mut not_origin_cube = get_origin_cube();
         not_origin_cube.entity_location.position = DVec3::new(10.0, 10.0, 10.0);
-        assert!(are_players_colliding(&origin_cube, &not_origin_cube))
+        assert!(check_bounding_box_collisions(
+            &origin_cube,
+            &not_origin_cube
+        ))
     }
 
     #[test]
@@ -192,7 +198,10 @@ mod tests {
         let origin_cube = get_origin_cube();
         let mut not_origin_cube = get_origin_cube();
         not_origin_cube.entity_location.position = DVec3::new(10.1, 10.1, 10.1);
-        assert!(!are_players_colliding(&origin_cube, &not_origin_cube))
+        assert!(!check_bounding_box_collisions(
+            &origin_cube,
+            &not_origin_cube
+        ))
     }
 
     // we have different logic for the y-direction, might as well test that
@@ -203,9 +212,9 @@ mod tests {
         let mut low_cube = get_origin_cube();
         high_cube.entity_location.position = DVec3::new(0.0, 20.0, 0.0);
         low_cube.entity_location.position = DVec3::new(0.0, -20.0, 0.0);
-        assert!(!are_players_colliding(&origin_cube, &high_cube));
-        assert!(!are_players_colliding(&origin_cube, &low_cube));
-        assert!(!are_players_colliding(&high_cube, &low_cube)); // just for good measure
+        assert!(!check_bounding_box_collisions(&origin_cube, &high_cube));
+        assert!(!check_bounding_box_collisions(&origin_cube, &low_cube));
+        assert!(!check_bounding_box_collisions(&high_cube, &low_cube)); // just for good measure
     }
 
     #[test]
@@ -215,9 +224,9 @@ mod tests {
         let mut low_cube = get_origin_cube();
         high_cube.entity_location.position = DVec3::new(0.0, 8.0, 0.0);
         low_cube.entity_location.position = DVec3::new(0.0, -8.0, 0.0);
-        assert!(are_players_colliding(&origin_cube, &high_cube));
-        assert!(are_players_colliding(&origin_cube, &low_cube));
-        assert!(!are_players_colliding(&high_cube, &low_cube)); // just for good measure
+        assert!(check_bounding_box_collisions(&origin_cube, &high_cube));
+        assert!(check_bounding_box_collisions(&origin_cube, &low_cube));
+        assert!(!check_bounding_box_collisions(&high_cube, &low_cube)); // just for good measure
     }
 
     #[test]
@@ -236,7 +245,7 @@ mod tests {
             DVec3::new(2.0_f64.sqrt() / 2.0, 0.0, 2.0_f64.sqrt() / 2.0);
 
         uwu_cube.entity_location.position = DVec3::new(10.0 * 2.0_f64.sqrt() - 0.1, 0.0, 0.0);
-        assert!(are_players_colliding(&owo_cube, &uwu_cube));
+        assert!(check_bounding_box_collisions(&owo_cube, &uwu_cube));
     }
 
     #[test]
@@ -252,6 +261,6 @@ mod tests {
             DVec3::new(-1.0 / 2.0, 0.0, 3.0_f64.sqrt() / 2.0);
 
         uwu_cube.entity_location.position = DVec3::new(5.0 * 6.0_f64.sqrt(), 0.0, 0.0);
-        assert!(are_players_colliding(&owo_cube, &uwu_cube));
+        assert!(check_bounding_box_collisions(&owo_cube, &uwu_cube));
     }
 }
