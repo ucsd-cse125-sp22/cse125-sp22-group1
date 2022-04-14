@@ -6,11 +6,9 @@ use glam::DVec3;
 pub struct PlayerEntity {
     pub velocity: DVec3,
     pub angular_velocity: f64, // in radians per time unit
-    pub mass: f64,
 
-    pub x_size: f64,
-    pub y_size: f64,
-    pub z_size: f64,
+    pub mass: f64,
+    pub size: DVec3,
 
     pub player_inputs: PlayerInputs,
     pub entity_location: EntityLocation,

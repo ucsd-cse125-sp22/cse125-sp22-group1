@@ -16,9 +16,9 @@ fn flat_rotate_vector(v: &DVec2, theta: f64) -> DVec2 {
 
 impl PlayerEntity {
     fn get_bounding_box_dimensions(&self) -> [[f64; 2]; 3] {
-        let x_2 = self.x_size / 2.0;
-        let y_2 = self.y_size / 2.0;
-        let z_2 = self.z_size / 2.0;
+        let x_2 = self.size.x / 2.0;
+        let y_2 = self.size.y / 2.0;
+        let z_2 = self.size.z / 2.0;
 
         // Angles are measured from the (1, 0, 0) axis
         let heading = DVec2::new(
@@ -123,9 +123,7 @@ impl PlayerEntity {
             velocity: new_v1,
             angular_velocity: self.angular_velocity,
             mass: self.mass,
-            x_size: self.x_size,
-            y_size: self.y_size,
-            z_size: self.z_size,
+            size: self.size,
             player_inputs: self.player_inputs,
             entity_location: self.entity_location,
         });
@@ -157,9 +155,7 @@ mod tests {
             angular_velocity: 0.0,
             mass: 10.0,
 
-            x_size: 10.0,
-            y_size: 10.0,
-            z_size: 10.0,
+            size: DVec3::new(10.0, 10.0, 10.0),
         };
     }
 
@@ -173,9 +169,7 @@ mod tests {
     fn test_engulfed_collision() {
         let big_origin_cube = get_origin_cube();
         let mut smol_origin_cube = get_origin_cube();
-        smol_origin_cube.x_size = 1.0;
-        smol_origin_cube.y_size = 1.0;
-        smol_origin_cube.z_size = 1.0;
+        smol_origin_cube.size = DVec3::new(1.0, 1.0, 1.0);
         assert!(check_bounding_box_collisions(
             &big_origin_cube,
             &smol_origin_cube

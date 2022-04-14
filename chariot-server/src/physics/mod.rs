@@ -46,9 +46,7 @@ impl PlayerEntity {
             velocity: self.velocity + acceleration * time_step,
             angular_velocity: angular_velocity,
             mass: self.mass,
-            x_size: self.x_size,
-            y_size: self.y_size,
-            z_size: self.z_size,
+            size: self.size,
         };
 
         for collider in potential_colliders {
@@ -148,9 +146,7 @@ mod tests {
             angular_velocity: 0.0,
             mass: 10.0,
 
-            x_size: 1.0,
-            y_size: 1.0,
-            z_size: 1.0,
+            size: DVec3::new(10.0, 10.0, 10.0),
         };
 
         props = props.do_physics_step(1.0, Vec::new());
@@ -187,9 +183,7 @@ mod tests {
             angular_velocity: 0.0,
             mass: 10.0,
 
-            x_size: 1.0,
-            y_size: 1.0,
-            z_size: 1.0,
+            size: DVec3::new(10.0, 10.0, 10.0),
         };
 
         props = props.do_physics_step(1.0, Vec::new());
@@ -223,9 +217,7 @@ mod tests {
             angular_velocity: 0.0,
             mass: 10.0,
 
-            x_size: 1.0,
-            y_size: 1.0,
-            z_size: 1.0,
+            size: DVec3::new(10.0, 10.0, 10.0),
         };
 
         props = props.do_physics_step(1.0, Vec::new());
@@ -263,9 +255,7 @@ mod tests {
             angular_velocity: 0.0,
             mass: 10.0,
 
-            x_size: 1.0,
-            y_size: 1.0,
-            z_size: 1.0,
+            size: DVec3::new(10.0, 10.0, 10.0),
         };
 
         props = props.do_physics_step(1.0, Vec::new());
