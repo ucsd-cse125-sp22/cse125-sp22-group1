@@ -7,11 +7,17 @@ use winit::{
     event_loop::ControlFlow,
 };
 
+use chariot_core::hook::Hook;
+
 mod application;
 mod drawable;
 mod game;
 mod renderer;
 mod resources;
+
+fn test(a: &Hook) {
+    println!("Working! {:?}", a);
+}
 
 fn main() {
     // at some point, networking PoC:
@@ -24,7 +30,32 @@ fn main() {
     let renderer = renderer::Renderer::new(context);
     let mut application = application::Application::new(renderer);
 
-    let material_handle = application.resources.import_material(
+    let mut a = |x: &Hook| println!("Working! {:?}", x);
+    let mut b = |x: &Hook| println!(":o {:?}", x);
+    application.hook_manager.add(Hook::KeyUp(0), &mut a);
+
+    let keyup1 = Hook::KeyUp(86);
+    println!("Test func");
+    test(&keyup1);
+    println!("Test hook");
+    application.hook_manager.call(keyup1);
+
+    println!("Test both");
+    let keyup2 = Hook::KeyUp(127);
+    application.hook_manager.add(Hook::KeyUp(0), &mut b);
+    application.hook_manager.call(keyup2);
+
+    println!("Test second hook");
+    let keydown1 = Hook::KeyDown;
+    let mut c = |x: &Hook| println!("OH NO {:?}", x);
+    application.hook_manager.add(Hook::KeyDown, &mut c);
+    application.hook_manager.call(keydown1);
+    let keyup3 = Hook::KeyUp(42);
+    let keydown2 = Hook::KeyDown;
+    application.hook_manager.call(keyup3);
+    application.hook_manager.call(keydown2);
+
+    /*let material_handle = application.resources.import_material(
         &mut application.renderer,
         include_str!("shader.wgsl"),
         "boring",
@@ -95,6 +126,7 @@ fn main() {
             _ => {}
         }
     });
+    */
     /*
     let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
     let mut game_client = game::GameClient::new(ip_addr);

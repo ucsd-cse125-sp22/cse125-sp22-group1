@@ -7,22 +7,26 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
+use chariot_core::hook::*;
+
 use crate::drawable::*;
 use crate::renderer::*;
 use crate::resources::*;
 
-pub struct Application {
+pub struct Application<'a> {
     pub drawables: Vec<StaticMeshDrawable>,
     pub renderer: Renderer,
     pub resources: ResourceManager,
+    pub hook_manager: HookManager<'a>,
 }
 
-impl Application {
+impl<'a> Application<'a> {
     pub fn new(renderer: Renderer) -> Self {
         Self {
             drawables: Vec::new(),
             renderer: renderer,
             resources: ResourceManager::new(),
+            hook_manager: HookManager::new(),
         }
     }
 
