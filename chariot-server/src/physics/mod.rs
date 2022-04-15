@@ -11,13 +11,17 @@ pub mod player_entity;
 
 use player_entity::PlayerEntity;
 
+use self::player_entity::BoundingBoxDimensions;
+
 impl PlayerEntity {
     /* Given a set of physical properties, compute and return what next tick's
     	* physics properties will be for that object */
     pub fn do_physics_step(
         &self,
         time_step: f64,
-        potential_colliders: Vec<PlayerEntity>,
+        mut potential_colliders: Vec<&PlayerEntity>,
+        self_bounding_box: &BoundingBoxDimensions,
+        collider_bounding_boxes: Vec<BoundingBoxDimensions>,
     ) -> PlayerEntity {
         let self_forces = self.sum_of_self_forces();
         let acceleration = self_forces / self.mass;
@@ -32,7 +36,20 @@ impl PlayerEntity {
             }
         };
 
-        let mut post_physics_PlayerEntity = PlayerEntity {
+        let mut delta_velocity = acceleration * time_step;
+
+        for (collider, &collider_bounding_box) in potential_colliders
+            .iter_mut()
+            .zip(collider_bounding_boxes.iter())
+        {
+            delta_velocity += self.delta_v_from_collision_with_player(
+                collider,
+                self_bounding_box,
+                &collider_bounding_box,
+            );
+        }
+
+        return PlayerEntity {
             player_inputs: PlayerInputs {
                 engine_status: self.player_inputs.engine_status,
                 rotation_status: self.player_inputs.rotation_status,
@@ -43,19 +60,11 @@ impl PlayerEntity {
                 unit_steer_direction: self.entity_location.unit_steer_direction,
             },
 
-            velocity: self.velocity + acceleration * time_step,
+            velocity: self.velocity + delta_velocity,
             angular_velocity: angular_velocity,
             mass: self.mass,
             size: self.size,
         };
-
-        for collider in potential_colliders {
-            if let Some(result) = post_physics_PlayerEntity.collide_players(&collider) {
-                post_physics_PlayerEntity = result;
-            }
-        }
-
-        return post_physics_PlayerEntity;
     }
 
     fn sum_of_self_forces(&self) -> DVec3 {
@@ -149,7 +158,8 @@ mod tests {
             size: DVec3::new(10.0, 10.0, 10.0),
         };
 
-        props = props.do_physics_step(1.0, Vec::new());
+        let dims = props.get_bounding_box_dimensions();
+        props = props.do_physics_step(1.0, Vec::new(), &dims, Vec::new());
 
         // since we're accelerating, should have the following changes:
         // - should have moved forward by previous velocity times time step
@@ -186,7 +196,8 @@ mod tests {
             size: DVec3::new(10.0, 10.0, 10.0),
         };
 
-        props = props.do_physics_step(1.0, Vec::new());
+        let dims = props.get_bounding_box_dimensions();
+        props = props.do_physics_step(1.0, Vec::new(), &dims, Vec::new());
 
         // since we're not accelerating, should have the following changes:
         // - should have moved forward by previous velocity times time step
@@ -220,7 +231,8 @@ mod tests {
             size: DVec3::new(10.0, 10.0, 10.0),
         };
 
-        props = props.do_physics_step(1.0, Vec::new());
+        let dims = props.get_bounding_box_dimensions();
+        props = props.do_physics_step(1.0, Vec::new(), &dims, Vec::new());
 
         // since we're decelerating, should have the following changes:
         // - should have moved forward by previous velocity times time step
@@ -258,11 +270,14 @@ mod tests {
             size: DVec3::new(10.0, 10.0, 10.0),
         };
 
-        props = props.do_physics_step(1.0, Vec::new());
+        let dims = props.get_bounding_box_dimensions();
+        props = props.do_physics_step(1.0, Vec::new(), &dims, Vec::new());
+
         assert_eq!(props.angular_velocity, GLOBAL_CONFIG.car_spin);
 
         props.player_inputs.rotation_status = RotationStatus::NotInSpin;
-        props = props.do_physics_step(1.0, Vec::new());
+        props = props.do_physics_step(1.0, Vec::new(), &dims, Vec::new());
+
         assert_eq!(
             props.angular_velocity,
             GLOBAL_CONFIG.car_spin * GLOBAL_CONFIG.rotation_reduction_coefficient
