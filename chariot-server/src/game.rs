@@ -1,4 +1,5 @@
 use std::net::TcpListener;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -8,10 +9,16 @@ use chariot_core::GLOBAL_CONFIG;
 pub struct GameServer {
     listener: TcpListener,
     connections: Vec<ClientConnection>,
+    audience_input: Arc<Mutex<Vec<String>>>,
+    server_messages: Arc<Mutex<Vec<String>>>,
 }
 
 impl GameServer {
-    pub fn new(ip_addr: String) -> GameServer {
+    pub fn new(
+        ip_addr: String,
+        audience_input: Arc<Mutex<Vec<String>>>,
+        server_messages: Arc<Mutex<Vec<String>>>,
+    ) -> GameServer {
         // start the TCP listening service
         let listener =
             TcpListener::bind(&ip_addr).expect("could not bind to configured server address");
@@ -19,6 +26,8 @@ impl GameServer {
         GameServer {
             listener,
             connections: Vec::new(),
+            audience_input,
+            server_messages,
         }
     }
 
@@ -35,6 +44,13 @@ impl GameServer {
             self.connections
                 .iter_mut()
                 .for_each(|con| con.sync_incoming());
+
+            // poll for input events from websocket
+            let mut audience_input = self.audience_input.lock().unwrap();
+
+            for message in audience_input.iter() {
+                println!("got message {}", message);
+            }
 
             self.process_incoming_packets();
             self.simulate_game();
@@ -74,6 +90,10 @@ impl GameServer {
                     ServerUpdatingPacket::Ping => {
                         println!("Received a Ping packet from client #{}!", i);
                         connection.push_outgoing(ClientUpdatingPacket::Pong);
+                        self.server_messages
+                            .lock()
+                            .unwrap()
+                            .push("PING".to_string());
                     }
                 }
             }
