@@ -1,6 +1,6 @@
 use glam::{DVec2, DVec3};
 
-use super::player_entity::{BoundingBoxDimensions, PlayerEntity};
+use super::player_entity::PlayerEntity;
 
 // Given a 2D vector, rotate it by theta radians counterclockwise.
 // Refer to https://en.wikipedia.org/wiki/Rotation_matrix for the formula used here
@@ -14,31 +14,28 @@ fn flat_rotate_vector(v: &DVec2, theta: f64) -> DVec2 {
     return DVec2::new(x * cos_theta - z * sin_theta, x * sin_theta + z * cos_theta);
 }
 
-fn check_bounding_box_collisions(
-    bounding_box_1: &BoundingBoxDimensions,
-    bounding_box_2: &BoundingBoxDimensions,
-) -> bool {
-    let mut collision_dimensions = [false, false, false];
+impl PlayerEntity {
+    fn check_bounding_box_collisions(&self, other: &PlayerEntity) -> bool {
+        let mut collision_dimensions = [false, false, false];
 
-    for dimension in 0..=2 {
-        let [min_1, max_1] = bounding_box_1[dimension];
-        let [min_2, max_2] = bounding_box_2[dimension];
+        for dimension in 0..=2 {
+            let [min_1, max_1] = self.bounding_box[dimension];
+            let [min_2, max_2] = other.bounding_box[dimension];
 
-        if {
-            (min_2 <= min_1 && min_1 <= max_2) // min_1 is inside 2
-                || (min_2 <= max_1 && max_1 <= max_2) // max_1 is inside 2
-                || (min_1 <= min_2 && min_2 <= max_1) // min_2 is inside 1
-                || (min_1 <= max_2 && max_2 <= max_1) // max_2 is inside 1
-        } {
-            collision_dimensions[dimension] = true;
+            if {
+                (min_2 <= min_1 && min_1 <= max_2) // min_1 is inside 2
+					|| (min_2 <= max_1 && max_1 <= max_2) // max_1 is inside 2
+					|| (min_1 <= min_2 && min_2 <= max_1) // min_2 is inside 1
+					|| (min_1 <= max_2 && max_2 <= max_1) // max_2 is inside 1
+            } {
+                collision_dimensions[dimension] = true;
+            }
         }
+
+        return collision_dimensions.iter().all(|&x| x);
     }
 
-    return collision_dimensions.iter().all(|&x| x);
-}
-
-impl PlayerEntity {
-    pub fn get_bounding_box_dimensions(&self) -> BoundingBoxDimensions {
+    pub fn set_bounding_box_dimensions(&mut self) {
         let x_2 = self.size.x / 2.0;
         let y_2 = self.size.y / 2.0;
         let z_2 = self.size.z / 2.0;
@@ -90,17 +87,12 @@ impl PlayerEntity {
         let min_y = self.entity_location.position.y - y_2;
         let max_y = self.entity_location.position.y + y_2;
 
-        return [[min_x, max_x], [min_y, max_y], [min_z, max_z]];
+        self.bounding_box = [[min_x, max_x], [min_y, max_y], [min_z, max_z]];
     }
 
     // Returns the velocity change to self from colliding with other
-    pub fn delta_v_from_collision_with_player(
-        &self,
-        other: &PlayerEntity,
-        self_bounding_box: &BoundingBoxDimensions,
-        other_bounding_box: &BoundingBoxDimensions,
-    ) -> DVec3 {
-        if !check_bounding_box_collisions(self_bounding_box, other_bounding_box) {
+    pub fn delta_v_from_collision_with_player(&self, other: &PlayerEntity) -> DVec3 {
+        if !self.check_bounding_box_collisions(other) {
             return DVec3::new(0.0, 0.0, 0.0);
         }
 
@@ -132,7 +124,7 @@ mod tests {
     };
     use glam::DVec3;
 
-    use crate::physics::{collisions::check_bounding_box_collisions, PlayerEntity};
+    use crate::physics::PlayerEntity;
 
     fn get_origin_cube() -> PlayerEntity {
         return PlayerEntity {
@@ -151,14 +143,14 @@ mod tests {
             mass: 10.0,
 
             size: DVec3::new(10.0, 10.0, 10.0),
+            bounding_box: [[-5.0, 5.0], [-5.0, 5.0], [-5.0, 5.0]],
         };
     }
 
     #[test]
     fn test_collision_with_self() {
         let origin_cube = get_origin_cube();
-        let bounding_box = origin_cube.get_bounding_box_dimensions();
-        assert!(check_bounding_box_collisions(&bounding_box, &bounding_box,));
+        assert!(origin_cube.check_bounding_box_collisions(&origin_cube));
     }
 
     #[test]
@@ -166,10 +158,8 @@ mod tests {
         let big_origin_cube = get_origin_cube();
         let mut smol_origin_cube = get_origin_cube();
         smol_origin_cube.size = DVec3::new(1.0, 1.0, 1.0);
-        assert!(check_bounding_box_collisions(
-            &big_origin_cube.get_bounding_box_dimensions(),
-            &smol_origin_cube.get_bounding_box_dimensions(),
-        ))
+        smol_origin_cube.set_bounding_box_dimensions();
+        assert!(big_origin_cube.check_bounding_box_collisions(&smol_origin_cube));
     }
 
     #[test]
@@ -177,10 +167,8 @@ mod tests {
         let origin_cube = get_origin_cube();
         let mut not_origin_cube = get_origin_cube();
         not_origin_cube.entity_location.position = DVec3::new(10.0, 10.0, 10.0);
-        assert!(check_bounding_box_collisions(
-            &origin_cube.get_bounding_box_dimensions(),
-            &not_origin_cube.get_bounding_box_dimensions(),
-        ))
+        not_origin_cube.set_bounding_box_dimensions();
+        assert!(origin_cube.check_bounding_box_collisions(&not_origin_cube));
     }
 
     #[test]
@@ -188,10 +176,8 @@ mod tests {
         let origin_cube = get_origin_cube();
         let mut not_origin_cube = get_origin_cube();
         not_origin_cube.entity_location.position = DVec3::new(10.1, 10.1, 10.1);
-        assert!(!check_bounding_box_collisions(
-            &origin_cube.get_bounding_box_dimensions(),
-            &not_origin_cube.get_bounding_box_dimensions(),
-        ))
+        not_origin_cube.set_bounding_box_dimensions();
+        assert!(!origin_cube.check_bounding_box_collisions(&not_origin_cube));
     }
 
     // we have different logic for the y-direction, might as well test that
@@ -202,18 +188,11 @@ mod tests {
         let mut low_cube = get_origin_cube();
         high_cube.entity_location.position = DVec3::new(0.0, 20.0, 0.0);
         low_cube.entity_location.position = DVec3::new(0.0, -20.0, 0.0);
-        assert!(!check_bounding_box_collisions(
-            &origin_cube.get_bounding_box_dimensions(),
-            &high_cube.get_bounding_box_dimensions(),
-        ));
-        assert!(!check_bounding_box_collisions(
-            &origin_cube.get_bounding_box_dimensions(),
-            &low_cube.get_bounding_box_dimensions(),
-        ));
-        assert!(!check_bounding_box_collisions(
-            &high_cube.get_bounding_box_dimensions(),
-            &low_cube.get_bounding_box_dimensions(),
-        )); // just for good measure
+        high_cube.set_bounding_box_dimensions();
+        low_cube.set_bounding_box_dimensions();
+        assert!(!origin_cube.check_bounding_box_collisions(&high_cube));
+        assert!(!origin_cube.check_bounding_box_collisions(&low_cube));
+        assert!(!high_cube.check_bounding_box_collisions(&low_cube)); // just for good measure
     }
 
     #[test]
@@ -223,18 +202,11 @@ mod tests {
         let mut low_cube = get_origin_cube();
         high_cube.entity_location.position = DVec3::new(0.0, 8.0, 0.0);
         low_cube.entity_location.position = DVec3::new(0.0, -8.0, 0.0);
-        assert!(check_bounding_box_collisions(
-            &origin_cube.get_bounding_box_dimensions(),
-            &high_cube.get_bounding_box_dimensions(),
-        ));
-        assert!(check_bounding_box_collisions(
-            &origin_cube.get_bounding_box_dimensions(),
-            &low_cube.get_bounding_box_dimensions(),
-        ));
-        assert!(!check_bounding_box_collisions(
-            &high_cube.get_bounding_box_dimensions(),
-            &low_cube.get_bounding_box_dimensions(),
-        )); // just for good measure
+        high_cube.set_bounding_box_dimensions();
+        low_cube.set_bounding_box_dimensions();
+        assert!(origin_cube.check_bounding_box_collisions(&high_cube));
+        assert!(origin_cube.check_bounding_box_collisions(&low_cube));
+        assert!(!high_cube.check_bounding_box_collisions(&low_cube)); // just for good measure
     }
 
     #[test]
@@ -253,10 +225,9 @@ mod tests {
             DVec3::new(2.0_f64.sqrt() / 2.0, 0.0, 2.0_f64.sqrt() / 2.0);
 
         uwu_cube.entity_location.position = DVec3::new(10.0 * 2.0_f64.sqrt() - 0.1, 0.0, 0.0);
-        assert!(check_bounding_box_collisions(
-            &owo_cube.get_bounding_box_dimensions(),
-            &uwu_cube.get_bounding_box_dimensions(),
-        ));
+        uwu_cube.set_bounding_box_dimensions();
+        owo_cube.set_bounding_box_dimensions();
+        assert!(uwu_cube.check_bounding_box_collisions(&owo_cube));
     }
 
     #[test]
@@ -272,9 +243,8 @@ mod tests {
             DVec3::new(-1.0 / 2.0, 0.0, 3.0_f64.sqrt() / 2.0);
 
         uwu_cube.entity_location.position = DVec3::new(5.0 * 6.0_f64.sqrt(), 0.0, 0.0);
-        assert!(check_bounding_box_collisions(
-            &owo_cube.get_bounding_box_dimensions(),
-            &uwu_cube.get_bounding_box_dimensions(),
-        ));
+        uwu_cube.set_bounding_box_dimensions();
+        owo_cube.set_bounding_box_dimensions();
+        assert!(uwu_cube.check_bounding_box_collisions(&owo_cube));
     }
 }

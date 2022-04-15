@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 use chariot_core::networking::{ClientConnection, ClientUpdatingPacket, ServerUpdatingPacket};
 use chariot_core::GLOBAL_CONFIG;
 
-use crate::physics::player_entity::{BoundingBoxDimensions, PlayerEntity};
+use crate::physics::player_entity::PlayerEntity;
 
 pub struct GameServer {
     listener: TcpListener,
@@ -95,12 +95,9 @@ impl GameServer {
     fn simulate_game(&mut self) {
         let mut new_players = vec![];
 
-        let old_bounding_boxes: Vec<BoundingBoxDimensions> = self
-            .game_state
-            .players
-            .iter()
-            .map(|player| (player.get_bounding_box_dimensions()))
-            .collect();
+        for player in &mut self.game_state.players {
+            player.set_bounding_box_dimensions();
+        }
 
         for (this_index, player) in self.game_state.players.iter().enumerate() {
             let others = self
@@ -112,19 +109,7 @@ impl GameServer {
                 .map(|(_, player_entity)| player_entity)
                 .collect();
 
-            let other_bounding_boxes = old_bounding_boxes
-                .iter()
-                .enumerate()
-                .filter(|(other_index, _)| *other_index != this_index)
-                .map(|(_, &bounding_box)| bounding_box)
-                .collect();
-
-            new_players.push(player.do_physics_step(
-                1.0,
-                others,
-                &old_bounding_boxes[this_index],
-                other_bounding_boxes,
-            ));
+            new_players.push(player.do_physics_step(1.0, others));
         }
 
         self.game_state.players = new_players;

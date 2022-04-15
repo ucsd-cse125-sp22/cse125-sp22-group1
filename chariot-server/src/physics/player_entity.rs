@@ -10,6 +10,7 @@ pub struct PlayerEntity {
 
     pub mass: f64,
     pub size: DVec3,
+    pub bounding_box: BoundingBoxDimensions,
 
     pub player_inputs: PlayerInputs,
     pub entity_location: EntityLocation,
