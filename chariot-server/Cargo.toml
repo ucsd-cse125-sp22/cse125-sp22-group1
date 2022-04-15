@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 glam = "0.20.3"
+tungstenite = "0.16.0"
 chariot-core = { path = "../chariot-core" }
