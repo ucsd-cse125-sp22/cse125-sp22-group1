@@ -9,12 +9,20 @@ use chariot_core::networking::{
 use chariot_core::GLOBAL_CONFIG;
 use tungstenite::{accept, Message};
 
+use crate::physics::player_entity::PlayerEntity;
+
 pub struct GameServer {
     listener: TcpListener,
     ws_server: TcpListener,
     connections: Vec<ClientConnection>,
     ws_connections: Vec<WebSocketConnection>,
     ws_messages: Arc<Mutex<Vec<String>>>,
+
+    game_state: ServerGameState,
+}
+
+pub struct ServerGameState {
+    players: Vec<PlayerEntity>,
 }
 
 impl GameServer {
@@ -31,6 +39,9 @@ impl GameServer {
             connections: Vec::new(),
             ws_connections: Vec::new(),
             ws_messages: Arc::new(Mutex::new(Vec::new())),
+            game_state: ServerGameState {
+                players: Vec::new(),
+            },
         }
     }
 
@@ -194,7 +205,28 @@ impl GameServer {
     }
 
     // update game state
-    fn simulate_game(&mut self) {}
+    fn simulate_game(&mut self) {
+        let mut new_players = vec![];
+
+        for player in &mut self.game_state.players {
+            player.set_bounding_box_dimensions();
+        }
+
+        for (this_index, player) in self.game_state.players.iter().enumerate() {
+            let others = self
+                .game_state
+                .players
+                .iter()
+                .enumerate()
+                .filter(|(other_index, _)| *other_index != this_index)
+                .map(|(_, player_entity)| player_entity)
+                .collect();
+
+            new_players.push(player.do_physics_step(1.0, others));
+        }
+
+        self.game_state.players = new_players;
+    }
 
     // queue up sending updated game state
     fn sync_state(&mut self) {}
