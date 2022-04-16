@@ -1,7 +1,7 @@
 use glam::Vec3;
-use std::collections::HashMap;
+use std::any::{Any, TypeId};
 use std::boxed::Box;
-use std::any::{TypeId,Any};
+use std::collections::HashMap;
 use crate::drawable::*;
 
 struct World {
@@ -12,11 +12,10 @@ struct World {
 struct Entity {
 	components: HashMap<TypeId, Box<dyn Component>>,
 	children: Vec<Box<Entity>>
-}
 
 trait Component {
-	fn update(&mut self);
-	fn as_any(&self) -> &dyn Any;
+    fn update(&mut self);
+    fn as_any(&self) -> &dyn Any;
 }
 
 
@@ -37,13 +36,13 @@ impl Transform {
 }
 
 impl Component for Transform {
-	fn update(&mut self){
-		//receive server data and update fields
-	}
-	
-	fn as_any(&self) -> &dyn Any {
-		self
-	}
+    fn update(&mut self) {
+        //receive server data and update fields
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 
@@ -58,24 +57,24 @@ impl PlayerController {
 }
 
 impl Component for PlayerController {
-	fn update(&mut self){
-		//send input data to server
-	}
-	
-	fn as_any(&self) -> &dyn Any {
-		self
-	}
+    fn update(&mut self) {
+        //send input data to server
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 
 impl Component for StaticMeshDrawable {
-	fn update(&mut self){
-		//render entity
-	}
-	
-	fn as_any(&self) -> &dyn Any {
-		self
-	}
+    fn update(&mut self) {
+        //render entity
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 
