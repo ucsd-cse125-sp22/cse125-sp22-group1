@@ -13,13 +13,14 @@ pub struct WSConnection {
 
 impl WSConnection {
     pub fn new(tcp_stream: TcpStream) -> WSConnection {
+        tcp_stream.set_nonblocking(false);
         match accept(tcp_stream) {
             Ok(socket) => {
                 return WSConnection {
                     socket,
                     incoming_packets: VecDeque::new(),
                     outgoing_packets: VecDeque::new(),
-                }
+                };
             }
             Err(err) => {
                 println!("{:?}", err);

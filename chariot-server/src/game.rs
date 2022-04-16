@@ -69,6 +69,7 @@ impl GameServer {
                 .for_each(|con| con.sync_outgoing());
 
             // wait until server tick time has elapsed
+            println!("server tick time: {:#?}", start_time.elapsed());
             let remaining_tick_duration = max_server_tick_duration
                 .checked_sub(start_time.elapsed())
                 .expect("server tick took longer than configured length");
@@ -99,6 +100,7 @@ impl GameServer {
         for stream in self.ws_server.incoming() {
             match stream {
                 Ok(_) => {
+                    println!("we have a stream now");
                     self.ws_connections.push(WebSocketConnection::new(
                         stream.expect("stream should be valid"),
                     ));
@@ -107,6 +109,7 @@ impl GameServer {
                 }
                 Err(_) => {}
             }
+            break;
         }
         self.ws_server
             .set_nonblocking(false)
