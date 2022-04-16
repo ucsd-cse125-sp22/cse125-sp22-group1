@@ -16,6 +16,7 @@ impl WSConnection {
         tcp_stream.set_nonblocking(false);
         match accept(tcp_stream) {
             Ok(socket) => {
+                socket.get_ref().set_nonblocking(true);
                 return WSConnection {
                     socket,
                     incoming_packets: VecDeque::new(),
@@ -42,14 +43,17 @@ impl WSConnection {
     }
 
     pub fn sync_incoming(&mut self) {
-        let msg = self
-            .socket
-            .read_message()
-            .expect("should be able to read something");
-        if msg.is_binary() || msg.is_text() {
-            // this is where we handle shit
-            self.incoming_packets.push_back(msg);
+        let msg_result = self.socket.read_message();
+        match msg_result {
+            Ok(msg) => {
+                if msg.is_binary() || msg.is_text() {
+                    // this is where we handle shit
+                    self.incoming_packets.push_back(msg);
+                }
+            }
+            Err(_) => {}
         }
+
         // // fetch packets for this connection until exhausted
         // loop {
         //     // allows us to keep going if there's no input
