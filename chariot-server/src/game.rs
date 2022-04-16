@@ -1,13 +1,12 @@
 use std::net::TcpListener;
-use std::sync::{Arc, Mutex};
-use std::thread::{self, spawn};
+use std::thread::{self};
 use std::time::{Duration, Instant};
 
 use chariot_core::networking::{
     ClientConnection, ClientUpdatingPacket, ServerUpdatingPacket, WebSocketConnection,
 };
 use chariot_core::GLOBAL_CONFIG;
-use tungstenite::{accept, Message};
+use tungstenite::Message;
 
 use crate::physics::player_entity::PlayerEntity;
 
@@ -16,8 +15,6 @@ pub struct GameServer {
     ws_server: TcpListener,
     connections: Vec<ClientConnection>,
     ws_connections: Vec<WebSocketConnection>,
-    ws_messages: Arc<Mutex<Vec<String>>>,
-
     game_state: ServerGameState,
 }
 
@@ -38,7 +35,6 @@ impl GameServer {
             ws_server,
             connections: Vec::new(),
             ws_connections: Vec::new(),
-            ws_messages: Arc::new(Mutex::new(Vec::new())),
             game_state: ServerGameState {
                 players: Vec::new(),
             },
