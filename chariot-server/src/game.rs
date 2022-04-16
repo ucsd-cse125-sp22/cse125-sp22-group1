@@ -143,6 +143,7 @@ impl GameServer {
 
     // handle socket data
     fn process_ws_packets(&mut self) {
+        let mut messageToSend = String::new();
         for (i, connection) in self.ws_connections.iter_mut().enumerate() {
             while let Some(packet) = connection.pop_incoming() {
                 match packet {
@@ -154,7 +155,8 @@ impl GameServer {
                         );
                         self.connections.iter_mut().for_each(|client| {
                             client.push_outgoing(ClientUpdatingPacket::Message(txt.clone()))
-                        })
+                        });
+                        messageToSend = txt.clone();
                     }
                     tungstenite::Message::Binary(_) => {
                         println!("got message from client #{} of type Binary", i)
@@ -169,6 +171,11 @@ impl GameServer {
                         println!("got message from client #{} of type Close", i)
                     }
                 }
+            }
+        }
+        if messageToSend.len() > 0 {
+            for con in self.ws_connections.iter_mut() {
+                con.push_outgoing(Message::Text(messageToSend.clone()));
             }
         }
         // for stream in self.ws_server.incoming() {
