@@ -76,7 +76,6 @@ impl GameServer {
                 .for_each(|con| con.sync_outgoing());
 
             // wait until server tick time has elapsed
-            println!("server tick time: {:#?}", start_time.elapsed());
             let remaining_tick_duration = max_server_tick_duration
                 .checked_sub(start_time.elapsed())
                 .expect("server tick took longer than configured length");
@@ -99,7 +98,6 @@ impl GameServer {
 
     // creates a websocket for any audience connections
     fn acquire_any_audience_connections(&mut self) {
-        println!("acquiring audience connections");
         let mut conns = 0;
         self.ws_server
             .set_nonblocking(true)
@@ -121,7 +119,6 @@ impl GameServer {
         self.ws_server
             .set_nonblocking(false)
             .expect("non blocking should be ok");
-        println!("acquired {} audience connections!", conns);
     }
 
     // handle every packet in received order
@@ -152,8 +149,12 @@ impl GameServer {
                     tungstenite::Message::Text(txt) => {
                         println!(
                             "got message from client #{} of type Text, it says {}",
-                            i, txt
-                        )
+                            i,
+                            txt.clone()
+                        );
+                        self.connections.iter_mut().for_each(|client| {
+                            client.push_outgoing(ClientUpdatingPacket::Message(txt.clone()))
+                        })
                     }
                     tungstenite::Message::Binary(_) => {
                         println!("got message from client #{} of type Binary", i)
