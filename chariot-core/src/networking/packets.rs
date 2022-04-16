@@ -13,6 +13,7 @@ pub enum ServerUpdatingPacket {
 #[derive(Serialize, Deserialize)]
 pub enum ClientUpdatingPacket {
     Pong,
+    Message(String),
     //GameStateUpdate(GameState),
 }
 

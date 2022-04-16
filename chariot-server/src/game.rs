@@ -1,33 +1,36 @@
 use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
-use std::thread;
+use std::thread::{self, spawn};
 use std::time::{Duration, Instant};
 
-use chariot_core::networking::{ClientConnection, ClientUpdatingPacket, ServerUpdatingPacket};
+use chariot_core::networking::{
+    ClientConnection, ClientUpdatingPacket, ServerUpdatingPacket, WebSocketConnection,
+};
 use chariot_core::GLOBAL_CONFIG;
+use tungstenite::{accept, Message};
 
 pub struct GameServer {
     listener: TcpListener,
+    ws_server: TcpListener,
     connections: Vec<ClientConnection>,
-    audience_input: Arc<Mutex<Vec<String>>>,
-    server_messages: Arc<Mutex<Vec<String>>>,
+    ws_connections: Vec<WebSocketConnection>,
+    ws_messages: Arc<Mutex<Vec<String>>>,
 }
 
 impl GameServer {
-    pub fn new(
-        ip_addr: String,
-        audience_input: Arc<Mutex<Vec<String>>>,
-        server_messages: Arc<Mutex<Vec<String>>>,
-    ) -> GameServer {
+    pub fn new(ip_addr: String) -> GameServer {
         // start the TCP listening service
         let listener =
             TcpListener::bind(&ip_addr).expect("could not bind to configured server address");
         println!("game server now listening on {}", ip_addr);
+        let ws_server = TcpListener::bind("127.0.0.1:9001").expect("could not bind to ws server");
+
         GameServer {
             listener,
+            ws_server,
             connections: Vec::new(),
-            audience_input,
-            server_messages,
+            ws_connections: Vec::new(),
+            ws_messages: Arc::new(Mutex::new(Vec::new())),
         }
     }
 
@@ -37,6 +40,7 @@ impl GameServer {
 
         loop {
             self.block_until_minimum_connections();
+            self.acquire_any_audience_connections();
 
             let start_time = Instant::now();
 
@@ -45,19 +49,22 @@ impl GameServer {
                 .iter_mut()
                 .for_each(|con| con.sync_incoming());
 
-            // poll for input events from websocket
-            let mut audience_input = self.audience_input.lock().unwrap();
-
-            for message in audience_input.iter() {
-                println!("got message {}", message);
-            }
+            // poll for ws input events
+            self.ws_connections
+                .iter_mut()
+                .for_each(|con| con.sync_incoming());
 
             self.process_incoming_packets();
+            self.process_ws_packets();
             self.simulate_game();
             self.sync_state();
 
             // empty outgoing packet queue and send to clients
             self.connections
+                .iter_mut()
+                .for_each(|con| con.sync_outgoing());
+
+            self.ws_connections
                 .iter_mut()
                 .for_each(|con| con.sync_outgoing());
 
@@ -82,6 +89,31 @@ impl GameServer {
         }
     }
 
+    // creates a websocket for any audience connections
+    fn acquire_any_audience_connections(&mut self) {
+        println!("acquiring audience connections");
+        let mut conns = 0;
+        self.ws_server
+            .set_nonblocking(true)
+            .expect("non blocking should be ok");
+        for stream in self.ws_server.incoming() {
+            match stream {
+                Ok(_) => {
+                    self.ws_connections.push(WebSocketConnection::new(
+                        stream.expect("stream should be valid"),
+                    ));
+                    conns += 1;
+                    println!("acquired an audience connection!");
+                }
+                Err(_) => {}
+            }
+        }
+        self.ws_server
+            .set_nonblocking(false)
+            .expect("non blocking should be ok");
+        println!("acquired {} audience connections!", conns);
+    }
+
     // handle every packet in received order
     fn process_incoming_packets(&mut self) {
         for (i, connection) in self.connections.iter_mut().enumerate() {
@@ -90,14 +122,72 @@ impl GameServer {
                     ServerUpdatingPacket::Ping => {
                         println!("Received a Ping packet from client #{}!", i);
                         connection.push_outgoing(ClientUpdatingPacket::Pong);
-                        self.server_messages
-                            .lock()
-                            .unwrap()
-                            .push("PING".to_string());
+                        self.ws_connections.iter_mut().for_each(|ws| {
+                            ws.push_outgoing(Message::Text(format!(
+                                "broadcasting that the server got a ping packet from client #{}!",
+                                i
+                            )))
+                        })
                     }
                 }
             }
         }
+    }
+
+    // handle socket data
+    fn process_ws_packets(&mut self) {
+        for (i, connection) in self.ws_connections.iter_mut().enumerate() {
+            while let Some(packet) = connection.pop_incoming() {
+                match packet {
+                    tungstenite::Message::Text(txt) => {
+                        println!(
+                            "got message from client #{} of type Text, it says {}",
+                            i, txt
+                        )
+                    }
+                    tungstenite::Message::Binary(_) => {
+                        println!("got message from client #{} of type Binary", i)
+                    }
+                    tungstenite::Message::Ping(_) => {
+                        println!("got message from client #{} of type Ping", i)
+                    }
+                    tungstenite::Message::Pong(_) => {
+                        println!("got message from client #{} of type Pong", i)
+                    }
+                    tungstenite::Message::Close(_) => {
+                        println!("got message from client #{} of type Close", i)
+                    }
+                }
+            }
+        }
+        // for stream in self.ws_server.incoming() {
+        //     println!("handling a stream");
+        //     let ws_messages = self.ws_messages.clone();
+        //     spawn(move || {
+        //         let mut websocket = accept(stream.unwrap()).unwrap();
+        //         loop {
+        //             let msg = websocket.read_message().unwrap();
+
+        //             // We do not want to send back ping/pong messages.
+        //             if msg.is_binary() || msg.is_text() {
+        //                 let msg_txt = msg.clone().into_text().expect("expected a string");
+        //                 // when we get a message here, we want to somehow communicate this with the regular game server
+        //                 websocket
+        //                     .write_message(tungstenite::Message::Text(
+        //                         "we just got a message!".to_string(),
+        //                     ))
+        //                     .unwrap();
+        //                 websocket.write_message(msg).unwrap();
+        //                 ws_messages
+        //                     .lock()
+        //                     .unwrap()
+        //                     .push(format!("{}", msg_txt).to_string());
+        //                 println!("messages so far: {}", ws_messages.lock().unwrap().len());
+        //             }
+        //         }
+        //     });
+        // }
+        // println!("done processing");
     }
 
     // update game state
