@@ -1,23 +1,22 @@
 use chariot_core::GLOBAL_CONFIG;
+use game::GameClient;
 use specs::{Builder, WorldExt};
 use std::mem;
 use wgpu::util::DeviceExt;
 use winit::{
-    event::{Event, WindowEvent},
+    dpi::PhysicalPosition,
+    event::{ElementState, Event, MouseButton, WindowEvent},
     event_loop::ControlFlow,
 };
 
-use chariot_core::hook::Hook;
-
 mod application;
+mod client_events;
 mod drawable;
 mod game;
 mod renderer;
 mod resources;
 
-fn test(a: &Hook) {
-    println!("Working! {:?}", a);
-}
+use crate::client_events::Watching;
 
 fn main() {
     // at some point, networking PoC:
@@ -25,35 +24,88 @@ fn main() {
     // let game_client = game::GameClient::new(ip_addr);
     // game_client.ping();
 
+    let ip_addr = "".to_string();
+    let mut game = GameClient::new(ip_addr);
+
     let event_loop = winit::event_loop::EventLoop::new();
     let context = renderer::context::Context::new(&event_loop);
     let renderer = renderer::Renderer::new(context);
-    let mut application = application::Application::new(renderer);
+    let mut application = application::Application::new(renderer, game);
 
-    let mut a = |x: &Hook| println!("Working! {:?}", x);
-    let mut b = |x: &Hook| println!(":o {:?}", x);
-    application.hook_manager.add(Hook::KeyUp(0), &mut a);
+    let mut mouse_pos = PhysicalPosition::<f64> { x: -1.0, y: -1.0 };
+    let mut first_run = false;
 
-    let keyup1 = Hook::KeyUp(86);
-    println!("Test func");
-    test(&keyup1);
-    println!("Test hook");
-    application.hook_manager.call(keyup1);
+    // Example of main loop deferring to elsewhere
+    event_loop.run(move |event, _, control_flow| {
+        // TRIGGER EVENTS
+        *control_flow = ControlFlow::Wait;
+        match event {
+            Event::WindowEvent {
+                event: WindowEvent::Resized(size),
+                ..
+            } => {
+                application.renderer.handle_surface_resize(size);
+            }
+            Event::RedrawRequested(_) => {
+                application.render();
+            }
+            Event::WindowEvent {
+                event: WindowEvent::CloseRequested,
+                ..
+            } => *control_flow = ControlFlow::Exit,
+            Event::WindowEvent {
+                event: WindowEvent::KeyboardInput { input, .. },
+                ..
+            } => {
+                if let Some(key) = input.virtual_keycode {
+                    match input.state {
+                        ElementState::Pressed => application.on_key_down(key),
+                        ElementState::Released => application.on_key_up(key),
+                    }
+                }
+            } // call application.on_keyboard_input()
+            Event::WindowEvent {
+                event:
+                    WindowEvent::MouseInput {
+                        device_id,
+                        button,
+                        state,
+                        modifiers,
+                    },
+                ..
+            } => match button {
+                MouseButton::Left => application.on_left_mouse(mouse_pos.x, mouse_pos.y, state),
+                MouseButton::Right => application.on_right_mouse(mouse_pos.x, mouse_pos.y, state),
+                _ => println!("Unknown mouse input received!"),
+            }, // call application.on_mouse_input()
+            Event::WindowEvent {
+                event:
+                    WindowEvent::CursorMoved {
+                        device_id,
+                        position,
+                        modifiers,
+                    },
+                ..
+            } => {
+                mouse_pos = position;
+                application.on_mouse_move(position.x, position.y);
+            } // call application.on_mouse_moved()
+            _ => {}
+        }
 
-    println!("Test both");
-    let keyup2 = Hook::KeyUp(127);
-    application.hook_manager.add(Hook::KeyUp(0), &mut b);
-    application.hook_manager.call(keyup2);
+        // HANDLE GAME LOGIC
 
-    println!("Test second hook");
-    let keydown1 = Hook::KeyDown;
-    let mut c = |x: &Hook| println!("OH NO {:?}", x);
-    application.hook_manager.add(Hook::KeyDown, &mut c);
-    application.hook_manager.call(keydown1);
-    let keyup3 = Hook::KeyUp(42);
-    let keydown2 = Hook::KeyDown;
-    application.hook_manager.call(keyup3);
-    application.hook_manager.call(keydown2);
+        // Trigger Pre-init
+        // Call update()
+        application.update();
+        // Trigger Post-update
+        // Call draw()
+        // Trigger post-draw
+
+        // Trigger Cleanup
+
+        // NEXT ITERATION
+    });
 
     /*let material_handle = application.resources.import_material(
         &mut application.renderer,

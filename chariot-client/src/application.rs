@@ -6,27 +6,47 @@ use std::{
     default,
     sync::atomic::{AtomicUsize, Ordering},
 };
+use winit::event::{ElementState, VirtualKeyCode};
 
-use chariot_core::hook::*;
-
+use crate::client_events::Watching;
 use crate::drawable::*;
+use crate::game::GameClient;
 use crate::renderer::*;
 use crate::resources::*;
 
-pub struct Application<'a> {
+pub struct Application {
     pub drawables: Vec<StaticMeshDrawable>,
     pub renderer: Renderer,
     pub resources: ResourceManager,
-    pub hook_manager: HookManager<'a>,
+    pub game: GameClient,
 }
 
-impl<'a> Application<'a> {
-    pub fn new(renderer: Renderer) -> Self {
+impl Watching for Application {
+    fn on_key_down(&mut self, key: VirtualKeyCode) {
+        self.game.on_key_down(key);
+    }
+    fn on_key_up(&mut self, key: VirtualKeyCode) {
+        self.game.on_key_up(key);
+    }
+
+    fn on_mouse_move(&mut self, x: f64, y: f64) {
+        self.game.on_mouse_move(x, y);
+    }
+    fn on_left_mouse(&mut self, x: f64, y: f64, state: ElementState) {
+        self.game.on_left_mouse(x, y, state);
+    }
+    fn on_right_mouse(&mut self, x: f64, y: f64, state: ElementState) {
+        self.game.on_right_mouse(x, y, state);
+    }
+}
+
+impl Application {
+    pub fn new(renderer: Renderer, game: GameClient) -> Self {
         Self {
             drawables: Vec::new(),
             renderer: renderer,
             resources: ResourceManager::new(),
-            hook_manager: HookManager::new(),
+            game: game,
         }
     }
 
@@ -47,7 +67,9 @@ impl<'a> Application<'a> {
         self.renderer.render(&render_job);
     }
 
-    pub fn update(&mut self) {}
+    pub fn update(&mut self) {
+        self.game.print_keys();
+    }
 
     // TODO: input handlers
 }
