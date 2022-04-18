@@ -6,16 +6,21 @@ use chariot_core::player_inputs::PlayerInputs;
 use chariot_core::player_inputs::RotationStatus;
 use chariot_core::GLOBAL_CONFIG;
 
-mod player_entity;
+mod collisions;
+pub mod player_entity;
 
 use player_entity::PlayerEntity;
 
 impl PlayerEntity {
     /* Given a set of physical properties, compute and return what next tick's
     	* physics properties will be for that object */
-    pub fn do_physics_step(&self, time_step: f64) -> PlayerEntity {
-        let forces = self.sum_of_forces_on_object();
-        let acceleration = forces / self.mass;
+    pub fn do_physics_step(
+        &self,
+        time_step: f64,
+        mut potential_colliders: Vec<&PlayerEntity>,
+    ) -> PlayerEntity {
+        let self_forces = self.sum_of_self_forces();
+        let acceleration = self_forces / self.mass;
 
         let angular_velocity: f64 = match self.player_inputs.rotation_status {
             RotationStatus::InSpinClockwise => self.angular_velocity + GLOBAL_CONFIG.car_spin,
@@ -26,6 +31,12 @@ impl PlayerEntity {
                 self.angular_velocity * GLOBAL_CONFIG.rotation_reduction_coefficient
             }
         };
+
+        let mut delta_velocity = acceleration * time_step;
+
+        for collider in potential_colliders.iter_mut() {
+            delta_velocity += self.delta_v_from_collision_with_player(collider);
+        }
 
         return PlayerEntity {
             player_inputs: PlayerInputs {
@@ -38,13 +49,15 @@ impl PlayerEntity {
                 unit_steer_direction: self.entity_location.unit_steer_direction,
             },
 
-            velocity: self.velocity + acceleration * time_step,
+            velocity: self.velocity + delta_velocity,
             angular_velocity: angular_velocity,
             mass: self.mass,
+            size: self.size,
+            bounding_box: self.bounding_box,
         };
     }
 
-    pub fn sum_of_forces_on_object(&self) -> DVec3 {
+    fn sum_of_self_forces(&self) -> DVec3 {
         return self.gravitational_force_on_object()
             + self.normal_force_on_object()
             + self.player_applied_force_on_object()
@@ -131,9 +144,12 @@ mod tests {
             velocity: DVec3::new(2.0, 0.0, 1.0),
             angular_velocity: 0.0,
             mass: 10.0,
+
+            size: DVec3::new(10.0, 10.0, 10.0),
+            bounding_box: [[-5.0, 5.0], [-5.0, 5.0], [-5.0, 5.0]],
         };
 
-        props = props.do_physics_step(1.0);
+        props = props.do_physics_step(1.0, Vec::new());
 
         // since we're accelerating, should have the following changes:
         // - should have moved forward by previous velocity times time step
@@ -166,9 +182,12 @@ mod tests {
             velocity: DVec3::new(2.0, 0.0, 1.0),
             angular_velocity: 0.0,
             mass: 10.0,
+
+            size: DVec3::new(10.0, 10.0, 10.0),
+            bounding_box: [[15.0, 25.0], [25.0, 35.0], [35.0, 45.0]],
         };
 
-        props = props.do_physics_step(1.0);
+        props = props.do_physics_step(1.0, Vec::new());
 
         // since we're not accelerating, should have the following changes:
         // - should have moved forward by previous velocity times time step
@@ -198,9 +217,12 @@ mod tests {
             velocity: DVec3::new(2.0, 0.0, 1.0),
             angular_velocity: 0.0,
             mass: 10.0,
+
+            size: DVec3::new(10.0, 10.0, 10.0),
+            bounding_box: [[15.0, 25.0], [25.0, 35.0], [35.0, 45.0]],
         };
 
-        props = props.do_physics_step(1.0);
+        props = props.do_physics_step(1.0, Vec::new());
 
         // since we're decelerating, should have the following changes:
         // - should have moved forward by previous velocity times time step
@@ -234,13 +256,18 @@ mod tests {
             velocity: DVec3::new(0.0, 0.0, 0.0),
             angular_velocity: 0.0,
             mass: 10.0,
+
+            size: DVec3::new(10.0, 10.0, 10.0),
+            bounding_box: [[15.0, 25.0], [25.0, 35.0], [35.0, 45.0]],
         };
 
-        props = props.do_physics_step(1.0);
+        props = props.do_physics_step(1.0, Vec::new());
+
         assert_eq!(props.angular_velocity, GLOBAL_CONFIG.car_spin);
 
         props.player_inputs.rotation_status = RotationStatus::NotInSpin;
-        props = props.do_physics_step(1.0);
+        props = props.do_physics_step(1.0, Vec::new());
+
         assert_eq!(
             props.angular_velocity,
             GLOBAL_CONFIG.car_spin * GLOBAL_CONFIG.rotation_reduction_coefficient
