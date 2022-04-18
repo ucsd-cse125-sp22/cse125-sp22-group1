@@ -25,33 +25,26 @@ fn main() {
     let renderer = renderer::Renderer::new(context);
     let mut application = application::Application::new(renderer);
 
-    let material_handle = application.resources.import_material(
+    /*let material_handle = application.resources.import_material(
         &mut application.renderer,
         include_str!("shader.wgsl"),
         "boring",
-    );
+    );*/
 
-    let import_result = application.resources.import_gltf(
-        &application.renderer,
-        "models/FlightHelmet/FlightHelmet.gltf",
-    );
+    let import_result = application
+        .resources
+        .import_gltf(&mut application.renderer, "models/DamagedHelmet.glb");
 
     if import_result.is_ok() {
-        for static_mesh_handle in import_result.unwrap().2.iter() {
-            let drawable = drawable::StaticMeshDrawable::new(
-                &application.renderer,
-                &application.resources,
-                material_handle,
-                *static_mesh_handle,
-                0,
-            );
-            application.drawables.push(drawable);
-        }
+        application
+            .drawables
+            .extend(import_result.unwrap().drawables);
     }
 
     event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
+        *control_flow = ControlFlow::Poll;
         match event {
+            Event::MainEventsCleared => application.renderer.request_redraw(),
             Event::WindowEvent {
                 event: WindowEvent::Resized(size),
                 ..

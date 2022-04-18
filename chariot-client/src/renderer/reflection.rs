@@ -1,4 +1,7 @@
-use std::{collections::HashMap, result::Result};
+use std::{
+    collections::{BTreeMap, HashMap},
+    result::Result,
+};
 
 /*
  * This file contains the function shader_metadata (at the bottom), which parses a shader using the naga library,
@@ -303,25 +306,26 @@ fn has_location_binding(arg: &naga::FunctionArgument) -> bool {
 }
 
 pub struct ShaderMetadata {
-    pub(super) bind_group_layouts: HashMap<u32, Vec<wgpu::BindGroupLayoutEntry>>,
+    pub(super) bind_group_layouts: BTreeMap<u32, Vec<wgpu::BindGroupLayoutEntry>>, // Tree needed here so it is iterated in order
     pub(super) vertex_attributes: Vec<wgpu::VertexAttribute>,
 }
 
 pub fn shader_metadata(source: &str) -> Result<ShaderMetadata, &'static str> {
-    let mut bind_group_layouts = HashMap::<u32, Vec<wgpu::BindGroupLayoutEntry>>::new();
+    let mut bind_group_layouts = BTreeMap::<u32, Vec<wgpu::BindGroupLayoutEntry>>::new();
     let naga_module = naga::front::wgsl::parse_str(source).unwrap();
     for (_, global_var) in naga_module.global_variables.iter() {
         if let Some(binding) = &global_var.binding {
             let binding_type = naga_module.types.get_handle(global_var.ty).unwrap();
+            let entry = wgpu::BindGroupLayoutEntry {
+                binding: binding.binding,
+                visibility: wgpu::ShaderStages::all(),
+                ty: to_wgpu_binding_type(&naga_module, &binding_type.inner)?,
+                count: None, // TODO: arrays not supported yet
+            };
             bind_group_layouts
                 .entry(binding.group)
                 .or_default()
-                .push(wgpu::BindGroupLayoutEntry {
-                    binding: binding.binding,
-                    visibility: wgpu::ShaderStages::all(),
-                    ty: to_wgpu_binding_type(&naga_module, &binding_type.inner)?,
-                    count: None, // TODO: arrays not supported yet
-                });
+                .push(entry);
         }
     }
 

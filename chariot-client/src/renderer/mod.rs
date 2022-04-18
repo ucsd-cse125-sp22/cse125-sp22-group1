@@ -135,6 +135,10 @@ impl Renderer {
         }
     }
 
+    pub fn request_redraw(&self) {
+        self.context.window.request_redraw()
+    }
+
     pub fn register_framebuffer(&mut self, name: &str, framebuffer_desc: FramebufferDescriptor) {
         self.framebuffers
             .insert(String::from(name), framebuffer_desc);
@@ -142,6 +146,10 @@ impl Renderer {
 
     // TODO: add index buffer layout
     pub fn register_pass(&mut self, name: &str, render_pass_desc: &RenderPassDescriptor) {
+        if self.passes.contains_key(name) {
+            return;
+        }
+
         match render_pass_desc {
             RenderPassDescriptor::Graphics {
                 source,
@@ -188,16 +196,18 @@ impl Renderer {
                     })
                     .collect::<Vec<wgpu::VertexBufferLayout>>();
 
+                let bind_group_layouts = &self
+                    .bind_group_layouts
+                    .get(name)
+                    .unwrap()
+                    .iter()
+                    .collect::<Vec<&wgpu::BindGroupLayout>>();
+
                 let pipeline_layout =
                     self.device
                         .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                             label: None,
-                            bind_group_layouts: &self
-                                .bind_group_layouts
-                                .get(name)
-                                .unwrap()
-                                .iter()
-                                .collect::<Vec<&wgpu::BindGroupLayout>>(),
+                            bind_group_layouts: &bind_group_layouts,
                             push_constant_ranges: push_constant_ranges,
                         });
 
@@ -289,13 +299,12 @@ impl Renderer {
         &self,
         pass_name: &str,
         group_num: u32,
-        data: &[wgpu::BindingResource],
+        data: &[(u32, wgpu::BindingResource)],
     ) -> wgpu::BindGroup {
         let bind_group_entries = data
             .iter()
-            .enumerate()
-            .map(|(idx, resource)| wgpu::BindGroupEntry {
-                binding: u32::try_from(idx).unwrap(),
+            .map(|(binding, resource)| wgpu::BindGroupEntry {
+                binding: *binding,
                 resource: resource.clone(),
             })
             .collect::<Vec<wgpu::BindGroupEntry>>();
