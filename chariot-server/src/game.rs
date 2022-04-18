@@ -98,21 +98,18 @@ impl GameServer {
 
     // creates a websocket for any audience connections
     fn acquire_any_audience_connections(&mut self) {
-        let mut conns = 0;
         self.ws_server
             .set_nonblocking(true)
             .expect("non blocking should be ok");
-        for stream in self.ws_server.incoming() {
-            match stream {
-                Ok(_) => {
-                    println!("we have a stream now");
-                    self.ws_connections.push(WebSocketConnection::new(
-                        stream.expect("stream should be valid"),
-                    ));
-                    conns += 1;
+        for stream_result in self.ws_server.incoming() {
+            match stream_result {
+                Ok(stream) => {
+                    self.ws_connections.push(WebSocketConnection::new(stream));
                     println!("acquired an audience connection!");
                 }
-                Err(_) => {}
+                Err(e) => {
+                    println!("an error occured trying to connect with a websocket, {}", e);
+                }
             }
             break;
         }
@@ -129,12 +126,13 @@ impl GameServer {
                     ServerUpdatingPacket::Ping => {
                         println!("Received a Ping packet from client #{}!", i);
                         connection.push_outgoing(ClientUpdatingPacket::Pong);
-                        self.ws_connections.iter_mut().for_each(|ws| {
-                            ws.push_outgoing(Message::Text(format!(
-                                "broadcasting that the server got a ping packet from client #{}!",
-                                i
-                            )))
-                        })
+                        // Below code used to represent how you would send a message to all audience members
+                        // self.ws_connections.iter_mut().for_each(|ws| {
+                        //     ws.push_outgoing(Message::Text(format!(
+                        //         "broadcasting that the server got a ping packet from client #{}!",
+                        //         i
+                        //     )))
+                        // });
                     }
                 }
             }
@@ -143,7 +141,7 @@ impl GameServer {
 
     // handle socket data
     fn process_ws_packets(&mut self) {
-        let mut messageToSend = String::new();
+        let mut message_to_send = String::new();
         for (i, connection) in self.ws_connections.iter_mut().enumerate() {
             while let Some(packet) = connection.pop_incoming() {
                 match packet {
@@ -156,7 +154,7 @@ impl GameServer {
                         self.connections.iter_mut().for_each(|client| {
                             client.push_outgoing(ClientUpdatingPacket::Message(txt.clone()))
                         });
-                        messageToSend = txt.clone();
+                        message_to_send = txt.clone();
                     }
                     tungstenite::Message::Binary(_) => {
                         println!("got message from client #{} of type Binary", i)
@@ -173,39 +171,11 @@ impl GameServer {
                 }
             }
         }
-        if messageToSend.len() > 0 {
+        if message_to_send.len() > 0 {
             for con in self.ws_connections.iter_mut() {
-                con.push_outgoing(Message::Text(messageToSend.clone()));
+                con.push_outgoing(Message::Text(message_to_send.clone()));
             }
         }
-        // for stream in self.ws_server.incoming() {
-        //     println!("handling a stream");
-        //     let ws_messages = self.ws_messages.clone();
-        //     spawn(move || {
-        //         let mut websocket = accept(stream.unwrap()).unwrap();
-        //         loop {
-        //             let msg = websocket.read_message().unwrap();
-
-        //             // We do not want to send back ping/pong messages.
-        //             if msg.is_binary() || msg.is_text() {
-        //                 let msg_txt = msg.clone().into_text().expect("expected a string");
-        //                 // when we get a message here, we want to somehow communicate this with the regular game server
-        //                 websocket
-        //                     .write_message(tungstenite::Message::Text(
-        //                         "we just got a message!".to_string(),
-        //                     ))
-        //                     .unwrap();
-        //                 websocket.write_message(msg).unwrap();
-        //                 ws_messages
-        //                     .lock()
-        //                     .unwrap()
-        //                     .push(format!("{}", msg_txt).to_string());
-        //                 println!("messages so far: {}", ws_messages.lock().unwrap().len());
-        //             }
-        //         }
-        //     });
-        // }
-        // println!("done processing");
     }
 
     // update game state
