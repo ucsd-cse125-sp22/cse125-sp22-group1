@@ -61,8 +61,3 @@ impl WSConnection {
         }
     }
 }
-
-mod tests {
-    #[test]
-    fn test_connection() {}
-}
