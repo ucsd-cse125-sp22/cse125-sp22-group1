@@ -93,8 +93,11 @@ impl StaticMeshDrawable {
             .get(&material)
             .expect("invalid material handle")
             .pass_name;
-        let xform_bind_group =
-            renderer.create_bind_group(pass_name.as_str(), 0, &[xform_buffer.as_entire_binding()]);
+        let xform_bind_group = renderer.create_bind_group(
+            pass_name.as_str(),
+            0,
+            &[(0, xform_buffer.as_entire_binding())],
+        );
 
         StaticMeshDrawable {
             material: material,
@@ -106,7 +109,7 @@ impl StaticMeshDrawable {
     }
 
     pub fn update_xforms(&self, renderer: &Renderer, proj_view: &glam::Mat4, model: &glam::Mat4) {
-        let upload_data = [*proj_view, *model];
+        let upload_data = [*model, *proj_view];
         renderer.write_buffer(&self.xform_buffer, &upload_data);
     }
 }
@@ -223,21 +226,23 @@ impl<'a> MaterialBuilder<'a> {
 
     pub fn produce(&mut self) -> Material {
         let lookup_binding_resource =
-            |(_, resource_idx): (&u32, &MatResourceIdx)| match resource_idx {
-                MatResourceIdx::Buffer(idx) => self.buffers[*idx].as_entire_binding(),
-                MatResourceIdx::Texture(idx) => {
-                    wgpu::BindingResource::TextureView(&self.textures[*idx])
-                }
-                MatResourceIdx::Sampler(idx) => {
-                    wgpu::BindingResource::Sampler(&self.samplers[*idx])
-                }
+            |(binding, resource_idx): (&u32, &MatResourceIdx)| match resource_idx {
+                MatResourceIdx::Buffer(idx) => (*binding, self.buffers[*idx].as_entire_binding()),
+                MatResourceIdx::Texture(idx) => (
+                    *binding,
+                    wgpu::BindingResource::TextureView(&self.textures[*idx]),
+                ),
+                MatResourceIdx::Sampler(idx) => (
+                    *binding,
+                    wgpu::BindingResource::Sampler(&self.samplers[*idx]),
+                ),
             };
 
         let create_bind_group = |(group, resource_map): (&u32, &HashMap<u32, MatResourceIdx>)| {
             let binding_resources = resource_map
                 .iter()
                 .map(lookup_binding_resource)
-                .collect::<Vec<wgpu::BindingResource>>();
+                .collect::<Vec<(u32, wgpu::BindingResource)>>();
             (
                 *group,
                 self.renderer
