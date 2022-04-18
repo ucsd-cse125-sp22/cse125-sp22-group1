@@ -1,31 +1,37 @@
 import type { NextPage } from 'next'
 import Head from 'next/head'
 import Image from 'next/image'
-import { MutableRefObject, useRef } from 'react'
+import { MutableRefObject, useRef, useState } from 'react'
 import styles from '../styles/Home.module.css'
 
 const Home: NextPage = () => {
 	const socket: MutableRefObject<WebSocket | null> = useRef(null);
+	const [connected, setConnected] = useState(false);
 
 	const connectToWebSocket = () => {
-		alert("pay attention to moon knight matei");
 		socket.current = new WebSocket('ws://127.0.0.1:9001');
 		socket.current.onopen = () => {
 			socket.current?.send("Hello server!");
+			setConnected(true);
 		}
+
 		socket.current.onmessage = (msg) => {
 			console.log("we got a message!");
-			console.log(msg);
+			alert(msg.data);
 		}
 	}
 
 	const leaveWebSocket = () => {
 		socket.current?.close();
 		socket.current = null;
+		setConnected(false);
 	}
 
 	const sendMessage = () => {
-		socket.current?.send("Wow!");
+		const message = prompt("what message do you want to send?");
+		if (message !== null) {
+			socket.current?.send(message);
+		}
 	}
 
 	return (
@@ -37,14 +43,16 @@ const Home: NextPage = () => {
 
 			<main className={styles.main}>
 				<h1 className={styles.title}>
-					Welcome to <a href="https://nextjs.org">Chairiot!</a>
+					Welcome to <a href="https://chairiots.notion.site/Chairioteers-bf2521783c0a46f7b06b0f072779be0f">Chairiot!</a>
 				</h1>
 
-				<p className={styles.description}>
-					<button onClick={sendMessage}>Send Ping</button>
-				</p>
+				{connected &&
+					<p className={styles.description}>
+						<button onClick={sendMessage}>Send Ping</button>
+					</p>
+				}
 
-				{!socket.current &&
+				{!connected &&
 					<div className={styles.grid}>
 						<a href="#" onClick={connectToWebSocket} className={styles.card}>
 							<h2>Join Active Game &rarr;</h2>
@@ -52,7 +60,7 @@ const Home: NextPage = () => {
 						</a>
 					</div>
 				}
-				{!!socket.current &&
+				{connected &&
 					<div className={styles.grid}>
 						<a href="#" onClick={leaveWebSocket} className={styles.card}>
 							<h2>Leave Current Game &rarr;</h2>
