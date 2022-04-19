@@ -9,6 +9,5 @@ pub enum PhysicsChangeType {
 
 pub struct PhysicsChange {
     pub change_type: PhysicsChangeType,
-    pub which_player: i8,
     pub expiration_time: Instant,
 }
