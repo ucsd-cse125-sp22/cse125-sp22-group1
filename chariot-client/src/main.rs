@@ -33,7 +33,6 @@ fn main() {
     let mut application = application::Application::new(renderer, game);
 
     let mut mouse_pos = PhysicalPosition::<f64> { x: -1.0, y: -1.0 };
-    let mut first_run = false;
 
     // Example of main loop deferring to elsewhere
     event_loop.run(move |event, _, control_flow| {
