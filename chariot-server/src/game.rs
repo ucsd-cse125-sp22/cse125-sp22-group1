@@ -124,12 +124,17 @@ impl GameServer {
                         println!("Received a Ping packet from client #{}!", i);
                         connection.push_outgoing(ClientUpdatingPacket::Pong);
                         // below sends a message to every single connection
-                        self.ws_connections.iter_mut().for_each(|ws| {
-                            ws.push_outgoing(Message::Text(format!(
-                                "broadcasting that the server got a ping packet from client #{}!",
-                                i
-                            )));
-                        })
+                        GameServer::broadcast_ws(
+                            &mut self.ws_connections,
+                            Message::Text("".to_string()),
+                        );
+
+                        // self.ws_connections.iter_mut().for_each(|ws| {
+                        //     ws.push_outgoing(Message::Text(format!(
+                        //         "broadcasting that the server got a ping packet from client #{}!",
+                        //         i
+                        //     )));
+                        // })
                     }
                 }
             }
@@ -148,9 +153,11 @@ impl GameServer {
                             i,
                             txt.clone()
                         );
+
                         self.connections.iter_mut().for_each(|client| {
                             client.push_outgoing(ClientUpdatingPacket::Message(txt.clone()))
                         });
+
                         message_to_send = txt.clone();
                     }
                     Message::Binary(_) => {
@@ -168,11 +175,21 @@ impl GameServer {
                 }
             }
         }
+
         if message_to_send.len() > 0 {
-            for con in self.ws_connections.iter_mut() {
-                con.push_outgoing(Message::Text(message_to_send.clone()));
-            }
+            // comment out later ; this is just for testing
+            GameServer::broadcast_ws(
+                &mut self.ws_connections,
+                Message::Text(message_to_send.clone()),
+            );
         }
+    }
+
+    // sends a message to all connected web clients
+    fn broadcast_ws(ws_connections: &mut Vec<WebSocketConnection>, message: Message) {
+        ws_connections.iter_mut().for_each(|con| {
+            con.push_outgoing(message.clone());
+        });
     }
 
     // update game state
