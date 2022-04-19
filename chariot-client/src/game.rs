@@ -5,7 +5,7 @@ use std::net::TcpStream;
 use winit::event::{ElementState, VirtualKeyCode};
 
 pub struct GameClient {
-    //connection: ServerConnection,
+    connection: ServerConnection,
     pressed_keys: HashSet<VirtualKeyCode>,
 }
 
@@ -40,10 +40,10 @@ impl Watching for GameClient {
 
 impl GameClient {
     pub fn new(ip_addr: String) -> GameClient {
-        //let connection = TcpStream::connect(&ip_addr).expect("could not connect to game server");
+        let connection = TcpStream::connect(&ip_addr).expect("could not connect to game server");
         println!("game client now listening on {}", ip_addr);
         GameClient {
-            // connection: ServerConnection::new(connection),
+            connection: ServerConnection::new(connection),
             pressed_keys: HashSet::new(),
         }
     }
@@ -53,24 +53,24 @@ impl GameClient {
     }
 
     pub fn ping(&mut self) {
-        //self.connection.push_outgoing(ServerUpdatingPacket::Ping);
+        self.connection.push_outgoing(ServerUpdatingPacket::Ping);
     }
 
     pub fn sync_outgoing(&mut self) {
-        //self.connection.sync_outgoing();
+        self.connection.sync_outgoing();
     }
 
     pub fn sync_incoming(&mut self) {
-        //self.connection.sync_incoming();
+        self.connection.sync_incoming();
     }
 
     pub fn process_incoming_packets(&mut self) {
-        /*while let Some(packet) = self.connection.pop_incoming() {
+        while let Some(packet) = self.connection.pop_incoming() {
             match packet {
                 ClientUpdatingPacket::Pong => {
                     println!("Received a Pong packet from server!");
                 }
             }
-        }*/
+        }
     }
 }
