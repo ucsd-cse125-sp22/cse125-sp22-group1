@@ -102,17 +102,12 @@ impl GameServer {
             .set_nonblocking(true)
             .expect("non blocking should be ok");
 
-        let stream_option = self.ws_server.incoming().next();
-        match stream_option {
-            Some(stream_result) => match stream_result {
-                Ok(stream) => {
-                    println!("we have a stream now");
-                    self.ws_connections.push(WebSocketConnection::new(stream));
-                    println!("acquired an audience connection!");
-                }
-                Err(_) => {}
-            },
-            None => {}
+        if let Some(stream_result) = self.ws_server.incoming().next() {
+            if let Ok(stream) = stream_result {
+                println!("we have a stream now");
+                self.ws_connections.push(WebSocketConnection::new(stream));
+                println!("acquired an audience connection!");
+            }
         }
 
         self.ws_server
