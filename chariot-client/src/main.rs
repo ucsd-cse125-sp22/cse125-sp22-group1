@@ -1,13 +1,12 @@
-use chariot_core::GLOBAL_CONFIG;
-use game::GameClient;
-use specs::{Builder, WorldExt};
-use std::mem;
-use wgpu::util::DeviceExt;
 use winit::{
     dpi::PhysicalPosition,
     event::{ElementState, Event, MouseButton, WindowEvent},
     event_loop::ControlFlow,
 };
+
+use game::GameClient;
+
+use crate::client_events::Watching;
 
 mod application;
 mod client_events;
@@ -16,8 +15,6 @@ mod game;
 mod renderer;
 mod resources;
 
-use crate::client_events::Watching;
-
 fn main() {
     // at some point, networking PoC:
     // let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
@@ -25,7 +22,7 @@ fn main() {
     // game_client.ping();
 
     let ip_addr = "".to_string();
-    let mut game = GameClient::new(ip_addr);
+    let game = GameClient::new(ip_addr);
 
     let event_loop = winit::event_loop::EventLoop::new();
     let context = renderer::context::Context::new(&event_loop);

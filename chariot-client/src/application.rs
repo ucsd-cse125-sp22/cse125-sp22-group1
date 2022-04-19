@@ -1,11 +1,3 @@
-use gltf::Texture;
-use specs::{Join, WorldExt};
-use std::{
-    cmp::Eq,
-    collections::HashMap,
-    default,
-    sync::atomic::{AtomicUsize, Ordering},
-};
 use winit::event::{ElementState, VirtualKeyCode};
 
 use crate::client_events::Watching;
@@ -44,9 +36,9 @@ impl Application {
     pub fn new(renderer: Renderer, game: GameClient) -> Self {
         Self {
             drawables: Vec::new(),
-            renderer: renderer,
+            renderer,
             resources: ResourceManager::new(),
-            game: game,
+            game,
         }
     }
 
