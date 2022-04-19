@@ -101,7 +101,7 @@ impl GameServer {
         for player in &mut self.game_state.players {
             player
                 .physics_changes
-                .retain(|change| change.expiration_time.duration_since(now).is_zero());
+                .retain(|change| !change.expiration_time.duration_since(now).is_zero());
             player.set_bounding_box_dimensions();
         }
 
