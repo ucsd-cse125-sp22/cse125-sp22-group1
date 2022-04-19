@@ -1,4 +1,5 @@
 use chariot_core::entity_location::EntityLocation;
+use chariot_core::physics_changes::PhysicsChange;
 use chariot_core::player_inputs::PlayerInputs;
 use glam::DVec3;
 
@@ -14,4 +15,6 @@ pub struct PlayerEntity {
 
     pub player_inputs: PlayerInputs,
     pub entity_location: EntityLocation,
+
+    pub physics_changes: Vec<PhysicsChange>,
 }
