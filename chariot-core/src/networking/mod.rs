@@ -1,6 +1,6 @@
 mod connection;
 mod packets;
-mod ws;
+pub mod ws;
 
 pub use packets::*;
 pub type ClientConnection = connection::Connection<ServerUpdatingPacket, ClientUpdatingPacket>;

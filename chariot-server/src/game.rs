@@ -2,11 +2,11 @@ use std::net::TcpListener;
 use std::thread::{self};
 use std::time::{Duration, Instant};
 
+use chariot_core::networking::ws::Message;
 use chariot_core::networking::{
     ClientConnection, ClientUpdatingPacket, ServerUpdatingPacket, WebSocketConnection,
 };
 use chariot_core::GLOBAL_CONFIG;
-use tungstenite::Message;
 
 use crate::physics::player_entity::PlayerEntity;
 
@@ -123,11 +123,12 @@ impl GameServer {
                     ServerUpdatingPacket::Ping => {
                         println!("Received a Ping packet from client #{}!", i);
                         connection.push_outgoing(ClientUpdatingPacket::Pong);
+                        // below sends a message to every single connection
                         self.ws_connections.iter_mut().for_each(|ws| {
                             ws.push_outgoing(Message::Text(format!(
                                 "broadcasting that the server got a ping packet from client #{}!",
                                 i
-                            )))
+                            )));
                         })
                     }
                 }
@@ -141,7 +142,7 @@ impl GameServer {
         for (i, connection) in self.ws_connections.iter_mut().enumerate() {
             while let Some(packet) = connection.pop_incoming() {
                 match packet {
-                    tungstenite::Message::Text(txt) => {
+                    Message::Text(txt) => {
                         println!(
                             "got message from client #{} of type Text, it says {}",
                             i,
@@ -152,16 +153,16 @@ impl GameServer {
                         });
                         message_to_send = txt.clone();
                     }
-                    tungstenite::Message::Binary(_) => {
+                    Message::Binary(_) => {
                         println!("got message from client #{} of type Binary", i)
                     }
-                    tungstenite::Message::Ping(_) => {
+                    Message::Ping(_) => {
                         println!("got message from client #{} of type Ping", i)
                     }
-                    tungstenite::Message::Pong(_) => {
+                    Message::Pong(_) => {
                         println!("got message from client #{} of type Pong", i)
                     }
-                    tungstenite::Message::Close(_) => {
+                    Message::Close(_) => {
                         println!("got message from client #{} of type Close", i)
                     }
                 }

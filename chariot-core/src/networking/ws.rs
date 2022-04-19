@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use std::net::TcpStream;
-use tungstenite::{accept, Message, WebSocket};
+pub use tungstenite::{accept, Message, WebSocket};
 
 pub struct WSConnection {
     socket: WebSocket<TcpStream>,
