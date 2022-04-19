@@ -117,6 +117,7 @@ impl PlayerEntity {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use chariot_core::{
         entity_location::EntityLocation,
@@ -144,6 +145,7 @@ mod tests {
 
             size: DVec3::new(10.0, 10.0, 10.0),
             bounding_box: [[-5.0, 5.0], [-5.0, 5.0], [-5.0, 5.0]],
+            physics_changes: Vec::new(),
         };
     }
 

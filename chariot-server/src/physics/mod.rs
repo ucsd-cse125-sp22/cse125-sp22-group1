@@ -1,3 +1,4 @@
+use chariot_core::physics_changes::PhysicsChangeType;
 use glam::DVec3;
 
 use chariot_core::entity_location::EntityLocation;
@@ -38,7 +39,7 @@ impl PlayerEntity {
             delta_velocity += self.delta_v_from_collision_with_player(collider);
         }
 
-        return PlayerEntity {
+        let mut new_player = PlayerEntity {
             player_inputs: PlayerInputs {
                 engine_status: self.player_inputs.engine_status,
                 rotation_status: self.player_inputs.rotation_status,
@@ -54,7 +55,12 @@ impl PlayerEntity {
             mass: self.mass,
             size: self.size,
             bounding_box: self.bounding_box,
+            physics_changes: self.physics_changes.clone(),
         };
+
+        new_player.apply_physics_changes();
+
+        return new_player;
     }
 
     fn sum_of_self_forces(&self) -> DVec3 {
@@ -115,8 +121,45 @@ impl PlayerEntity {
     fn rolling_resistance_force_on_object(&self) -> DVec3 {
         return self.velocity * self.mass * -1.0 * GLOBAL_CONFIG.rolling_resistance_coefficient;
     }
+
+    fn apply_physics_changes(&mut self) {
+        for change in &self.physics_changes {
+            match change.change_type {
+                PhysicsChangeType::IAmSpeed => {
+                    let flat_speed_increase = 30.0;
+                    self.velocity = self.velocity * (self.velocity.length() + flat_speed_increase);
+                }
+                PhysicsChangeType::NoTurningRight => {
+                    if matches!(
+                        self.player_inputs.rotation_status,
+                        RotationStatus::InSpinClockwise
+                    ) {
+                        self.player_inputs.rotation_status = RotationStatus::NotInSpin;
+                        self.angular_velocity -= GLOBAL_CONFIG.car_spin;
+                    }
+                }
+                PhysicsChangeType::ShoppingCart => {
+                    self.angular_velocity += GLOBAL_CONFIG.car_spin / 2.0;
+                }
+                PhysicsChangeType::InSpainButTheAIsSilent => {
+                    match self.player_inputs.rotation_status {
+                        RotationStatus::InSpinClockwise => {}
+                        RotationStatus::NotInSpin => {
+                            self.player_inputs.rotation_status = RotationStatus::InSpinClockwise;
+                            self.angular_velocity += GLOBAL_CONFIG.car_spin;
+                        }
+                        RotationStatus::InSpinCounterclockwise => {
+                            self.player_inputs.rotation_status = RotationStatus::InSpinClockwise;
+                            self.angular_velocity += 2.0 * GLOBAL_CONFIG.car_spin;
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
+#[cfg(test)]
 mod tests {
     use glam::DVec3;
 
@@ -147,6 +190,7 @@ mod tests {
 
             size: DVec3::new(10.0, 10.0, 10.0),
             bounding_box: [[-5.0, 5.0], [-5.0, 5.0], [-5.0, 5.0]],
+            physics_changes: Vec::new(),
         };
 
         props = props.do_physics_step(1.0, Vec::new());
@@ -185,6 +229,7 @@ mod tests {
 
             size: DVec3::new(10.0, 10.0, 10.0),
             bounding_box: [[15.0, 25.0], [25.0, 35.0], [35.0, 45.0]],
+            physics_changes: Vec::new(),
         };
 
         props = props.do_physics_step(1.0, Vec::new());
@@ -220,6 +265,7 @@ mod tests {
 
             size: DVec3::new(10.0, 10.0, 10.0),
             bounding_box: [[15.0, 25.0], [25.0, 35.0], [35.0, 45.0]],
+            physics_changes: Vec::new(),
         };
 
         props = props.do_physics_step(1.0, Vec::new());
@@ -259,6 +305,7 @@ mod tests {
 
             size: DVec3::new(10.0, 10.0, 10.0),
             bounding_box: [[15.0, 25.0], [25.0, 35.0], [35.0, 45.0]],
+            physics_changes: Vec::new(),
         };
 
         props = props.do_physics_step(1.0, Vec::new());
