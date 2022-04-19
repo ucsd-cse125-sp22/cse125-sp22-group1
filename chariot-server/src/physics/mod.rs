@@ -55,7 +55,7 @@ impl PlayerEntity {
             mass: self.mass,
             size: self.size,
             bounding_box: self.bounding_box,
-            physics_changes: Vec::new(),
+            physics_changes: self.physics_changes.clone(),
         };
 
         new_player.apply_physics_changes();
