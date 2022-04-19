@@ -196,7 +196,13 @@ impl GameServer {
     fn simulate_game(&mut self) {
         let mut new_players = vec![];
 
+        let now = Instant::now();
+
+        // earlier_time.duration_since(later_time) will return 0; filter out those for which the expiration time is earlier than the current time
         for player in &mut self.game_state.players {
+            player
+                .physics_changes
+                .retain(|change| !change.expiration_time.duration_since(now).is_zero());
             player.set_bounding_box_dimensions();
         }
 
