@@ -32,6 +32,9 @@ impl GameClient {
                 ClientUpdatingPacket::Pong => {
                     println!("Received a Pong packet from server!");
                 }
+                ClientUpdatingPacket::Message(text) => {
+                    println!("Recieved a message from the server saying: {}", text);
+                }
             }
         }
     }
