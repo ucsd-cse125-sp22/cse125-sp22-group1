@@ -95,19 +95,34 @@ impl PlayerEntity {
         );
         let xz_corner = DVec2::new(x_2, z_2);
 
-        let xy_heading = DVec2::new(
-            self.entity_location.unit_steer_direction[0],
-            self.entity_location.unit_steer_direction[1],
+        // Since the extremum distance in the y-direction is going to be the
+        // same no matter how much we spin the body about the upward direction,
+        // we can use any plane which contains the upward direction. The easy
+        // choice is to pick the plane that also goes through the origin and
+        // (x_2, y_2, z_2). For ease of basis (because the zero-angle vector is
+        // (1, 0)), we put y first; call the other component of the basis (the
+        // one that goes through (x_2, z_2)) w.
+
+        // Sign doesn't matter here, we're rotationally symmetric
+        let upward_direction_w = (self.entity_location.unit_upward_direction[0].powi(2)
+            + self.entity_location.unit_upward_direction[2].powi(2))
+        .sqrt();
+
+        let yw_heading = DVec2::new(
+            self.entity_location.unit_upward_direction[1],
+            upward_direction_w,
         );
-        let xy_corner = DVec2::new(x_2, y_2);
+        let w_2 = (x_2.powi(2) + z_2.powi(2)).sqrt();
+
+        let yw_corner = DVec2::new(y_2, w_2);
 
         // We can find the dimensions of the three-dimensional bounding box by
         // first rotating the object in the XZ-plane to get the X and Z extrema,
-        // and then separately rotating in the XY plane to get the Y extrema. By
-        // doing these separately, we avoid three-dimension rotation (which
+        // and then separately rotating in a Y-based plane to get the Y extrema.
+        // By doing these separately, we avoid three-dimension rotation (which
         // sucks)
         let (x_dist, z_dist) = get_rotated_extremum_distance_in_plane(&xz_heading, &xz_corner);
-        let (_, y_dist) = get_rotated_extremum_distance_in_plane(&xy_heading, &xy_corner);
+        let (y_dist, _) = get_rotated_extremum_distance_in_plane(&yw_heading, &yw_corner);
 
         // This will always be nonnegative (since we're centered around the origin)
         let min_x = self.entity_location.position.x - x_dist;
