@@ -137,6 +137,7 @@ mod tests {
             entity_location: EntityLocation {
                 position: DVec3::new(0.0, 0.0, 0.0),
                 unit_steer_direction: DVec3::new(1.0, 0.0, 0.0),
+                unit_upward_direction: DVec3::new(0.0, 1.0, 0.0),
             },
 
             velocity: DVec3::new(0.0, 0.0, 0.0),

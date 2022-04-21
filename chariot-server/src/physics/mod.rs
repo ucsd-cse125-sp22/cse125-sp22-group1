@@ -18,7 +18,7 @@ impl PlayerEntity {
     pub fn do_physics_step(
         &self,
         time_step: f64,
-        mut potential_colliders: Vec<&PlayerEntity>,
+        potential_colliders: Vec<&PlayerEntity>,
     ) -> PlayerEntity {
         let self_forces = self.sum_of_self_forces();
         let acceleration = self_forces / self.mass;
@@ -35,7 +35,7 @@ impl PlayerEntity {
 
         let mut delta_velocity = acceleration * time_step;
 
-        for collider in potential_colliders.iter_mut() {
+        for collider in potential_colliders.iter() {
             delta_velocity += self.delta_v_from_collision_with_player(collider);
         }
 
@@ -48,6 +48,7 @@ impl PlayerEntity {
             entity_location: EntityLocation {
                 position: self.entity_location.position + self.velocity * time_step,
                 unit_steer_direction: self.entity_location.unit_steer_direction,
+                unit_upward_direction: self.entity_location.unit_upward_direction, // TODO: not correct! need to account for slope
             },
 
             velocity: self.velocity + delta_velocity,
@@ -75,10 +76,8 @@ impl PlayerEntity {
         return DVec3::new(0.0, -1.0, 0.0) * self.mass * GLOBAL_CONFIG.gravity_coefficient;
     }
 
-    // unjustified temporary assumption we'll invalidate later: we're always on flat
-    // ground (otherwise, there's a horizontal component to normal force)
     fn normal_force_on_object(&self) -> DVec3 {
-        return DVec3::new(0.0, 1.0, 0.0) * self.mass;
+        return self.entity_location.unit_upward_direction * self.mass; // TODO: not correct! only applies when on the ground
     }
 
     // Includes two player-applied forces: accelerator and brake.
@@ -182,6 +181,7 @@ mod tests {
             entity_location: EntityLocation {
                 position: DVec3::new(20.0, 30.0, 40.0),
                 unit_steer_direction: DVec3::new(0.6, 0.0, 0.8),
+                unit_upward_direction: DVec3::new(0.0, 1.0, 0.0),
             },
 
             velocity: DVec3::new(2.0, 0.0, 1.0),
@@ -221,6 +221,7 @@ mod tests {
             entity_location: EntityLocation {
                 position: DVec3::new(20.0, 30.0, 40.0),
                 unit_steer_direction: DVec3::new(0.6, 0.0, 0.8),
+                unit_upward_direction: DVec3::new(0.0, 1.0, 0.0),
             },
 
             velocity: DVec3::new(2.0, 0.0, 1.0),
@@ -257,6 +258,7 @@ mod tests {
             entity_location: EntityLocation {
                 position: DVec3::new(20.0, 30.0, 40.0),
                 unit_steer_direction: DVec3::new(0.6, 0.0, 0.8),
+                unit_upward_direction: DVec3::new(0.0, 1.0, 0.0),
             },
 
             velocity: DVec3::new(2.0, 0.0, 1.0),
@@ -297,6 +299,7 @@ mod tests {
             entity_location: EntityLocation {
                 position: DVec3::new(20.0, 30.0, 40.0),
                 unit_steer_direction: DVec3::new(0.6, 0.0, 0.8),
+                unit_upward_direction: DVec3::new(0.0, 1.0, 0.0),
             },
 
             velocity: DVec3::new(0.0, 0.0, 0.0),
