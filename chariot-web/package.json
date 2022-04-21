@@ -1,11 +1,27 @@
 {
-  "name": "chariot-web",
-  "version": "1.0.0",
-  "description": "a web client for chariot audience members",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "Team Chariot",
-  "license": "ISC"
+	"name": "chariot-web",
+	"version": "0.1.0",
+	"private": true,
+	"description": "a web client for chariot audience members",
+	"author": "Team Chariot",
+	"license": "ISC",
+	"scripts": {
+		"dev": "next dev",
+		"build": "next build",
+		"start": "next start",
+		"lint": "next lint"
+	},
+	"dependencies": {
+		"next": "12.1.5",
+		"react": "18.0.0",
+		"react-dom": "18.0.0"
+	},
+	"devDependencies": {
+		"@types/node": "17.0.24",
+		"@types/react": "18.0.5",
+		"@types/react-dom": "18.0.1",
+		"eslint": "8.13.0",
+		"eslint-config-next": "12.1.5",
+		"typescript": "4.6.3"
+	}
 }
