@@ -12,7 +12,27 @@ pub mod player_entity;
 
 use player_entity::PlayerEntity;
 
+fn get_height_at_coordinates(_x: f64, _z: f64) -> f64 {
+    return 0.0;
+}
+
 impl PlayerEntity {
+    pub fn set_upward_direction_from_bounding_box(&mut self) {
+        let [min_x, max_x] = self.bounding_box[0];
+        let [min_z, max_z] = self.bounding_box[2];
+
+        let lower_left_corner = DVec3::new(min_x, get_height_at_coordinates(min_x, min_z), min_z);
+        let lower_right_corner = DVec3::new(max_x, get_height_at_coordinates(max_x, min_z), min_z);
+        let upper_left_corner = DVec3::new(min_x, get_height_at_coordinates(min_x, max_z), max_z);
+        let upper_right_corner = DVec3::new(max_x, get_height_at_coordinates(max_x, max_z), max_z);
+
+        let diagonal_1 = lower_right_corner - upper_left_corner;
+        let diagonal_2 = upper_right_corner - lower_left_corner;
+
+        // Right hand rule! This should be pointing "upwards"
+        self.entity_location.unit_upward_direction = diagonal_1.cross(diagonal_2);
+    }
+
     /* Given a set of physical properties, compute and return what next tick's
     	* physics properties will be for that object */
     pub fn do_physics_step(
