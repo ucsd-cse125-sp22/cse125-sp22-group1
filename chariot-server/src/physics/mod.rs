@@ -84,12 +84,27 @@ impl PlayerEntity {
         return new_player;
     }
 
+    fn is_aerial(&self) -> bool {
+        return self.entity_location.position[1]
+            > self.size[1]
+                + get_height_at_coordinates(
+                    self.entity_location.position[0],
+                    self.entity_location.position[2],
+                );
+    }
+
     fn sum_of_self_forces(&self) -> DVec3 {
-        return self.gravitational_force_on_object()
-            + self.normal_force_on_object()
-            + self.player_applied_force_on_object()
-            + self.air_resistance_force_on_object()
-            + self.rolling_resistance_force_on_object();
+        return if self.is_aerial() {
+            self.gravitational_force_on_object()
+                + self.player_applied_force_on_object()
+                + self.air_resistance_force_on_object()
+        } else {
+            self.gravitational_force_on_object()
+                + self.normal_force_on_object()
+                + self.player_applied_force_on_object()
+                + self.air_resistance_force_on_object()
+                + self.rolling_resistance_force_on_object()
+        };
     }
 
     fn gravitational_force_on_object(&self) -> DVec3 {
