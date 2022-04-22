@@ -214,7 +214,7 @@ mod tests {
             },
 
             entity_location: EntityLocation {
-                position: DVec3::new(20.0, 30.0, 40.0),
+                position: DVec3::new(0.0, 0.0, 0.0),
                 unit_steer_direction: DVec3::new(0.6, 0.0, 0.8),
                 unit_upward_direction: DVec3::new(0.0, 1.0, 0.0),
             },
@@ -235,7 +235,7 @@ mod tests {
         assert!(props
             .entity_location
             .position
-            .abs_diff_eq(DVec3::new(22.0, 30.0, 41.0), 0.001));
+            .abs_diff_eq(DVec3::new(2.0, 0.0, 1.0), 0.001));
         // - velocity should have increased by acceleration amount in steer
         // direction, and decreased because of drag and rolling resistance
         let expected_velocity = DVec3::new(2.0, 0.0, 1.0)
@@ -254,7 +254,7 @@ mod tests {
             },
 
             entity_location: EntityLocation {
-                position: DVec3::new(20.0, 30.0, 40.0),
+                position: DVec3::new(0.0, 0.0, 0.0),
                 unit_steer_direction: DVec3::new(0.6, 0.0, 0.8),
                 unit_upward_direction: DVec3::new(0.0, 1.0, 0.0),
             },
@@ -275,7 +275,7 @@ mod tests {
         assert!(props
             .entity_location
             .position
-            .abs_diff_eq(DVec3::new(22.0, 30.0, 41.0), 0.001));
+            .abs_diff_eq(DVec3::new(2.0, 0.0, 1.0), 0.001));
         // - velocity should only have decreased, due to drag and rolling resistance
         let expected_velocity = DVec3::new(2.0, 0.0, 1.0)
             + DVec3::new(-2.0, 0.0, -1.0) * GLOBAL_CONFIG.drag_coefficient * (5.0 as f64).sqrt()
@@ -291,7 +291,7 @@ mod tests {
             },
 
             entity_location: EntityLocation {
-                position: DVec3::new(20.0, 30.0, 40.0),
+                position: DVec3::new(0.0, 0.0, 0.0),
                 unit_steer_direction: DVec3::new(0.6, 0.0, 0.8),
                 unit_upward_direction: DVec3::new(0.0, 1.0, 0.0),
             },
@@ -312,7 +312,7 @@ mod tests {
         assert!(props
             .entity_location
             .position
-            .abs_diff_eq(DVec3::new(22.0, 30.0, 41.0), 0.001));
+            .abs_diff_eq(DVec3::new(2.0, 0.0, 1.0), 0.001));
         // - velocity should only have decreased, due to braking, drag, and rolling resistance
         let prev_velocity = DVec3::new(2.0, 0.0, 1.0);
         let neg_prev_velocity = DVec3::new(-2.0, 0.0, -1.0);
@@ -332,7 +332,7 @@ mod tests {
             },
 
             entity_location: EntityLocation {
-                position: DVec3::new(20.0, 30.0, 40.0),
+                position: DVec3::new(0.0, 0.0, 0.0),
                 unit_steer_direction: DVec3::new(0.6, 0.0, 0.8),
                 unit_upward_direction: DVec3::new(0.0, 1.0, 0.0),
             },
