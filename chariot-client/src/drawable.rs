@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use wgpu::util::DeviceExt;
 
+use crate::renderer::render_job::RenderGraphBuilder;
 use crate::renderer::*;
 use crate::resources::*;
 
@@ -10,7 +11,7 @@ use crate::resources::*;
  * A drawable just produces a render item every frame.
  */
 pub trait Drawable {
-    fn render_item<'a>(&'a self, resources: &'a ResourceManager) -> render_job::RenderItem<'a>;
+    fn render_graph<'a>(&'a self, resources: &'a ResourceManager) -> render_job::RenderGraph<'a>;
 }
 
 /*
@@ -115,7 +116,7 @@ impl StaticMeshDrawable {
 }
 
 impl Drawable for StaticMeshDrawable {
-    fn render_item<'a>(&'a self, resources: &'a ResourceManager) -> render_job::RenderItem<'a> {
+    fn render_graph<'a>(&'a self, resources: &'a ResourceManager) -> render_job::RenderGraph<'a> {
         let static_mesh = resources
             .meshes
             .get(&self.static_mesh)
@@ -132,7 +133,7 @@ impl Drawable for StaticMeshDrawable {
 
         let mut bind_group_refs = vec![&self.xform_bind_group];
         bind_group_refs.extend(material.bind_groups.values());
-        render_job::RenderItem::Graphics {
+        let item = render_job::RenderItem::Graphics {
             pass_name: material.pass_name.as_str(),
             framebuffer_name: "surface",
             num_elements: static_mesh.submeshes[self.submesh_idx].num_elements,
@@ -147,7 +148,11 @@ impl Drawable for StaticMeshDrawable {
             },
             index_format: static_mesh.index_format,
             bind_group: bind_group_refs,
-        }
+        };
+
+        let mut graph_builder = RenderGraphBuilder::new();
+        graph_builder.add_root(item);
+        graph_builder.build()
     }
 }
 

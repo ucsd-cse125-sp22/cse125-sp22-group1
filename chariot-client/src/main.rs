@@ -30,16 +30,6 @@ fn main() {
         "boring",
     );*/
 
-    let import_result = application
-        .resources
-        .import_gltf(&mut application.renderer, "models/DamagedHelmet.glb");
-
-    if import_result.is_ok() {
-        application
-            .drawables
-            .extend(import_result.unwrap().drawables);
-    }
-
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
         match event {
@@ -51,6 +41,7 @@ fn main() {
                 application.renderer.handle_surface_resize(size);
             }
             Event::RedrawRequested(_) => {
+                application.update(); // Is this the right location?
                 application.render();
             }
             Event::WindowEvent {
