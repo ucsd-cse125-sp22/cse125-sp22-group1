@@ -221,6 +221,15 @@ impl<'a> RenderGraphBuilder<'a> {
     }
 }
 
+/*
+ * kinda ugly but whatevs
+ * Encapsulates a graph of RenderItem lists organized by render pass.
+ * It just does a bit of work when merging render graphs to organize everything properly.
+ * Otherwise it doesn't care to organize further into vertex buffer or bind group bindings.
+ * It also has a bfs iterator to help with iteration. The implementation is a little lazy since it
+ * just pretraverses the graph and caches the indexing order.
+ */
+
 pub struct RenderJob<'a> {
     pass_items: Vec<Vec<RenderItem<'a>>>,
     graph: HashMap<RenderNodeId, HashMap<String, RenderNodeId>>,
@@ -284,6 +293,11 @@ impl<'a> RenderJob<'a> {
         }
     }
 
+    /*
+     * Pretty textbook bfs for now, ideally in the future there would be more work to do passes
+     * that write to the same framebuffer together. This might not work with more complex rendergraphs
+     * where each object needs to write to the same framebuffer multiple times.
+     */
     pub fn iter_bfs(&'a self) -> Iter {
         let mut res = vec![];
         let mut processed: Vec<bool> = vec![false; self.pass_items.len()];
@@ -296,15 +310,8 @@ impl<'a> RenderJob<'a> {
 
             let cur_items = &self.pass_items[cur_id];
             assert!(cur_items.len() > 0);
-            match &cur_items[0] {
-                RenderItem::Graphics {
-                    pass_name,
-                    framebuffer_name,
-                    ..
-                } => res.push((*pass_name, cur_id)),
-                RenderItem::Compute { pass_name, .. } => res.push((*pass_name, cur_id)),
-                RenderItem::Custom { pass_name, .. } => res.push((*pass_name, cur_id)),
-            }
+            let pass_name = render_item_pass_name(cur_items.first().unwrap());
+            res.push((pass_name, cur_id));
 
             processed[cur_id] = true;
             queue.extend(
@@ -344,57 +351,3 @@ impl<'a, 'b> Iterator for Iter<'a, 'b> {
         next.map(|(s, i)| (*s, self.job.pass_items[*i].as_slice()))
     }
 }
-
-/*
- * kinda ugly but whatevs
- * Encapsulates a list of RenderItems organized by framebuffer and render pass.
- * It just does a bit of work when adding render items to organize everything properly.
- * Otherwise it doesn't care to organize further into vertex buffer or bind group bindings.
- */
-/*pub struct RenderJob<'a> {
-    graphics_items: HashMap<String, HashMap<String, Vec<RenderItem<'a>>>>,
-    compute_items: HashMap<String, Vec<RenderItem<'a>>>,
-}
-
-impl<'a> RenderJob<'a> {
-    pub fn new() -> Self {
-        RenderJob {
-            graphics_items: HashMap::new(),
-            compute_items: HashMap::new(),
-        }
-    }
-
-    pub fn add_item(&mut self, item: RenderItem<'a>) {
-        match item {
-            RenderItem::Graphics {
-                pass_name,
-                framebuffer_name,
-                ..
-            } => {
-                self.graphics_items
-                    .entry(String::from(framebuffer_name))
-                    .or_default()
-                    .entry(String::from(pass_name))
-                    .or_default()
-                    .push(item);
-            }
-            RenderItem::Compute { pass_name, .. } => {
-                self.compute_items
-                    .entry(String::from(pass_name))
-                    .or_default()
-                    .push(item);
-            }
-            RenderItem::Custom { .. } => {
-                panic!("custom items not supported yet");
-            }
-        }
-    }
-
-    pub(super) fn compute_iter(&self) -> Values<String, Vec<RenderItem>> {
-        self.compute_items.values()
-    }
-
-    pub(super) fn graphics_iter(&self) -> Iter<String, HashMap<String, Vec<RenderItem<'a>>>> {
-        self.graphics_items.iter()
-    }
-}*/
