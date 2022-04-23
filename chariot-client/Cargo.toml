@@ -13,5 +13,4 @@ winit = "0.26.1"
 pollster = "0.2.5"
 bytemuck = { version = "1.4", features = ["derive"] }
 glam = "0.20.3"
-specs = "0.17.0"
 gltf = "1.0.0"

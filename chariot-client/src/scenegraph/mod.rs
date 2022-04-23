@@ -14,8 +14,7 @@ struct Entity {
     children: Vec<Box<Entity>>,
 }
 
-trait Component {
-    fn update(&mut self);
+pub trait Component {
     fn as_any(&self) -> &dyn Any;
 }
 
@@ -35,11 +34,17 @@ impl Transform {
     }
 }
 
-impl Component for Transform {
-    fn update(&mut self) {
-        //receive server data and update fields
+impl Default for Transform {
+    fn default() -> Self {
+        Self {
+            translation: glam::Vec3::ZERO,
+            rotation: glam::Quat::IDENTITY,
+            scale: glam::Vec3::ONE,
+        }
     }
+}
 
+impl Component for Transform {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -54,10 +59,18 @@ impl PlayerController {
 }
 
 impl Component for PlayerController {
-    fn update(&mut self) {
-        //send input data to server
+    fn as_any(&self) -> &dyn Any {
+        self
     }
+}
 
+impl Component for StaticMeshDrawable {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl Component for Vec<StaticMeshDrawable> {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -67,7 +80,9 @@ impl Component for StaticMeshDrawable {
     fn update(&mut self) {
         //render entity
     }
+}
 
+impl Component for Camera {
     fn as_any(&self) -> &dyn Any {
         self
     }
