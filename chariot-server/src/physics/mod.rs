@@ -68,7 +68,7 @@ impl PlayerEntity {
             entity_location: EntityLocation {
                 position: self.entity_location.position + self.velocity * time_step,
                 unit_steer_direction: self.entity_location.unit_steer_direction,
-                unit_upward_direction: self.entity_location.unit_upward_direction, // TODO: not correct! need to account for slope
+                unit_upward_direction: self.entity_location.unit_upward_direction,
             },
 
             velocity: self.velocity + delta_velocity,
@@ -94,16 +94,14 @@ impl PlayerEntity {
     }
 
     fn sum_of_self_forces(&self) -> DVec3 {
+        let air_forces = self.gravitational_force_on_object()
+            + self.player_applied_force_on_object()
+            + self.air_resistance_force_on_object();
+
         return if self.is_aerial() {
-            self.gravitational_force_on_object()
-                + self.player_applied_force_on_object()
-                + self.air_resistance_force_on_object()
+            air_forces
         } else {
-            self.gravitational_force_on_object()
-                + self.normal_force_on_object()
-                + self.player_applied_force_on_object()
-                + self.air_resistance_force_on_object()
-                + self.rolling_resistance_force_on_object()
+            air_forces + self.normal_force_on_object() + self.rolling_resistance_force_on_object()
         };
     }
 
@@ -112,7 +110,7 @@ impl PlayerEntity {
     }
 
     fn normal_force_on_object(&self) -> DVec3 {
-        return self.entity_location.unit_upward_direction * self.mass; // TODO: not correct! only applies when on the ground
+        return self.entity_location.unit_upward_direction * self.mass;
     }
 
     // Includes two player-applied forces: accelerator and brake.
