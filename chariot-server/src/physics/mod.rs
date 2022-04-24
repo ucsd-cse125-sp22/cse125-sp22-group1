@@ -30,7 +30,7 @@ impl PlayerEntity {
         let diagonal_2 = upper_right_corner - lower_left_corner;
 
         // Right hand rule! This should be pointing "upwards"
-        self.entity_location.unit_upward_direction = diagonal_1.cross(diagonal_2);
+        self.entity_location.unit_upward_direction = diagonal_1.cross(diagonal_2).normalize();
     }
 
     /* Given a set of physical properties, compute and return what next tick's
