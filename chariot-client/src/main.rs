@@ -6,6 +6,8 @@ use winit::{
 
 use game::GameClient;
 
+use chariot_core::GLOBAL_CONFIG;
+
 mod application;
 mod drawable;
 mod game;
@@ -16,26 +18,10 @@ fn main() {
     let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
     let mut game_client = game::GameClient::new(ip_addr);
 
-    // temporary code until we establish an actual game loop
-    game_client.ping();
-    game_client.sync_outgoing();
-    loop {
-        game_client.sync_incoming();
-        game_client.process_incoming_packets();
-        game_client.ping();
-    }
-    // at some point, networking PoC:
-    // let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
-    // let game_client = game::GameClient::new(ip_addr);
-    // game_client.ping();
-
-    let ip_addr = "127.0.0.1:24247".to_string();
-    let game = GameClient::new(ip_addr);
-
     let event_loop = winit::event_loop::EventLoop::new();
     let context = renderer::context::Context::new(&event_loop);
     let renderer = renderer::Renderer::new(context);
-    let mut application = application::Application::new(renderer, game);
+    let mut application = application::Application::new(renderer, game_client);
 
     // Example of main loop deferring to elsewhere
     event_loop.run(move |event, _, control_flow| {
