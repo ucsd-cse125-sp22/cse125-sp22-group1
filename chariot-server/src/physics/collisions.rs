@@ -297,4 +297,22 @@ mod tests {
         owo_cube.set_bounding_box_dimensions();
         assert!(uwu_cube.check_bounding_box_collisions(&owo_cube));
     }
+
+    #[test]
+    fn test_3d_bounding_box() {
+        let mut cube = get_origin_cube();
+
+        cube.size = DVec3::new(1.0, 10000.0, 1.0);
+        cube.entity_location.unit_upward_direction =
+            DVec3::new(2.0_f64.sqrt() / 2.0, 2.0_f64.sqrt() / 2.0, 0.0);
+        cube.set_bounding_box_dimensions();
+
+        let y_max = cube.bounding_box[1][1];
+        let y_min = cube.bounding_box[1][0];
+
+        let actual_top = (10_000.0 / 2.0) / (2.0_f64.sqrt());
+        let actual_bottom = (-10_000.0 / 2.0) / (2.0_f64.sqrt());
+        assert!(actual_top * 0.999 < y_max && y_max < actual_top * 1.001);
+        assert!(actual_bottom * 0.999 > y_min && y_min > actual_bottom * 1.001);
+    }
 }
