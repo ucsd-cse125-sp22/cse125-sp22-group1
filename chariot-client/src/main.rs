@@ -6,10 +6,7 @@ use winit::{
 
 use game::GameClient;
 
-use crate::client_events::Watching;
-
 mod application;
-mod client_events;
 mod drawable;
 mod game;
 mod renderer;
@@ -21,15 +18,13 @@ fn main() {
     // let game_client = game::GameClient::new(ip_addr);
     // game_client.ping();
 
-    let ip_addr = "".to_string();
+    let ip_addr = "127.0.0.1:24247".to_string();
     let game = GameClient::new(ip_addr);
 
     let event_loop = winit::event_loop::EventLoop::new();
     let context = renderer::context::Context::new(&event_loop);
     let renderer = renderer::Renderer::new(context);
     let mut application = application::Application::new(renderer, game);
-
-    let mut mouse_pos = PhysicalPosition::<f64> { x: -1.0, y: -1.0 };
 
     // Example of main loop deferring to elsewhere
     event_loop.run(move |event, _, control_flow| {
@@ -70,8 +65,8 @@ fn main() {
                     },
                 ..
             } => match button {
-                MouseButton::Left => application.on_left_mouse(mouse_pos.x, mouse_pos.y, state),
-                MouseButton::Right => application.on_right_mouse(mouse_pos.x, mouse_pos.y, state),
+                MouseButton::Left => application.on_left_mouse(state),
+                MouseButton::Right => application.on_right_mouse(state),
                 _ => println!("Unknown mouse input received!"),
             }, // call application.on_mouse_input()
             Event::WindowEvent {
@@ -83,24 +78,12 @@ fn main() {
                     },
                 ..
             } => {
-                mouse_pos = position;
                 application.on_mouse_move(position.x, position.y);
             } // call application.on_mouse_moved()
-            _ => {}
+            _ => {} // If there's an event to detect loss/gain of focus, we will need to clear our pressed keys just in case
         }
 
-        // HANDLE GAME LOGIC
-
-        // Trigger Pre-init
-        // Call update()
         application.update();
-        // Trigger Post-update
-        // Call draw()
-        // Trigger post-draw
-
-        // Trigger Cleanup
-
-        // NEXT ITERATION
     });
 
     /*let material_handle = application.resources.import_material(

@@ -3,6 +3,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use chariot_core::networking::{ClientConnection, ClientUpdatingPacket, ServerUpdatingPacket};
+use chariot_core::player_inputs::InputEvent;
 use chariot_core::GLOBAL_CONFIG;
 
 use crate::physics::player_entity::PlayerEntity;
@@ -86,6 +87,26 @@ impl GameServer {
                         println!("Received a Ping packet from client #{}!", i);
                         connection.push_outgoing(ClientUpdatingPacket::Pong);
                     }
+                    ServerUpdatingPacket::InputToggle(event, enable) => match event {
+                        InputEvent::Engine(status) => {
+                            if !enable {
+                                // self.players[figureOutWhoThisIs()].player_inputs.engine_status = EngineStatus::Neutral;
+                                println!("Player is not moving anymore!");
+                            } else {
+                                // self.players[figureOutWhoThisIs()].player_inputs.engine_status = status;
+                                println!("Player is moving: {:?}", status);
+                            }
+                        }
+                        InputEvent::Rotation(status) => {
+                            if !enable {
+                                // self.players[figureOutWhoThisIs()].player_inputs.rotation_status = RotationStatus::NotInSpin;
+                                println!("Player is not turning anymore!");
+                            } else {
+                                // self.players[figureOutWhoThisIs()].player_inputs.rotation_status = status;
+                                println!("Player is turning: {:?}", status);
+                            }
+                        }
+                    },
                 }
             }
         }
