@@ -12,13 +12,33 @@ pub mod player_entity;
 
 use player_entity::PlayerEntity;
 
+fn get_height_at_coordinates(_x: f64, _z: f64) -> f64 {
+    return 0.0;
+}
+
 impl PlayerEntity {
+    pub fn set_upward_direction_from_bounding_box(&mut self) {
+        let [min_x, max_x] = self.bounding_box[0];
+        let [min_z, max_z] = self.bounding_box[2];
+
+        let lower_left_corner = DVec3::new(min_x, get_height_at_coordinates(min_x, min_z), min_z);
+        let lower_right_corner = DVec3::new(max_x, get_height_at_coordinates(max_x, min_z), min_z);
+        let upper_left_corner = DVec3::new(min_x, get_height_at_coordinates(min_x, max_z), max_z);
+        let upper_right_corner = DVec3::new(max_x, get_height_at_coordinates(max_x, max_z), max_z);
+
+        let diagonal_1 = lower_right_corner - upper_left_corner;
+        let diagonal_2 = upper_right_corner - lower_left_corner;
+
+        // Right hand rule! This should be pointing "upwards"
+        self.entity_location.unit_upward_direction = diagonal_1.cross(diagonal_2).normalize();
+    }
+
     /* Given a set of physical properties, compute and return what next tick's
     	* physics properties will be for that object */
     pub fn do_physics_step(
         &self,
         time_step: f64,
-        mut potential_colliders: Vec<&PlayerEntity>,
+        potential_colliders: Vec<&PlayerEntity>,
     ) -> PlayerEntity {
         let self_forces = self.sum_of_self_forces();
         let acceleration = self_forces / self.mass;
@@ -35,7 +55,7 @@ impl PlayerEntity {
 
         let mut delta_velocity = acceleration * time_step;
 
-        for collider in potential_colliders.iter_mut() {
+        for collider in potential_colliders.iter() {
             delta_velocity += self.delta_v_from_collision_with_player(collider);
         }
 
@@ -48,6 +68,7 @@ impl PlayerEntity {
             entity_location: EntityLocation {
                 position: self.entity_location.position + self.velocity * time_step,
                 unit_steer_direction: self.entity_location.unit_steer_direction,
+                unit_upward_direction: self.entity_location.unit_upward_direction,
             },
 
             velocity: self.velocity + delta_velocity,
@@ -63,22 +84,33 @@ impl PlayerEntity {
         return new_player;
     }
 
+    fn is_aerial(&self) -> bool {
+        return self.entity_location.position[1]
+            > self.size[1]
+                + get_height_at_coordinates(
+                    self.entity_location.position[0],
+                    self.entity_location.position[2],
+                );
+    }
+
     fn sum_of_self_forces(&self) -> DVec3 {
-        return self.gravitational_force_on_object()
-            + self.normal_force_on_object()
+        let air_forces = self.gravitational_force_on_object()
             + self.player_applied_force_on_object()
-            + self.air_resistance_force_on_object()
-            + self.rolling_resistance_force_on_object();
+            + self.air_resistance_force_on_object();
+
+        return if self.is_aerial() {
+            air_forces
+        } else {
+            air_forces + self.normal_force_on_object() + self.rolling_resistance_force_on_object()
+        };
     }
 
     fn gravitational_force_on_object(&self) -> DVec3 {
         return DVec3::new(0.0, -1.0, 0.0) * self.mass * GLOBAL_CONFIG.gravity_coefficient;
     }
 
-    // unjustified temporary assumption we'll invalidate later: we're always on flat
-    // ground (otherwise, there's a horizontal component to normal force)
     fn normal_force_on_object(&self) -> DVec3 {
-        return DVec3::new(0.0, 1.0, 0.0) * self.mass;
+        return self.entity_location.unit_upward_direction * self.mass;
     }
 
     // Includes two player-applied forces: accelerator and brake.
@@ -180,8 +212,9 @@ mod tests {
             },
 
             entity_location: EntityLocation {
-                position: DVec3::new(20.0, 30.0, 40.0),
+                position: DVec3::new(0.0, 0.0, 0.0),
                 unit_steer_direction: DVec3::new(0.6, 0.0, 0.8),
+                unit_upward_direction: DVec3::new(0.0, 1.0, 0.0),
             },
 
             velocity: DVec3::new(2.0, 0.0, 1.0),
@@ -200,7 +233,7 @@ mod tests {
         assert!(props
             .entity_location
             .position
-            .abs_diff_eq(DVec3::new(22.0, 30.0, 41.0), 0.001));
+            .abs_diff_eq(DVec3::new(2.0, 0.0, 1.0), 0.001));
         // - velocity should have increased by acceleration amount in steer
         // direction, and decreased because of drag and rolling resistance
         let expected_velocity = DVec3::new(2.0, 0.0, 1.0)
@@ -219,8 +252,9 @@ mod tests {
             },
 
             entity_location: EntityLocation {
-                position: DVec3::new(20.0, 30.0, 40.0),
+                position: DVec3::new(0.0, 0.0, 0.0),
                 unit_steer_direction: DVec3::new(0.6, 0.0, 0.8),
+                unit_upward_direction: DVec3::new(0.0, 1.0, 0.0),
             },
 
             velocity: DVec3::new(2.0, 0.0, 1.0),
@@ -239,7 +273,7 @@ mod tests {
         assert!(props
             .entity_location
             .position
-            .abs_diff_eq(DVec3::new(22.0, 30.0, 41.0), 0.001));
+            .abs_diff_eq(DVec3::new(2.0, 0.0, 1.0), 0.001));
         // - velocity should only have decreased, due to drag and rolling resistance
         let expected_velocity = DVec3::new(2.0, 0.0, 1.0)
             + DVec3::new(-2.0, 0.0, -1.0) * GLOBAL_CONFIG.drag_coefficient * (5.0 as f64).sqrt()
@@ -255,8 +289,9 @@ mod tests {
             },
 
             entity_location: EntityLocation {
-                position: DVec3::new(20.0, 30.0, 40.0),
+                position: DVec3::new(0.0, 0.0, 0.0),
                 unit_steer_direction: DVec3::new(0.6, 0.0, 0.8),
+                unit_upward_direction: DVec3::new(0.0, 1.0, 0.0),
             },
 
             velocity: DVec3::new(2.0, 0.0, 1.0),
@@ -275,7 +310,7 @@ mod tests {
         assert!(props
             .entity_location
             .position
-            .abs_diff_eq(DVec3::new(22.0, 30.0, 41.0), 0.001));
+            .abs_diff_eq(DVec3::new(2.0, 0.0, 1.0), 0.001));
         // - velocity should only have decreased, due to braking, drag, and rolling resistance
         let prev_velocity = DVec3::new(2.0, 0.0, 1.0);
         let neg_prev_velocity = DVec3::new(-2.0, 0.0, -1.0);
@@ -295,8 +330,9 @@ mod tests {
             },
 
             entity_location: EntityLocation {
-                position: DVec3::new(20.0, 30.0, 40.0),
+                position: DVec3::new(0.0, 0.0, 0.0),
                 unit_steer_direction: DVec3::new(0.6, 0.0, 0.8),
+                unit_upward_direction: DVec3::new(0.0, 1.0, 0.0),
             },
 
             velocity: DVec3::new(0.0, 0.0, 0.0),

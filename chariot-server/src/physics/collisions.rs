@@ -14,6 +14,54 @@ fn flat_rotate_vector(v: &DVec2, theta: f64) -> DVec2 {
     return DVec2::new(x * cos_theta - z * sin_theta, x * sin_theta + z * cos_theta);
 }
 
+// Assume we have a basis in a 2D plane. Then we're given two vectors in this
+// plane, both starting at the origin; one defines which direction an object is
+// facing in the plane, and the other defines where the corner of the object
+// within this plane would be facing if the object was unrotated (pointing
+// towards [1, 0]). Use the rotation of the object to determine by how much the
+// bounding box would need to grow from the unrotated dimensions of the object
+// in order to fully enclose the object; do this in two dimensions and return
+// how much needs to be added to the bounding box in each dimension.
+fn get_rotated_extremum_distance_in_plane(
+    direction_in_plane: &DVec2,
+    corner_to_rotate: &DVec2,
+) -> (f64, f64) {
+    let zero_angle_vec = DVec2::new(1.0, 0.0);
+
+    // Since the range of arccos is [0, pi], and bounding boxes are
+    // reflectionally symmetrical over the X and Z axes, we can thus
+    // constrain (for the purposes of bounding-box calculation) the rotation
+    // angle to be in [0, pi/2].
+    let mut theta: f64 = direction_in_plane.dot(zero_angle_vec).acos();
+    if theta > std::f64::consts::FRAC_PI_2 {
+        theta -= std::f64::consts::FRAC_PI_2;
+    }
+
+    // These two vectors and -1 times these two vectors define the four
+    // corners of the bounding box (source: trust me bro)
+    let one_corner = flat_rotate_vector(corner_to_rotate, theta);
+    let other_corner =
+        flat_rotate_vector(&(*corner_to_rotate * -1.0), std::f64::consts::PI - theta);
+
+    let xs = [
+        one_corner.x,
+        other_corner.x,
+        (-1.0 * one_corner).x,
+        (-1.0 * other_corner).x,
+    ];
+    let ys = [
+        one_corner.y,
+        other_corner.y,
+        (-1.0 * one_corner).y,
+        (-1.0 * other_corner).y,
+    ];
+
+    let x_dist = xs.into_iter().reduce(f64::max).unwrap();
+    let y_dist = ys.into_iter().reduce(f64::max).unwrap();
+
+    return (x_dist, y_dist);
+}
+
 impl PlayerEntity {
     fn check_bounding_box_collisions(&self, other: &PlayerEntity) -> bool {
         let mut collision_dimensions = [false, false, false];
@@ -40,52 +88,51 @@ impl PlayerEntity {
         let y_2 = self.size.y / 2.0;
         let z_2 = self.size.z / 2.0;
 
-        // Angles are measured from the (1, 0, 0) axis
-        let heading = DVec2::new(
+        // Angles in the XZ-plane are measured from the (1, 0, 0) axis
+        let xz_heading = DVec2::new(
             self.entity_location.unit_steer_direction[0],
             self.entity_location.unit_steer_direction[2],
         );
-        let zero_angle_vec = DVec2::new(1.0, 0.0);
+        let xz_corner = DVec2::new(x_2, z_2);
 
-        // Since the range of arccos is [0, pi], and bounding boxes are
-        // reflectionally symmetrical over the X and Z axes, we can thus
-        // constrain (for the purposes of bounding-box calculation) the rotation
-        // angle to be in [0, pi/2].
-        let mut theta: f64 = heading.dot(zero_angle_vec).acos();
-        if theta > std::f64::consts::FRAC_PI_2 {
-            theta -= std::f64::consts::FRAC_PI_2;
-        }
+        // Since the extremum distance in the y-direction is going to be the
+        // same no matter how much we spin the body about the upward direction,
+        // we can use any plane which contains the upward direction. The easy
+        // choice is to pick the plane that also goes through the origin and
+        // (x_2, y_2, z_2). For ease of basis (because the zero-angle vector is
+        // (1, 0)), we put y first; call the other component of the basis (the
+        // one that goes through (x_2, z_2)) w.
 
-        // These two vectors and -1 times these two vectors define the four
-        // corners of the bounding box (source: trust me bro)
-        let one_corner = flat_rotate_vector(&DVec2::new(x_2, z_2), theta);
-        let other_corner =
-            flat_rotate_vector(&DVec2::new(-x_2, -z_2), std::f64::consts::PI - theta);
+        // Sign doesn't matter here, we're rotationally symmetric
+        let upward_direction_w = (self.entity_location.unit_upward_direction[0].powi(2)
+            + self.entity_location.unit_upward_direction[2].powi(2))
+        .sqrt();
 
-        let xs = [
-            one_corner.x,
-            other_corner.x,
-            (-1.0 * one_corner).x,
-            (-1.0 * other_corner).x,
-        ];
-        let zs = [
-            one_corner.y,
-            other_corner.y,
-            (-1.0 * one_corner).y,
-            (-1.0 * other_corner).y,
-        ];
+        let yw_heading = DVec2::new(
+            self.entity_location.unit_upward_direction[1],
+            upward_direction_w,
+        );
+        let w_2 = (x_2.powi(2) + z_2.powi(2)).sqrt();
+
+        let yw_corner = DVec2::new(y_2, w_2);
+
+        // We can find the dimensions of the three-dimensional bounding box by
+        // first rotating the object in the XZ-plane to get the X and Z extrema,
+        // and then separately rotating in a Y-based plane to get the Y extrema.
+        // By doing these separately, we avoid three-dimension rotation (which
+        // sucks)
+        let (x_dist, z_dist) = get_rotated_extremum_distance_in_plane(&xz_heading, &xz_corner);
+        let (y_dist, _) = get_rotated_extremum_distance_in_plane(&yw_heading, &yw_corner);
 
         // This will always be nonnegative (since we're centered around the origin)
-        let x_dist = xs.into_iter().reduce(f64::max).unwrap();
         let min_x = self.entity_location.position.x - x_dist;
         let max_x = self.entity_location.position.x + x_dist;
 
-        let z_dist = zs.into_iter().reduce(f64::max).unwrap();
+        let min_y = self.entity_location.position.y - y_dist;
+        let max_y = self.entity_location.position.y + y_dist;
+
         let min_z = self.entity_location.position.z - z_dist;
         let max_z = self.entity_location.position.z + z_dist;
-
-        let min_y = self.entity_location.position.y - y_2;
-        let max_y = self.entity_location.position.y + y_2;
 
         self.bounding_box = [[min_x, max_x], [min_y, max_y], [min_z, max_z]];
     }
@@ -137,6 +184,7 @@ mod tests {
             entity_location: EntityLocation {
                 position: DVec3::new(0.0, 0.0, 0.0),
                 unit_steer_direction: DVec3::new(1.0, 0.0, 0.0),
+                unit_upward_direction: DVec3::new(0.0, 1.0, 0.0),
             },
 
             velocity: DVec3::new(0.0, 0.0, 0.0),
@@ -248,5 +296,23 @@ mod tests {
         uwu_cube.set_bounding_box_dimensions();
         owo_cube.set_bounding_box_dimensions();
         assert!(uwu_cube.check_bounding_box_collisions(&owo_cube));
+    }
+
+    #[test]
+    fn test_3d_bounding_box() {
+        let mut cube = get_origin_cube();
+
+        cube.size = DVec3::new(1.0, 10000.0, 1.0);
+        cube.entity_location.unit_upward_direction =
+            DVec3::new(2.0_f64.sqrt() / 2.0, 2.0_f64.sqrt() / 2.0, 0.0);
+        cube.set_bounding_box_dimensions();
+
+        let y_max = cube.bounding_box[1][1];
+        let y_min = cube.bounding_box[1][0];
+
+        let actual_top = (10_000.0 / 2.0) / (2.0_f64.sqrt());
+        let actual_bottom = (-10_000.0 / 2.0) / (2.0_f64.sqrt());
+        assert!(actual_top * 0.999 < y_max && y_max < actual_top * 1.001);
+        assert!(actual_bottom * 0.999 > y_min && y_min > actual_bottom * 1.001);
     }
 }
