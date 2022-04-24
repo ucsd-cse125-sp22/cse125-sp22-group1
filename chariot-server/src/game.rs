@@ -140,19 +140,19 @@ impl GameServer {
                     ServerUpdatingPacket::InputToggle(event, enable) => match event {
                         InputEvent::Engine(status) => {
                             if !enable {
-                                // self.players[figureOutWhoThisIs()].player_inputs.engine_status = EngineStatus::Neutral;
+                                // self.players[self.game_state.players.get(i)].player_inputs.engine_status = EngineStatus::Neutral;
                                 println!("Player is not moving anymore!");
                             } else {
-                                // self.players[figureOutWhoThisIs()].player_inputs.engine_status = status;
+                                // self.players[self.game_state.players.get(i)].player_inputs.engine_status = status;
                                 println!("Player is moving: {:?}", status);
                             }
                         }
                         InputEvent::Rotation(status) => {
                             if !enable {
-                                // self.players[figureOutWhoThisIs()].player_inputs.rotation_status = RotationStatus::NotInSpin;
+                                // self.players[self.game_state.players.get(i)].player_inputs.rotation_status = RotationStatus::NotInSpin;
                                 println!("Player is not turning anymore!");
                             } else {
-                                // self.players[figureOutWhoThisIs()].player_inputs.rotation_status = status;
+                                // self.players[self.game_state.players.get(i)].player_inputs.rotation_status = status;
                                 println!("Player is turning: {:?}", status);
                             }
                         }
