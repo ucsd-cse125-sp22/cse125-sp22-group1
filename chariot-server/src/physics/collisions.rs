@@ -1,66 +1,6 @@
-use glam::{DVec2, DVec3};
+use glam::{DVec3, Mat3};
 
 use super::player_entity::PlayerEntity;
-
-// Given a 2D vector, rotate it by theta radians counterclockwise.
-// Refer to https://en.wikipedia.org/wiki/Rotation_matrix for the formula used here
-fn flat_rotate_vector(v: &DVec2, theta: f64) -> DVec2 {
-    let x = v[0];
-    let z = v[1];
-
-    let sin_theta = theta.sin();
-    let cos_theta = theta.cos();
-
-    return DVec2::new(x * cos_theta - z * sin_theta, x * sin_theta + z * cos_theta);
-}
-
-// Assume we have a basis in a 2D plane. Then we're given two vectors in this
-// plane, both starting at the origin; one defines which direction an object is
-// facing in the plane, and the other defines where the corner of the object
-// within this plane would be facing if the object was unrotated (pointing
-// towards [1, 0]). Use the rotation of the object to determine by how much the
-// bounding box would need to grow from the unrotated dimensions of the object
-// in order to fully enclose the object; do this in two dimensions and return
-// how much needs to be added to the bounding box in each dimension.
-fn get_rotated_extremum_distance_in_plane(
-    direction_in_plane: &DVec2,
-    corner_to_rotate: &DVec2,
-) -> (f64, f64) {
-    let zero_angle_vec = DVec2::new(1.0, 0.0);
-
-    // Since the range of arccos is [0, pi], and bounding boxes are
-    // reflectionally symmetrical over the X and Z axes, we can thus
-    // constrain (for the purposes of bounding-box calculation) the rotation
-    // angle to be in [0, pi/2].
-    let mut theta: f64 = direction_in_plane.dot(zero_angle_vec).acos();
-    if theta > std::f64::consts::FRAC_PI_2 {
-        theta -= std::f64::consts::FRAC_PI_2;
-    }
-
-    // These two vectors and -1 times these two vectors define the four
-    // corners of the bounding box (source: trust me bro)
-    let one_corner = flat_rotate_vector(corner_to_rotate, theta);
-    let other_corner =
-        flat_rotate_vector(&(*corner_to_rotate * -1.0), std::f64::consts::PI - theta);
-
-    let xs = [
-        one_corner.x,
-        other_corner.x,
-        (-1.0 * one_corner).x,
-        (-1.0 * other_corner).x,
-    ];
-    let ys = [
-        one_corner.y,
-        other_corner.y,
-        (-1.0 * one_corner).y,
-        (-1.0 * other_corner).y,
-    ];
-
-    let x_dist = xs.into_iter().reduce(f64::max).unwrap();
-    let y_dist = ys.into_iter().reduce(f64::max).unwrap();
-
-    return (x_dist, y_dist);
-}
 
 impl PlayerEntity {
     fn check_bounding_box_collisions(&self, other: &PlayerEntity) -> bool {
@@ -88,43 +28,59 @@ impl PlayerEntity {
         let y_2 = self.size.y / 2.0;
         let z_2 = self.size.z / 2.0;
 
-        // Angles in the XZ-plane are measured from the (1, 0, 0) axis
-        let xz_heading = DVec2::new(
-            self.entity_location.unit_steer_direction[0],
-            self.entity_location.unit_steer_direction[2],
-        );
-        let xz_corner = DVec2::new(x_2, z_2);
+        // unit_steer_direction defines yaw, unit_upward_direction can be
+        // decomposed into pitch and roll; with these, we can get Euler angles
+        // for the 3d rotation. and then, to compute the bounding box we can
+        // literally just rotate the corners of the object and find the extrema!
 
-        // Since the extremum distance in the y-direction is going to be the
-        // same no matter how much we spin the body about the upward direction,
-        // we can use any plane which contains the upward direction. The easy
-        // choice is to pick the plane that also goes through the origin and
-        // (x_2, y_2, z_2). For ease of basis (because the zero-angle vector is
-        // (1, 0)), we put y first; call the other component of the basis (the
-        // one that goes through (x_2, z_2)) w.
+        let yaw = DVec3::new(
+            self.entity_location.unit_steer_direction.x,
+            0.0,
+            self.entity_location.unit_steer_direction.z,
+        )
+        .angle_between(DVec3::X);
 
-        // Sign doesn't matter here, we're rotationally symmetric
-        let upward_direction_w = (self.entity_location.unit_upward_direction[0].powi(2)
-            + self.entity_location.unit_upward_direction[2].powi(2))
-        .sqrt();
+        let (up_x, up_y, up_z) = self.entity_location.unit_upward_direction.into();
 
-        let yw_heading = DVec2::new(
-            self.entity_location.unit_upward_direction[1],
-            upward_direction_w,
-        );
-        let w_2 = (x_2.powi(2) + z_2.powi(2)).sqrt();
+        // positive on the x-axis is by default forward
+        let pitch = DVec3::new(up_x, up_y, 0.0).angle_between(DVec3::Y);
+        let roll = DVec3::new(0.0, up_y, up_z).angle_between(DVec3::Y);
 
-        let yw_corner = DVec2::new(y_2, w_2);
+        let yaw_rotation_matrix = Mat3::from_rotation_y(yaw as f32);
+        let pitch_rotation_matrix = Mat3::from_rotation_z(pitch as f32);
+        let roll_rotation_matrix = Mat3::from_rotation_x(roll as f32);
 
-        // We can find the dimensions of the three-dimensional bounding box by
-        // first rotating the object in the XZ-plane to get the X and Z extrema,
-        // and then separately rotating in a Y-based plane to get the Y extrema.
-        // By doing these separately, we avoid three-dimension rotation (which
-        // sucks)
-        let (x_dist, z_dist) = get_rotated_extremum_distance_in_plane(&xz_heading, &xz_corner);
-        let (y_dist, _) = get_rotated_extremum_distance_in_plane(&yw_heading, &yw_corner);
+        // because of symmetry, we only need to rotate four corners all on the same face; doesn't matter which face
+        let corners = [
+            DVec3::new(x_2, y_2, z_2),
+            DVec3::new(-x_2, y_2, z_2),
+            DVec3::new(x_2, y_2, -z_2),
+            DVec3::new(-x_2, y_2, -z_2),
+        ];
 
-        // This will always be nonnegative (since we're centered around the origin)
+        // order is important and we want extrinsic rotation. then the order we
+        // want, as per wikipedia, is yaw, then pitch, then roll - read this
+        // from inside out
+        let corners_coordinates = corners.iter().map(|corner| {
+            roll_rotation_matrix.mul_vec3(
+                pitch_rotation_matrix.mul_vec3(yaw_rotation_matrix.mul_vec3(corner.as_vec3())),
+            )
+        });
+
+        // symmetry! max in one direction is min in the other direction
+        let (mut x_dist, mut y_dist, mut z_dist) = (0.0, 0.0, 0.0);
+        for rotated_corner in corners_coordinates {
+            if rotated_corner.x.abs() > x_dist as f32 {
+                x_dist = f64::from(rotated_corner.x);
+            }
+            if rotated_corner.y.abs() > y_dist as f32 {
+                y_dist = f64::from(rotated_corner.y);
+            }
+            if rotated_corner.z.abs() > z_dist as f32 {
+                z_dist = f64::from(rotated_corner.z);
+            }
+        }
+
         let min_x = self.entity_location.position.x - x_dist;
         let max_x = self.entity_location.position.x + x_dist;
 
