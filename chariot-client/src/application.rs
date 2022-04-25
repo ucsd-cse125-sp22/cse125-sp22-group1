@@ -48,12 +48,8 @@ impl Application {
 
         let import_result = resources.import_gltf(&mut renderer, "models/DamagedHelmet.glb");
 
-        if !import_result.is_ok() {
-            panic!("Failed to import model");
-        }
-
         Self {
-            drawables: import_result.unwrap().drawables,
+            drawables: import_result.expect("Failed to import model").drawables,
             renderer: renderer,
             resources: resources,
         }

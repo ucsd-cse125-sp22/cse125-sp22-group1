@@ -23,12 +23,6 @@ fn main() {
     let renderer = renderer::Renderer::new(context);
     let mut application = application::Application::new(renderer);
 
-    /*let material_handle = application.resources.import_material(
-        &mut application.renderer,
-        include_str!("shader.wgsl"),
-        "boring",
-    );*/
-
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
         match event {
