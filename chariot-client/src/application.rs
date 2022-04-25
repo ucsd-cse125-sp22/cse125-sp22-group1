@@ -104,7 +104,17 @@ impl Application {
     }
 
     pub fn update(&mut self) {
-        //self.world.root_mut().update();
+        dfs_mut(self.world.root_mut(), &|e| {
+            if let Some(transform) = e.get_component::<Transform>() {
+                let rot_inc = glam::Quat::from_axis_angle(glam::Vec3::Y, 0.01);
+                let new_rot = rot_inc * transform.rotation;
+                let new_transform = Transform {
+                    rotation: new_rot,
+                    ..*transform
+                };
+                e.set_component(new_transform);
+            }
+        });
     }
 
     // TODO: input handlers
