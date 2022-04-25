@@ -1,4 +1,4 @@
-use chariot_core::networking::{ClientUpdatingPacket, ServerConnection, ServerUpdatingPacket};
+use chariot_core::networking::{ClientBoundPacket, ServerBoundPacket, ServerConnection};
 use chariot_core::player_inputs::InputEvent;
 use std::net::TcpStream;
 use winit::event::{ElementState, VirtualKeyCode};
@@ -17,7 +17,7 @@ impl GameClient {
     }
 
     pub fn ping(&mut self) {
-        self.connection.push_outgoing(ServerUpdatingPacket::Ping);
+        self.connection.push_outgoing(ServerBoundPacket::Ping);
     }
 
     pub fn sync_outgoing(&mut self) {
@@ -31,19 +31,20 @@ impl GameClient {
     pub fn process_incoming_packets(&mut self) {
         while let Some(packet) = self.connection.pop_incoming() {
             match packet {
-                ClientUpdatingPacket::Pong => {
+                ClientBoundPacket::Pong => {
                     println!("Received a Pong packet from server!");
                 }
-                ClientUpdatingPacket::Message(text) => {
+                ClientBoundPacket::Message(text) => {
                     println!("Recieved a message from the server saying: {}", text);
                 }
+                _ => {}
             }
         }
     }
 
     pub fn send_input_event(&mut self, event: InputEvent) {
         self.connection
-            .push_outgoing(ServerUpdatingPacket::InputToggle(event));
+            .push_outgoing(ServerBoundPacket::InputToggle(event));
         self.connection.sync_outgoing();
     }
 }
