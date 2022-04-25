@@ -62,6 +62,11 @@ impl Application {
         // temporarily commenting this since the new import stuff is in a different branch
         helmet.set_component(import_result.expect("Failed to import model").drawables);
 
+        helmet.set_component(Camera {
+            orbit_angle: glam::Vec2::ZERO,
+            distance: 2.0,
+        });
+
         world.root_mut().add_child(helmet);
 
         Self {
@@ -75,18 +80,42 @@ impl Application {
     }
 
     pub fn render(&mut self) {
-        let view =
-            glam::Mat4::look_at_rh(glam::vec3(0.0, 0.0, -2.0), glam::Vec3::ZERO, glam::Vec3::Y);
-        let proj = glam::Mat4::perspective_rh(f32::to_radians(60.0), 1.0, 0.1, 100.0);
-        let proj_view = proj * view;
-
-        let mut render_job = render_job::RenderJob::default();
         let root_transform = self
             .world
             .root()
             .get_component::<Transform>()
             .unwrap_or(&Transform::default())
             .to_mat4();
+
+        // Right now, we're iterating over the scene graph and evaluating all the global transforms once
+        // which is kind of annoying. First to find the camera and get the view matrix and again to actually
+        // render everything. Ideally maybe in the future this could be simplified
+
+        let mut view_inv_local =
+            glam::Mat4::look_at_rh(glam::vec3(0.0, 0.0, -2.0), glam::Vec3::ZERO, glam::Vec3::Y);
+        let mut view_global = glam::Mat4::IDENTITY;
+        dfs_acc(self.world.root_mut(), root_transform, |e, acc| {
+            if let Some(camera) = e.get_component::<Camera>() {
+                view_inv_local = camera.view_mat4();
+                view_global = *acc;
+            }
+
+            let cur_model = e
+                .get_component::<Transform>()
+                .unwrap_or(&Transform::default())
+                .to_mat4();
+
+            let acc_model = *acc * cur_model;
+
+            acc_model
+        });
+
+        let view = view_inv_local * view_global.inverse();
+
+        let proj = glam::Mat4::perspective_rh(f32::to_radians(60.0), 1.0, 0.1, 100.0);
+        let proj_view = proj * view;
+
+        let mut render_job = render_job::RenderJob::default();
         dfs_acc(self.world.root_mut(), root_transform, |e, acc| {
             let cur_model = e
                 .get_component::<Transform>()
@@ -109,15 +138,21 @@ impl Application {
     }
 
     pub fn update(&mut self) {
+        let surface_size = self.renderer.surface_size();
+        let surface_size = glam::Vec2::new(surface_size.width as f32, surface_size.height as f32);
+        let mouse_pos = glam::Vec2::new(self.mouse_pos.x as f32, self.mouse_pos.y as f32);
+
+        let rot_range = glam::Vec2::new(std::f32::consts::PI, std::f32::consts::FRAC_PI_2);
+
         dfs_mut(self.world.root_mut(), &|e| {
-            if let Some(transform) = e.get_component::<Transform>() {
-                let rot_inc = glam::Quat::from_axis_angle(glam::Vec3::Y, 0.005);
-                let new_rot = rot_inc * transform.rotation;
-                let new_transform = Transform {
-                    rotation: new_rot,
-                    ..*transform
+            if let Some(camera) = e.get_component::<Camera>() {
+                let norm_orbit_angle = (mouse_pos / surface_size) * 2.0 - 1.0;
+                let orbit_angle = norm_orbit_angle * rot_range;
+                let new_camera = Camera {
+                    orbit_angle,
+                    ..*camera
                 };
-                e.set_component(new_transform);
+                e.set_component(new_camera);
             }
         });
 

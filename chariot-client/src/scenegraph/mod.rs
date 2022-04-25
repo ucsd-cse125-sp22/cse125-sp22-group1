@@ -71,14 +71,14 @@ impl Component for Vec<StaticMeshDrawable> {
 }
 
 pub struct Camera {
-    orbit_angle: glam::Vec2,
-    distance: f32,
+    pub orbit_angle: glam::Vec2,
+    pub distance: f32,
 }
 
 impl Camera {
     pub fn view_mat4(&self) -> glam::Mat4 {
         let look_rot = glam::Quat::from_euler(
-            glam::EulerRot::XYZ,
+            glam::EulerRot::YXZ,
             self.orbit_angle.x,
             self.orbit_angle.y,
             0.0,
