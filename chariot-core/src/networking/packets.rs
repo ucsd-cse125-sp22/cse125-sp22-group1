@@ -9,7 +9,7 @@ use crate::player_inputs::InputEvent;
 #[derive(Serialize, Deserialize)]
 pub enum ServerUpdatingPacket {
     Ping,
-    InputToggle(InputEvent, bool),
+    InputToggle(InputEvent),
 }
 
 #[derive(Serialize, Deserialize)]

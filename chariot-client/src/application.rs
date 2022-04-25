@@ -68,6 +68,24 @@ impl Application {
         }
     }
 
+    fn invert_event(&self, event: Option<InputEvent>) -> Option<InputEvent> {
+        Some(match event {
+            Some(InputEvent::Engine(EngineStatus::Accelerating)) => {
+                InputEvent::Engine(EngineStatus::Neutral)
+            }
+            Some(InputEvent::Engine(EngineStatus::Braking)) => {
+                InputEvent::Engine(EngineStatus::Neutral)
+            }
+            Some(InputEvent::Rotation(RotationStatus::InSpinClockwise)) => {
+                InputEvent::Rotation(RotationStatus::NotInSpin)
+            }
+            Some(InputEvent::Rotation(RotationStatus::InSpinCounterclockwise)) => {
+                InputEvent::Rotation(RotationStatus::NotInSpin)
+            }
+            _ => return None,
+        })
+    }
+
     // Input Handlers
     pub fn on_key_down(&mut self, key: VirtualKeyCode) {
         // winit sends duplicate keydown events, so we will just make sure we don't already have this processed
@@ -79,7 +97,7 @@ impl Application {
         self.pressed_keys.insert(key);
 
         if let Some(event) = self.get_input_event(key) {
-            self.game.send_input_event(event, true);
+            self.game.send_input_event(event);
         };
     }
 
@@ -87,8 +105,8 @@ impl Application {
         println!("Key up [{:?}]!", key);
         self.pressed_keys.remove(&key);
 
-        if let Some(event) = self.get_input_event(key) {
-            self.game.send_input_event(event, false);
+        if let Some(event) = self.invert_event(self.get_input_event(key)) {
+            self.game.send_input_event(event);
         };
     }
 

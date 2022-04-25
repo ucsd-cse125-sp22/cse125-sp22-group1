@@ -41,9 +41,9 @@ impl GameClient {
         }
     }
 
-    pub fn send_input_event(&mut self, event: InputEvent, enable: bool) {
+    pub fn send_input_event(&mut self, event: InputEvent) {
         self.connection
-            .push_outgoing(ServerUpdatingPacket::InputToggle(event, enable));
+            .push_outgoing(ServerUpdatingPacket::InputToggle(event));
         self.connection.sync_outgoing();
     }
 }
