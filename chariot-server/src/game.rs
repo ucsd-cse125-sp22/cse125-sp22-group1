@@ -6,6 +6,7 @@ use chariot_core::networking::ws::Message;
 use chariot_core::networking::{
     ClientConnection, ClientUpdatingPacket, ServerUpdatingPacket, WebSocketConnection,
 };
+use chariot_core::player_inputs::InputEvent;
 use chariot_core::GLOBAL_CONFIG;
 
 use crate::physics::player_entity::PlayerEntity;
@@ -136,6 +137,16 @@ impl GameServer {
                         //     )));
                         // })
                     }
+                    ServerUpdatingPacket::InputToggle(event) => match event {
+                        InputEvent::Engine(status) => {
+                            // self.players[self.game_state.players.get(i)].player_inputs.engine_status = status;
+                            println!("Engine status: {:?}", status);
+                        }
+                        InputEvent::Rotation(status) => {
+                            // self.players[self.game_state.players.get(i)].player_inputs.rotation_status = status;
+                            println!("Turn status: {:?}", status);
+                        }
+                    },
                 }
             }
         }

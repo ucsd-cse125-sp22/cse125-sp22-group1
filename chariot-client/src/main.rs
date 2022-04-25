@@ -1,11 +1,12 @@
-use chariot_core::GLOBAL_CONFIG;
-use specs::{Builder, WorldExt};
-use std::mem;
-use wgpu::util::DeviceExt;
 use winit::{
-    event::{Event, WindowEvent},
+    dpi::PhysicalPosition,
+    event::{ElementState, Event, MouseButton, WindowEvent},
     event_loop::ControlFlow,
 };
+
+use game::GameClient;
+
+use chariot_core::GLOBAL_CONFIG;
 
 mod application;
 mod drawable;
@@ -17,83 +18,65 @@ fn main() {
     let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
     let mut game_client = game::GameClient::new(ip_addr);
 
-    // temporary code until we establish an actual game loop
-    game_client.ping();
-    game_client.sync_outgoing();
-    loop {
-        game_client.sync_incoming();
-        game_client.process_incoming_packets();
-        game_client.ping();
-    }
-    // at some point, networking PoC:
-    // let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
-    // let game_client = game::GameClient::new(ip_addr);
-    // game_client.ping();
-
     let event_loop = winit::event_loop::EventLoop::new();
     let context = renderer::context::Context::new(&event_loop);
     let renderer = renderer::Renderer::new(context);
-    let mut application = application::Application::new(renderer);
+    let mut application = application::Application::new(renderer, game_client);
 
-    let material_handle = application.resources.import_material(
-        &mut application.renderer,
-        include_str!("shader.wgsl"),
-        "boring",
-    );
-
-    let import_result = application.resources.import_gltf(
-        &application.renderer,
-        "models/FlightHelmet/FlightHelmet.gltf",
-    );
-
-    if import_result.is_ok() {
-        for static_mesh_handle in import_result.unwrap().2.iter() {
-            let drawable = drawable::StaticMeshDrawable::new(
-                &application.renderer,
-                &application.resources,
-                material_handle,
-                *static_mesh_handle,
-                0,
-            );
-            application.drawables.push(drawable);
-        }
-    }
-
+    // Example of main loop deferring to elsewhere
     event_loop.run(move |event, _, control_flow| {
+        // TRIGGER EVENTS
         *control_flow = ControlFlow::Wait;
         match event {
+            // Window changes
             Event::WindowEvent {
                 event: WindowEvent::Resized(size),
                 ..
             } => {
                 application.renderer.handle_surface_resize(size);
             }
+
+            // Forced redraw from OS
             Event::RedrawRequested(_) => {
                 application.render();
             }
+
+            // X button on window clicked
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
             } => *control_flow = ControlFlow::Exit,
+
+            // Keyboard input
             Event::WindowEvent {
-                event:
-                    WindowEvent::KeyboardInput {
-                        device_id,
-                        input,
-                        is_synthetic,
-                    },
+                event: WindowEvent::KeyboardInput { input, .. },
                 ..
-            } => println!("keyboard input!!"), // call application.on_keyboard_input()
+            } => {
+                if let Some(key) = input.virtual_keycode {
+                    match input.state {
+                        ElementState::Pressed => application.on_key_down(key),
+                        ElementState::Released => application.on_key_up(key),
+                    }
+                }
+            }
+
+            // Mouse input
             Event::WindowEvent {
                 event:
                     WindowEvent::MouseInput {
                         device_id,
-                        state,
                         button,
+                        state,
                         modifiers,
                     },
                 ..
-            } => println!("mouse input!!"), // call application.on_mouse_input()
+            } => match button {
+                MouseButton::Left => application.on_left_mouse(state),
+                MouseButton::Right => application.on_right_mouse(state),
+                _ => (),
+            },
+
+            // Mouse moved
             Event::WindowEvent {
                 event:
                     WindowEvent::CursorMoved {
@@ -102,21 +85,15 @@ fn main() {
                         modifiers,
                     },
                 ..
-            } => println!("mouse moved!!"), // call application.on_mouse_moved()
+            } => {
+                application.on_mouse_move(position.x, position.y);
+            }
+
+            // If there's an event to detect loss/gain of focus, we will need to clear our pressed keys just in case
+            // Other
             _ => {}
         }
-    });
-    /*
-    let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
-    let mut game_client = game::GameClient::new(ip_addr);
 
-    // temporary code until we establish an actual game loop
-    game_client.ping();
-    game_client.sync_outgoing();
-    loop {
-        game_client.sync_incoming();
-        game_client.process_incoming_packets();
-    }
-    // end temporary code
-    */
+        application.update();
+    });
 }

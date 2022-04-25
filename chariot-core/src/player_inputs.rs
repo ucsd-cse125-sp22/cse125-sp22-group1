@@ -1,11 +1,19 @@
-#[derive(Copy, Clone)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Copy, Clone, Serialize, Deserialize)]
+pub enum InputEvent {
+    Engine(EngineStatus),
+    Rotation(RotationStatus),
+}
+
+#[derive(Copy, Clone, Serialize, Deserialize, Debug)]
 pub enum EngineStatus {
     Accelerating,
     Neutral,
     Braking,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Serialize, Deserialize, Debug)]
 pub enum RotationStatus {
     InSpinClockwise,
     InSpinCounterclockwise,
