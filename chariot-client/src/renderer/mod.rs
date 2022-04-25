@@ -18,7 +18,7 @@ use render_job::*;
 
 /*
  * The renderer handles the state setup and transitions when sending commands to the GPU.
- * The idea is to submit a list of RenderItems (encapsulated in a RenderJob) and let the renderer generate
+ * The idea is to submit a graph of RenderItems (encapsulated in a RenderJob) and let the renderer generate
  * a list of commands for the GPU to process for a frame, like this:
  *
  * GPU command							| RenderItem field	| value
@@ -42,9 +42,6 @@ use render_job::*;
  * Some things to note:
  * - Out of laziness, it is only the framebuffers and pipelines that are not re-bound if the previous item was the same.
  * If the index/vertex buffer and uniform buffers are the same as the previous they are re-bound anyways.
- * - At some point it would be nice to allow a drawable to submit render items for multiple passes so we could get a
- * deferred rendering setup, but for now it's just forward rendering. In other comments I'll call the
- * "submit multiple render_items for a drawable feature" the render graph.
  * - WGPU calls bind_framebuffer begin_render_pass. Kind of the same thing but not entirely. It also calls uniform sets bind groups.
  */
 
