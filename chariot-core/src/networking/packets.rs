@@ -4,15 +4,18 @@ use bincode::{DefaultOptions, Options, Result};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
+use crate::player_inputs::InputEvent;
+
 #[derive(Serialize, Deserialize)]
 pub enum ServerUpdatingPacket {
     Ping,
-    //InputToggle(Input, bool),
+    InputToggle(InputEvent),
 }
 
 #[derive(Serialize, Deserialize)]
 pub enum ClientUpdatingPacket {
     Pong,
+    Message(String),
     //GameStateUpdate(GameState),
 }
 

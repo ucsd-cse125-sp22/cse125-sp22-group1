@@ -1,8 +1,6 @@
 use chariot_core::GLOBAL_CONFIG;
-use std::mem;
-use wgpu::util::DeviceExt;
 use winit::{
-    event::{Event, WindowEvent},
+    event::{ElementState, Event, MouseButton, WindowEvent},
     event_loop::ControlFlow,
 };
 
@@ -14,53 +12,71 @@ mod resources;
 mod scenegraph;
 
 fn main() {
-    // at some point, networking PoC:
-    // let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
-    // let game_client = game::GameClient::new(ip_addr);
-    // game_client.ping();
+    let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
+    let mut game_client = game::GameClient::new(ip_addr);
 
     let event_loop = winit::event_loop::EventLoop::new();
     let context = renderer::context::Context::new(&event_loop);
     let renderer = renderer::Renderer::new(context);
-    let mut application = application::Application::new(renderer);
 
+    let mut application = application::Application::new(renderer, game_client);
+
+    // Example of main loop deferring to elsewhere
     event_loop.run(move |event, _, control_flow| {
+        // TRIGGER EVENTS
         *control_flow = ControlFlow::Poll;
         match event {
             Event::MainEventsCleared => application.renderer.request_redraw(),
+            // Window changes
             Event::WindowEvent {
                 event: WindowEvent::Resized(size),
                 ..
             } => {
                 application.renderer.handle_surface_resize(size);
             }
+
+            // Forced redraw from OS
             Event::RedrawRequested(_) => {
-                application.update(); // Is this the right location?
+                //application.update(); // Is this the right location?
                 application.render();
             }
+
+            // X button on window clicked
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
             } => *control_flow = ControlFlow::Exit,
+
+            // Keyboard input
             Event::WindowEvent {
-                event:
-                    WindowEvent::KeyboardInput {
-                        device_id,
-                        input,
-                        is_synthetic,
-                    },
+                event: WindowEvent::KeyboardInput { input, .. },
                 ..
-            } => println!("keyboard input!!"), // call application.on_keyboard_input()
+            } => {
+                if let Some(key) = input.virtual_keycode {
+                    match input.state {
+                        ElementState::Pressed => application.on_key_down(key),
+                        ElementState::Released => application.on_key_up(key),
+                    }
+                }
+            }
+
+            // Mouse input
             Event::WindowEvent {
                 event:
                     WindowEvent::MouseInput {
                         device_id,
-                        state,
                         button,
+                        state,
                         modifiers,
                     },
                 ..
-            } => println!("mouse input!!"), // call application.on_mouse_input()
+            } => match button {
+                MouseButton::Left => application.on_left_mouse(state),
+                MouseButton::Right => application.on_right_mouse(state),
+                _ => (),
+            },
+
+            // Mouse moved
             Event::WindowEvent {
                 event:
                     WindowEvent::CursorMoved {
@@ -69,21 +85,19 @@ fn main() {
                         modifiers,
                     },
                 ..
-            } => println!("mouse moved!!"), // call application.on_mouse_moved()
+            } => {
+                application.on_mouse_move(position.x, position.y);
+            }
+
+            // If there's an event to detect loss/gain of focus, we will need to clear our pressed keys just in case
+            // Other
             _ => {}
         }
-    });
-    /*
-    let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
-    let mut game_client = game::GameClient::new(ip_addr);
 
-    // temporary code until we establish an actual game loop
-    game_client.ping();
-    game_client.sync_outgoing();
-    loop {
-        game_client.sync_incoming();
-        game_client.process_incoming_packets();
-    }
-    // end temporary code
-    */
+        // Right now update isn't called at even intervals
+        // (try moving the mouse around - the helmet spins faster because its getting more updates per frame)
+        // This can be fixed by just calling update before render is called (see above) since that event
+        // (RedrawRequested) seems to be getting a more even update interval
+        application.update();
+    });
 }
