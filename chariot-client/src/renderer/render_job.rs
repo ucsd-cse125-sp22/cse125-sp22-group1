@@ -3,13 +3,6 @@ use std::{
     num::NonZeroU32,
 };
 
-pub struct FramebufferDescriptor {
-    pub(super) color_attachments: Vec<wgpu::TextureView>,
-    pub(super) depth_stencil_attachment: Option<wgpu::TextureView>,
-    pub(super) clear_color: bool,
-    pub(super) clear_depth: bool,
-}
-
 pub enum RenderPassDescriptor<'a> {
     Graphics {
         source: &'a str,
@@ -64,18 +57,6 @@ pub fn pass_compute_pipeline(pass: &RenderPass) -> Option<&wgpu::ComputePipeline
     }
 }
 
-pub fn pass_pipeline_layout(pass: &RenderPass) -> Option<&wgpu::PipelineLayout> {
-    match pass {
-        RenderPass::Graphics {
-            pipeline_layout, ..
-        } => Some(pipeline_layout),
-        RenderPass::Compute {
-            pipeline_layout, ..
-        } => Some(pipeline_layout),
-        _ => None,
-    }
-}
-
 /*
  * Ignore this push constant stuff since I've kind of forgotten about it and it's just more work.
  * It's just a way to store small amounts of data in a faster to access way. For now in our game,
@@ -88,7 +69,7 @@ pub struct PushConstantData<'a> {
 }
 
 /*
- * A RenderItem stores all state for a draw call (or in the future, a compute dispatch call)
+ * A RenderItem stores all state for a single draw call (or in the future, a compute dispatch call)
  */
 #[derive(Clone)]
 pub enum RenderItem<'a> {
@@ -110,6 +91,14 @@ pub enum RenderItem<'a> {
         pass_name: &'a str,
         cb: fn(&mut wgpu::CommandEncoder),
     },
+}
+
+impl<'a> RenderItem<'a> {
+    pub fn to_graph(self) -> RenderGraph<'a> {
+        let mut builder = RenderGraphBuilder::new();
+        builder.add_root(self);
+        builder.build()
+    }
 }
 
 pub fn render_item_pass_name<'a>(pass: &'a RenderItem) -> &'a str {
@@ -166,6 +155,10 @@ pub fn try_unpack_graphics_item<'a, 'b>(
 
 type RenderNodeId = usize;
 
+/*
+ * A render graph stores the graph of items that need to be executed to draw a single drawable.
+ * For example, first render the mesh to the shadow map, then forward pass, etc
+ */
 #[derive(Default)]
 pub struct RenderGraph<'a> {
     items: Vec<RenderItem<'a>>,
@@ -212,8 +205,8 @@ impl<'a> RenderGraphBuilder<'a> {
         res_id
     }
 
-    pub fn add_root(&mut self, item: RenderItem<'a>) {
-        self.add(item, &[]);
+    pub fn add_root(&mut self, item: RenderItem<'a>) -> RenderNodeId {
+        self.add(item, &[])
     }
 
     pub fn build(&mut self) -> RenderGraph<'a> {
@@ -221,35 +214,47 @@ impl<'a> RenderGraphBuilder<'a> {
     }
 }
 
+/*
+ * kinda ugly but whatevs
+ * Encapsulates a graph of RenderItem lists organized by render pass.
+ * It just does a bit of work when merging render graphs to organize everything properly.
+ * Otherwise it doesn't care to organize further into vertex buffer or bind group bindings.
+ * It also has a bfs iterator to help with iteration. The implementation is a little lazy since it
+ * just pretraverses the graph and caches the indexing order.
+ */
+
+#[derive(Default)]
 pub struct RenderJob<'a> {
+    pass_to_id: HashMap<String, RenderNodeId>,
     pass_items: Vec<Vec<RenderItem<'a>>>,
     graph: HashMap<RenderNodeId, HashMap<String, RenderNodeId>>,
     roots: HashMap<String, RenderNodeId>,
 }
 
 impl<'a> RenderJob<'a> {
-    pub fn new() -> Self {
-        Self {
-            pass_items: Vec::new(),
-            graph: HashMap::new(),
-            roots: HashMap::new(),
-        }
+    pub fn merge_graph(&mut self, graph: RenderGraph<'a>) {
+        self.merge_graph_internal(None, graph);
+    }
+    pub fn merge_graph_after(&mut self, after: &str, graph: RenderGraph<'a>) {
+        let root_id = *self
+            .pass_to_id
+            .get(&after.to_string())
+            .expect("Invalid after constraint");
+        self.merge_graph_internal(Some(root_id), graph);
     }
 
-    pub fn merge_graph(&mut self, graph: RenderGraph<'a>) {
+    fn merge_graph_internal(&mut self, root_id: Option<RenderNodeId>, graph: RenderGraph<'a>) {
+        let root = root_id.map_or(&mut self.roots, |id| self.graph.get_mut(&id).unwrap());
         let job_root_ids: Vec<usize> = graph
             .roots
             .iter()
             .map(|rid| {
                 let pass_name = render_item_pass_name(&graph.items[*rid]);
-                let job_id = self
-                    .roots
-                    .entry(String::from(pass_name))
-                    .or_insert_with(|| {
-                        let new_id = self.pass_items.len();
-                        self.pass_items.push(vec![]);
-                        new_id
-                    });
+                let job_id = root.entry(String::from(pass_name)).or_insert_with(|| {
+                    let new_id = self.pass_items.len();
+                    self.pass_items.push(vec![]);
+                    new_id
+                });
 
                 *job_id
             })
@@ -265,6 +270,8 @@ impl<'a> RenderJob<'a> {
         while !stack.is_empty() {
             let (graph_id, job_id) = stack.pop().unwrap();
             self.pass_items[job_id].push(graph.items[graph_id].clone());
+            let pass_name = render_item_pass_name(&graph.items[graph_id]);
+            self.pass_to_id.insert(pass_name.to_string(), job_id);
 
             for child_graph_id in graph.nodes.get(&graph_id).unwrap_or(&vec![]).iter() {
                 let child_pass_name = render_item_pass_name(&graph.items[*child_graph_id]);
@@ -296,15 +303,8 @@ impl<'a> RenderJob<'a> {
 
             let cur_items = &self.pass_items[cur_id];
             assert!(cur_items.len() > 0);
-            match &cur_items[0] {
-                RenderItem::Graphics {
-                    pass_name,
-                    framebuffer_name,
-                    ..
-                } => res.push((*pass_name, cur_id)),
-                RenderItem::Compute { pass_name, .. } => res.push((*pass_name, cur_id)),
-                RenderItem::Custom { pass_name, .. } => res.push((*pass_name, cur_id)),
-            }
+            let pass_name = render_item_pass_name(&cur_items[0]);
+            res.push((pass_name, cur_id));
 
             processed[cur_id] = true;
             queue.extend(
@@ -344,57 +344,3 @@ impl<'a, 'b> Iterator for Iter<'a, 'b> {
         next.map(|(s, i)| (*s, self.job.pass_items[*i].as_slice()))
     }
 }
-
-/*
- * kinda ugly but whatevs
- * Encapsulates a list of RenderItems organized by framebuffer and render pass.
- * It just does a bit of work when adding render items to organize everything properly.
- * Otherwise it doesn't care to organize further into vertex buffer or bind group bindings.
- */
-/*pub struct RenderJob<'a> {
-    graphics_items: HashMap<String, HashMap<String, Vec<RenderItem<'a>>>>,
-    compute_items: HashMap<String, Vec<RenderItem<'a>>>,
-}
-
-impl<'a> RenderJob<'a> {
-    pub fn new() -> Self {
-        RenderJob {
-            graphics_items: HashMap::new(),
-            compute_items: HashMap::new(),
-        }
-    }
-
-    pub fn add_item(&mut self, item: RenderItem<'a>) {
-        match item {
-            RenderItem::Graphics {
-                pass_name,
-                framebuffer_name,
-                ..
-            } => {
-                self.graphics_items
-                    .entry(String::from(framebuffer_name))
-                    .or_default()
-                    .entry(String::from(pass_name))
-                    .or_default()
-                    .push(item);
-            }
-            RenderItem::Compute { pass_name, .. } => {
-                self.compute_items
-                    .entry(String::from(pass_name))
-                    .or_default()
-                    .push(item);
-            }
-            RenderItem::Custom { .. } => {
-                panic!("custom items not supported yet");
-            }
-        }
-    }
-
-    pub(super) fn compute_iter(&self) -> Values<String, Vec<RenderItem>> {
-        self.compute_items.values()
-    }
-
-    pub(super) fn graphics_iter(&self) -> Iter<String, HashMap<String, Vec<RenderItem<'a>>>> {
-        self.graphics_items.iter()
-    }
-}*/

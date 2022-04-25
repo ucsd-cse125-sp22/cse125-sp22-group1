@@ -48,67 +48,11 @@ use render_job::*;
  * - WGPU calls bind_framebuffer begin_render_pass. Kind of the same thing but not entirely. It also calls uniform sets bind groups.
  */
 
-struct InternalRPassManager<'a> {
-    render_passes: Vec<(String, wgpu::RenderPass<'a>)>,
-}
-
-impl<'a> InternalRPassManager<'a> {
-    fn new(encoder: &'a wgpu::CommandEncoder) -> Self {
-        Self {
-            render_passes: vec![],
-        }
-    }
-
-    fn pass_from_framebuffer_desc(
-        &mut self,
-        encoder: &'a mut wgpu::CommandEncoder,
-        framebuffer_name: &str,
-        framebuffer_desc: &'a FramebufferDescriptor,
-    ) -> &wgpu::RenderPass<'a> {
-        let mut color_attachments = Vec::new();
-        for color_tex_view in framebuffer_desc.color_attachments.iter() {
-            color_attachments.push(wgpu::RenderPassColorAttachment {
-                view: &color_tex_view,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: if framebuffer_desc.clear_color {
-                        wgpu::LoadOp::Clear(wgpu::Color::BLACK)
-                    } else {
-                        wgpu::LoadOp::Load
-                    },
-                    store: true,
-                },
-            });
-        }
-
-        let depth_stencil_attachment =
-            framebuffer_desc
-                .depth_stencil_attachment
-                .as_ref()
-                .map(|view| wgpu::RenderPassDepthStencilAttachment {
-                    view: &view,
-                    depth_ops: Some(wgpu::Operations {
-                        load: if framebuffer_desc.clear_depth {
-                            wgpu::LoadOp::Clear(1.0)
-                        } else {
-                            wgpu::LoadOp::Load
-                        },
-                        store: true,
-                    }),
-                    stencil_ops: None,
-                });
-
-        let wgpu_rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: None,
-            color_attachments: &color_attachments,
-            depth_stencil_attachment: depth_stencil_attachment,
-        });
-
-        self.render_passes
-            .push((framebuffer_name.to_string(), wgpu_rpass));
-
-        return &self.render_passes.last().unwrap().1;
-    }
+pub struct FramebufferDescriptor {
+    pub color_attachments: Vec<wgpu::TextureView>,
+    pub depth_stencil_attachment: Option<wgpu::TextureView>,
+    pub clear_color: bool,
+    pub clear_depth: bool,
 }
 
 pub struct Renderer {
@@ -117,6 +61,7 @@ pub struct Renderer {
     queue: wgpu::Queue,
     passes: HashMap<String, RenderPass>,
     framebuffers: HashMap<String, FramebufferDescriptor>,
+    framebuffer_textures: HashMap<String, Vec<wgpu::Texture>>, // Backing textures, the above only has views
     bind_group_layouts: HashMap<String, Vec<wgpu::BindGroupLayout>>,
     surface_format: wgpu::TextureFormat,
     depth_texture: wgpu::Texture,
@@ -186,6 +131,7 @@ impl Renderer {
 
         let passes = HashMap::new();
         let framebuffers = HashMap::new();
+        let framebuffer_textures = HashMap::new();
         let bind_group_layouts = HashMap::new();
         Renderer {
             context,
@@ -193,6 +139,7 @@ impl Renderer {
             queue,
             passes,
             framebuffers,
+            framebuffer_textures,
             bind_group_layouts,
             surface_format,
             depth_texture,
@@ -203,9 +150,22 @@ impl Renderer {
         self.context.window.request_redraw()
     }
 
-    pub fn register_framebuffer(&mut self, name: &str, framebuffer_desc: FramebufferDescriptor) {
+    pub fn register_framebuffer<'a, T>(
+        &mut self,
+        name: &str,
+        framebuffer_desc: FramebufferDescriptor,
+        backing_textures: T,
+    ) where
+        T: IntoIterator<Item = wgpu::Texture>,
+    {
         self.framebuffers
             .insert(String::from(name), framebuffer_desc);
+        self.framebuffer_textures
+            .insert(String::from(name), backing_textures.into_iter().collect());
+    }
+
+    pub fn framebuffer_tex(&self, name: &str, index: usize) -> Option<&wgpu::Texture> {
+        self.framebuffer_textures.get(&name.to_string())?.get(index)
     }
 
     // TODO: add index buffer layout
@@ -393,10 +353,54 @@ impl Renderer {
         })
     }
 
-    pub fn create_texture(&self, desc: &wgpu::TextureDescriptor, data: &[u8]) -> wgpu::Texture {
-        self.device
-            .create_texture_with_data(&self.queue, desc, data)
+    pub fn create_2D_texture_init(
+        &self,
+        name: &str,
+        size: PhysicalSize<u32>,
+        format: wgpu::TextureFormat,
+        usages: wgpu::TextureUsages,
+        data: &[u8],
+    ) -> wgpu::Texture {
+        self.device.create_texture_with_data(
+            &self.queue,
+            &wgpu::TextureDescriptor {
+                label: Some(name),
+                size: wgpu::Extent3d {
+                    width: size.width,
+                    height: size.height,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: format,
+                usage: usages,
+            },
+            data,
+        )
         // TODO: mipmapping
+    }
+
+    pub fn create_2D_texture(
+        &self,
+        name: &str,
+        size: PhysicalSize<u32>,
+        format: wgpu::TextureFormat,
+        usages: wgpu::TextureUsages,
+    ) -> wgpu::Texture {
+        self.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some(name),
+            size: wgpu::Extent3d {
+                width: size.width,
+                height: size.height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: format,
+            usage: usages,
+        })
     }
 
     pub fn write_buffer<T>(&self, buffer: &wgpu::Buffer, data: &[T]) {
@@ -566,105 +570,6 @@ impl Renderer {
             }
         }
 
-        /*for framebuffer_passes in render_job.graphics_iter() {
-            let framebuffer_desc = self
-                .framebuffers
-                .get(&String::from(framebuffer_passes.0))
-                .expect("Unable to find frambuffer requested");
-
-            let mut color_attachments = Vec::new();
-            for color_tex_view in framebuffer_desc.color_attachments.iter() {
-                color_attachments.push(wgpu::RenderPassColorAttachment {
-                    view: &color_tex_view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: if framebuffer_desc.clear_color {
-                            wgpu::LoadOp::Clear(wgpu::Color::BLACK)
-                        } else {
-                            wgpu::LoadOp::Load
-                        },
-                        store: true,
-                    },
-                });
-            }
-
-            let depth_stencil_attachment = match &framebuffer_desc.depth_stencil_attachment {
-                Some(view) => Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &view,
-                    depth_ops: Some(wgpu::Operations {
-                        load: if framebuffer_desc.clear_depth {
-                            wgpu::LoadOp::Clear(1.0)
-                        } else {
-                            wgpu::LoadOp::Load
-                        },
-                        store: true,
-                    }),
-                    stencil_ops: None,
-                }),
-                None => None,
-            };
-
-            let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: None,
-                color_attachments: &color_attachments,
-                depth_stencil_attachment: depth_stencil_attachment,
-            });
-
-            for pass_items in framebuffer_passes.1.iter() {
-                let render_pass = self
-                    .passes
-                    .get(&String::from(pass_items.0))
-                    .expect("Unable to find render pass requested");
-
-                let graphics_pipeline = match render_pass {
-                    RenderPass::Graphics {
-                        render_pipeline, ..
-                    } => render_pipeline,
-                    _ => {
-                        panic!("Unable to execute compute pass when framebuffer is bound");
-                    }
-                };
-
-                rpass.set_pipeline(graphics_pipeline);
-
-                for render_item in pass_items.1.iter() {
-                    if let RenderItem::Graphics {
-                        pass_name: _,
-                        framebuffer_name: _,
-                        num_elements,
-                        vertex_buffers,
-                        index_buffer,
-                        index_format,
-                        bind_group,
-                    } = render_item
-                    {
-                        for (idx, buffer) in vertex_buffers.iter().enumerate() {
-                            rpass.set_vertex_buffer(u32::try_from(idx).unwrap(), *buffer);
-                        }
-
-                        if let Some(buffer_slice) = index_buffer {
-                            rpass.set_index_buffer(*buffer_slice, *index_format)
-                        }
-
-                        for (idx, bind_group) in bind_group.iter().enumerate() {
-                            rpass.set_bind_group(u32::try_from(idx).unwrap(), bind_group, &[]);
-                        }
-
-                        // TODO: push constants
-
-                        match index_buffer {
-                            Some(_) => rpass.draw_indexed(0..*num_elements, 0, 0..1),
-                            None => rpass.draw(0..*num_elements, 0..1),
-                        }
-                    } else {
-                        panic!(
-                            "Unable to execute non-graphics render item when framebuffer is bound"
-                        );
-                    }
-                }
-            }
-        }*/
-
         self.queue.submit(Some(encoder.finish()));
         frame.present();
     }
@@ -693,5 +598,9 @@ impl Renderer {
             format: Self::DEPTH_FORMAT,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
         });
+    }
+
+    pub fn surface_size(&self) -> PhysicalSize<u32> {
+        self.context.window.inner_size()
     }
 }

@@ -106,23 +106,6 @@ impl ResourceManager {
         renderer: &mut Renderer,
         filename: &str,
     ) -> core::result::Result<ImportData, gltf::Error> {
-        renderer.register_pass(
-            "boring",
-            &render_job::RenderPassDescriptor::Graphics {
-                source: include_str!("shader.wgsl"),
-                push_constant_ranges: &[],
-                targets: None,
-                primitive_state: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleStrip,
-                    strip_index_format: Some(wgpu::IndexFormat::Uint16),
-                    ..wgpu::PrimitiveState::default()
-                },
-                outputs_depth: true,
-                multisample_state: wgpu::MultisampleState::default(),
-                multiview: None,
-            },
-        );
-
         println!(
             "loading {}, please give a sec I swear it's not lagging",
             filename
@@ -282,21 +265,14 @@ impl ResourceManager {
             } else {
                 &img.pixels
             };
-            renderer.create_texture(
-                &wgpu::TextureDescriptor {
-                    label: None, // TODO: labels
-                    size: wgpu::Extent3d {
-                        width: img.width,
-                        height: img.height,
-                        depth_or_array_layers: 1,
-                    },
-                    mip_level_count: 1,
-                    sample_count: 1,
-                    dimension: wgpu::TextureDimension::D2,
-                    format: to_wgpu_format(img.format),
-                    usage: wgpu::TextureUsages::TEXTURE_BINDING
-                        | wgpu::TextureUsages::STORAGE_BINDING,
+            renderer.create_2D_texture_init(
+                "tex name",
+                winit::dpi::PhysicalSize::<u32> {
+                    width: img.width,
+                    height: img.height,
                 },
+                to_wgpu_format(img.format),
+                wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::STORAGE_BINDING,
                 &img_data,
             )
         };
