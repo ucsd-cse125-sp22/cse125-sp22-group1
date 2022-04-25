@@ -1,18 +1,6 @@
-use glam::{DVec2, DVec3};
+use glam::{DVec3, Mat3};
 
 use super::player_entity::PlayerEntity;
-
-// Given a 2D vector, rotate it by theta radians counterclockwise.
-// Refer to https://en.wikipedia.org/wiki/Rotation_matrix for the formula used here
-fn flat_rotate_vector(v: &DVec2, theta: f64) -> DVec2 {
-    let x = v[0];
-    let z = v[1];
-
-    let sin_theta = theta.sin();
-    let cos_theta = theta.cos();
-
-    return DVec2::new(x * cos_theta - z * sin_theta, x * sin_theta + z * cos_theta);
-}
 
 impl PlayerEntity {
     fn check_bounding_box_collisions(&self, other: &PlayerEntity) -> bool {
@@ -40,52 +28,67 @@ impl PlayerEntity {
         let y_2 = self.size.y / 2.0;
         let z_2 = self.size.z / 2.0;
 
-        // Angles are measured from the (1, 0, 0) axis
-        let heading = DVec2::new(
-            self.entity_location.unit_steer_direction[0],
-            self.entity_location.unit_steer_direction[2],
-        );
-        let zero_angle_vec = DVec2::new(1.0, 0.0);
+        // unit_steer_direction defines yaw, unit_upward_direction can be
+        // decomposed into pitch and roll; with these, we can get Euler angles
+        // for the 3d rotation. and then, to compute the bounding box we can
+        // literally just rotate the corners of the object and find the extrema!
 
-        // Since the range of arccos is [0, pi], and bounding boxes are
-        // reflectionally symmetrical over the X and Z axes, we can thus
-        // constrain (for the purposes of bounding-box calculation) the rotation
-        // angle to be in [0, pi/2].
-        let mut theta: f64 = heading.dot(zero_angle_vec).acos();
-        if theta > std::f64::consts::FRAC_PI_2 {
-            theta -= std::f64::consts::FRAC_PI_2;
+        let yaw = DVec3::new(
+            self.entity_location.unit_steer_direction.x,
+            0.0,
+            self.entity_location.unit_steer_direction.z,
+        )
+        .angle_between(DVec3::X);
+
+        let (up_x, up_y, up_z) = self.entity_location.unit_upward_direction.into();
+
+        // positive on the x-axis is by default forward
+        let pitch = DVec3::new(up_x, up_y, 0.0).angle_between(DVec3::Y);
+        let roll = DVec3::new(0.0, up_y, up_z).angle_between(DVec3::Y);
+
+        let yaw_rotation_matrix = Mat3::from_rotation_y(yaw as f32);
+        let pitch_rotation_matrix = Mat3::from_rotation_z(pitch as f32);
+        let roll_rotation_matrix = Mat3::from_rotation_x(roll as f32);
+
+        // because of symmetry, we only need to rotate four corners all on the same face; doesn't matter which face
+        let corners = [
+            DVec3::new(x_2, y_2, z_2),
+            DVec3::new(-x_2, y_2, z_2),
+            DVec3::new(x_2, y_2, -z_2),
+            DVec3::new(-x_2, y_2, -z_2),
+        ];
+
+        // order is important and we want extrinsic rotation. then the order we
+        // want, as per wikipedia, is yaw, then pitch, then roll - read this
+        // from inside out
+        let corners_coordinates = corners.iter().map(|corner| {
+            roll_rotation_matrix.mul_vec3(
+                pitch_rotation_matrix.mul_vec3(yaw_rotation_matrix.mul_vec3(corner.as_vec3())),
+            )
+        });
+
+        // symmetry! max in one direction is min in the other direction
+        let (mut x_dist, mut y_dist, mut z_dist) = (0.0, 0.0, 0.0);
+        for rotated_corner in corners_coordinates {
+            if rotated_corner.x.abs() > x_dist as f32 {
+                x_dist = f64::from(rotated_corner.x);
+            }
+            if rotated_corner.y.abs() > y_dist as f32 {
+                y_dist = f64::from(rotated_corner.y);
+            }
+            if rotated_corner.z.abs() > z_dist as f32 {
+                z_dist = f64::from(rotated_corner.z);
+            }
         }
 
-        // These two vectors and -1 times these two vectors define the four
-        // corners of the bounding box (source: trust me bro)
-        let one_corner = flat_rotate_vector(&DVec2::new(x_2, z_2), theta);
-        let other_corner =
-            flat_rotate_vector(&DVec2::new(-x_2, -z_2), std::f64::consts::PI - theta);
-
-        let xs = [
-            one_corner.x,
-            other_corner.x,
-            (-1.0 * one_corner).x,
-            (-1.0 * other_corner).x,
-        ];
-        let zs = [
-            one_corner.y,
-            other_corner.y,
-            (-1.0 * one_corner).y,
-            (-1.0 * other_corner).y,
-        ];
-
-        // This will always be nonnegative (since we're centered around the origin)
-        let x_dist = xs.into_iter().reduce(f64::max).unwrap();
         let min_x = self.entity_location.position.x - x_dist;
         let max_x = self.entity_location.position.x + x_dist;
 
-        let z_dist = zs.into_iter().reduce(f64::max).unwrap();
+        let min_y = self.entity_location.position.y - y_dist;
+        let max_y = self.entity_location.position.y + y_dist;
+
         let min_z = self.entity_location.position.z - z_dist;
         let max_z = self.entity_location.position.z + z_dist;
-
-        let min_y = self.entity_location.position.y - y_2;
-        let max_y = self.entity_location.position.y + y_2;
 
         self.bounding_box = [[min_x, max_x], [min_y, max_y], [min_z, max_z]];
     }
@@ -137,6 +140,7 @@ mod tests {
             entity_location: EntityLocation {
                 position: DVec3::new(0.0, 0.0, 0.0),
                 unit_steer_direction: DVec3::new(1.0, 0.0, 0.0),
+                unit_upward_direction: DVec3::new(0.0, 1.0, 0.0),
             },
 
             velocity: DVec3::new(0.0, 0.0, 0.0),
@@ -248,5 +252,23 @@ mod tests {
         uwu_cube.set_bounding_box_dimensions();
         owo_cube.set_bounding_box_dimensions();
         assert!(uwu_cube.check_bounding_box_collisions(&owo_cube));
+    }
+
+    #[test]
+    fn test_3d_bounding_box() {
+        let mut cube = get_origin_cube();
+
+        cube.size = DVec3::new(1.0, 10000.0, 1.0);
+        cube.entity_location.unit_upward_direction =
+            DVec3::new(2.0_f64.sqrt() / 2.0, 2.0_f64.sqrt() / 2.0, 0.0);
+        cube.set_bounding_box_dimensions();
+
+        let y_max = cube.bounding_box[1][1];
+        let y_min = cube.bounding_box[1][0];
+
+        let actual_top = (10_000.0 / 2.0) / (2.0_f64.sqrt());
+        let actual_bottom = (-10_000.0 / 2.0) / (2.0_f64.sqrt());
+        assert!(actual_top * 0.999 < y_max && y_max < actual_top * 1.001);
+        assert!(actual_bottom * 0.999 > y_min && y_min > actual_bottom * 1.001);
     }
 }

@@ -215,6 +215,7 @@ impl GameServer {
                 .physics_changes
                 .retain(|change| !change.expiration_time.duration_since(now).is_zero());
             player.set_bounding_box_dimensions();
+            player.set_upward_direction_from_bounding_box();
         }
 
         for (this_index, player) in self.game_state.players.iter().enumerate() {
