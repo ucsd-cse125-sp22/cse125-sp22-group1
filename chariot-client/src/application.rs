@@ -1,5 +1,4 @@
 use gltf::Texture;
-use specs::{Join, WorldExt};
 use std::{
     cmp::Eq,
     collections::HashMap,
@@ -19,14 +18,36 @@ pub struct Application {
 }
 
 impl Application {
-    pub fn new(renderer: Renderer) -> Self {
+    pub fn new(mut renderer: Renderer) -> Self {
+        renderer.register_pass(
+            "boring",
+            &direct_graphics_depth_pass!(include_str!("shader.wgsl"), wgpu::IndexFormat::Uint16),
+        );
+
+        renderer.register_pass(
+            "forward",
+            &indirect_graphics_depth_pass!(
+                include_str!("shader.wgsl"),
+                wgpu::IndexFormat::Uint16,
+                [wgpu::TextureFormat::Rgba16Float]
+            ),
+        );
+
+        renderer.register_pass(
+            "postprocess",
+            &direct_graphics_nodepth_pass!(
+                include_str!("postprocess.wgsl"),
+                wgpu::IndexFormat::Uint16
+            ),
+        );
+
+        let (depth_tex, color_tex, fb_desc) =
+            depth_color_framebuffer(&renderer, wgpu::TextureFormat::Rgba16Float);
+        renderer.register_framebuffer("forward_out", fb_desc, [depth_tex, color_tex]);
+
         let mut resources = ResourceManager::new();
 
-        let import_result = resources.import_gltf(&renderer, "models/DamagedHelmet.glb");
-
-        if !import_result.is_ok() {
-            panic!("Failed to import model");
-        }
+        let import_result = resources.import_gltf(&mut renderer, "models/DamagedHelmet.glb");
 
         let mut world = World::new();
         let mut helmet = Entity::new();
@@ -37,7 +58,7 @@ impl Application {
         });
 
         // temporarily commenting this since the new import stuff is in a different branch
-        //helmet.set_component(import_result.unwrap().drawables);
+        helmet.set_component(import_result.expect("Failed to import model").drawables);
 
         world.root_mut().add_child(helmet);
 
@@ -54,7 +75,7 @@ impl Application {
         let proj = glam::Mat4::perspective_rh(f32::to_radians(60.0), 1.0, 0.1, 100.0);
         let proj_view = proj * view;
 
-        let mut render_job = render_job::RenderJob::new();
+        let mut render_job = render_job::RenderJob::default();
         let root_transform = self
             .world
             .root()
@@ -71,8 +92,8 @@ impl Application {
             if let Some(drawables) = e.get_component::<Vec<StaticMeshDrawable>>() {
                 for drawable in drawables.iter() {
                     drawable.update_xforms(&self.renderer, &proj_view, &acc_model);
-                    let render_item = drawable.render_item(&self.resources);
-                    render_job.add_item(render_item);
+                    let render_graph = drawable.render_graph(&self.resources);
+                    render_job.merge_graph(render_graph);
                 }
             }
 
@@ -80,10 +101,11 @@ impl Application {
         });
 
         self.renderer.render(&render_job);
-        self.renderer.render(&render_job);
     }
 
-    pub fn update(&mut self) {}
+    pub fn update(&mut self) {
+        //self.world.root_mut().update();
+    }
 
     // TODO: input handlers
 }

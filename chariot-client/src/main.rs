@@ -1,5 +1,4 @@
 use chariot_core::GLOBAL_CONFIG;
-use specs::{Builder, WorldExt};
 use std::mem;
 use wgpu::util::DeviceExt;
 use winit::{
@@ -26,8 +25,9 @@ fn main() {
     let mut application = application::Application::new(renderer);
 
     event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
+        *control_flow = ControlFlow::Poll;
         match event {
+            Event::MainEventsCleared => application.renderer.request_redraw(),
             Event::WindowEvent {
                 event: WindowEvent::Resized(size),
                 ..
@@ -35,6 +35,7 @@ fn main() {
                 application.renderer.handle_surface_resize(size);
             }
             Event::RedrawRequested(_) => {
+                application.update(); // Is this the right location?
                 application.render();
             }
             Event::WindowEvent {
