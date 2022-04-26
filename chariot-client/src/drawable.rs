@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use wgpu::util::DeviceExt;
 
+use crate::renderer::render_job::*;
 use crate::renderer::*;
 use crate::resources::*;
 
@@ -10,6 +11,10 @@ use crate::resources::*;
  * A drawable just produces a render item every frame.
  */
 pub trait Drawable {
+    fn render_graph<'a>(&'a self, resources: &'a ResourceManager) -> render_job::RenderGraph<'a>;
+}
+
+pub trait Technique {
     fn render_item<'a>(&'a self, resources: &'a ResourceManager) -> render_job::RenderItem<'a>;
 }
 
@@ -93,8 +98,11 @@ impl StaticMeshDrawable {
             .get(&material)
             .expect("invalid material handle")
             .pass_name;
-        let xform_bind_group =
-            renderer.create_bind_group(pass_name.as_str(), 0, &[xform_buffer.as_entire_binding()]);
+        let xform_bind_group = renderer.create_bind_group(
+            pass_name.as_str(),
+            0,
+            &[(0, xform_buffer.as_entire_binding())],
+        );
 
         StaticMeshDrawable {
             material: material,
@@ -106,13 +114,13 @@ impl StaticMeshDrawable {
     }
 
     pub fn update_xforms(&self, renderer: &Renderer, proj_view: &glam::Mat4, model: &glam::Mat4) {
-        let upload_data = [*proj_view, *model];
+        let upload_data = [*model, *proj_view];
         renderer.write_buffer(&self.xform_buffer, &upload_data);
     }
 }
 
 impl Drawable for StaticMeshDrawable {
-    fn render_item<'a>(&'a self, resources: &'a ResourceManager) -> render_job::RenderItem<'a> {
+    fn render_graph<'a>(&'a self, resources: &'a ResourceManager) -> render_job::RenderGraph<'a> {
         let static_mesh = resources
             .meshes
             .get(&self.static_mesh)
@@ -129,7 +137,7 @@ impl Drawable for StaticMeshDrawable {
 
         let mut bind_group_refs = vec![&self.xform_bind_group];
         bind_group_refs.extend(material.bind_groups.values());
-        render_job::RenderItem::Graphics {
+        let item = render_job::RenderItem::Graphics {
             pass_name: material.pass_name.as_str(),
             framebuffer_name: "surface",
             num_elements: static_mesh.submeshes[self.submesh_idx].num_elements,
@@ -144,7 +152,11 @@ impl Drawable for StaticMeshDrawable {
             },
             index_format: static_mesh.index_format,
             bind_group: bind_group_refs,
-        }
+        };
+
+        let mut graph_builder = RenderGraphBuilder::new();
+        graph_builder.add_root(item);
+        graph_builder.build()
     }
 }
 
@@ -223,21 +235,23 @@ impl<'a> MaterialBuilder<'a> {
 
     pub fn produce(&mut self) -> Material {
         let lookup_binding_resource =
-            |(_, resource_idx): (&u32, &MatResourceIdx)| match resource_idx {
-                MatResourceIdx::Buffer(idx) => self.buffers[*idx].as_entire_binding(),
-                MatResourceIdx::Texture(idx) => {
-                    wgpu::BindingResource::TextureView(&self.textures[*idx])
-                }
-                MatResourceIdx::Sampler(idx) => {
-                    wgpu::BindingResource::Sampler(&self.samplers[*idx])
-                }
+            |(binding, resource_idx): (&u32, &MatResourceIdx)| match resource_idx {
+                MatResourceIdx::Buffer(idx) => (*binding, self.buffers[*idx].as_entire_binding()),
+                MatResourceIdx::Texture(idx) => (
+                    *binding,
+                    wgpu::BindingResource::TextureView(&self.textures[*idx]),
+                ),
+                MatResourceIdx::Sampler(idx) => (
+                    *binding,
+                    wgpu::BindingResource::Sampler(&self.samplers[*idx]),
+                ),
             };
 
         let create_bind_group = |(group, resource_map): (&u32, &HashMap<u32, MatResourceIdx>)| {
             let binding_resources = resource_map
                 .iter()
                 .map(lookup_binding_resource)
-                .collect::<Vec<wgpu::BindingResource>>();
+                .collect::<Vec<(u32, wgpu::BindingResource)>>();
             (
                 *group,
                 self.renderer
@@ -375,6 +389,269 @@ impl<'a> MeshBuilder<'a> {
             index_buffer: std::mem::take(&mut self.index_buffer),
             index_format: self.index_format,
             submeshes: std::mem::take(&mut self.submeshes),
+        }
+    }
+}
+
+// For directly drawing to the surface
+#[macro_export]
+macro_rules! direct_graphics_depth_pass {
+    ( $source: expr, $index_format: expr ) => {
+        crate::renderer::render_job::RenderPassDescriptor::Graphics {
+            source: $source,
+            push_constant_ranges: &[],
+            targets: None,
+            primitive_state: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleStrip,
+                strip_index_format: Some($index_format),
+                ..wgpu::PrimitiveState::default()
+            },
+            outputs_depth: true,
+            multisample_state: wgpu::MultisampleState::default(),
+            multiview: None,
+        }
+    };
+}
+
+pub(crate) use direct_graphics_depth_pass;
+
+// For drawing to an arbitary framebuffer
+#[macro_export]
+macro_rules! indirect_graphics_depth_pass {
+    ( $source: expr, $index_format: expr, $formats: expr ) => {
+        crate::renderer::render_job::RenderPassDescriptor::Graphics {
+            source: $source,
+            push_constant_ranges: &[],
+            targets: Some(
+                &$formats
+                    .iter()
+                    .map(|f| wgpu::ColorTargetState {
+                        format: *f,
+                        blend: Some(wgpu::BlendState {
+                            alpha: wgpu::BlendComponent::REPLACE,
+                            color: wgpu::BlendComponent::REPLACE,
+                        }),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })
+                    .collect::<Vec<wgpu::ColorTargetState>>(),
+            ),
+            primitive_state: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleStrip,
+                strip_index_format: Some($index_format),
+                ..wgpu::PrimitiveState::default()
+            },
+            outputs_depth: true,
+            multisample_state: wgpu::MultisampleState::default(),
+            multiview: None,
+        }
+    };
+}
+
+pub(crate) use indirect_graphics_depth_pass;
+
+#[macro_export]
+macro_rules! direct_graphics_nodepth_pass {
+    ( $source: expr, $index_format: expr ) => {
+        crate::renderer::render_job::RenderPassDescriptor::Graphics {
+            source: $source,
+            push_constant_ranges: &[],
+            targets: None,
+            primitive_state: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleStrip,
+                strip_index_format: Some($index_format),
+                ..wgpu::PrimitiveState::default()
+            },
+            outputs_depth: false,
+            multisample_state: wgpu::MultisampleState::default(),
+            multiview: None,
+        }
+    };
+}
+
+pub(crate) use direct_graphics_nodepth_pass;
+
+pub fn depth_color_framebuffer(
+    renderer: &Renderer,
+    format: wgpu::TextureFormat,
+) -> (wgpu::Texture, wgpu::Texture, FramebufferDescriptor) {
+    let surface_size = renderer.surface_size();
+    let color_texture = renderer.create_2D_texture(
+        "color_tex",
+        surface_size,
+        format,
+        wgpu::TextureUsages::RENDER_ATTACHMENT
+            | wgpu::TextureUsages::TEXTURE_BINDING
+            | wgpu::TextureUsages::STORAGE_BINDING,
+    );
+
+    let depth_texture = renderer.create_2D_texture(
+        "depth_buffer_tex",
+        surface_size,
+        Renderer::DEPTH_FORMAT,
+        wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+    );
+
+    let framebuffer_desc = FramebufferDescriptor {
+        color_attachments: vec![color_texture.create_view(&wgpu::TextureViewDescriptor::default())],
+        depth_stencil_attachment: Some(
+            depth_texture.create_view(&wgpu::TextureViewDescriptor::default()),
+        ),
+        clear_color: true,
+        clear_depth: true,
+    };
+
+    (depth_texture, color_texture, framebuffer_desc)
+}
+
+pub struct ForwardDrawTechnique {
+    material: MaterialHandle,
+    static_mesh: StaticMeshHandle,
+    submesh_idx: usize,
+    xform_buffer: wgpu::Buffer,
+    xform_bind_group: wgpu::BindGroup,
+}
+
+impl ForwardDrawTechnique {
+    pub fn new(
+        renderer: &Renderer,
+        resources: &ResourceManager,
+        material: MaterialHandle,
+        static_mesh: StaticMeshHandle,
+        submesh_idx: usize,
+    ) -> Self {
+        let uniform_init = [glam::Mat4::IDENTITY; 2];
+        let xform_buffer = renderer
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("uniform_buf"),
+                contents: unsafe {
+                    core::slice::from_raw_parts(
+                        uniform_init.as_ptr() as *const u8,
+                        std::mem::size_of::<[glam::Mat4; 2]>(),
+                    )
+                },
+                usage: wgpu::BufferUsages::UNIFORM
+                    | wgpu::BufferUsages::COPY_DST
+                    | wgpu::BufferUsages::MAP_WRITE,
+            });
+        let pass_name = &resources
+            .materials
+            .get(&material)
+            .expect("invalid material handle")
+            .pass_name;
+        let xform_bind_group = renderer.create_bind_group(
+            pass_name.as_str(),
+            0,
+            &[(0, xform_buffer.as_entire_binding())],
+        );
+
+        Self {
+            material: material,
+            static_mesh: static_mesh,
+            submesh_idx: submesh_idx,
+            xform_buffer: xform_buffer,
+            xform_bind_group: xform_bind_group,
+        }
+    }
+}
+
+impl Technique for ForwardDrawTechnique {
+    fn render_item<'a>(&'a self, resources: &'a ResourceManager) -> render_job::RenderItem<'a> {
+        let static_mesh = resources
+            .meshes
+            .get(&self.static_mesh)
+            .expect("invalid static mesh handle");
+        let material = resources
+            .materials
+            .get(&self.material)
+            .expect("invalid material handle");
+
+        let vertex_buffers_with_ranges = static_mesh
+            .vertex_buffers
+            .iter()
+            .zip(static_mesh.submeshes[self.submesh_idx].vertex_ranges.iter());
+
+        let mut bind_group_refs = vec![&self.xform_bind_group];
+        bind_group_refs.extend(material.bind_groups.values());
+        RenderItem::Graphics {
+            pass_name: material.pass_name.as_str(),
+            framebuffer_name: "forward_out",
+            num_elements: static_mesh.submeshes[self.submesh_idx].num_elements,
+            vertex_buffers: vertex_buffers_with_ranges
+                .map(|(buffer, range)| buffer.slice(*range))
+                .collect::<Vec<wgpu::BufferSlice>>(),
+            index_buffer: match &static_mesh.index_buffer {
+                Some(buffer) => {
+                    Some(buffer.slice(static_mesh.submeshes[self.submesh_idx].index_range.unwrap()))
+                }
+                None => None,
+            },
+            index_format: static_mesh.index_format,
+            bind_group: bind_group_refs,
+        }
+    }
+}
+
+pub struct FSQTechnique {
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
+    material: Material,
+}
+
+impl FSQTechnique {
+    fn new(renderer: &Renderer, pass_name: &str) -> Self {
+        let verts_data: [[f32; 2]; 4] = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+        let inds_data: [u16; 6] = [0, 1, 2, 0, 2, 3];
+
+        let vertex_buffer = renderer
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("fsq_verts"),
+                contents: bytemuck::cast_slice(&verts_data),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+
+        let index_buffer = renderer
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("fsq_inds"),
+                contents: bytemuck::cast_slice(&inds_data),
+                usage: wgpu::BufferUsages::INDEX,
+            });
+
+        // I don't like the idea of making new views all the time but it's too built into the design now; maybe later I'll fix it
+        let color_tex_view = renderer
+            .framebuffer_tex("forward_out", 1)
+            .expect(
+                format!(
+                    "FSQTechnique ({}) requires forward_out framebuffer to be registered",
+                    pass_name
+                )
+                .as_str(),
+            )
+            .create_view(&wgpu::TextureViewDescriptor::default());
+        let material = MaterialBuilder::new(renderer, pass_name)
+            .texture_resource(0, 0, color_tex_view)
+            .produce();
+
+        Self {
+            vertex_buffer,
+            index_buffer,
+            material,
+        }
+    }
+}
+
+impl Technique for FSQTechnique {
+    fn render_item<'a>(&'a self, resources: &'a ResourceManager) -> RenderItem<'a> {
+        RenderItem::Graphics {
+            pass_name: self.material.pass_name.as_str(),
+            framebuffer_name: "surface",
+            num_elements: 2,
+            vertex_buffers: vec![self.vertex_buffer.slice(..)],
+            index_buffer: Some(self.index_buffer.slice(..)),
+            index_format: wgpu::IndexFormat::Uint16,
+            bind_group: self.material.bind_groups.values().collect(),
         }
     }
 }
