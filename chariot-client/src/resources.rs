@@ -74,11 +74,12 @@ impl Handle for StaticMeshHandle {
     }
 }
 
-type ImportHandles = (
-    Vec<TextureHandle>,
-    Vec<MaterialHandle>,
-    Vec<StaticMeshHandle>,
-);
+pub struct ImportData {
+    pub tex_handles: Vec<TextureHandle>,
+    pub material_handles: Vec<MaterialHandle>,
+    pub mesh_handles: Vec<StaticMeshHandle>,
+    pub drawables: Vec<StaticMeshDrawable>,
+}
 
 pub struct ResourceManager {
     pub textures: HashMap<TextureHandle, wgpu::Texture>,
@@ -102,9 +103,9 @@ impl ResourceManager {
      */
     pub fn import_gltf(
         &mut self,
-        renderer: &Renderer,
+        renderer: &mut Renderer,
         filename: &str,
-    ) -> core::result::Result<ImportHandles, gltf::Error> {
+    ) -> core::result::Result<ImportData, gltf::Error> {
         println!(
             "loading {}, please give a sec I swear it's not lagging",
             filename
@@ -112,6 +113,146 @@ impl ResourceManager {
         let model_name = filename.split(".").next().expect("invalid filename format");
         let (document, buffers, images) = gltf::import(filename)?;
 
+        let mut mesh_handles = Vec::new();
+        for (mesh_idx, mesh) in document.meshes().enumerate() {
+            println!(
+                "processing mesh {}",
+                mesh.name().unwrap_or("[a mesh that's not named]")
+            );
+
+            if mesh.primitives().len() != 1 {
+                print!(
+                    "Warning: I'm expecting one prim per mesh so things might not work properly"
+                );
+            }
+
+            for (prim_idx, primitive) in mesh.primitives().enumerate() {
+                println!("\tprocessing prim {}", prim_idx);
+                let handle = self.import_mesh(renderer, &buffers, &primitive);
+                mesh_handles.push(handle);
+            }
+        }
+
+        println!("uploading textures...");
+        let tex_handles = self.upload_textures(renderer, &images);
+
+        let mut material_handles = Vec::<MaterialHandle>::new();
+        for material in document.materials() {
+            println!(
+                "Processing material {}...",
+                material.name().unwrap_or("[unnamed material]")
+            );
+            let handle = self.import_material(renderer, &tex_handles, &material);
+            material_handles.push(handle);
+        }
+
+        let mut drawables = Vec::<StaticMeshDrawable>::new();
+        for (mesh_idx, mesh) in document.meshes().enumerate() {
+            for (prim_idx, primitive) in mesh.primitives().enumerate() {
+                let material_handle = material_handles[primitive.material().index().unwrap()];
+                let mesh_handle = mesh_handles[mesh_idx]; // TODO: bug if more than one prim per mesh
+                let drawable =
+                    StaticMeshDrawable::new(renderer, self, material_handle, mesh_handle, 0);
+                drawables.push(drawable);
+            }
+        }
+
+        println!("done!");
+
+        core::result::Result::Ok(ImportData {
+            tex_handles,
+            material_handles,
+            mesh_handles,
+            drawables,
+        })
+    }
+
+    fn import_mesh(
+        &mut self,
+        renderer: &Renderer,
+        buffers: &[gltf::buffer::Data],
+        primitive: &gltf::Primitive,
+    ) -> StaticMeshHandle {
+        let mut mesh_builder = MeshBuilder::new(renderer, None);
+        let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
+        if let Some(vert_iter) = reader.read_positions() {
+            mesh_builder.vertex_buffer(bytemuck::cast_slice::<[f32; 3], u8>(
+                &vert_iter.collect::<Vec<[f32; 3]>>(),
+            ));
+        }
+
+        if let Some(norm_iter) = reader.read_normals() {
+            mesh_builder.vertex_buffer(bytemuck::cast_slice::<[f32; 3], u8>(
+                &norm_iter.collect::<Vec<[f32; 3]>>(),
+            ));
+        }
+
+        if let Some(tc_iter) = reader.read_tex_coords(0) {
+            match tc_iter {
+                gltf::mesh::util::ReadTexCoords::U8(iter) => mesh_builder.vertex_buffer(
+                    bytemuck::cast_slice::<[u8; 2], u8>(&iter.collect::<Vec<[u8; 2]>>()),
+                ),
+                gltf::mesh::util::ReadTexCoords::U16(iter) => mesh_builder.vertex_buffer(
+                    bytemuck::cast_slice::<[u16; 2], u8>(&iter.collect::<Vec<[u16; 2]>>()),
+                ),
+                gltf::mesh::util::ReadTexCoords::F32(iter) => mesh_builder.vertex_buffer(
+                    bytemuck::cast_slice::<[f32; 2], u8>(&iter.collect::<Vec<[f32; 2]>>()),
+                ),
+            };
+        }
+
+        if mesh_builder.vertex_buffers.len() != 3 {
+            println!("unsupported vertex format, your mesh might look weird");
+        }
+
+        let full_range = (
+            std::ops::Bound::<u64>::Unbounded,
+            std::ops::Bound::<u64>::Unbounded,
+        );
+        let vertex_ranges = vec![full_range; mesh_builder.vertex_buffers.len()];
+        if let Some(indices) = reader.read_indices() {
+            let num_elements = match indices {
+                gltf::mesh::util::ReadIndices::U16(iter) => {
+                    let tmp_len = iter.len();
+                    mesh_builder.index_buffer(
+                        bytemuck::cast_slice::<u16, u8>(&iter.collect::<Vec<u16>>()),
+                        wgpu::IndexFormat::Uint16,
+                    );
+                    tmp_len
+                }
+                gltf::mesh::util::ReadIndices::U32(iter) => {
+                    let tmp_len = iter.len();
+                    mesh_builder.index_buffer(
+                        bytemuck::cast_slice::<u32, u8>(&iter.collect::<Vec<u32>>()),
+                        wgpu::IndexFormat::Uint32,
+                    );
+                    tmp_len
+                }
+                _ => panic!("u8 indices????"),
+            };
+            let indices_range = full_range;
+            mesh_builder.indexed_submesh(
+                &vertex_ranges,
+                indices_range,
+                u32::try_from(num_elements).unwrap(),
+            );
+        };
+
+        // TODO: unindexed meshes
+        // TODO: rest
+
+        let mesh_handle = StaticMeshHandle::unique();
+        self.meshes
+            .insert(mesh_handle, mesh_builder.produce_static_mesh());
+
+        mesh_handle
+    }
+
+    fn upload_textures(
+        &mut self,
+        renderer: &Renderer,
+        images: &[gltf::image::Data],
+    ) -> Vec<TextureHandle> {
         let texture_upload = |img: &gltf::image::Data| {
             let should_expand = img.format == gltf::image::Format::R8G8B8;
             let expanded_img_data = if should_expand {
@@ -124,147 +265,61 @@ impl ResourceManager {
             } else {
                 &img.pixels
             };
-            renderer.create_texture(
-                &wgpu::TextureDescriptor {
-                    label: None, // TODO: labels
-                    size: wgpu::Extent3d {
-                        width: img.width,
-                        height: img.height,
-                        depth_or_array_layers: 1,
-                    },
-                    mip_level_count: 1,
-                    sample_count: 1,
-                    dimension: wgpu::TextureDimension::D2,
-                    format: to_wgpu_format(img.format),
-                    usage: wgpu::TextureUsages::TEXTURE_BINDING
-                        | wgpu::TextureUsages::STORAGE_BINDING,
+            renderer.create_2D_texture_init(
+                "tex name",
+                winit::dpi::PhysicalSize::<u32> {
+                    width: img.width,
+                    height: img.height,
                 },
+                to_wgpu_format(img.format),
+                wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::STORAGE_BINDING,
                 &img_data,
             )
         };
         let texture_iter = images.iter().map(texture_upload);
 
-        let texture_with_id_iter = (0..images.len())
+        let handles = (0..images.len())
             .map(|idx| TextureHandle::unique())
-            .zip(texture_iter);
+            .collect::<Vec<TextureHandle>>();
+        self.textures
+            .extend(handles.clone().into_iter().zip(texture_iter));
 
-        let mut mesh_handles = Vec::new();
-        for (mesh_idx, mesh) in document.meshes().enumerate() {
-            println!(
-                "processing mesh {}",
-                mesh.name().unwrap_or("[a mesh that's not named]")
-            );
-            for (prim_idx, primitive) in mesh.primitives().enumerate() {
-                println!("\tprocessing prim {}", prim_idx);
-
-                let mut mesh_builder = MeshBuilder::new(&renderer, None);
-                let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
-                if let Some(vert_iter) = reader.read_positions() {
-                    mesh_builder.vertex_buffer(bytemuck::cast_slice::<[f32; 3], u8>(
-                        &vert_iter.collect::<Vec<[f32; 3]>>(),
-                    ));
-                }
-
-                if let Some(norm_iter) = reader.read_normals() {
-                    mesh_builder.vertex_buffer(bytemuck::cast_slice::<[f32; 3], u8>(
-                        &norm_iter.collect::<Vec<[f32; 3]>>(),
-                    ));
-                }
-
-                if let Some(tc_iter) = reader.read_tex_coords(0) {
-                    match tc_iter {
-                        gltf::mesh::util::ReadTexCoords::U8(iter) => mesh_builder.vertex_buffer(
-                            bytemuck::cast_slice::<[u8; 2], u8>(&iter.collect::<Vec<[u8; 2]>>()),
-                        ),
-                        gltf::mesh::util::ReadTexCoords::U16(iter) => mesh_builder.vertex_buffer(
-                            bytemuck::cast_slice::<[u16; 2], u8>(&iter.collect::<Vec<[u16; 2]>>()),
-                        ),
-                        gltf::mesh::util::ReadTexCoords::F32(iter) => mesh_builder.vertex_buffer(
-                            bytemuck::cast_slice::<[f32; 2], u8>(&iter.collect::<Vec<[f32; 2]>>()),
-                        ),
-                    };
-                }
-
-                let full_range = (
-                    std::ops::Bound::<u64>::Unbounded,
-                    std::ops::Bound::<u64>::Unbounded,
-                );
-                let vertex_ranges = vec![full_range; mesh_builder.vertex_buffers.len()];
-                if let Some(indices) = reader.read_indices() {
-                    let num_elements = match indices {
-                        gltf::mesh::util::ReadIndices::U16(iter) => {
-                            let tmp_len = iter.len();
-                            mesh_builder.index_buffer(
-                                bytemuck::cast_slice::<u16, u8>(&iter.collect::<Vec<u16>>()),
-                                wgpu::IndexFormat::Uint16,
-                            );
-                            tmp_len
-                        }
-                        gltf::mesh::util::ReadIndices::U32(iter) => {
-                            let tmp_len = iter.len();
-                            mesh_builder.index_buffer(
-                                bytemuck::cast_slice::<u32, u8>(&iter.collect::<Vec<u32>>()),
-                                wgpu::IndexFormat::Uint32,
-                            );
-                            tmp_len
-                        }
-                        _ => panic!("u8 indices????"),
-                    };
-                    let indices_range = full_range;
-                    mesh_builder.indexed_submesh(
-                        &vertex_ranges,
-                        indices_range,
-                        u32::try_from(num_elements).unwrap(),
-                    );
-                };
-
-                // TODO: unindexed meshes
-                //mesh_builder.submesh(&vertex_ranges, num_elements)
-                // TODO: rest
-
-                let mesh_handle = StaticMeshHandle::unique();
-                mesh_handles.push(mesh_handle);
-                self.meshes
-                    .insert(mesh_handle, mesh_builder.produce_static_mesh());
-            }
-        }
-
-        println!("uploading textures...");
-        self.textures.extend(texture_with_id_iter);
-
-        for material in document.materials() {
-            let pbr = material.pbr_metallic_roughness();
-            //pbr.base_color_texture()
-        }
-
-        core::result::Result::Ok((Vec::new(), Vec::new(), mesh_handles))
+        handles
     }
 
     // This is still a WIP. Just returns a dummy simple material for now.
     pub fn import_material(
         &mut self,
         renderer: &mut Renderer,
-        source: &str,
-        pass_name: &str,
+        images: &[TextureHandle],
+        material: &gltf::Material,
     ) -> MaterialHandle {
-        renderer.register_pass(
-            pass_name,
-            &render_job::RenderPassDescriptor::Graphics {
-                source: source,
-                push_constant_ranges: &[],
-                targets: None,
-                primitive_state: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleStrip,
-                    strip_index_format: Some(wgpu::IndexFormat::Uint16),
-                    ..wgpu::PrimitiveState::default()
-                },
-                outputs_depth: true,
-                multisample_state: wgpu::MultisampleState::default(),
-                multiview: None,
-            },
-        );
+        let base_color_info = material
+            .pbr_metallic_roughness()
+            .base_color_texture()
+            .expect("No base color tex for material");
+        let base_color_handle = images[base_color_info.texture().source().index()];
+        let base_color_view = self
+            .textures
+            .get(&base_color_handle)
+            .expect("Couldn't find base texture")
+            .create_view(&wgpu::TextureViewDescriptor::default());
 
-        let material = MaterialBuilder::new(renderer, pass_name).produce();
+        let sampler = renderer.device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+
+        let pass_name = "boring";
+        let material = MaterialBuilder::new(renderer, pass_name)
+            .texture_resource(1, 0, base_color_view)
+            .sampler_resource(1, 1, sampler)
+            .produce();
         let material_handle = MaterialHandle::unique();
         self.materials.insert(material_handle, material);
         material_handle
