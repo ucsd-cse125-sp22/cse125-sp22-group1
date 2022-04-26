@@ -98,11 +98,9 @@ impl<T: Packet, V: Packet> Connection<T, V> {
 mod tests {
     #[test]
     fn test_connection() {
-        use crate::networking::ClientUpdatingPacket::Pong;
-        use crate::networking::ServerUpdatingPacket::Ping;
-        use crate::networking::{
-            connection::Connection, ClientUpdatingPacket, ServerUpdatingPacket,
-        };
+        use crate::networking::ClientBoundPacket::Pong;
+        use crate::networking::ServerBoundPacket::Ping;
+        use crate::networking::{connection::Connection, ClientBoundPacket, ServerBoundPacket};
         use std::net::{TcpListener, TcpStream};
 
         let listener: TcpListener =
@@ -110,11 +108,11 @@ mod tests {
 
         let client_stream =
             TcpStream::connect("127.0.0.1:24247").expect("Couldn't create test stream!");
-        let mut client_connection: Connection<ClientUpdatingPacket, ServerUpdatingPacket> =
+        let mut client_connection: Connection<ClientBoundPacket, ServerBoundPacket> =
             Connection::new(client_stream);
 
         let server_stream = listener.accept().expect("Can't accept connection!");
-        let mut server_connection: Connection<ServerUpdatingPacket, ClientUpdatingPacket> =
+        let mut server_connection: Connection<ServerBoundPacket, ClientBoundPacket> =
             Connection::new(server_stream.0);
 
         // Send some packets from client to server

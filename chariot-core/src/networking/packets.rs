@@ -4,19 +4,40 @@ use bincode::{DefaultOptions, Options, Result};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
+use crate::entity_location::EntityLocation;
 use crate::player_inputs::InputEvent;
 
 #[derive(Serialize, Deserialize)]
-pub enum ServerUpdatingPacket {
+pub enum ServerBoundPacket {
+    // Debug
     Ping,
+
+    // Before game
+    ChairSelectAndReady(String), // name of chair being selected
+
+    // During game
     InputToggle(InputEvent),
 }
 
 #[derive(Serialize, Deserialize)]
-pub enum ClientUpdatingPacket {
+pub enum ClientBoundPacket {
+    // Debug
     Pong,
     Message(String),
-    //GameStateUpdate(GameState),
+
+    // Before game
+    PlayerNumber(u8),
+    EveryoneReady,
+
+    // During game
+    LocationUpdate([EntityLocation; 4]), // Clients will need to know the location of every player
+    PowerupPickup,                       // Add a payload here when appropriate
+    InteractionActivate,                 // Add a payload here when appropriate
+    LapUpdate(u8),                       // What lap are you now on?
+    PlacementUpdate(u8),                 // What place in the race are you now at?
+
+    // After game
+    AllDone,
 }
 
 pub trait Packet: Serialize + DeserializeOwned {
@@ -31,5 +52,5 @@ pub trait Packet: Serialize + DeserializeOwned {
     }
 }
 
-impl Packet for ClientUpdatingPacket {}
-impl Packet for ServerUpdatingPacket {}
+impl Packet for ClientBoundPacket {}
+impl Packet for ServerBoundPacket {}

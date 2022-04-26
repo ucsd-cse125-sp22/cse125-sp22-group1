@@ -4,11 +4,12 @@ use std::time::{Duration, Instant};
 
 use chariot_core::networking::ws::Message;
 use chariot_core::networking::{
-    ClientConnection, ClientUpdatingPacket, ServerUpdatingPacket, WebSocketConnection,
+    ClientBoundPacket, ClientConnection, ServerBoundPacket, WebSocketConnection,
 };
 use chariot_core::player_inputs::InputEvent;
 use chariot_core::GLOBAL_CONFIG;
 
+use crate::chairs::get_player_start_physics_properties;
 use crate::physics::player_entity::PlayerEntity;
 
 pub struct GameServer {
@@ -121,9 +122,9 @@ impl GameServer {
         for (i, connection) in self.connections.iter_mut().enumerate() {
             while let Some(packet) = connection.pop_incoming() {
                 match packet {
-                    ServerUpdatingPacket::Ping => {
+                    ServerBoundPacket::Ping => {
                         println!("Received a Ping packet from client #{}!", i);
-                        connection.push_outgoing(ClientUpdatingPacket::Pong);
+                        connection.push_outgoing(ClientBoundPacket::Pong);
                         // below sends a message to every single connection
                         GameServer::broadcast_ws(
                             &mut self.ws_connections,
@@ -137,13 +138,17 @@ impl GameServer {
                         //     )));
                         // })
                     }
-                    ServerUpdatingPacket::InputToggle(event) => match event {
+                    ServerBoundPacket::ChairSelectAndReady(chair_name) => {
+                        self.game_state.players[i] =
+                            get_player_start_physics_properties(&chair_name, i.try_into().unwrap());
+                    }
+                    ServerBoundPacket::InputToggle(event) => match event {
                         InputEvent::Engine(status) => {
-                            // self.players[self.game_state.players.get(i)].player_inputs.engine_status = status;
+                            self.game_state.players[i].player_inputs.engine_status = status;
                             println!("Engine status: {:?}", status);
                         }
                         InputEvent::Rotation(status) => {
-                            // self.players[self.game_state.players.get(i)].player_inputs.rotation_status = status;
+                            self.game_state.players[i].player_inputs.rotation_status = status;
                             println!("Turn status: {:?}", status);
                         }
                     },
@@ -166,7 +171,7 @@ impl GameServer {
                         );
 
                         self.connections.iter_mut().for_each(|client| {
-                            client.push_outgoing(ClientUpdatingPacket::Message(txt.clone()))
+                            client.push_outgoing(ClientBoundPacket::Message(txt.clone()))
                         });
 
                         message_to_send = txt.clone();
