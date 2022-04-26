@@ -1,5 +1,6 @@
 use chariot_core::GLOBAL_CONFIG;
 
+mod chairs;
 mod game;
 mod physics;
 

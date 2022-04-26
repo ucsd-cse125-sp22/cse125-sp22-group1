@@ -9,6 +9,7 @@ use chariot_core::networking::{
 use chariot_core::player_inputs::InputEvent;
 use chariot_core::GLOBAL_CONFIG;
 
+use crate::chairs::get_player_start_physics_properties;
 use crate::physics::player_entity::PlayerEntity;
 
 pub struct GameServer {
@@ -137,17 +138,20 @@ impl GameServer {
                         //     )));
                         // })
                     }
+                    ServerBoundPacket::ChairSelectAndReady(chair_name) => {
+                        self.game_state.players[i] =
+                            get_player_start_physics_properties(&chair_name, i.try_into().unwrap());
+                    }
                     ServerBoundPacket::InputToggle(event) => match event {
                         InputEvent::Engine(status) => {
-                            // self.players[self.game_state.players.get(i)].player_inputs.engine_status = status;
+                            self.game_state.players[i].player_inputs.engine_status = status;
                             println!("Engine status: {:?}", status);
                         }
                         InputEvent::Rotation(status) => {
-                            // self.players[self.game_state.players.get(i)].player_inputs.rotation_status = status;
+                            self.game_state.players[i].player_inputs.rotation_status = status;
                             println!("Turn status: {:?}", status);
                         }
                     },
-                    _ => {}
                 }
             }
         }
