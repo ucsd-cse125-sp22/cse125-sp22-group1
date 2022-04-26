@@ -59,7 +59,6 @@ impl Application {
             scale: glam::vec3(0.3, 0.3, 0.3),
         });
 
-        // temporarily commenting this since the new import stuff is in a different branch
         helmet.set_component(import_result.expect("Failed to import model").drawables);
 
         helmet.set_component(Camera {
