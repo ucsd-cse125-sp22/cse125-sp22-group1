@@ -133,6 +133,11 @@ impl ResourceManager {
             }
         }
 
+        /*document.images().map(|i| match i.source() {
+            gltf::image::Source::View { view, mime_type } => {view.buffer().i}
+            gltf::image::Source::Uri { uri, mime_type } => {}
+        });*/
+
         println!("uploading textures...");
         let tex_handles = self.upload_textures(renderer, &images);
 

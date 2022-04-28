@@ -23,24 +23,20 @@ impl Application {
     pub fn new(mut renderer: Renderer, game: GameClient) -> Self {
         renderer.register_pass(
             "boring",
-            &direct_graphics_depth_pass!(include_str!("shader.wgsl"), wgpu::IndexFormat::Uint16),
+            &direct_graphics_depth_pass!(include_str!("shader.wgsl")),
         );
 
         renderer.register_pass(
             "forward",
             &indirect_graphics_depth_pass!(
                 include_str!("shader.wgsl"),
-                wgpu::IndexFormat::Uint16,
                 [wgpu::TextureFormat::Rgba16Float]
             ),
         );
 
         renderer.register_pass(
             "postprocess",
-            &direct_graphics_nodepth_pass!(
-                include_str!("postprocess.wgsl"),
-                wgpu::IndexFormat::Uint16
-            ),
+            &direct_graphics_nodepth_pass!(include_str!("postprocess.wgsl")),
         );
 
         let (depth_tex, color_tex, fb_desc) =
@@ -49,24 +45,50 @@ impl Application {
 
         let mut resources = ResourceManager::new();
 
-        let import_result = resources.import_gltf(&mut renderer, "models/DamagedHelmet.glb");
-
         let mut world = World::new();
-        let mut helmet = Entity::new();
-        helmet.set_component(Transform {
-            translation: glam::Vec3::ZERO,
-            rotation: glam::Quat::from_axis_angle(glam::Vec3::X, f32::to_radians(90.0)),
-            scale: glam::vec3(0.3, 0.3, 0.3),
-        });
 
-        helmet.set_component(import_result.expect("Failed to import model").drawables);
+        {
+            let chair_import_result = resources.import_gltf(&mut renderer, "models/chair.glb");
 
-        helmet.set_component(Camera {
-            orbit_angle: glam::Vec2::ZERO,
-            distance: 2.0,
-        });
+            let mut chair = Entity::new();
+            chair.set_component(Transform {
+                translation: glam::vec3(0.0, 0.5, 0.0),
+                rotation: glam::Quat::IDENTITY,
+                scale: glam::vec3(1.1995562314987183, 2.2936718463897705, 1.1995562314987183) * 0.2,
+            });
 
-        world.root_mut().add_child(helmet);
+            // temporarily commenting this since the new import stuff is in a different branch
+            chair.set_component(
+                chair_import_result
+                    .expect("Failed to import chair")
+                    .drawables,
+            );
+
+            chair.set_component(Camera {
+                orbit_angle: glam::Vec2::ZERO,
+                distance: 2.0,
+            });
+
+            world.root_mut().add_child(chair);
+        }
+        {
+            let track_import_result = resources.import_gltf(&mut renderer, "models/racetrack.glb");
+
+            let mut track = Entity::new();
+            track.set_component(Transform {
+                translation: glam::Vec3::ZERO,
+                rotation: glam::Quat::IDENTITY,
+                scale: glam::vec3(20.0, 20.0, 20.0),
+            });
+
+            track.set_component(
+                track_import_result
+                    .expect("Unable to load racetrack")
+                    .drawables,
+            );
+
+            world.root_mut().add_child(track);
+        }
 
         Self {
             world: world,
@@ -90,26 +112,28 @@ impl Application {
         // which is kind of annoying. First to find the camera and get the view matrix and again to actually
         // render everything. Ideally maybe in the future this could be simplified
 
-        let mut view_inv_local =
+        let mut view_local =
             glam::Mat4::look_at_rh(glam::vec3(0.0, 0.0, -2.0), glam::Vec3::ZERO, glam::Vec3::Y);
         let mut view_global = glam::Mat4::IDENTITY;
-        dfs_acc(self.world.root_mut(), root_transform, |e, acc| {
-            if let Some(camera) = e.get_component::<Camera>() {
-                view_inv_local = camera.view_mat4();
-                view_global = *acc;
-            }
-
-            let cur_model = e
+        dfs_acc(self.world.root_mut(), root_transform.inverse(), |e, acc| {
+            let mut cur_model_transform: Transform = e
                 .get_component::<Transform>()
-                .unwrap_or(&Transform::default())
-                .to_mat4();
+                .map_or(Transform::default(), |t| *t);
+
+            cur_model_transform.scale = glam::Vec3::ONE;
+            let cur_model = cur_model_transform.to_mat4();
 
             let acc_model = *acc * cur_model;
+
+            if let Some(camera) = e.get_component::<Camera>() {
+                view_local = camera.view_mat4();
+                view_global = acc_model;
+            }
 
             acc_model
         });
 
-        let view = view_inv_local * view_global.inverse();
+        let view = view_global.inverse() * view_local;
 
         let proj = glam::Mat4::perspective_rh(f32::to_radians(60.0), 1.0, 0.1, 100.0);
         let proj_view = proj * view;
