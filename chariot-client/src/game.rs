@@ -1,7 +1,6 @@
 use chariot_core::networking::{ClientBoundPacket, ServerBoundPacket, ServerConnection};
 use chariot_core::player_inputs::InputEvent;
 use std::net::TcpStream;
-use winit::event::{ElementState, VirtualKeyCode};
 
 pub struct GameClient {
     connection: ServerConnection,
@@ -28,18 +27,12 @@ impl GameClient {
         self.connection.sync_incoming();
     }
 
-    pub fn process_incoming_packets(&mut self) {
+    pub fn get_incoming_packets(&mut self) -> Vec<ClientBoundPacket> {
+        let mut ret = vec![];
         while let Some(packet) = self.connection.pop_incoming() {
-            match packet {
-                ClientBoundPacket::Pong => {
-                    println!("Received a Pong packet from server!");
-                }
-                ClientBoundPacket::Message(text) => {
-                    println!("Recieved a message from the server saying: {}", text);
-                }
-                _ => {}
-            }
+            ret.push(packet);
         }
+        return ret;
     }
 
     pub fn send_input_event(&mut self, event: InputEvent) {

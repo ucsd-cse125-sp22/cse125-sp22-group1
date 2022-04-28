@@ -1,77 +1,28 @@
+use chariot_core::networking::ClientBoundPacket;
+use chariot_core::GLOBAL_CONFIG;
 use std::collections::HashSet;
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, VirtualKeyCode};
 
-use crate::drawable::*;
-use crate::game::GameClient;
-use crate::renderer::*;
-use crate::resources::*;
-use crate::scenegraph::*;
+use crate::game::{self, GameClient};
+use crate::graphics::GraphicsManager;
 
 use chariot_core::player_inputs::{EngineStatus, InputEvent, RotationStatus};
 
 pub struct Application {
-    pub world: World,
-    pub renderer: Renderer,
-    pub resources: ResourceManager,
+    pub graphics: GraphicsManager,
     pub game: GameClient,
     pub pressed_keys: HashSet<VirtualKeyCode>,
     mouse_pos: PhysicalPosition<f64>,
 }
 
 impl Application {
-    pub fn new(mut renderer: Renderer, game: GameClient) -> Self {
-        renderer.register_pass(
-            "boring",
-            &direct_graphics_depth_pass!(include_str!("shader.wgsl"), wgpu::IndexFormat::Uint16),
-        );
-
-        renderer.register_pass(
-            "forward",
-            &indirect_graphics_depth_pass!(
-                include_str!("shader.wgsl"),
-                wgpu::IndexFormat::Uint16,
-                [wgpu::TextureFormat::Rgba16Float]
-            ),
-        );
-
-        renderer.register_pass(
-            "postprocess",
-            &direct_graphics_nodepth_pass!(
-                include_str!("postprocess.wgsl"),
-                wgpu::IndexFormat::Uint16
-            ),
-        );
-
-        let (depth_tex, color_tex, fb_desc) =
-            depth_color_framebuffer(&renderer, wgpu::TextureFormat::Rgba16Float);
-        renderer.register_framebuffer("forward_out", fb_desc, [depth_tex, color_tex]);
-
-        let mut resources = ResourceManager::new();
-
-        let import_result = resources.import_gltf(&mut renderer, "models/DamagedHelmet.glb");
-
-        let mut world = World::new();
-        let mut helmet = Entity::new();
-        helmet.set_component(Transform {
-            translation: glam::Vec3::ZERO,
-            rotation: glam::Quat::from_axis_angle(glam::Vec3::X, f32::to_radians(90.0)),
-            scale: glam::vec3(0.3, 0.3, 0.3),
-        });
-
-        helmet.set_component(import_result.expect("Failed to import model").drawables);
-
-        helmet.set_component(Camera {
-            orbit_angle: glam::Vec2::ZERO,
-            distance: 2.0,
-        });
-
-        world.root_mut().add_child(helmet);
+    pub fn new(graphics_manager: GraphicsManager) -> Self {
+        let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
+        let game = game::GameClient::new(ip_addr);
 
         Self {
-            world: world,
-            renderer: renderer,
-            resources: resources,
+            graphics: graphics_manager,
             game,
             pressed_keys: HashSet::new(),
             mouse_pos: PhysicalPosition::<f64> { x: -1.0, y: -1.0 },
@@ -79,83 +30,34 @@ impl Application {
     }
 
     pub fn render(&mut self) {
-        let root_transform = self
-            .world
-            .root()
-            .get_component::<Transform>()
-            .unwrap_or(&Transform::default())
-            .to_mat4();
-
-        // Right now, we're iterating over the scene graph and evaluating all the global transforms once
-        // which is kind of annoying. First to find the camera and get the view matrix and again to actually
-        // render everything. Ideally maybe in the future this could be simplified
-
-        let mut view_inv_local =
-            glam::Mat4::look_at_rh(glam::vec3(0.0, 0.0, -2.0), glam::Vec3::ZERO, glam::Vec3::Y);
-        let mut view_global = glam::Mat4::IDENTITY;
-        dfs_acc(self.world.root_mut(), root_transform, |e, acc| {
-            if let Some(camera) = e.get_component::<Camera>() {
-                view_inv_local = camera.view_mat4();
-                view_global = *acc;
-            }
-
-            let cur_model = e
-                .get_component::<Transform>()
-                .unwrap_or(&Transform::default())
-                .to_mat4();
-
-            let acc_model = *acc * cur_model;
-
-            acc_model
-        });
-
-        let view = view_inv_local * view_global.inverse();
-
-        let proj = glam::Mat4::perspective_rh(f32::to_radians(60.0), 1.0, 0.1, 100.0);
-        let proj_view = proj * view;
-
-        let mut render_job = render_job::RenderJob::default();
-        dfs_acc(self.world.root_mut(), root_transform, |e, acc| {
-            let cur_model = e
-                .get_component::<Transform>()
-                .unwrap_or(&Transform::default())
-                .to_mat4();
-            let acc_model = *acc * cur_model;
-
-            if let Some(drawables) = e.get_component::<Vec<StaticMeshDrawable>>() {
-                for drawable in drawables.iter() {
-                    drawable.update_xforms(&self.renderer, &proj_view, &acc_model);
-                    let render_graph = drawable.render_graph(&self.resources);
-                    render_job.merge_graph(render_graph);
-                }
-            }
-
-            acc_model
-        });
-
-        self.renderer.render(&render_job);
+        self.graphics.render();
     }
 
     pub fn update(&mut self) {
-        let surface_size = self.renderer.surface_size();
-        let surface_size = glam::Vec2::new(surface_size.width as f32, surface_size.height as f32);
         let mouse_pos = glam::Vec2::new(self.mouse_pos.x as f32, self.mouse_pos.y as f32);
-
-        let rot_range = glam::Vec2::new(std::f32::consts::PI, std::f32::consts::FRAC_PI_2);
-
-        dfs_mut(self.world.root_mut(), &|e| {
-            if let Some(camera) = e.get_component::<Camera>() {
-                let norm_orbit_angle = (mouse_pos / surface_size) * 2.0 - 1.0;
-                let orbit_angle = norm_orbit_angle * rot_range;
-                let new_camera = Camera {
-                    orbit_angle,
-                    ..*camera
-                };
-                e.set_component(new_camera);
-            }
-        });
+        self.graphics.update(mouse_pos);
 
         self.game.sync_incoming();
+
+        for packet in self.game.get_incoming_packets() {
+            match packet {
+                ClientBoundPacket::Pong => {
+                    println!("Received a Pong packet from server!");
+                }
+                ClientBoundPacket::Message(text) => {
+                    println!("Recieved a message from the server saying: {}", text);
+                }
+                ClientBoundPacket::PlayerNumber(player_number) => {
+                    self.graphics.add_player(player_number)
+                }
+                ClientBoundPacket::LocationUpdate(locations) => {
+                    for (i, location) in locations.iter().enumerate() {
+                        self.graphics.update_player_location(location, i as u8);
+                    }
+                }
+                _ => {}
+            }
+        }
     }
 
     // Input configuration
