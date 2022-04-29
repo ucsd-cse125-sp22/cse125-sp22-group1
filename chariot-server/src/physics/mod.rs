@@ -104,6 +104,9 @@ impl PlayerEntity {
     }
 
     fn sum_of_self_forces(&self) -> DVec3 {
+        // TODO: this is a hack to get around the fact that some of the non-player-applied forces must be calculated incorrectly T.T
+        return self.player_applied_force_on_object();
+
         let air_forces = self.gravitational_force_on_object()
             + self.player_applied_force_on_object()
             + self.air_resistance_force_on_object();
