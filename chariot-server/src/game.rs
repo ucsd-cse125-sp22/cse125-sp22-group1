@@ -21,7 +21,7 @@ pub struct GameServer {
 }
 
 pub struct ServerGameState {
-    players: Vec<PlayerEntity>,
+    players: [PlayerEntity; 4],
 }
 
 impl GameServer {
@@ -38,7 +38,8 @@ impl GameServer {
             connections: Vec::new(),
             ws_connections: Vec::new(),
             game_state: ServerGameState {
-                players: Vec::new(),
+                players: [0, 1, 2, 3]
+                    .map(|num| get_player_start_physics_properties(&String::from("standard"), num)),
             },
         }
     }
@@ -210,8 +211,6 @@ impl GameServer {
 
     // update game state
     fn simulate_game(&mut self) {
-        let mut new_players = vec![];
-
         let now = Instant::now();
 
         // earlier_time.duration_since(later_time) will return 0; filter out those for which the expiration time is earlier than the current time
@@ -223,20 +222,18 @@ impl GameServer {
             player.set_upward_direction_from_bounding_box();
         }
 
-        for (this_index, player) in self.game_state.players.iter().enumerate() {
-            let others = self
-                .game_state
+        let others = |this_index: usize| -> Vec<&PlayerEntity> {
+            self.game_state
                 .players
                 .iter()
                 .enumerate()
                 .filter(|(other_index, _)| *other_index != this_index)
                 .map(|(_, player_entity)| player_entity)
-                .collect();
+                .collect()
+        };
 
-            new_players.push(player.do_physics_step(1.0, others));
-        }
-
-        self.game_state.players = new_players;
+        self.game_state.players =
+            [0, 1, 2, 3].map(|n| self.game_state.players[n].do_physics_step(1.0, others(n)));
     }
 
     // queue up sending updated game state
