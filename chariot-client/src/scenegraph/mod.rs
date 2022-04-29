@@ -81,7 +81,7 @@ impl Camera {
         let look_rot = glam::Quat::from_euler(
             glam::EulerRot::YXZ,
             self.orbit_angle.x,
-            3.14 - self.orbit_angle.y,
+            f32::consts::PI - self.orbit_angle.y,
             0.0,
         );
         let look_dir = look_rot * glam::Vec3::Z;
