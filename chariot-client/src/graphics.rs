@@ -42,12 +42,33 @@ impl GraphicsManager {
             depth_color_framebuffer(&renderer, wgpu::TextureFormat::Rgba16Float);
         renderer.register_framebuffer("forward_out", fb_desc, [depth_tex, color_tex]);
 
+        let mut resources = ResourceManager::new();
+        let mut world = World::new();
+
+        let import_result = resources
+            .import_gltf(&mut renderer, "models/DamagedHelmet.glb");
+
+        let mut helmet = Entity::new();
+        helmet.set_component(Transform {
+            translation: glam::Vec3::ZERO,
+            rotation: glam::Quat::from_axis_angle(glam::Vec3::X, f32::to_radians(90.0)),
+            scale: glam::vec3(0.3, 0.3, 0.3),
+        });
+
+        helmet.set_component(import_result.expect("Failed to import model").drawables);
+
+        helmet.set_component(EntityID {
+            id: 0,
+        });
+
+        world.root_mut().add_child(helmet);
+
         Self {
-            world: World::new(),
+            world: world,
             renderer: renderer,
-            resources: ResourceManager::new(),
-            player_ids: [None, None, None, None],
-            next_entity_id: 0,
+            resources: resources,
+            player_ids: [Some(0), None, None, None],
+            next_entity_id: 1,
         }
     }
 
@@ -94,6 +115,7 @@ impl GraphicsManager {
     }
 
     pub fn update_player_location(&mut self, location: &EntityLocation, player_num: u8) {
+        println!("updating location of player {}!", player_num);
         let id = self.player_ids[player_num as usize]
             .expect("Trying to update invalid player location!");
         dfs_mut(self.world.root_mut(), &|e| {

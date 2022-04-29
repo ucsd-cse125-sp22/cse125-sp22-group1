@@ -35,7 +35,13 @@ impl GameClient {
         return ret;
     }
 
+    pub fn send_ready_packet(&mut self, chair_name: str) {
+        self.connection.push_outgoing(ServerBoundPacket::ChairSelectAndReady(chair_name));
+        self.connection.sync_outgoing();
+    }
+
     pub fn send_input_event(&mut self, event: InputEvent) {
+        println!("sending input event");
         self.connection
             .push_outgoing(ServerBoundPacket::InputToggle(event));
         self.connection.sync_outgoing();
