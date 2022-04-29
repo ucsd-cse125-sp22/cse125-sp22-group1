@@ -19,7 +19,9 @@ pub struct Application {
 impl Application {
     pub fn new(graphics_manager: GraphicsManager) -> Self {
         let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
-        let game = game::GameClient::new(ip_addr);
+        let mut game = game::GameClient::new(ip_addr);
+
+        game.send_ready_packet("standard".to_string());
 
         Self {
             graphics: graphics_manager,
