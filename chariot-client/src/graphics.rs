@@ -45,8 +45,7 @@ impl GraphicsManager {
         let mut resources = ResourceManager::new();
         let mut world = World::new();
 
-        let import_result = resources
-            .import_gltf(&mut renderer, "models/DamagedHelmet.glb");
+        let import_result = resources.import_gltf(&mut renderer, "models/DamagedHelmet.glb");
 
         let mut helmet = Entity::new();
         helmet.set_component(Transform {
@@ -57,9 +56,7 @@ impl GraphicsManager {
 
         helmet.set_component(import_result.expect("Failed to import model").drawables);
 
-        helmet.set_component(EntityID {
-            id: 0,
-        });
+        helmet.set_component(EntityID { id: 0 });
 
         world.root_mut().add_child(helmet);
 
