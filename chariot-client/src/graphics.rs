@@ -117,6 +117,14 @@ impl GraphicsManager {
                 if let Some(entity_id) = e.get_component::<EntityID>() {
                     if entity_id.id == id {
                         println!("new location for #{}: {}", player_num, location.position);
+                        println!(
+                            "new steer direction for #{}: {}",
+                            player_num, location.unit_steer_direction
+                        );
+                        println!(
+                            "new upward direction for #{}: {}",
+                            player_num, location.unit_upward_direction
+                        );
                         e.set_component(GraphicsManager::EntityLocation_to_Transform(&location))
                     }
                 }

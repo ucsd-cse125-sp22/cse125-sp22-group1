@@ -53,6 +53,16 @@ impl PlayerEntity {
             }
         };
 
+        let rotation_matrix = glam::Mat3::from_axis_angle(
+            self.entity_location.unit_upward_direction.as_vec3(),
+            angular_velocity as f32,
+        );
+
+        let new_steer_direction = rotation_matrix
+            .mul_vec3(self.entity_location.unit_steer_direction.as_vec3())
+            .normalize()
+            .as_dvec3();
+
         let mut delta_velocity = acceleration * time_step;
 
         for collider in potential_colliders.iter() {
@@ -67,7 +77,7 @@ impl PlayerEntity {
 
             entity_location: EntityLocation {
                 position: self.entity_location.position + self.velocity * time_step,
-                unit_steer_direction: self.entity_location.unit_steer_direction,
+                unit_steer_direction: new_steer_direction,
                 unit_upward_direction: self.entity_location.unit_upward_direction,
             },
 
