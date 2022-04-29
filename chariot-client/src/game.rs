@@ -36,7 +36,8 @@ impl GameClient {
     }
 
     pub fn send_ready_packet(&mut self, chair_name: String) {
-        self.connection.push_outgoing(ServerBoundPacket::ChairSelectAndReady(chair_name));
+        self.connection
+            .push_outgoing(ServerBoundPacket::ChairSelectAndReady(chair_name));
         self.connection.sync_outgoing();
     }
 
