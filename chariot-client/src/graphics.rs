@@ -116,6 +116,7 @@ impl GraphicsManager {
             dfs_mut(self.world.root_mut(), &|e| {
                 if let Some(entity_id) = e.get_component::<EntityID>() {
                     if entity_id.id == id {
+                        println!("new location for #{}: {}", player_num, location.position);
                         e.set_component(GraphicsManager::EntityLocation_to_Transform(&location))
                     }
                 }
