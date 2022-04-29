@@ -237,5 +237,11 @@ impl GameServer {
     }
 
     // queue up sending updated game state
-    fn sync_state(&mut self) {}
+    fn sync_state(&mut self) {
+        for connection in &mut self.connections {
+            let locations =
+                [0, 1, 2, 3].map(|n| self.game_state.players[n].entity_location.clone());
+            connection.push_outgoing(ClientBoundPacket::LocationUpdate(locations));
+        }
+    }
 }

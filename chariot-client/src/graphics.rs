@@ -45,8 +45,7 @@ impl GraphicsManager {
         let mut resources = ResourceManager::new();
         let mut world = World::new();
 
-        let import_result = resources
-            .import_gltf(&mut renderer, "models/DamagedHelmet.glb");
+        let import_result = resources.import_gltf(&mut renderer, "models/DamagedHelmet.glb");
 
         let mut helmet = Entity::new();
         helmet.set_component(Transform {
@@ -57,9 +56,7 @@ impl GraphicsManager {
 
         helmet.set_component(import_result.expect("Failed to import model").drawables);
 
-        helmet.set_component(EntityID {
-            id: 0,
-        });
+        helmet.set_component(EntityID { id: 0 });
 
         world.root_mut().add_child(helmet);
 
@@ -115,16 +112,15 @@ impl GraphicsManager {
     }
 
     pub fn update_player_location(&mut self, location: &EntityLocation, player_num: u8) {
-        println!("updating location of player {}!", player_num);
-        let id = self.player_ids[player_num as usize]
-            .expect("Trying to update invalid player location!");
-        dfs_mut(self.world.root_mut(), &|e| {
-            if let Some(entity_id) = e.get_component::<EntityID>() {
-                if entity_id.id == id {
-                    e.set_component(GraphicsManager::EntityLocation_to_Transform(&location))
+        if let Some(id) = self.player_ids[player_num as usize] {
+            dfs_mut(self.world.root_mut(), &|e| {
+                if let Some(entity_id) = e.get_component::<EntityID>() {
+                    if entity_id.id == id {
+                        e.set_component(GraphicsManager::EntityLocation_to_Transform(&location))
+                    }
                 }
-            }
-        });
+            });
+        }
     }
 
     pub fn render(&mut self) {
