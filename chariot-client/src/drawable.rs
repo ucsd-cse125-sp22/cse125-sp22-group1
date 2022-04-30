@@ -396,14 +396,14 @@ impl<'a> MeshBuilder<'a> {
 // For directly drawing to the surface
 #[macro_export]
 macro_rules! direct_graphics_depth_pass {
-    ( $source: expr, $index_format: expr ) => {
+    ( $source: expr ) => {
         crate::renderer::render_job::RenderPassDescriptor::Graphics {
             source: $source,
             push_constant_ranges: &[],
             targets: None,
             primitive_state: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleStrip,
-                strip_index_format: Some($index_format),
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
                 ..wgpu::PrimitiveState::default()
             },
             outputs_depth: true,
@@ -418,7 +418,7 @@ pub(crate) use direct_graphics_depth_pass;
 // For drawing to an arbitary framebuffer
 #[macro_export]
 macro_rules! indirect_graphics_depth_pass {
-    ( $source: expr, $index_format: expr, $formats: expr ) => {
+    ( $source: expr, $formats: expr ) => {
         crate::renderer::render_job::RenderPassDescriptor::Graphics {
             source: $source,
             push_constant_ranges: &[],
@@ -436,8 +436,8 @@ macro_rules! indirect_graphics_depth_pass {
                     .collect::<Vec<wgpu::ColorTargetState>>(),
             ),
             primitive_state: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleStrip,
-                strip_index_format: Some($index_format),
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
                 ..wgpu::PrimitiveState::default()
             },
             outputs_depth: true,
@@ -451,14 +451,14 @@ pub(crate) use indirect_graphics_depth_pass;
 
 #[macro_export]
 macro_rules! direct_graphics_nodepth_pass {
-    ( $source: expr, $index_format: expr ) => {
+    ( $source: expr ) => {
         crate::renderer::render_job::RenderPassDescriptor::Graphics {
             source: $source,
             push_constant_ranges: &[],
             targets: None,
             primitive_state: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleStrip,
-                strip_index_format: Some($index_format),
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
                 ..wgpu::PrimitiveState::default()
             },
             outputs_depth: false,

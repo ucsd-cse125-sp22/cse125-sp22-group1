@@ -29,6 +29,6 @@ var s_diffuse: sampler;
 [[stage(fragment)]]
 fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
     //return vec4<f32>((in.normal.xyz + 1.0) * 0.5, 1.0);
-	let tc_transformed = vec2<f32>(in.tex_coords.x, in.tex_coords.y - 1.0);
+	let tc_transformed = vec2<f32>(in.tex_coords.x, in.tex_coords.y);
 	return textureSample(t_diffuse, s_diffuse, tc_transformed);
 }
