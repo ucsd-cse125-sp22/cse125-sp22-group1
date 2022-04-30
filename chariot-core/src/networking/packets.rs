@@ -9,9 +9,6 @@ use crate::player_inputs::InputEvent;
 
 #[derive(Serialize, Deserialize)]
 pub enum ServerBoundPacket {
-    // Debug
-    Ping,
-
     // Before game
     ChairSelectAndReady(String), // name of chair being selected
 
@@ -21,10 +18,6 @@ pub enum ServerBoundPacket {
 
 #[derive(Serialize, Deserialize)]
 pub enum ClientBoundPacket {
-    // Debug
-    Pong,
-    Message(String),
-
     // Before game
     PlayerNumber(u8),
     EveryoneReady,

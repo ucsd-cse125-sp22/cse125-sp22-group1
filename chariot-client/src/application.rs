@@ -41,12 +41,6 @@ impl Application {
 
         for packet in self.game.get_incoming_packets() {
             match packet {
-                ClientBoundPacket::Pong => {
-                    println!("Received a Pong packet from server!");
-                }
-                ClientBoundPacket::Message(text) => {
-                    println!("Recieved a message from the server saying: {}", text);
-                }
                 ClientBoundPacket::PlayerNumber(player_number) => {
                     self.graphics.add_player(player_number)
                 }

@@ -123,22 +123,6 @@ impl GameServer {
         for (i, connection) in self.connections.iter_mut().enumerate() {
             while let Some(packet) = connection.pop_incoming() {
                 match packet {
-                    ServerBoundPacket::Ping => {
-                        println!("Received a Ping packet from client #{}!", i);
-                        connection.push_outgoing(ClientBoundPacket::Pong);
-                        // below sends a message to every single connection
-                        GameServer::broadcast_ws(
-                            &mut self.ws_connections,
-                            Message::Text("".to_string()),
-                        );
-
-                        // self.ws_connections.iter_mut().for_each(|ws| {
-                        //     ws.push_outgoing(Message::Text(format!(
-                        //         "broadcasting that the server got a ping packet from client #{}!",
-                        //         i
-                        //     )));
-                        // })
-                    }
                     ServerBoundPacket::ChairSelectAndReady(chair_name) => {
                         self.game_state.players[i] =
                             get_player_start_physics_properties(&chair_name, i.try_into().unwrap());
@@ -170,10 +154,6 @@ impl GameServer {
                             i,
                             txt.clone()
                         );
-
-                        self.connections.iter_mut().for_each(|client| {
-                            client.push_outgoing(ClientBoundPacket::Message(txt.clone()))
-                        });
 
                         message_to_send = txt.clone();
                     }

@@ -15,10 +15,6 @@ impl GameClient {
         }
     }
 
-    pub fn ping(&mut self) {
-        self.connection.push_outgoing(ServerBoundPacket::Ping);
-    }
-
     pub fn sync_outgoing(&mut self) {
         self.connection.sync_outgoing();
     }
