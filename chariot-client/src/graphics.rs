@@ -18,24 +18,20 @@ impl GraphicsManager {
     pub fn new(mut renderer: Renderer) -> Self {
         renderer.register_pass(
             "boring",
-            &direct_graphics_depth_pass!(include_str!("shader.wgsl"), wgpu::IndexFormat::Uint16),
+            &direct_graphics_depth_pass!(include_str!("shader.wgsl")),
         );
 
         renderer.register_pass(
             "forward",
             &indirect_graphics_depth_pass!(
                 include_str!("shader.wgsl"),
-                wgpu::IndexFormat::Uint16,
                 [wgpu::TextureFormat::Rgba16Float]
             ),
         );
 
         renderer.register_pass(
             "postprocess",
-            &direct_graphics_nodepth_pass!(
-                include_str!("postprocess.wgsl"),
-                wgpu::IndexFormat::Uint16
-            ),
+            &direct_graphics_nodepth_pass!(include_str!("postprocess.wgsl")),
         );
 
         let (depth_tex, color_tex, fb_desc) =
