@@ -26,9 +26,18 @@ var t_diffuse: texture_2d<f32>;
 [[group(1), binding(1)]]
 var s_diffuse: sampler;
 
+struct FramebufferData {
+	[[location(0)]] color: vec4<f32>;
+	[[location(1)]] normal: vec4<f32>;
+};
+
 [[stage(fragment)]]
-fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
+fn fs_main(in: VertexOutput) -> FramebufferData {
     //return vec4<f32>((in.normal.xyz + 1.0) * 0.5, 1.0);
 	let tc_transformed = vec2<f32>(in.tex_coords.x, in.tex_coords.y);
-	return textureSample(t_diffuse, s_diffuse, tc_transformed);
+
+	var data : FramebufferData;
+	data.color = textureSample(t_diffuse, s_diffuse, tc_transformed);
+	data.normal = vec4<f32>(in.normal, 1.0);
+	return data;
 }

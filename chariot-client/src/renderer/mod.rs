@@ -48,7 +48,7 @@ use render_job::*;
 pub struct FramebufferDescriptor {
     pub color_attachments: Vec<wgpu::TextureView>,
     pub depth_stencil_attachment: Option<wgpu::TextureView>,
-    pub clear_color: bool,
+    pub clear_color: Option<wgpu::Color>,
     pub clear_depth: bool,
 }
 
@@ -58,7 +58,6 @@ pub struct Renderer {
     queue: wgpu::Queue,
     passes: HashMap<String, RenderPass>,
     framebuffers: HashMap<String, FramebufferDescriptor>,
-    framebuffer_textures: HashMap<String, Vec<wgpu::Texture>>, // Backing textures, the above only has views
     bind_group_layouts: HashMap<String, Vec<wgpu::BindGroupLayout>>,
     surface_format: wgpu::TextureFormat,
     depth_texture: wgpu::Texture,
@@ -128,7 +127,6 @@ impl Renderer {
 
         let passes = HashMap::new();
         let framebuffers = HashMap::new();
-        let framebuffer_textures = HashMap::new();
         let bind_group_layouts = HashMap::new();
         Renderer {
             context,
@@ -136,7 +134,6 @@ impl Renderer {
             queue,
             passes,
             framebuffers,
-            framebuffer_textures,
             bind_group_layouts,
             surface_format,
             depth_texture,
@@ -147,22 +144,13 @@ impl Renderer {
         self.context.window.request_redraw()
     }
 
-    pub fn register_framebuffer<'a, T>(
+    pub fn register_framebuffer<'a>(
         &mut self,
         name: &str,
         framebuffer_desc: FramebufferDescriptor,
-        backing_textures: T,
-    ) where
-        T: IntoIterator<Item = wgpu::Texture>,
-    {
+    ) {
         self.framebuffers
             .insert(String::from(name), framebuffer_desc);
-        self.framebuffer_textures
-            .insert(String::from(name), backing_textures.into_iter().collect());
-    }
-
-    pub fn framebuffer_tex(&self, name: &str, index: usize) -> Option<&wgpu::Texture> {
-        self.framebuffer_textures.get(&name.to_string())?.get(index)
     }
 
     // TODO: add index buffer layout
@@ -424,8 +412,8 @@ impl Renderer {
                 view: &color_tex_view,
                 resolve_target: None,
                 ops: wgpu::Operations {
-                    load: if framebuffer_desc.clear_color {
-                        wgpu::LoadOp::Clear(wgpu::Color::BLACK)
+                    load: if let Some(color) = framebuffer_desc.clear_color {
+                        wgpu::LoadOp::Clear(color)
                     } else {
                         wgpu::LoadOp::Load
                     },
@@ -526,7 +514,7 @@ impl Renderer {
                         self.depth_texture
                             .create_view(&wgpu::TextureViewDescriptor::default()),
                     ),
-                    clear_color: true,
+                    clear_color: Some(wgpu::Color::BLACK),
                     clear_depth: true,
                 },
             );

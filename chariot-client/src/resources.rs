@@ -78,10 +78,11 @@ pub struct ImportData {
     pub tex_handles: Vec<TextureHandle>,
     pub material_handles: Vec<MaterialHandle>,
     pub mesh_handles: Vec<StaticMeshHandle>,
-    pub drawables: Vec<StaticMeshDrawable>,
+    pub drawables: Vec<StaticMeshDrawable2>,
 }
 
 pub struct ResourceManager {
+    pub framebuffers: HashMap<String, Vec<TextureHandle>>,
     pub textures: HashMap<TextureHandle, wgpu::Texture>,
     pub materials: HashMap<MaterialHandle, Material>,
     pub meshes: HashMap<StaticMeshHandle, StaticMesh>,
@@ -90,6 +91,7 @@ pub struct ResourceManager {
 impl ResourceManager {
     pub fn new() -> Self {
         Self {
+            framebuffers: HashMap::new(),
             textures: HashMap::new(),
             materials: HashMap::new(),
             meshes: HashMap::new(),
@@ -146,13 +148,13 @@ impl ResourceManager {
             material_handles.push(handle);
         }
 
-        let mut drawables = Vec::<StaticMeshDrawable>::new();
+        let mut drawables = Vec::<StaticMeshDrawable2>::new();
         for (mesh_idx, mesh) in document.meshes().enumerate() {
             for (prim_idx, primitive) in mesh.primitives().enumerate() {
                 let material_handle = material_handles[primitive.material().index().unwrap()];
                 let mesh_handle = mesh_handles[mesh_idx]; // TODO: bug if more than one prim per mesh
                 let drawable =
-                    StaticMeshDrawable::new(renderer, self, material_handle, mesh_handle, 0);
+                    StaticMeshDrawable2::new(renderer, self, material_handle, mesh_handle, 0);
                 drawables.push(drawable);
             }
         }
@@ -315,7 +317,7 @@ impl ResourceManager {
             ..Default::default()
         });
 
-        let pass_name = "boring";
+        let pass_name = "forward";
         let material = MaterialBuilder::new(renderer, pass_name)
             .texture_resource(1, 0, base_color_view)
             .sampler_resource(1, 1, sampler)
@@ -323,5 +325,78 @@ impl ResourceManager {
         let material_handle = MaterialHandle::unique();
         self.materials.insert(material_handle, material);
         material_handle
+    }
+
+    pub fn depth_framebuffer(
+        &mut self,
+        name: &str,
+        renderer: &Renderer,
+        formats: &[wgpu::TextureFormat],
+        clear_color: Option<wgpu::Color>,
+    ) -> FramebufferDescriptor {
+        let surface_size = renderer.surface_size();
+        println!("{}, {}", surface_size.width, surface_size.height);
+        let color_textures: Vec<wgpu::Texture> = formats
+            .iter()
+            .enumerate()
+            .map(|(idx, format)| {
+                renderer.create_2D_texture(
+                    format!("{}_tex_{}", name, idx).as_str(),
+                    surface_size,
+                    *format,
+                    wgpu::TextureUsages::RENDER_ATTACHMENT
+                        | wgpu::TextureUsages::TEXTURE_BINDING
+                        | wgpu::TextureUsages::STORAGE_BINDING,
+                )
+            })
+            .collect();
+
+        let color_handles: Vec<TextureHandle> = (0..color_textures.len())
+            .map(|idx| TextureHandle::unique())
+            .collect();
+
+        let depth_texture = renderer.create_2D_texture(
+            format!("{}_tex_depth", name).as_str(),
+            surface_size,
+            Renderer::DEPTH_FORMAT,
+            wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+        );
+
+        let depth_handle = TextureHandle::unique();
+
+        self.framebuffers
+            .entry(name.to_string())
+            .or_default()
+            .extend(color_handles.iter().chain([depth_handle].iter()));
+
+        let desc = FramebufferDescriptor {
+            color_attachments: color_textures
+                .iter()
+                .map(|tex| tex.create_view(&wgpu::TextureViewDescriptor::default()))
+                .collect(),
+            depth_stencil_attachment: Some(
+                depth_texture.create_view(&wgpu::TextureViewDescriptor::default()),
+            ),
+            clear_color: clear_color,
+            clear_depth: true,
+        };
+
+        self.textures.extend(
+            color_handles
+                .into_iter()
+                .chain([depth_handle].into_iter())
+                .zip(
+                    color_textures
+                        .into_iter()
+                        .chain([depth_texture].into_iter()),
+                ),
+        );
+
+        desc
+    }
+
+    pub fn framebuffer_tex(&self, name: &str, index: usize) -> Option<&wgpu::Texture> {
+        let handle = self.framebuffers.get(&name.to_string())?.get(index)?;
+        self.textures.get(&handle)
     }
 }

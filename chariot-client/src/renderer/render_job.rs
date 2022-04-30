@@ -273,12 +273,10 @@ impl<'a> RenderJob<'a> {
             let pass_name = render_item_pass_name(&graph.items[graph_id]);
             self.pass_to_id.insert(pass_name.to_string(), job_id);
 
+            let cur_node = self.graph.entry(job_id).or_default();
             for child_graph_id in graph.nodes.get(&graph_id).unwrap_or(&vec![]).iter() {
                 let child_pass_name = render_item_pass_name(&graph.items[*child_graph_id]);
-                let child_job_id = self
-                    .graph
-                    .entry(job_id)
-                    .or_default()
+                let child_job_id = cur_node
                     .entry(String::from(child_pass_name))
                     .or_insert_with(|| {
                         let new_id = self.pass_items.len();

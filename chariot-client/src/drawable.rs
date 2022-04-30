@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::hash::Hash;
 use wgpu::util::DeviceExt;
 
 use crate::renderer::render_job::*;
@@ -470,39 +471,6 @@ macro_rules! direct_graphics_nodepth_pass {
 
 pub(crate) use direct_graphics_nodepth_pass;
 
-pub fn depth_color_framebuffer(
-    renderer: &Renderer,
-    format: wgpu::TextureFormat,
-) -> (wgpu::Texture, wgpu::Texture, FramebufferDescriptor) {
-    let surface_size = renderer.surface_size();
-    let color_texture = renderer.create_2D_texture(
-        "color_tex",
-        surface_size,
-        format,
-        wgpu::TextureUsages::RENDER_ATTACHMENT
-            | wgpu::TextureUsages::TEXTURE_BINDING
-            | wgpu::TextureUsages::STORAGE_BINDING,
-    );
-
-    let depth_texture = renderer.create_2D_texture(
-        "depth_buffer_tex",
-        surface_size,
-        Renderer::DEPTH_FORMAT,
-        wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
-    );
-
-    let framebuffer_desc = FramebufferDescriptor {
-        color_attachments: vec![color_texture.create_view(&wgpu::TextureViewDescriptor::default())],
-        depth_stencil_attachment: Some(
-            depth_texture.create_view(&wgpu::TextureViewDescriptor::default()),
-        ),
-        clear_color: true,
-        clear_depth: true,
-    };
-
-    (depth_texture, color_texture, framebuffer_desc)
-}
-
 pub struct ForwardDrawTechnique {
     material: MaterialHandle,
     static_mesh: StaticMeshHandle,
@@ -599,8 +567,8 @@ pub struct FSQTechnique {
 }
 
 impl FSQTechnique {
-    fn new(renderer: &Renderer, pass_name: &str) -> Self {
-        let verts_data: [[f32; 2]; 4] = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+    pub fn new(renderer: &Renderer, resources: &ResourceManager, pass_name: &str) -> Self {
+        let verts_data: [[f32; 2]; 4] = [[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0]];
         let inds_data: [u16; 6] = [0, 1, 2, 0, 2, 3];
 
         let vertex_buffer = renderer
@@ -620,7 +588,18 @@ impl FSQTechnique {
             });
 
         // I don't like the idea of making new views all the time but it's too built into the design now; maybe later I'll fix it
-        let color_tex_view = renderer
+        let color_tex_view = resources
+            .framebuffer_tex("forward_out", 0)
+            .expect(
+                format!(
+                    "FSQTechnique ({}) requires forward_out framebuffer to be registered",
+                    pass_name
+                )
+                .as_str(),
+            )
+            .create_view(&wgpu::TextureViewDescriptor::default());
+
+        let normal_tex_view = resources
             .framebuffer_tex("forward_out", 1)
             .expect(
                 format!(
@@ -630,8 +609,10 @@ impl FSQTechnique {
                 .as_str(),
             )
             .create_view(&wgpu::TextureViewDescriptor::default());
+
         let material = MaterialBuilder::new(renderer, pass_name)
             .texture_resource(0, 0, color_tex_view)
+            .texture_resource(0, 1, normal_tex_view)
             .produce();
 
         Self {
@@ -647,11 +628,46 @@ impl Technique for FSQTechnique {
         RenderItem::Graphics {
             pass_name: self.material.pass_name.as_str(),
             framebuffer_name: "surface",
-            num_elements: 2,
+            num_elements: 6,
             vertex_buffers: vec![self.vertex_buffer.slice(..)],
             index_buffer: Some(self.index_buffer.slice(..)),
             index_format: wgpu::IndexFormat::Uint16,
             bind_group: self.material.bind_groups.values().collect(),
         }
+    }
+}
+
+pub struct StaticMeshDrawable2 {
+    forward_draw: ForwardDrawTechnique,
+}
+
+impl StaticMeshDrawable2 {
+    pub fn new(
+        renderer: &Renderer,
+        resources: &ResourceManager,
+        material: MaterialHandle,
+        static_mesh: StaticMeshHandle,
+        submesh_idx: usize,
+    ) -> Self {
+        Self {
+            forward_draw: ForwardDrawTechnique::new(
+                renderer,
+                resources,
+                material,
+                static_mesh,
+                submesh_idx,
+            ),
+        }
+    }
+
+    pub fn update_xforms(&self, renderer: &Renderer, proj_view: &glam::Mat4, model: &glam::Mat4) {
+        let upload_data = [*model, *proj_view];
+        renderer.write_buffer(&self.forward_draw.xform_buffer, &upload_data);
+    }
+}
+
+impl Drawable for StaticMeshDrawable2 {
+    fn render_graph<'a>(&'a self, resources: &'a ResourceManager) -> render_job::RenderGraph<'a> {
+        self.forward_draw.render_item(resources).to_graph()
     }
 }

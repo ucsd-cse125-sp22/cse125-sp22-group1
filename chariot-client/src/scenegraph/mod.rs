@@ -71,6 +71,12 @@ impl Component for Vec<StaticMeshDrawable> {
     }
 }
 
+impl Component for Vec<StaticMeshDrawable2> {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
 pub struct Camera {
     pub orbit_angle: glam::Vec2,
     pub distance: f32,

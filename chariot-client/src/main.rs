@@ -16,7 +16,10 @@ fn main() {
     let mut game_client = game::GameClient::new(ip_addr);
 
     let event_loop = winit::event_loop::EventLoop::new();
-    let context = renderer::context::Context::new(&event_loop);
+    let context = renderer::context::Context::new(
+        &event_loop,
+        winit::dpi::PhysicalSize::<u32>::new(1280, 720),
+    );
     let renderer = renderer::Renderer::new(context);
 
     let mut application = application::Application::new(renderer, game_client);

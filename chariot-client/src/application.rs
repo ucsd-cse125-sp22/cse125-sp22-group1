@@ -17,10 +17,13 @@ pub struct Application {
     pub game: GameClient,
     pub pressed_keys: HashSet<VirtualKeyCode>,
     mouse_pos: PhysicalPosition<f64>,
+    postprocess: FSQTechnique,
 }
 
 impl Application {
     pub fn new(mut renderer: Renderer, game: GameClient) -> Self {
+        let mut resources = ResourceManager::new();
+
         renderer.register_pass(
             "boring",
             &direct_graphics_depth_pass!(include_str!("shader.wgsl")),
@@ -30,20 +33,36 @@ impl Application {
             "forward",
             &indirect_graphics_depth_pass!(
                 include_str!("shader.wgsl"),
-                [wgpu::TextureFormat::Rgba16Float]
+                [
+                    wgpu::TextureFormat::Rgba16Float,
+                    wgpu::TextureFormat::Rgba8Unorm
+                ]
             ),
         );
 
         renderer.register_pass(
             "postprocess",
-            &direct_graphics_nodepth_pass!(include_str!("postprocess.wgsl")),
+            &direct_graphics_depth_pass!(include_str!("postprocess.wgsl")),
         );
 
-        let (depth_tex, color_tex, fb_desc) =
-            depth_color_framebuffer(&renderer, wgpu::TextureFormat::Rgba16Float);
-        renderer.register_framebuffer("forward_out", fb_desc, [depth_tex, color_tex]);
+        let fb_desc = resources.depth_framebuffer(
+            "forward_out",
+            &renderer,
+            &[
+                wgpu::TextureFormat::Rgba16Float,
+                wgpu::TextureFormat::Rgba8Unorm,
+            ],
+            Some(wgpu::Color {
+                r: 0.517,
+                g: 0.780,
+                b: 0.980,
+                a: 1.0,
+            }),
+        );
 
-        let mut resources = ResourceManager::new();
+        renderer.register_framebuffer("forward_out", fb_desc);
+
+        let postprocess = FSQTechnique::new(&renderer, &resources, "postprocess");
 
         let mut world = World::new();
 
@@ -97,6 +116,7 @@ impl Application {
             game,
             pressed_keys: HashSet::new(),
             mouse_pos: PhysicalPosition::<f64> { x: -1.0, y: -1.0 },
+            postprocess,
         }
     }
 
@@ -135,7 +155,9 @@ impl Application {
 
         let view = view_global.inverse() * view_local;
 
-        let proj = glam::Mat4::perspective_rh(f32::to_radians(60.0), 1.0, 0.1, 100.0);
+        let surface_size = self.renderer.surface_size();
+        let aspect_ratio = (surface_size.width as f32) / (surface_size.height as f32);
+        let proj = glam::Mat4::perspective_rh(f32::to_radians(60.0), aspect_ratio, 0.1, 100.0);
         let proj_view = proj * view;
 
         let mut render_job = render_job::RenderJob::default();
@@ -146,7 +168,7 @@ impl Application {
                 .to_mat4();
             let acc_model = *acc * cur_model;
 
-            if let Some(drawables) = e.get_component::<Vec<StaticMeshDrawable>>() {
+            if let Some(drawables) = e.get_component::<Vec<StaticMeshDrawable2>>() {
                 for drawable in drawables.iter() {
                     drawable.update_xforms(&self.renderer, &proj_view, &acc_model);
                     let render_graph = drawable.render_graph(&self.resources);
@@ -156,6 +178,9 @@ impl Application {
 
             acc_model
         });
+
+        let postprocess_graph = self.postprocess.render_item(&self.resources).to_graph();
+        render_job.merge_graph_after("forward", postprocess_graph);
 
         self.renderer.render(&render_job);
     }

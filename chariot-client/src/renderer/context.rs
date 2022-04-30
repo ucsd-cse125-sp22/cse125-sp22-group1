@@ -12,8 +12,13 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn new(event_loop: &winit::event_loop::EventLoop<()>) -> Self {
-        let window = winit::window::Window::new(&event_loop).unwrap();
+    pub fn new(
+        event_loop: &winit::event_loop::EventLoop<()>,
+        size: winit::dpi::PhysicalSize<u32>,
+    ) -> Self {
+        let mut window = winit::window::Window::new(&event_loop).unwrap();
+        window.set_inner_size(size);
+        window.set_resizable(false);
 
         let instance = wgpu::Instance::new(wgpu::Backends::all());
         let surface = unsafe { instance.create_surface(&window) };
