@@ -132,7 +132,8 @@ impl GraphicsManager {
         return Transform {
             translation: location.position.as_vec3(),
             rotation: rotation_1.mul_quat(rotation_2),
-            scale: glam::Vec3::ONE,
+            // only works for chairs! do something more robust for other entities later
+            scale: glam::vec3(1.1995562314987183, 2.2936718463897705, 1.1995562314987183) * 0.2,
         };
     }
 
@@ -178,6 +179,8 @@ impl GraphicsManager {
                 .map_or(Transform::default(), |t| *t);
 
             cur_model_transform.scale = glam::Vec3::ONE;
+            cur_model_transform.rotation = glam::Quat::IDENTITY;
+
             let cur_model = cur_model_transform.to_mat4();
 
             let acc_model = *acc * cur_model;
@@ -190,7 +193,7 @@ impl GraphicsManager {
             acc_model
         });
 
-        let view = view_global.inverse() * view_local;
+        let view = view_local * view_global.inverse();
 
         let proj = glam::Mat4::perspective_rh(f32::to_radians(60.0), 1.0, 0.1, 100.0);
         let proj_view = proj * view;
