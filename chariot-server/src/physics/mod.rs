@@ -29,8 +29,7 @@ impl PlayerEntity {
         let diagonal_1 = lower_right_corner - upper_left_corner;
         let diagonal_2 = upper_right_corner - lower_left_corner;
 
-        // Right hand rule! This should be pointing "upwards"
-        self.entity_location.unit_upward_direction = diagonal_1.cross(diagonal_2).normalize();
+        self.entity_location.unit_upward_direction = diagonal_2.cross(diagonal_1).normalize();
     }
 
     /* Given a set of physical properties, compute and return what next tick's
@@ -104,8 +103,18 @@ impl PlayerEntity {
     }
 
     fn sum_of_self_forces(&self) -> DVec3 {
-        // TODO: this is a hack to get around the fact that some of the non-player-applied forces must be calculated incorrectly T.T
-        return self.player_applied_force_on_object();
+        println!(
+            "forces on this object: applied {}, gravity {}, air resistance {}",
+            self.player_applied_force_on_object(),
+            self.gravitational_force_on_object(),
+            self.air_resistance_force_on_object(),
+        );
+        println!(
+            "is aerial? {} if not: normal {}, rolling resistance {}",
+            self.is_aerial(),
+            self.normal_force_on_object(),
+            self.rolling_resistance_force_on_object()
+        );
 
         let air_forces = self.gravitational_force_on_object()
             + self.player_applied_force_on_object()
