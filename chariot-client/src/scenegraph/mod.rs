@@ -16,6 +16,7 @@ pub trait Component {
     fn as_any(&self) -> &dyn Any;
 }
 
+#[derive(Clone, Copy)]
 pub struct Transform {
     pub translation: glam::Vec3,
     pub rotation: glam::Quat,
@@ -80,7 +81,7 @@ impl Camera {
         let look_rot = glam::Quat::from_euler(
             glam::EulerRot::YXZ,
             self.orbit_angle.x,
-            self.orbit_angle.y,
+            std::f32::consts::PI - self.orbit_angle.y,
             0.0,
         );
         let look_dir = look_rot * glam::Vec3::Z;

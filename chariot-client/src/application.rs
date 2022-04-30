@@ -21,8 +21,6 @@ impl Application {
         let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
         let mut game = game::GameClient::new(ip_addr);
 
-        game.send_ready_packet("standard".to_string());
-
         Self {
             graphics: graphics_manager,
             game,
