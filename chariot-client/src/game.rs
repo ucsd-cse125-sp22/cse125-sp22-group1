@@ -19,11 +19,11 @@ impl GameClient {
         self.connection.sync_outgoing();
     }
 
-    pub fn sync_incoming(&mut self) {
-        self.connection.sync_incoming();
+    pub fn fetch_incoming_packets(&mut self) {
+        self.connection.fetch_incoming_packets();
     }
 
-    pub fn get_incoming_packets(&mut self) -> Vec<ClientBoundPacket> {
+    pub fn current_packets(&mut self) -> Vec<ClientBoundPacket> {
         let mut ret = vec![];
         while let Some(packet) = self.connection.pop_incoming() {
             ret.push(packet);

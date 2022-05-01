@@ -37,9 +37,9 @@ impl Application {
         let mouse_pos = glam::Vec2::new(self.mouse_pos.x as f32, self.mouse_pos.y as f32);
         self.graphics.update(mouse_pos);
 
-        self.game.sync_incoming();
+        self.game.fetch_incoming_packets();
 
-        for packet in self.game.get_incoming_packets() {
+        for packet in self.game.current_packets() {
             match packet {
                 ClientBoundPacket::PlayerNumber(player_number) => {
                     self.graphics.add_player(player_number)

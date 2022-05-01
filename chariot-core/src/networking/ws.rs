@@ -31,7 +31,7 @@ impl WSConnection {
         }
     }
 
-    pub fn sync_incoming(&mut self) {
+    pub fn fetch_incoming_packets(&mut self) {
         let msg_result = self.socket.read_message();
         match msg_result {
             Ok(msg) => {

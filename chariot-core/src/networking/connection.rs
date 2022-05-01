@@ -35,7 +35,7 @@ impl<T: Packet, V: Packet> Connection<T, V> {
             .expect("failed to set connection back to blocking");
     }
 
-    pub fn sync_incoming(&mut self) {
+    pub fn fetch_incoming_packets(&mut self) {
         // fetch packets for this connection until exhausted
         loop {
             // allows us to keep going if there's no input

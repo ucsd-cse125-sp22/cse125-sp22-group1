@@ -57,12 +57,12 @@ impl GameServer {
             // poll for input events and add them to the incoming packet queue
             self.connections
                 .iter_mut()
-                .for_each(|con| con.sync_incoming());
+                .for_each(|con| con.fetch_incoming_packets());
 
             // poll for ws input events
             self.ws_connections
                 .iter_mut()
-                .for_each(|con| con.sync_incoming());
+                .for_each(|con| con.fetch_incoming_packets());
 
             self.process_incoming_packets();
             self.process_ws_packets();
