@@ -1,3 +1,4 @@
+use chariot_core::lap_info::LapInformation;
 use chariot_core::networking::{ClientBoundPacket, ServerBoundPacket, ServerConnection};
 use chariot_core::player_inputs::InputEvent;
 use std::net::TcpStream;
@@ -5,6 +6,7 @@ use winit::event::{ElementState, VirtualKeyCode};
 
 pub struct GameClient {
     connection: ServerConnection,
+    lap_info: LapInformation,
 }
 
 impl GameClient {
@@ -13,6 +15,7 @@ impl GameClient {
         println!("game client now listening on {}", ip_addr);
         GameClient {
             connection: ServerConnection::new(connection),
+            lap_info: LapInformation::new(),
         }
     }
 

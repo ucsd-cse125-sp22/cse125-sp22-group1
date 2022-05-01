@@ -1,3 +1,4 @@
+use chariot_core::lap_info::LapInformation;
 use chariot_core::physics_changes::PhysicsChangeType;
 use glam::DVec3;
 
@@ -6,11 +7,12 @@ use chariot_core::player_inputs::EngineStatus;
 use chariot_core::player_inputs::PlayerInputs;
 use chariot_core::player_inputs::RotationStatus;
 use chariot_core::GLOBAL_CONFIG;
-
 mod collisions;
 pub mod player_entity;
+pub mod trigger_entity;
 
 use player_entity::PlayerEntity;
+use trigger_entity::TriggerEntity;
 
 fn get_height_at_coordinates(_x: f64, _z: f64) -> f64 {
     return 0.0;
@@ -39,6 +41,7 @@ impl PlayerEntity {
         &self,
         time_step: f64,
         potential_colliders: Vec<&PlayerEntity>,
+        potential_triggers: Vec<Box<&dyn TriggerEntity>>,
     ) -> PlayerEntity {
         let self_forces = self.sum_of_self_forces();
         let acceleration = self_forces / self.mass;
@@ -77,9 +80,16 @@ impl PlayerEntity {
             size: self.size,
             bounding_box: self.bounding_box,
             physics_changes: self.physics_changes.clone(),
+            lap_info: self.lap_info,
         };
 
         new_player.apply_physics_changes();
+
+        for b in potential_triggers.iter() {
+            if b.check_bounding_box_collisions(&new_player) {
+                b.trigger(&mut new_player);
+            }
+        }
 
         return new_player;
     }
@@ -193,6 +203,7 @@ impl PlayerEntity {
 
 #[cfg(test)]
 mod tests {
+    use chariot_core::lap_info::LapInformation;
     use glam::DVec3;
 
     use chariot_core::entity_location::EntityLocation;
@@ -224,9 +235,10 @@ mod tests {
             size: DVec3::new(10.0, 10.0, 10.0),
             bounding_box: [[-5.0, 5.0], [-5.0, 5.0], [-5.0, 5.0]],
             physics_changes: Vec::new(),
+            lap_info: LapInformation::new(),
         };
 
-        props = props.do_physics_step(1.0, Vec::new());
+        props = props.do_physics_step(1.0, Vec::new(), Vec::new());
 
         // since we're accelerating, should have the following changes:
         // - should have moved forward by previous velocity times time step
@@ -264,9 +276,10 @@ mod tests {
             size: DVec3::new(10.0, 10.0, 10.0),
             bounding_box: [[15.0, 25.0], [25.0, 35.0], [35.0, 45.0]],
             physics_changes: Vec::new(),
+            lap_info: LapInformation::new(),
         };
 
-        props = props.do_physics_step(1.0, Vec::new());
+        props = props.do_physics_step(1.0, Vec::new(), Vec::new());
 
         // since we're not accelerating, should have the following changes:
         // - should have moved forward by previous velocity times time step
@@ -301,9 +314,10 @@ mod tests {
             size: DVec3::new(10.0, 10.0, 10.0),
             bounding_box: [[15.0, 25.0], [25.0, 35.0], [35.0, 45.0]],
             physics_changes: Vec::new(),
+            lap_info: LapInformation::new(),
         };
 
-        props = props.do_physics_step(1.0, Vec::new());
+        props = props.do_physics_step(1.0, Vec::new(), Vec::new());
 
         // since we're decelerating, should have the following changes:
         // - should have moved forward by previous velocity times time step
@@ -342,14 +356,15 @@ mod tests {
             size: DVec3::new(10.0, 10.0, 10.0),
             bounding_box: [[15.0, 25.0], [25.0, 35.0], [35.0, 45.0]],
             physics_changes: Vec::new(),
+            lap_info: LapInformation::new(),
         };
 
-        props = props.do_physics_step(1.0, Vec::new());
+        props = props.do_physics_step(1.0, Vec::new(), Vec::new());
 
         assert_eq!(props.angular_velocity, GLOBAL_CONFIG.car_spin);
 
         props.player_inputs.rotation_status = RotationStatus::NotInSpin;
-        props = props.do_physics_step(1.0, Vec::new());
+        props = props.do_physics_step(1.0, Vec::new(), Vec::new());
 
         assert_eq!(
             props.angular_velocity,

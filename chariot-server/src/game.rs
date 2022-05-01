@@ -10,7 +10,9 @@ use chariot_core::player_inputs::InputEvent;
 use chariot_core::GLOBAL_CONFIG;
 
 use crate::chairs::get_player_start_physics_properties;
+use crate::checkpoints::{FinishLine, MajorCheckpoint, MinorCheckpoint};
 use crate::physics::player_entity::PlayerEntity;
+use crate::physics::trigger_entity::TriggerEntity;
 
 pub struct GameServer {
     listener: TcpListener,
@@ -18,6 +20,7 @@ pub struct GameServer {
     connections: Vec<ClientConnection>,
     ws_connections: Vec<WebSocketConnection>,
     game_state: ServerGameState,
+    map: Option<Map>,
 }
 
 pub struct ServerGameState {
@@ -40,6 +43,7 @@ impl GameServer {
             game_state: ServerGameState {
                 players: Vec::new(),
             },
+            map: None,
         }
     }
 
@@ -223,6 +227,20 @@ impl GameServer {
             player.set_upward_direction_from_bounding_box();
         }
 
+        let triggers: &mut Vec<Box<&dyn TriggerEntity>> = &mut Vec::new();
+
+        if let Some(map) = &self.map {
+            for checkpoint in map.checkpoints.iter() {
+                triggers.push(Box::new(checkpoint));
+            }
+
+            for zone in map.major_zones.iter() {
+                triggers.push(Box::new(zone));
+            }
+
+            triggers.push(Box::new(&map.finish_line));
+        }
+
         for (this_index, player) in self.game_state.players.iter().enumerate() {
             let others = self
                 .game_state
@@ -233,7 +251,7 @@ impl GameServer {
                 .map(|(_, player_entity)| player_entity)
                 .collect();
 
-            new_players.push(player.do_physics_step(1.0, others));
+            new_players.push(player.do_physics_step(1.0, others, triggers.to_vec()));
         }
 
         self.game_state.players = new_players;
@@ -241,4 +259,10 @@ impl GameServer {
 
     // queue up sending updated game state
     fn sync_state(&mut self) {}
+}
+
+pub struct Map {
+    major_zones: Vec<MajorCheckpoint>,
+    checkpoints: Vec<MinorCheckpoint>,
+    finish_line: FinishLine,
 }

@@ -1,6 +1,6 @@
 use glam::{DVec3, Mat3};
 
-use super::player_entity::PlayerEntity;
+use super::{player_entity::PlayerEntity, trigger_entity::TriggerEntity};
 
 impl PlayerEntity {
     fn check_bounding_box_collisions(&self, other: &PlayerEntity) -> bool {
@@ -124,6 +124,7 @@ impl PlayerEntity {
 mod tests {
     use chariot_core::{
         entity_location::EntityLocation,
+        lap_info::LapInformation,
         player_inputs::{EngineStatus, PlayerInputs, RotationStatus},
     };
     use glam::DVec3;
@@ -150,6 +151,7 @@ mod tests {
             size: DVec3::new(10.0, 10.0, 10.0),
             bounding_box: [[-5.0, 5.0], [-5.0, 5.0], [-5.0, 5.0]],
             physics_changes: Vec::new(),
+            lap_info: LapInformation::new(),
         };
     }
 
