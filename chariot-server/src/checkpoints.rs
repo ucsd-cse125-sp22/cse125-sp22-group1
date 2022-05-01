@@ -89,6 +89,7 @@ impl TriggerEntity for FinishLine {
     fn trigger(&self, ply: &mut PlayerEntity) {
         // Player is only allowed to advance if they are on the track's last zone
         if ply.lap_info.zone == self.last_zone {
+            ply.lap_info.zone = 0;
             ply.lap_info.lap += 1;
         }
     }
