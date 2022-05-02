@@ -21,7 +21,9 @@ pub struct GameServer {
 }
 
 pub struct ServerGameState {
-    players: Vec<PlayerEntity>,
+    players_ready: [bool; 4],
+    new_players_joined: Vec<usize>,
+    players: [PlayerEntity; 4],
 }
 
 impl GameServer {
@@ -38,7 +40,10 @@ impl GameServer {
             connections: Vec::new(),
             ws_connections: Vec::new(),
             game_state: ServerGameState {
-                players: Vec::new(),
+                players_ready: [false, false, false, false],
+                new_players_joined: Vec::new(),
+                players: [0, 1, 2, 3]
+                    .map(|num| get_player_start_physics_properties(&String::from("standard"), num)),
             },
         }
     }
@@ -56,12 +61,12 @@ impl GameServer {
             // poll for input events and add them to the incoming packet queue
             self.connections
                 .iter_mut()
-                .for_each(|con| con.sync_incoming());
+                .for_each(|con| con.fetch_incoming_packets());
 
             // poll for ws input events
             self.ws_connections
                 .iter_mut()
-                .for_each(|con| con.sync_incoming());
+                .for_each(|con| con.fetch_incoming_packets());
 
             self.process_incoming_packets();
             self.process_ws_packets();
@@ -122,32 +127,19 @@ impl GameServer {
         for (i, connection) in self.connections.iter_mut().enumerate() {
             while let Some(packet) = connection.pop_incoming() {
                 match packet {
-                    ServerBoundPacket::Ping => {
-                        println!("Received a Ping packet from client #{}!", i);
-                        connection.push_outgoing(ClientBoundPacket::Pong);
-                        // below sends a message to every single connection
-                        GameServer::broadcast_ws(
-                            &mut self.ws_connections,
-                            Message::Text("".to_string()),
-                        );
-
-                        // self.ws_connections.iter_mut().for_each(|ws| {
-                        //     ws.push_outgoing(Message::Text(format!(
-                        //         "broadcasting that the server got a ping packet from client #{}!",
-                        //         i
-                        //     )));
-                        // })
-                    }
                     ServerBoundPacket::ChairSelectAndReady(chair_name) => {
+                        self.game_state.new_players_joined.push(i);
                         self.game_state.players[i] =
                             get_player_start_physics_properties(&chair_name, i.try_into().unwrap());
                     }
                     ServerBoundPacket::InputToggle(event) => match event {
                         InputEvent::Engine(status) => {
+                            assert!(self.game_state.players_ready[i]);
                             self.game_state.players[i].player_inputs.engine_status = status;
                             println!("Engine status: {:?}", status);
                         }
                         InputEvent::Rotation(status) => {
+                            assert!(self.game_state.players_ready[i]);
                             self.game_state.players[i].player_inputs.rotation_status = status;
                             println!("Turn status: {:?}", status);
                         }
@@ -169,10 +161,6 @@ impl GameServer {
                             i,
                             txt.clone()
                         );
-
-                        self.connections.iter_mut().for_each(|client| {
-                            client.push_outgoing(ClientBoundPacket::Message(txt.clone()))
-                        });
 
                         message_to_send = txt.clone();
                     }
@@ -210,9 +198,13 @@ impl GameServer {
 
     // update game state
     fn simulate_game(&mut self) {
-        let mut new_players = vec![];
-
         let now = Instant::now();
+
+        // Add any new players
+        while let Some(index) = self.game_state.new_players_joined.pop() {
+            self.game_state.players_ready[index] = true;
+            self.connections[index].push_outgoing(ClientBoundPacket::PlayerNumber(index as u8));
+        }
 
         // earlier_time.duration_since(later_time) will return 0; filter out those for which the expiration time is earlier than the current time
         for player in &mut self.game_state.players {
@@ -223,22 +215,33 @@ impl GameServer {
             player.set_upward_direction_from_bounding_box();
         }
 
-        for (this_index, player) in self.game_state.players.iter().enumerate() {
-            let others = self
-                .game_state
+        let others = |this_index: usize| -> Vec<&PlayerEntity> {
+            self.game_state
                 .players
                 .iter()
                 .enumerate()
                 .filter(|(other_index, _)| *other_index != this_index)
+                .filter(|(other_index, _)| self.game_state.players_ready[*other_index])
                 .map(|(_, player_entity)| player_entity)
-                .collect();
+                .collect()
+        };
 
-            new_players.push(player.do_physics_step(1.0, others));
-        }
-
-        self.game_state.players = new_players;
+        self.game_state.players =
+            [0, 1, 2, 3].map(|n| self.game_state.players[n].do_physics_step(1.0, others(n)));
     }
 
     // queue up sending updated game state
-    fn sync_state(&mut self) {}
+    fn sync_state(&mut self) {
+        for connection in &mut self.connections {
+            let locations = [0, 1, 2, 3].map(|n| {
+                if self.game_state.players_ready[n] {
+                    Some(self.game_state.players[n].entity_location.clone())
+                } else {
+                    None
+                }
+            });
+
+            connection.push_outgoing(ClientBoundPacket::LocationUpdate(locations));
+        }
+    }
 }
