@@ -21,6 +21,8 @@ impl Application {
         let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
         let mut game = game::GameClient::new(ip_addr);
 
+        game.send_ready_packet("standard".to_string());
+
         Self {
             graphics: graphics_manager,
             game,
@@ -42,11 +44,14 @@ impl Application {
         for packet in self.game.current_packets() {
             match packet {
                 ClientBoundPacket::PlayerNumber(player_number) => {
-                    self.graphics.add_player(player_number)
+                    self.graphics.add_player(player_number, true)
                 }
                 ClientBoundPacket::LocationUpdate(locations) => {
                     for (i, location) in locations.iter().enumerate() {
-                        self.graphics.update_player_location(location, i as u8);
+                        if location.is_some() {
+                            self.graphics
+                                .update_player_location(&location.unwrap(), i as u8);
+                        }
                     }
                 }
                 _ => {}

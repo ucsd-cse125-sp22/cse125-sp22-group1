@@ -23,11 +23,11 @@ pub enum ClientBoundPacket {
     EveryoneReady,
 
     // During game
-    LocationUpdate([EntityLocation; 4]), // Clients will need to know the location of every player
-    PowerupPickup,                       // Add a payload here when appropriate
-    InteractionActivate,                 // Add a payload here when appropriate
-    LapUpdate(u8),                       // What lap are you now on?
-    PlacementUpdate(u8),                 // What place in the race are you now at?
+    LocationUpdate([Option<EntityLocation>; 4]), // Clients will need to know the location of every player
+    PowerupPickup,                               // Add a payload here when appropriate
+    InteractionActivate,                         // Add a payload here when appropriate
+    LapUpdate(u8),                               // What lap are you now on?
+    PlacementUpdate(u8),                         // What place in the race are you now at?
 
     // After game
     AllDone,

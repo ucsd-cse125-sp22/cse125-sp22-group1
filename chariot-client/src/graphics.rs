@@ -42,31 +42,6 @@ impl GraphicsManager {
         let mut world = World::new();
 
         {
-            let chair_import_result = resources.import_gltf(&mut renderer, "models/chair.glb");
-
-            let mut chair = Entity::new();
-            chair.set_component(Transform {
-                translation: glam::vec3(0.0, 0.5, 0.0),
-                rotation: glam::Quat::IDENTITY,
-                scale: glam::vec3(1.1995562314987183, 2.2936718463897705, 1.1995562314987183) * 0.2,
-            });
-
-            // temporarily commenting this since the new import stuff is in a different branch
-            chair.set_component(
-                chair_import_result
-                    .expect("Failed to import chair")
-                    .drawables,
-            );
-
-            chair.set_component(Camera {
-                orbit_angle: glam::Vec2::ZERO,
-                distance: 2.0,
-            });
-            chair.set_component(EntityID { id: 0 });
-
-            world.root_mut().add_child(chair);
-        }
-        {
             let track_import_result = resources.import_gltf(&mut renderer, "models/racetrack.glb");
 
             let mut track = Entity::new();
@@ -94,29 +69,44 @@ impl GraphicsManager {
         }
     }
 
-    pub fn add_player(&mut self, player_num: u8) {
-        // still using this as the placeholder asset
-        let import_result = self
+    pub fn add_player(&mut self, player_num: u8, is_self: bool) {
+        let chair_import_result = self
             .resources
-            .import_gltf(&mut self.renderer, "models/DamagedHelmet.glb");
+            .import_gltf(&mut self.renderer, "models/chair.glb");
 
-        let mut helmet = Entity::new();
-        helmet.set_component(Transform {
-            translation: glam::Vec3::ZERO,
-            rotation: glam::Quat::from_axis_angle(glam::Vec3::X, f32::to_radians(90.0)),
-            scale: glam::vec3(0.3, 0.3, 0.3),
+        let mut chair = Entity::new();
+        chair.set_component(Transform {
+            translation: glam::vec3(0.0, 0.5, 0.0),
+            rotation: glam::Quat::IDENTITY,
+            scale: glam::vec3(1.1995562314987183, 2.2936718463897705, 1.1995562314987183) * 0.2,
         });
 
-        helmet.set_component(import_result.expect("Failed to import model").drawables);
+        // temporarily commenting this since the new import stuff is in a different branch
+        chair.set_component(
+            chair_import_result
+                .expect("Failed to import chair")
+                .drawables,
+        );
 
-        helmet.set_component(EntityID {
+        // Only follow the new chair around if this is us
+        if is_self {
+            chair.set_component(Camera {
+                orbit_angle: glam::Vec2::ZERO,
+                distance: 2.0,
+            });
+        }
+
+        // But all chairs get displayed and easily indexed
+        chair.set_component(EntityID {
             id: self.next_entity_id,
         });
 
         self.player_ids[player_num as usize] = Some(self.next_entity_id);
         self.next_entity_id += 1;
 
-        self.world.root_mut().add_child(helmet);
+        self.world.root_mut().add_child(chair);
+
+        println!("Adding new player: {}, self? {}", player_num, is_self);
     }
 
     fn EntityLocation_to_Transform(location: &EntityLocation) -> Transform {
@@ -138,24 +128,26 @@ impl GraphicsManager {
     }
 
     pub fn update_player_location(&mut self, location: &EntityLocation, player_num: u8) {
-        if let Some(id) = self.player_ids[player_num as usize] {
-            dfs_mut(self.world.root_mut(), &|e| {
-                if let Some(entity_id) = e.get_component::<EntityID>() {
-                    if entity_id.id == id {
-                        println!("new location for #{}: {}", player_num, location.position);
-                        println!(
-                            "new steer direction for #{}: {}",
-                            player_num, location.unit_steer_direction
-                        );
-                        println!(
-                            "new upward direction for #{}: {}",
-                            player_num, location.unit_upward_direction
-                        );
-                        e.set_component(GraphicsManager::EntityLocation_to_Transform(&location))
-                    }
-                }
-            });
+        if self.player_ids[player_num as usize].is_none() {
+            self.add_player(player_num, false);
         }
+        let id = self.player_ids[player_num as usize].unwrap();
+        dfs_mut(self.world.root_mut(), &|e| {
+            if let Some(entity_id) = e.get_component::<EntityID>() {
+                if entity_id.id == id {
+                    println!("new location for #{}: {}", player_num, location.position);
+                    println!(
+                        "new steer direction for #{}: {}",
+                        player_num, location.unit_steer_direction
+                    );
+                    println!(
+                        "new upward direction for #{}: {}",
+                        player_num, location.unit_upward_direction
+                    );
+                    e.set_component(GraphicsManager::EntityLocation_to_Transform(&location))
+                }
+            }
+        });
     }
 
     pub fn render(&mut self) {
