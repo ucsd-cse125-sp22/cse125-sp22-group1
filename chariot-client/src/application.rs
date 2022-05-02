@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, VirtualKeyCode};
 
+use crate::drawable::technique::Technique;
 use crate::drawable::*;
 use crate::game::GameClient;
 use crate::renderer::*;
@@ -10,6 +11,26 @@ use crate::scenegraph::*;
 
 use chariot_core::player_inputs::{EngineStatus, InputEvent, RotationStatus};
 
+fn register_passes(renderer: &mut Renderer) {
+    renderer.register_pass(
+        "forward",
+        &util::indirect_graphics_depth_pass!(
+            "shaders/forward.wgsl",
+            [
+                wgpu::TextureFormat::Rgba16Float,
+                wgpu::TextureFormat::Rgba8Unorm
+            ]
+        ),
+    );
+
+    renderer.register_pass("shadow", &util::shadow_pass!("shaders/shadow.wgsl"));
+
+    renderer.register_pass(
+        "postprocess",
+        &util::direct_graphics_depth_pass!("shaders/postprocess.wgsl"),
+    );
+}
+
 pub struct Application {
     pub world: World,
     pub renderer: Renderer,
@@ -17,57 +38,47 @@ pub struct Application {
     pub game: GameClient,
     pub pressed_keys: HashSet<VirtualKeyCode>,
     mouse_pos: PhysicalPosition<f64>,
-    postprocess: FSQTechnique,
+    postprocess: technique::FSQTechnique,
 }
 
 impl Application {
     pub fn new(mut renderer: Renderer, game: GameClient) -> Self {
         let mut resources = ResourceManager::new();
 
-        renderer.register_pass(
-            "boring",
-            &direct_graphics_depth_pass!(include_str!("shader.wgsl")),
-        );
-
-        renderer.register_pass(
-            "forward",
-            &indirect_graphics_depth_pass!(
-                include_str!("shader.wgsl"),
-                [
-                    wgpu::TextureFormat::Rgba16Float,
-                    wgpu::TextureFormat::Rgba8Unorm
-                ]
-            ),
-        );
-
-        renderer.register_pass(
-            "postprocess",
-            &direct_graphics_depth_pass!(include_str!("postprocess.wgsl")),
-        );
-
-        let fb_desc = resources.depth_framebuffer(
-            "forward_out",
-            &renderer,
-            &[
-                wgpu::TextureFormat::Rgba16Float,
-                wgpu::TextureFormat::Rgba8Unorm,
-            ],
-            Some(wgpu::Color {
-                r: 0.517,
-                g: 0.780,
-                b: 0.980,
-                a: 1.0,
-            }),
-        );
-
-        renderer.register_framebuffer("forward_out", fb_desc);
-
-        let postprocess = FSQTechnique::new(&renderer, &resources, "postprocess");
-
-        let mut world = World::new();
+        register_passes(&mut renderer);
 
         {
+            let fb_desc = resources.depth_surface_framebuffer(
+                "forward_out",
+                &renderer,
+                &[
+                    wgpu::TextureFormat::Rgba16Float,
+                    wgpu::TextureFormat::Rgba8Unorm,
+                ],
+                Some(wgpu::Color {
+                    r: 0.517,
+                    g: 0.780,
+                    b: 0.980,
+                    a: 1.0,
+                }),
+            );
+
+            renderer.register_framebuffer("forward_out", fb_desc);
+        }
+        {
+            // insanely large shadow map for now
+            let shadow_map_res = winit::dpi::PhysicalSize::<u32>::new(8192, 8192);
+            let fb_desc =
+                resources.depth_framebuffer("shadow_out1", &renderer, shadow_map_res, &[], None);
+            renderer.register_framebuffer("shadow_out1", fb_desc);
+        }
+
+        let postprocess = technique::FSQTechnique::new(&renderer, &resources, "postprocess");
+
+        let mut world = World::new();
+        {
             let chair_import_result = resources.import_gltf(&mut renderer, "models/chair.glb");
+            let chair_import = chair_import_result.expect("Failed to import chair");
 
             let mut chair = Entity::new();
             chair.set_component(Transform {
@@ -77,21 +88,20 @@ impl Application {
             });
 
             // temporarily commenting this since the new import stuff is in a different branch
-            chair.set_component(
-                chair_import_result
-                    .expect("Failed to import chair")
-                    .drawables,
-            );
+            chair.set_component(chair_import.drawables);
 
             chair.set_component(Camera {
                 orbit_angle: glam::Vec2::ZERO,
                 distance: 2.0,
             });
 
+            chair.set_component(chair_import.bounds);
+
             world.root_mut().add_child(chair);
         }
         {
             let track_import_result = resources.import_gltf(&mut renderer, "models/racetrack.glb");
+            let track_import = track_import_result.expect("Unable to load racetrack");
 
             let mut track = Entity::new();
             track.set_component(Transform {
@@ -100,13 +110,20 @@ impl Application {
                 scale: glam::vec3(20.0, 20.0, 20.0),
             });
 
-            track.set_component(
-                track_import_result
-                    .expect("Unable to load racetrack")
-                    .drawables,
-            );
+            track.set_component(track_import.drawables);
+            track.set_component(track_import.bounds);
 
             world.root_mut().add_child(track);
+        }
+
+        {
+            let scene_bounds = world.root().calc_bounds();
+            let mut light = Entity::new();
+            let light_component = Light::new_directional(glam::vec3(-0.5, -1.0, 0.5), scene_bounds);
+            light.set_component(light_component);
+            light.set_component(Transform::default());
+
+            world.root_mut().add_child(light);
         }
 
         Self {
@@ -132,6 +149,7 @@ impl Application {
         // which is kind of annoying. First to find the camera and get the view matrix and again to actually
         // render everything. Ideally maybe in the future this could be simplified
 
+        let mut lights = vec![];
         let mut view_local =
             glam::Mat4::look_at_rh(glam::vec3(0.0, 0.0, -2.0), glam::Vec3::ZERO, glam::Vec3::Y);
         let mut view_global = glam::Mat4::IDENTITY;
@@ -150,15 +168,18 @@ impl Application {
                 view_global = acc_model;
             }
 
+            if let Some(light) = e.get_component::<Light>() {
+                lights.push(light.clone());
+            }
+
             acc_model
         });
 
-        let view = view_global.inverse() * view_local;
+        let view = view_local * view_global.inverse();
 
         let surface_size = self.renderer.surface_size();
         let aspect_ratio = (surface_size.width as f32) / (surface_size.height as f32);
         let proj = glam::Mat4::perspective_rh(f32::to_radians(60.0), aspect_ratio, 0.1, 100.0);
-        let proj_view = proj * view;
 
         let mut render_job = render_job::RenderJob::default();
         dfs_acc(self.world.root_mut(), root_transform, |e, acc| {
@@ -168,9 +189,10 @@ impl Application {
                 .to_mat4();
             let acc_model = *acc * cur_model;
 
-            if let Some(drawables) = e.get_component::<Vec<StaticMeshDrawable2>>() {
+            if let Some(drawables) = e.get_component::<Vec<StaticMeshDrawable>>() {
                 for drawable in drawables.iter() {
-                    drawable.update_xforms(&self.renderer, &proj_view, &acc_model);
+                    drawable.update_xforms(&self.renderer, proj, view, acc_model);
+                    drawable.update_lights(&self.renderer, acc_model, &lights);
                     let render_graph = drawable.render_graph(&self.resources);
                     render_job.merge_graph(render_graph);
                 }
@@ -179,6 +201,13 @@ impl Application {
             acc_model
         });
 
+        self.postprocess
+            .update_view_data(&self.renderer, view, proj);
+        self.postprocess.update_light_data(
+            &self.renderer,
+            lights.first().unwrap().view,
+            lights.first().unwrap().proj,
+        );
         let postprocess_graph = self.postprocess.render_item(&self.resources).to_graph();
         render_job.merge_graph_after("forward", postprocess_graph);
 
@@ -254,6 +283,11 @@ impl Application {
         if let Some(event) = self.get_input_event(key) {
             self.game.send_input_event(event);
         };
+
+        if key == VirtualKeyCode::R {
+            println!("Reloading shaders");
+            register_passes(&mut self.renderer);
+        }
     }
 
     pub fn on_key_up(&mut self, key: VirtualKeyCode) {

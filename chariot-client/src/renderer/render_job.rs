@@ -3,6 +3,7 @@ use std::{
     num::NonZeroU32,
 };
 
+#[allow(dead_code)] // Compute stuff is unused for now
 pub enum RenderPassDescriptor<'a> {
     Graphics {
         source: &'a str,
@@ -48,6 +49,7 @@ pub fn pass_render_pipeline<'a>(pass: &'a RenderPass) -> Option<&'a wgpu::Render
     }
 }
 
+#[allow(dead_code)] // Compute stuff is unused for now
 pub fn pass_compute_pipeline(pass: &RenderPass) -> Option<&wgpu::ComputePipeline> {
     match pass {
         RenderPass::Compute {
@@ -58,19 +60,10 @@ pub fn pass_compute_pipeline(pass: &RenderPass) -> Option<&wgpu::ComputePipeline
 }
 
 /*
- * Ignore this push constant stuff since I've kind of forgotten about it and it's just more work.
- * It's just a way to store small amounts of data in a faster to access way. For now in our game,
- * any uniforms will just be stored in a uniform buffer and accessed through a bind group.
- */
-pub struct PushConstantData<'a> {
-    stages: wgpu::ShaderStages,
-    offset: u32,
-    data: &'a [u8],
-}
-
-/*
  * A RenderItem stores all state for a single draw call (or in the future, a compute dispatch call)
  */
+
+#[allow(dead_code)] // Compute and Custom stuff is unused for now
 #[derive(Clone)]
 pub enum RenderItem<'a> {
     Graphics {
@@ -85,7 +78,6 @@ pub enum RenderItem<'a> {
     Compute {
         pass_name: &'a str,
         bind_group: Vec<&'a wgpu::BindGroup>,
-        push_constants: &'a [PushConstantData<'a>],
     },
     Custom {
         pass_name: &'a str,
@@ -200,6 +192,7 @@ impl<'a> RenderGraphBuilder<'a> {
 
         if deps.is_empty() {
             self.render_graph.roots.push(res_id);
+            self.render_graph.nodes.insert(res_id, vec![]);
         }
 
         res_id

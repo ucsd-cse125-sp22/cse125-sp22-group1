@@ -4,6 +4,7 @@
  * TODO: Maybe in the future I'll add initial width and height paramters.
  */
 
+#[allow(dead_code)] // instance is just here to be kept alive
 pub struct Context {
     pub(super) window: winit::window::Window,
     pub(super) instance: wgpu::Instance,
@@ -16,7 +17,7 @@ impl Context {
         event_loop: &winit::event_loop::EventLoop<()>,
         size: winit::dpi::PhysicalSize<u32>,
     ) -> Self {
-        let mut window = winit::window::Window::new(&event_loop).unwrap();
+        let window = winit::window::Window::new(&event_loop).unwrap();
         window.set_inner_size(size);
         window.set_resizable(false);
 

@@ -1,7 +1,6 @@
 use std::{
-    borrow::{Borrow, Cow},
+    borrow::Cow,
     collections::HashMap,
-    iter::Peekable,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -11,6 +10,7 @@ use winit::dpi::PhysicalSize;
 pub mod context;
 mod reflection;
 pub mod render_job;
+pub mod util;
 
 use context::*;
 use reflection::shader_metadata;
@@ -111,20 +111,6 @@ impl Renderer {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
         });
 
-        let depth_texture_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
-        let depth_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Nearest,
-            compare: Some(wgpu::CompareFunction::LessEqual),
-            lod_min_clamp: -100.0,
-            lod_max_clamp: 100.0,
-            ..Default::default()
-        });
-
         let passes = HashMap::new();
         let framebuffers = HashMap::new();
         let bind_group_layouts = HashMap::new();
@@ -155,10 +141,6 @@ impl Renderer {
 
     // TODO: add index buffer layout
     pub fn register_pass(&mut self, name: &str, render_pass_desc: &RenderPassDescriptor) {
-        if self.passes.contains_key(name) {
-            return;
-        }
-
         match render_pass_desc {
             RenderPassDescriptor::Graphics {
                 source,
@@ -338,7 +320,8 @@ impl Renderer {
         })
     }
 
-    pub fn create_2D_texture_init(
+    #[allow(non_snake_case)]
+    pub fn create_texture2D_init(
         &self,
         name: &str,
         size: PhysicalSize<u32>,
@@ -366,7 +349,8 @@ impl Renderer {
         // TODO: mipmapping
     }
 
-    pub fn create_2D_texture(
+    #[allow(non_snake_case)]
+    pub fn create_texture2D(
         &self,
         name: &str,
         size: PhysicalSize<u32>,
@@ -533,9 +517,9 @@ impl Renderer {
                 .expect("Invalid pass name in graph");
             match pass {
                 RenderPass::Graphics {
-                    shader,
-                    pipeline_layout,
-                    render_pipeline,
+                    shader: _,
+                    pipeline_layout: _,
+                    render_pipeline: _,
                 } => {
                     let fb_name = render_item_framebuffer_name(&items[0]).unwrap();
                     let mut wgpu_rpass =
