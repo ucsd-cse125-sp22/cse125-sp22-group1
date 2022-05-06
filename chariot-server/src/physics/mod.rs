@@ -112,7 +112,6 @@ impl PlayerEntity {
     }
 
     fn sum_of_self_forces(&self) -> DVec3 {
-        /*
         println!(
             "forces on this object: applied {}, gravity {}, air resistance {}",
             self.player_applied_force_on_object(),
@@ -125,7 +124,6 @@ impl PlayerEntity {
             self.normal_force_on_object(),
             self.rolling_resistance_force_on_object()
         );
-        */
 
         let air_forces = self.gravitational_force_on_object()
             + self.player_applied_force_on_object()
@@ -273,7 +271,10 @@ mod tests {
             + DVec3::new(0.6, 0.0, 0.8) * GLOBAL_CONFIG.car_accelerator
             + DVec3::new(-2.0, 0.0, -1.0) * GLOBAL_CONFIG.drag_coefficient * (5.0 as f64).sqrt()
             + DVec3::new(-2.0, 0.0, -1.0) * GLOBAL_CONFIG.rolling_resistance_coefficient;
-        assert!(props.velocity.abs_diff_eq(expected_velocity, 0.001));
+        assert!(props.velocity.abs_diff_eq(
+            expected_velocity.normalize() * GLOBAL_CONFIG.max_car_speed,
+            0.001
+        ));
     }
 
     #[test]
@@ -311,7 +312,10 @@ mod tests {
         let expected_velocity = DVec3::new(2.0, 0.0, 1.0)
             + DVec3::new(-2.0, 0.0, -1.0) * GLOBAL_CONFIG.drag_coefficient * (5.0 as f64).sqrt()
             + DVec3::new(-2.0, 0.0, -1.0) * GLOBAL_CONFIG.rolling_resistance_coefficient;
-        assert!(props.velocity.abs_diff_eq(expected_velocity, 0.001));
+        assert!(props.velocity.abs_diff_eq(
+            expected_velocity.normalize() * GLOBAL_CONFIG.max_car_speed,
+            0.001
+        ));
     }
     #[test]
     fn test_decelerating() {
@@ -351,7 +355,10 @@ mod tests {
             + (neg_prev_velocity / neg_prev_velocity.length()) * GLOBAL_CONFIG.car_brake
             + neg_prev_velocity * GLOBAL_CONFIG.drag_coefficient * (5.0 as f64).sqrt()
             + neg_prev_velocity * GLOBAL_CONFIG.rolling_resistance_coefficient;
-        assert!(props.velocity.abs_diff_eq(expected_velocity, 0.001));
+        assert!(props.velocity.abs_diff_eq(
+            expected_velocity.normalize() * GLOBAL_CONFIG.max_car_speed,
+            0.001
+        ));
     }
 
     #[test]

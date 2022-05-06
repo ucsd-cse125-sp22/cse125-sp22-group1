@@ -45,11 +45,11 @@ impl Settings {
             // smaller (~30 times smaller is realistic) than
             // `rolling_resistance_coefficient` to have the (correct) property
             // that drag dominates at higher speeds.
-            .set_default("drag_coefficient", 0.015)?
+            .set_default("drag_coefficient", 0.003)?
             // Rolling resistance is modelled as being linearly proportional to
             // velocity; see notes about the drag coefficient for information
             // about their relative magnitudes.
-            .set_default("rolling_resistance_coefficient", 0.4)?
+            .set_default("rolling_resistance_coefficient", 0.08)?
             // This doesn't have a real-world equivalent, but we might call it
             // the rotational analogue of friction: each time step in free
             // rotation, what proportion of angular velocity should be
@@ -60,9 +60,9 @@ impl Settings {
             // Coefficient to control how forceful player-controlled braking is
             .set_default("car_brake", 0.05)?
             // Coefficient to control how fast the player can spin
-            .set_default("car_spin", 0.5)?
+            .set_default("car_spin", 0.025)?
             .set_default("max_car_speed", 1.0)?
-            .set_default("max_car_spin", 0.1)?
+            .set_default("max_car_spin", 0.25)?
             .add_source(File::with_name("config.yaml").required(false))
             .build()?;
 
