@@ -43,10 +43,14 @@ impl PlayerEntity {
         let acceleration = self_forces / self.mass;
 
         let angular_velocity: f64 = match self.player_inputs.rotation_status {
-            RotationStatus::InSpinClockwise => self.angular_velocity + GLOBAL_CONFIG.car_spin,
-            RotationStatus::InSpinCounterclockwise => {
-                self.angular_velocity - GLOBAL_CONFIG.car_spin
-            }
+            RotationStatus::InSpinClockwise => f64::min(
+                GLOBAL_CONFIG.max_car_spin,
+                self.angular_velocity + GLOBAL_CONFIG.car_spin,
+            ),
+            RotationStatus::InSpinCounterclockwise => f64::max(
+                -GLOBAL_CONFIG.max_car_spin,
+                self.angular_velocity - GLOBAL_CONFIG.car_spin,
+            ),
             RotationStatus::NotInSpin => {
                 self.angular_velocity * GLOBAL_CONFIG.rotation_reduction_coefficient
             }
@@ -68,6 +72,11 @@ impl PlayerEntity {
             delta_velocity += self.delta_v_from_collision_with_player(collider);
         }
 
+        let mut new_velocity = self.velocity + delta_velocity;
+        if new_velocity.length() > GLOBAL_CONFIG.max_car_speed {
+            new_velocity = new_velocity.normalize() * GLOBAL_CONFIG.max_car_speed;
+        }
+
         let mut new_player = PlayerEntity {
             player_inputs: PlayerInputs {
                 engine_status: self.player_inputs.engine_status,
@@ -80,7 +89,7 @@ impl PlayerEntity {
                 unit_upward_direction: self.entity_location.unit_upward_direction,
             },
 
-            velocity: self.velocity + delta_velocity,
+            velocity: new_velocity,
             angular_velocity: angular_velocity,
             mass: self.mass,
             size: self.size,
@@ -103,6 +112,7 @@ impl PlayerEntity {
     }
 
     fn sum_of_self_forces(&self) -> DVec3 {
+        /*
         println!(
             "forces on this object: applied {}, gravity {}, air resistance {}",
             self.player_applied_force_on_object(),
@@ -115,6 +125,7 @@ impl PlayerEntity {
             self.normal_force_on_object(),
             self.rolling_resistance_force_on_object()
         );
+        */
 
         let air_forces = self.gravitational_force_on_object()
             + self.player_applied_force_on_object()

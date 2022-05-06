@@ -20,6 +20,9 @@ pub struct Settings {
     pub car_accelerator: f64,
     pub car_brake: f64,
     pub car_spin: f64,
+
+    pub max_car_speed: f64,
+    pub max_car_spin: f64,
 }
 
 impl Settings {
