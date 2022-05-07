@@ -1,6 +1,9 @@
+use serde_json::Error;
 use std::collections::VecDeque;
 use std::net::TcpStream;
 pub use tungstenite::{accept, Message, WebSocket};
+
+use super::{WSAudienceBoundMessage, WSServerBoundMessage};
 
 pub struct WSConnection {
     socket: WebSocket<TcpStream>,
@@ -37,7 +40,20 @@ impl WSConnection {
             Ok(msg) => {
                 if msg.is_binary() || msg.is_text() {
                     // this is where we handle shit
-                    self.incoming_packets.push_back(msg);
+                    let txt = msg
+                        .to_text()
+                        .expect("should have been able to convert message to string");
+                    let message_result: Result<WSServerBoundMessage, Error> =
+                        serde_json::from_str(txt);
+                    if message_result.is_err() {
+                        self.incoming_packets.push_back(msg);
+                    } else {
+                        match message_result.unwrap() {
+                            WSServerBoundMessage::Vote(uuid, option) => {
+                                println!("{} voted for {}", uuid, option)
+                            }
+                        }
+                    }
                 }
             }
             Err(_) => {}
@@ -52,11 +68,18 @@ impl WSConnection {
         self.outgoing_packets.push_back(packet);
     }
 
+    pub fn push_outgoing_messge(&mut self, packet: WSAudienceBoundMessage) -> () {
+        let json_string =
+            serde_json::to_string(&packet).expect("should have been able to serialize packet");
+        let message = Message::Text(json_string);
+        self.push_outgoing(message);
+    }
+
     // send packets on this connection until exhausted
     pub fn sync_outgoing(&mut self) {
         println!("{}", self.outgoing_packets.len());
         while let Some(msg) = self.outgoing_packets.pop_front() {
-            if (self.socket.can_write()) {
+            if self.socket.can_write() {
                 self.socket
                     .write_message(msg)
                     .expect("should have been able to send message");

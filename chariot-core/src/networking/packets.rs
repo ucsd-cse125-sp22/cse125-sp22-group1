@@ -4,6 +4,8 @@ use bincode::{DefaultOptions, Options, Result};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
+pub use uuid::Uuid;
+
 use crate::entity_location::EntityLocation;
 use crate::player_inputs::InputEvent;
 
@@ -47,3 +49,17 @@ pub trait Packet: Serialize + DeserializeOwned {
 
 impl Packet for ClientBoundPacket {}
 impl Packet for ServerBoundPacket {}
+
+#[derive(Serialize, Deserialize)]
+pub enum WSAudienceBoundMessage {
+    Prompt(String, (String, String, String, String)), // Question, 4 Answer Choices
+
+    Winner(u32), // The winning choice (tuple index)
+
+    Assignment(Uuid), // Sends a uuid that the server will use to identify the client
+}
+
+#[derive(Serialize, Deserialize)]
+pub enum WSServerBoundMessage {
+    Vote(String, u32), // Client UUID, the option to vote for
+}

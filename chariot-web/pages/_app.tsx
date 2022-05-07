@@ -7,6 +7,7 @@ import { GlobalContext } from '../src/contexts/GlobalContext';
 function MyApp({ Component, pageProps }: AppProps) {
 	const [statusMessage, setStatusMessage] = useState("i prefer folding");
 	const [socket, setSocket] = useState<WebSocket | null>(null);
+	const [uuid, setUuid] = useState("");
 
 	return (
 		<GlobalContext.Provider value={{
@@ -14,6 +15,8 @@ function MyApp({ Component, pageProps }: AppProps) {
 			setStatusMessage,
 			socket,
 			setSocket,
+			uuid,
+			setUuid
 		}}>
 			<div className={styles.main}>
 				<div className={styles.header}>

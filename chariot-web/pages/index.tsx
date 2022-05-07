@@ -3,6 +3,7 @@ import Router from 'next/router'
 import { useContext, useState } from 'react'
 import { Button } from '../src/components/Button'
 import { GlobalContext } from '../src/contexts/GlobalContext'
+import { handleSocket } from '../src/utils/networking'
 
 const Home: NextPage = () => {
 	const context = useContext(GlobalContext);
@@ -23,7 +24,7 @@ const Home: NextPage = () => {
 		}
 
 		sock.onmessage = (msg) => {
-			console.log(msg);
+			handleSocket(context, msg);
 		}
 
 	}

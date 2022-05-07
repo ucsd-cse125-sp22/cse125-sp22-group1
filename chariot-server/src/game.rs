@@ -1,10 +1,13 @@
+use std::collections::HashMap;
 use std::net::TcpListener;
 use std::thread::{self};
 use std::time::{Duration, Instant};
 
 use chariot_core::networking::ws::Message;
+use chariot_core::networking::Uuid;
 use chariot_core::networking::{
-    ClientBoundPacket, ClientConnection, ServerBoundPacket, WebSocketConnection,
+    ClientBoundPacket, ClientConnection, ServerBoundPacket, WSAudienceBoundMessage,
+    WebSocketConnection,
 };
 use chariot_core::player_inputs::InputEvent;
 use chariot_core::GLOBAL_CONFIG;
@@ -16,7 +19,7 @@ pub struct GameServer {
     listener: TcpListener,
     ws_server: TcpListener,
     connections: Vec<ClientConnection>,
-    ws_connections: Vec<WebSocketConnection>,
+    ws_connections: HashMap<Uuid, WebSocketConnection>,
     game_state: ServerGameState,
 }
 
@@ -24,6 +27,7 @@ pub struct ServerGameState {
     players_ready: [bool; 4],
     new_players_joined: Vec<usize>,
     players: [PlayerEntity; 4],
+    audience_votes: HashMap<Uuid, u32>,
 }
 
 impl GameServer {
@@ -38,12 +42,13 @@ impl GameServer {
             listener,
             ws_server,
             connections: Vec::new(),
-            ws_connections: Vec::new(),
+            ws_connections: HashMap::new(),
             game_state: ServerGameState {
                 players_ready: [false, false, false, false],
                 new_players_joined: Vec::new(),
                 players: [0, 1, 2, 3]
                     .map(|num| get_player_start_physics_properties(&String::from("standard"), num)),
+                audience_votes: HashMap::new(),
             },
         }
     }
@@ -66,7 +71,7 @@ impl GameServer {
             // poll for ws input events
             self.ws_connections
                 .iter_mut()
-                .for_each(|con| con.fetch_incoming_packets());
+                .for_each(|(_, con)| con.fetch_incoming_packets());
 
             self.process_incoming_packets();
             self.process_ws_packets();
@@ -80,7 +85,7 @@ impl GameServer {
 
             self.ws_connections
                 .iter_mut()
-                .for_each(|con| con.sync_outgoing());
+                .for_each(|(_, con)| con.sync_outgoing());
 
             // wait until server tick time has elapsed
             let remaining_tick_duration = max_server_tick_duration
@@ -109,10 +114,14 @@ impl GameServer {
             .set_nonblocking(true)
             .expect("non blocking should be ok");
 
+        let mut new_uuids: Vec<Uuid> = Vec::new();
+
         if let Some(stream_result) = self.ws_server.incoming().next() {
             if let Ok(stream) = stream_result {
-                println!("we have a stream now");
-                self.ws_connections.push(WebSocketConnection::new(stream));
+                let id = Uuid::new_v4();
+                let connection = WebSocketConnection::new(stream);
+                self.ws_connections.insert(id, connection);
+                new_uuids.push(id);
                 println!("acquired an audience connection!");
             }
         }
@@ -120,6 +129,27 @@ impl GameServer {
         self.ws_server
             .set_nonblocking(false)
             .expect("non blocking should be ok");
+
+        for id in new_uuids {
+            self.ws_connections
+                .get_mut(&id)
+                .unwrap()
+                .push_outgoing_messge(WSAudienceBoundMessage::Assignment(id));
+
+            self.ws_connections
+                .get_mut(&id)
+                .unwrap()
+                .push_outgoing_messge(WSAudienceBoundMessage::Prompt(
+                    "How much would could a woodchuck chuck if a woodchuck could chuck wood?"
+                        .to_string(),
+                    (
+                        "10 woods".to_string(),
+                        "15 woods".to_string(),
+                        "20 woods".to_string(),
+                        "no wood".to_string(),
+                    ),
+                ));
+        }
     }
 
     // handle every packet in received order
@@ -152,46 +182,38 @@ impl GameServer {
     // handle socket data
     fn process_ws_packets(&mut self) {
         let mut message_to_send = String::new();
-        for (i, connection) in self.ws_connections.iter_mut().enumerate() {
+        for (id, connection) in self.ws_connections.iter_mut() {
             while let Some(packet) = connection.pop_incoming() {
                 match packet {
                     Message::Text(txt) => {
                         println!(
                             "got message from client #{} of type Text, it says {}",
-                            i,
+                            id,
                             txt.clone()
                         );
 
                         message_to_send = txt.clone();
                     }
                     Message::Binary(_) => {
-                        println!("got message from client #{} of type Binary", i)
+                        println!("got message from client #{} of type Binary", id)
                     }
                     Message::Ping(_) => {
-                        println!("got message from client #{} of type Ping", i)
+                        println!("got message from client #{} of type Ping", id)
                     }
                     Message::Pong(_) => {
-                        println!("got message from client #{} of type Pong", i)
+                        println!("got message from client #{} of type Pong", id)
                     }
                     Message::Close(_) => {
-                        println!("got message from client #{} of type Close", i)
+                        println!("got message from client #{} of type Close", id)
                     }
                 }
             }
         }
-
-        if message_to_send.len() > 0 {
-            // comment out later ; this is just for testing
-            GameServer::broadcast_ws(
-                &mut self.ws_connections,
-                Message::Text(message_to_send.clone()),
-            );
-        }
     }
 
     // sends a message to all connected web clients
-    fn broadcast_ws(ws_connections: &mut Vec<WebSocketConnection>, message: Message) {
-        ws_connections.iter_mut().for_each(|con| {
+    fn broadcast_ws(ws_connections: &mut HashMap<Uuid, WebSocketConnection>, message: Message) {
+        ws_connections.iter_mut().for_each(|(_, con)| {
             con.push_outgoing(message.clone());
         });
     }
