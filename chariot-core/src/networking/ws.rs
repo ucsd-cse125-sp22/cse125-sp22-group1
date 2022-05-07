@@ -54,10 +54,13 @@ impl WSConnection {
 
     // send packets on this connection until exhausted
     pub fn sync_outgoing(&mut self) {
+        println!("{}", self.outgoing_packets.len());
         while let Some(msg) = self.outgoing_packets.pop_front() {
-            self.socket
-                .write_message(msg)
-                .expect("should have been able to send message");
+            if (self.socket.can_write()) {
+                self.socket
+                    .write_message(msg)
+                    .expect("should have been able to send message");
+            }
         }
     }
 }

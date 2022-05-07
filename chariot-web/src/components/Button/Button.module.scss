@@ -1,0 +1,55 @@
+.button {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	font-weight: 800;
+	box-shadow: 5px 5px 5px;
+	padding: 1em;
+	margin: auto;
+	text-align: center;
+}
+
+.full {
+	width: 18vh;
+	height: 18vh;
+}
+
+.button{
+	position: relative;
+	cursor:pointer;
+	text-align: center;
+	text-decoration: none;
+	cursor: pointer;
+	transition-duration: 0.4s;
+	-webkit-transition-duration: 0.4s; /* Safari */
+  }
+  
+  .button:hover {
+	transition-duration: 0.1s;;
+  }
+  
+  .button:after {
+	content: "";
+	display: block;
+	position: absolute;
+	left: 0;
+	top:0;
+	width: 100%;
+	height: 100%;
+	opacity: 0;
+	transition: all 0.5s;
+	box-shadow: 0 0 10px 40px black;
+  }
+  
+  .button:active:after {
+	box-shadow: 0 0 0 0 black;
+	position: absolute;
+	left: 0;
+	top:0;
+	opacity: 1;
+	transition: 0s;
+  }
+  
+  .button:active {
+	top: 1px;
+  }
