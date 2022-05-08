@@ -38,13 +38,33 @@ struct FramebufferData {
 	[[location(1)]] normal: vec4<f32>;
 };
 
+fn srgb_to_linear(x: f32) -> f32{
+	if (x <= 0.0) {
+		return 0.0;
+	} else if (x >= 1.0) {
+		return 1.0;
+	} else if (x < 0.04045) {
+		return x / 12.92;
+	} else {
+		return pow((x + 0.055) / 1.055, 2.4);
+	}
+}
+
+fn srgb_to_linear_color(x: vec4<f32>) -> vec4<f32> {
+	return vec4<f32>(
+		srgb_to_linear(x.r), srgb_to_linear(x.g), 
+		srgb_to_linear(x.b), srgb_to_linear(x.a)
+	);
+}
+
 [[stage(fragment)]]
 fn fs_main(in: VertexOutput) -> FramebufferData {
     //return vec4<f32>((in.normal.xyz + 1.0) * 0.5, 1.0);
 	let tc_transformed = vec2<f32>(in.tex_coords.x, in.tex_coords.y);
+	let srgb_color = textureSample(t_diffuse, s_diffuse, tc_transformed);
 
 	var data : FramebufferData;
-	data.color = textureSample(t_diffuse, s_diffuse, tc_transformed);
+	data.color = srgb_color;
 	data.normal = vec4<f32>(in.normal, f32(material.id) * 5.0);
 	return data;
 }

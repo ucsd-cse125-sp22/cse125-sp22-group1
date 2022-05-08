@@ -79,9 +79,14 @@ impl StaticMeshDrawable {
             .update(renderer, &[model, view_proj, normal_to_local]);
     }
 
-    pub fn update_lights(&self, renderer: &Renderer, model: glam::Mat4, lights: &[Light]) {
-        for (idx, light) in lights.iter().enumerate() {
-            let mvp = light.proj * light.view * model;
+    pub fn update_lights(
+        &self,
+        renderer: &Renderer,
+        model: glam::Mat4,
+        light_vps: &[(glam::Mat4, glam::Mat4)],
+    ) {
+        for (idx, (light_view, light_proj)) in light_vps.iter().enumerate() {
+            let mvp = (*light_proj) * (*light_view) * model;
             self.shadow_draws[idx].mvp_xform.update(renderer, &[mvp]);
         }
     }

@@ -64,6 +64,25 @@ fn world_pos_to_light_pos(world_pos: vec3<f32>) -> vec3<f32> {
 	return light_pos;
 }
 
+fn srgb_to_linear(x: f32) -> f32{
+	if (x <= 0.0) {
+		return 0.0;
+	} else if (x >= 1.0) {
+		return 1.0;
+	} else if (x < 0.04045) {
+		return x / 12.92;
+	} else {
+		return pow((x + 0.055) / 1.055, 2.4);
+	}
+}
+
+fn srgb_to_linear_color(x: vec4<f32>) -> vec4<f32> {
+	return vec4<f32>(
+		srgb_to_linear(x.r), srgb_to_linear(x.g), 
+		srgb_to_linear(x.b), srgb_to_linear(x.a)
+	);
+}
+
 
 [[stage(fragment)]]
 fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
@@ -75,6 +94,8 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 
 	let tc = vec2<i32>(in.xy);
 	let tcn = in.xy / surface_sizef;
+
+	let tc_shadow = vec2<i32>(tcn * shadow_sizef);
 
 	var acc : VarianceInfo;
 	acc.count = 0;
@@ -139,29 +160,36 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 
 	let variance = length(acc.m2 / vec4<f32>(f32(acc.count)));
 	let edge_col = vec3<f32>(0.29, 0.22, 0.06);
-	let edge_shade = edge_col * variance;
+	var edge_shade = pow(variance, 0.7);
 
 	let light_dir = vec3<f32>(-0.5, -1.0, 0.5);
 	let world_normal = textureLoad(t_normal, tc + vec2<i32>(0,  0), 0).xyz;
 
 	//let world_normal = normalize((view.normal_to_world * vec4<f32>(local_normal, 0.0)).xyz);
+	//let color = srgb_to_linear_color(textureLoad(t_forward, tc, 0)).rgb;
 	let color = textureLoad(t_forward, tc, 0).rgb;
-	let diffuse = max(dot(world_normal, -light_dir), 0.0) * color;
+	let diffuse = max(dot(world_normal, -light_dir), 0.0);
 
 	//return vec4<f32>(variance) + diffuse;
 	let depth = textureLoad(t_depth, tc, 0).r;
 	let world_pos = world_pos_from_depth(tcn, depth);
 	let light_pos = world_pos_to_light_pos(world_pos);
-	let light_depth = textureLoad(t_shadow, vec2<i32>(light_pos.xy * shadow_sizef), 0).r;
+	
+	var light_depth: f32 = 100.0;
+	if (light_pos.x > -1.0 && light_pos.x < 1.0 && light_pos.y > -1.0 && light_pos.y < 1.0) {
+		light_depth = textureLoad(t_shadow, vec2<i32>(light_pos.xy * shadow_sizef), 0).r;
+	}
 	
 	var shadow = vec3<f32>(1.0); 
 	if (light_pos.z > light_depth - 0.00004) {
 		shadow = vec3<f32>(0.0); 
 	}
 
-	let ambient = vec3<f32>(0.02);
-	let shaded = shadow * diffuse + ambient + edge_shade;
+	let ambient = vec3<f32>(0.06);
+	let shaded = ((shadow * diffuse) + ambient) * color * (1.0 - edge_shade) + edge_shade * edge_col;
 
+	let s_col = textureLoad(t_shadow, tc_shadow, 0).r;
+	//return vec4<f32>(s_col, s_col, s_col, 1.0);
 	return vec4<f32>(shaded, 1.0);
 	//return vec4<f32>((world_normal+1.0)*0.5, 1.0);
 }

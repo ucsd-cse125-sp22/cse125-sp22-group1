@@ -147,7 +147,7 @@ impl ResourceManager {
             );
 
             if mesh.primitives().len() != 1 {
-                print!(
+                println!(
                     "Warning: I'm expecting one prim per mesh so things might not work properly"
                 );
             }
@@ -174,14 +174,16 @@ impl ResourceManager {
             material_handles.push(handle);
         }
 
+        let mut handle_idx = 0;
         let mut drawables = Vec::<StaticMeshDrawable>::new();
         for (mesh_idx, mesh) in document.meshes().enumerate() {
             for (prim_idx, primitive) in mesh.primitives().enumerate() {
                 let material_handle = material_handles[primitive.material().index().unwrap()];
-                let mesh_handle = mesh_handles[mesh_idx]; // TODO: bug if more than one prim per mesh
+                let mesh_handle = mesh_handles[handle_idx]; // TODO: bug if more than one prim per mesh
                 let drawable =
                     StaticMeshDrawable::new(renderer, self, material_handle, mesh_handle, 0);
                 drawables.push(drawable);
+                handle_idx += 1;
             }
         }
 
@@ -336,16 +338,40 @@ impl ResourceManager {
         images: &[TextureHandle],
         material: &gltf::Material,
     ) -> MaterialHandle {
-        let base_color_info = material
-            .pbr_metallic_roughness()
+        let pbr_metallic_roughness = material.pbr_metallic_roughness();
+        let base_color_index = pbr_metallic_roughness
             .base_color_texture()
-            .expect("No base color tex for material");
-        let base_color_handle = images[base_color_info.texture().source().index()];
-        let base_color_view = self
-            .textures
-            .get(&base_color_handle)
-            .expect("Couldn't find base texture")
-            .create_view(&wgpu::TextureViewDescriptor::default());
+            .map(|info| info.texture().source().index())
+            .unwrap_or(0); //"No base color tex for material");
+        let base_color_handle = images[base_color_index];
+        let base_color_view = if let Some(tex_info) = pbr_metallic_roughness.base_color_texture() {
+            self.textures
+                .get(&base_color_handle)
+                .expect("Couldn't find base texture")
+                .create_view(&wgpu::TextureViewDescriptor::default())
+        } else {
+            let bc = pbr_metallic_roughness.base_color_factor();
+            let bc_data = [
+                (255.0 * bc[0]) as u8,
+                (255.0 * bc[1]) as u8,
+                (255.0 * bc[2]) as u8,
+                (255.0 * bc[3]) as u8,
+            ];
+            let mat_name = material.name().unwrap_or("unnamed");
+            let constant_color_tex = renderer.create_texture2D_init(
+                mat_name,
+                winit::dpi::PhysicalSize::new(1, 1),
+                wgpu::TextureFormat::Rgba8Unorm,
+                wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::STORAGE_BINDING,
+                bytemuck::bytes_of(&[bc_data]),
+            );
+            let tex_handle = TextureHandle::unique();
+            self.textures.insert(tex_handle, constant_color_tex);
+            self.textures
+                .get(&tex_handle)
+                .unwrap()
+                .create_view(&wgpu::TextureViewDescriptor::default())
+        };
 
         let sampler = renderer.device.create_sampler(&wgpu::SamplerDescriptor {
             address_mode_u: wgpu::AddressMode::ClampToEdge,

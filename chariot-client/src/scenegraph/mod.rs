@@ -119,6 +119,16 @@ impl Component for Transform {
     }
 }
 
+pub struct EntityID {
+    pub id: u64,
+}
+
+impl Component for EntityID {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
 struct PlayerController {}
 
 impl PlayerController {
@@ -174,19 +184,25 @@ impl Component for Camera {
 
 #[derive(Clone)]
 pub struct Light {
-    pub view: glam::Mat4,
-    pub proj: glam::Mat4,
+    pub dir: glam::Vec3,
     pub framebuffer_name: String,
 }
 
 impl Light {
     pub fn new_directional(dir: glam::Vec3, bounds: Bounds) -> Self {
+        Self {
+            dir,
+            framebuffer_name: "shadow_out1".to_string(),
+        }
+    }
+
+    pub fn calc_view_proj(&self, bounds: &Bounds) -> (glam::Mat4, glam::Mat4) {
         let scene_center = (bounds.0 + bounds.1) * 0.5;
         let scene_radius = (bounds.1 - scene_center).length();
 
-        let dist_padding = 10.0;
+        let dist_padding = 0.0;
 
-        let light_pos = scene_center - dir * (scene_radius + dist_padding);
+        let light_pos = scene_center - self.dir * (scene_radius + dist_padding);
         let view = glam::Mat4::look_at_rh(light_pos, scene_center, glam::Vec3::Y);
         let proj = glam::Mat4::orthographic_rh(
             -scene_radius,
@@ -194,14 +210,10 @@ impl Light {
             -scene_radius,
             scene_radius,
             0.01,
-            1000.0,
+            scene_radius * 2.0,
         );
 
-        Self {
-            view,
-            proj,
-            framebuffer_name: "shadow_out1".to_string(),
-        }
+        (view, proj)
     }
 }
 
