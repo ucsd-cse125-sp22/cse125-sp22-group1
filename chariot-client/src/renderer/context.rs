@@ -18,7 +18,7 @@ impl Context {
         size: winit::dpi::PhysicalSize<u32>,
     ) -> Self {
         let window = winit::window::Window::new(&event_loop).unwrap();
-        //window.set_inner_size(size);
+        window.set_inner_size(size);
         window.set_resizable(false);
 
         let instance = wgpu::Instance::new(wgpu::Backends::all());
