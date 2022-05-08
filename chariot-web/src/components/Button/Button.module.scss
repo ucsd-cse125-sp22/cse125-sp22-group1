@@ -9,6 +9,16 @@
 	text-align: center;
 }
 
+.selected {
+	background-color: black;
+	color: white;
+}
+
+.voted {
+	background-color: #BBF65A;
+	color: black;
+}
+
 .full {
 	width: 18vh;
 	height: 18vh;

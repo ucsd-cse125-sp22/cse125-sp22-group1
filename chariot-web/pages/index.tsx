@@ -26,12 +26,11 @@ const Home: NextPage = () => {
 		sock.onmessage = (msg) => {
 			handleSocket(context, msg);
 		}
-
 	}
 
 	return (
 		<>
-			<Button text='Join active game' state='unselected' onClick={() => {
+			<Button text='Join active game' onClick={() => {
 				connectToWebSocket();
 			}} />
 		</>

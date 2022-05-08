@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 use std::net::TcpListener;
+use std::ops::Add;
 use std::thread::{self};
 use std::time::{Duration, Instant};
 
 use chariot_core::networking::ws::Message;
 use chariot_core::networking::Uuid;
 use chariot_core::networking::{
-    ClientBoundPacket, ClientConnection, ServerBoundPacket, WSAudienceBoundMessage,
+    ClientBoundPacket, ClientConnection, Prompt, ServerBoundPacket, WSAudienceBoundMessage,
     WebSocketConnection,
 };
 use chariot_core::player_inputs::InputEvent;
@@ -23,11 +24,20 @@ pub struct GameServer {
     game_state: ServerGameState,
 }
 
+#[derive(PartialEq)]
+enum VotingGameState {
+    Voting,
+    Waiting,
+}
+
 pub struct ServerGameState {
     players_ready: [bool; 4],
     new_players_joined: Vec<usize>,
     players: [PlayerEntity; 4],
-    audience_votes: HashMap<Uuid, u32>,
+    audience_votes: HashMap<Uuid, i32>,
+    current_question: Prompt,
+    voting_game_state: VotingGameState,
+    vote_close_time: Instant,
 }
 
 impl GameServer {
@@ -49,6 +59,17 @@ impl GameServer {
                 players: [0, 1, 2, 3]
                     .map(|num| get_player_start_physics_properties(&String::from("standard"), num)),
                 audience_votes: HashMap::new(),
+                voting_game_state: VotingGameState::Waiting,
+                vote_close_time: Instant::now(),
+                current_question: (
+                    "q".to_string(),
+                    (
+                        "1".to_string(),
+                        "2".to_string(),
+                        "3".to_string(),
+                        "4".to_string(),
+                    ),
+                ),
             },
         }
     }
@@ -56,6 +77,8 @@ impl GameServer {
     // WARNING: this function never returns
     pub fn start_loop(&mut self) {
         let max_server_tick_duration = Duration::from_millis(GLOBAL_CONFIG.server_tick_ms);
+
+        let mut runOnce = true;
 
         loop {
             self.block_until_minimum_connections();
@@ -76,6 +99,37 @@ impl GameServer {
             self.process_incoming_packets();
             self.process_ws_packets();
             self.simulate_game();
+
+            if runOnce {
+                runOnce = false;
+                self.start_audience_voting(
+                    "Who lives in a pineapple under the sea?".to_string(),
+                    "spongebob square pants".to_string(),
+                    "patrick stewart".to_string(),
+                    "the submariner".to_string(),
+                    "aquaman".to_string(),
+                );
+            }
+
+            if self.game_state.voting_game_state == VotingGameState::Voting
+                && self.game_state.vote_close_time < Instant::now()
+            {
+                // time to tally up votes
+                let winner = self
+                    .game_state
+                    .audience_votes
+                    .iter()
+                    .max_by(|a, b| a.1.cmp(&b.1))
+                    .map(|(k, v)| v)
+                    .unwrap_or(&0);
+
+                println!("Option {} won!", winner);
+                self.game_state.voting_game_state = VotingGameState::Waiting;
+                GameServer::broadcast_ws(
+                    &mut self.ws_connections,
+                    WSAudienceBoundMessage::Winner(*winner),
+                );
+            }
             self.sync_state();
 
             // empty outgoing packet queue and send to clients
@@ -131,24 +185,14 @@ impl GameServer {
             .expect("non blocking should be ok");
 
         for id in new_uuids {
-            self.ws_connections
-                .get_mut(&id)
-                .unwrap()
-                .push_outgoing_messge(WSAudienceBoundMessage::Assignment(id));
+            let conn = self.ws_connections.get_mut(&id).unwrap();
 
-            self.ws_connections
-                .get_mut(&id)
-                .unwrap()
-                .push_outgoing_messge(WSAudienceBoundMessage::Prompt(
-                    "How much would could a woodchuck chuck if a woodchuck could chuck wood?"
-                        .to_string(),
-                    (
-                        "10 woods".to_string(),
-                        "15 woods".to_string(),
-                        "20 woods".to_string(),
-                        "no wood".to_string(),
-                    ),
+            conn.push_outgoing_messge(WSAudienceBoundMessage::Assignment(id));
+            if self.game_state.voting_game_state == VotingGameState::Voting {
+                conn.push_outgoing_messge(WSAudienceBoundMessage::Prompt(
+                    self.game_state.current_question.clone(),
                 ));
+            }
         }
     }
 
@@ -181,40 +225,47 @@ impl GameServer {
 
     // handle socket data
     fn process_ws_packets(&mut self) {
-        let mut message_to_send = String::new();
         for (id, connection) in self.ws_connections.iter_mut() {
             while let Some(packet) = connection.pop_incoming() {
                 match packet {
-                    Message::Text(txt) => {
-                        println!(
-                            "got message from client #{} of type Text, it says {}",
-                            id,
-                            txt.clone()
-                        );
-
-                        message_to_send = txt.clone();
-                    }
-                    Message::Binary(_) => {
-                        println!("got message from client #{} of type Binary", id)
-                    }
-                    Message::Ping(_) => {
-                        println!("got message from client #{} of type Ping", id)
-                    }
-                    Message::Pong(_) => {
-                        println!("got message from client #{} of type Pong", id)
-                    }
-                    Message::Close(_) => {
-                        println!("got message from client #{} of type Close", id)
+                    chariot_core::networking::WSServerBoundMessage::Vote(id, vote) => {
+                        println!("{} voted for {}", id, vote);
+                        self.game_state.audience_votes.insert(id, vote);
                     }
                 }
             }
         }
     }
 
+    // prompts for a question
+    fn start_audience_voting(
+        &mut self,
+        question: String,
+        option1: String,
+        option2: String,
+        option3: String,
+        option4: String,
+    ) {
+        self.game_state.current_question = (question, (option1, option2, option3, option4));
+
+        GameServer::broadcast_ws(
+            &mut self.ws_connections,
+            WSAudienceBoundMessage::Prompt(self.game_state.current_question.clone()),
+        );
+
+        self.game_state.audience_votes = HashMap::new(); // clear past votes
+        self.game_state.voting_game_state = VotingGameState::Voting;
+        self.game_state.vote_close_time = Instant::now().add(Duration::new(30, 0));
+        // check on votes in 30 seconds
+    }
+
     // sends a message to all connected web clients
-    fn broadcast_ws(ws_connections: &mut HashMap<Uuid, WebSocketConnection>, message: Message) {
+    fn broadcast_ws(
+        ws_connections: &mut HashMap<Uuid, WebSocketConnection>,
+        message: WSAudienceBoundMessage,
+    ) {
         ws_connections.iter_mut().for_each(|(_, con)| {
-            con.push_outgoing(message.clone());
+            con.push_outgoing_messge(message.clone());
         });
     }
 

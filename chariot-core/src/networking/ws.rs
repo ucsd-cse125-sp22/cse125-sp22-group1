@@ -7,7 +7,7 @@ use super::{WSAudienceBoundMessage, WSServerBoundMessage};
 
 pub struct WSConnection {
     socket: WebSocket<TcpStream>,
-    incoming_packets: VecDeque<Message>,
+    incoming_packets: VecDeque<WSServerBoundMessage>,
     outgoing_packets: VecDeque<Message>,
 }
 
@@ -46,13 +46,9 @@ impl WSConnection {
                     let message_result: Result<WSServerBoundMessage, Error> =
                         serde_json::from_str(txt);
                     if message_result.is_err() {
-                        self.incoming_packets.push_back(msg);
+                        // self.incoming_packets.push_back(msg);
                     } else {
-                        match message_result.unwrap() {
-                            WSServerBoundMessage::Vote(uuid, option) => {
-                                println!("{} voted for {}", uuid, option)
-                            }
-                        }
+                        self.incoming_packets.push_back(message_result.unwrap());
                     }
                 }
             }
@@ -60,7 +56,7 @@ impl WSConnection {
         }
     }
 
-    pub fn pop_incoming(&mut self) -> Option<Message> {
+    pub fn pop_incoming(&mut self) -> Option<WSServerBoundMessage> {
         self.incoming_packets.pop_front()
     }
 
@@ -77,7 +73,6 @@ impl WSConnection {
 
     // send packets on this connection until exhausted
     pub fn sync_outgoing(&mut self) {
-        println!("{}", self.outgoing_packets.len());
         while let Some(msg) = self.outgoing_packets.pop_front() {
             if self.socket.can_write() {
                 self.socket

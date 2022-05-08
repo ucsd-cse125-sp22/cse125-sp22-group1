@@ -11,7 +11,9 @@ const Game: NextPage = () => {
 	const [showStandings, setShowStandings] = useState(false);
 	const router = useRouter();
 	const context = useContext(GlobalContext);
-	const { socket } = context;
+	const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+
+	const { socket, uuid, prompt, winner } = context;
 
 	useEffect(() => {
 		if (socket == null) {
@@ -23,31 +25,29 @@ const Game: NextPage = () => {
 		return <></>;
 	}
 
+	socket.onerror = (err) => {
+		console.log('re')
+		if (err.type === 'error') {
+			alert("Failed to connect to server. Is it running?");
+		}
+	}
 	socket.onmessage = (msg) => {
 		handleSocket(context, msg);
 	}
 
 	return (<>
-		<Button text={showStandings ? "show standings" : "hide standings"} onClick={() => { setShowStandings(!showStandings) }} style='minimal' />
+		<Button text={showStandings ? "hide standings" : "show standings"} onClick={() => { setShowStandings(!showStandings) }} style='minimal' />
 		<br />
-		{!showStandings &&
+		{!showStandings && prompt !== null &&
 			<Grid>
-				<Button text="option 1" onClick={() => {
-					sendMessage(context, { Vote: [context.uuid, 0] })
-					socket.send("option 1");
-				}} />
-				<Button text="option 2" onClick={() => {
-					sendMessage(context, { Vote: [context.uuid, 1] })
-					socket.send("option 2");
-				}} />
-				<Button text="option 3" onClick={() => {
-					sendMessage(context, { Vote: [context.uuid, 2] })
-					socket.send("option 3");
-				}} />
-				<Button text="option 4" onClick={() => {
-					sendMessage(context, { Vote: [context.uuid, 3] })
-					socket.send("option 4");
-				}} />
+				{prompt[1].map(((option, choice) => (
+					<Button state={choice === winner ? 'voted' : choice === selectedIdx ? 'selected' : 'unselected'} key={choice} text={option} onClick={() => {
+						if (winner === null) {
+							sendMessage(context, { Vote: [uuid, choice] })
+							setSelectedIdx(choice);
+						}
+					}} />
+				)))}
 			</Grid>
 		}
 		{showStandings &&

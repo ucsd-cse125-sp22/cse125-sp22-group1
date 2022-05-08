@@ -1,7 +1,8 @@
 import { GlobalContextType } from "../contexts/GlobalContext"
 
+export type Prompt = [string, [string, string, string, string]];
 export interface WSAudienceBoundMessage {
-	Prompt?: [string, [string, string, string, string]], // Question, 4 Answer Choices
+	Prompt?: Prompt, // Question, 4 Answer Choices
 	Winner?: number// The winning choice (tuple index)
 	Assignment?: string, // Sends a uuid that the server will use to identify the client
 }
@@ -15,9 +16,10 @@ export const handleSocket = (context: GlobalContextType, msg: MessageEvent) => {
 	if (message.Assignment !== undefined) {
 		context.setUuid(message.Assignment);
 	} else if (message.Winner !== undefined) {
-		console.log(`winner is ${message.Winner}`);
+		context.setWinner(message.Winner);
 	} else if (message.Prompt !== undefined) {
-		console.log(message.Prompt);
+		context.setPrompt(message.Prompt);
+		context.setStatusMessage(message.Prompt[0]);
 	} else {
 		console.log("new data type");
 		console.log(message);
