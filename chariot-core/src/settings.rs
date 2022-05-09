@@ -9,6 +9,7 @@ pub struct Settings {
     pub server_address: String,
     pub server_tick_ms: u64,
     pub player_amount: usize,
+    pub ws_server_port: String,
 
     // Physics
     pub gravity_coefficient: f64,
@@ -23,6 +24,8 @@ pub struct Settings {
 
     pub max_car_speed: f64,
     pub max_car_spin: f64,
+
+    pub audience_vote_time_ms: u64,
 }
 
 impl Settings {
@@ -31,6 +34,7 @@ impl Settings {
             // networking
             .set_default("port", "24247")?
             .set_default("server_address", "127.0.0.1")?
+            .set_default("ws_server_port", "2334")?
             .set_default("server_tick_ms", 30)?
             .set_default("player_amount", 1)?
             // physics
@@ -63,6 +67,7 @@ impl Settings {
             .set_default("car_spin", 0.025)?
             .set_default("max_car_speed", 1.0)?
             .set_default("max_car_spin", 0.25)?
+            .set_default("audience_vote_time_ms", 30000)?
             .add_source(File::with_name("config.yaml").required(false))
             .build()?;
 

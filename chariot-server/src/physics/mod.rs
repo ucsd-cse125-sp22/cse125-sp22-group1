@@ -112,19 +112,6 @@ impl PlayerEntity {
     }
 
     fn sum_of_self_forces(&self) -> DVec3 {
-        println!(
-            "forces on this object: applied {}, gravity {}, air resistance {}",
-            self.player_applied_force_on_object(),
-            self.gravitational_force_on_object(),
-            self.air_resistance_force_on_object(),
-        );
-        println!(
-            "is aerial? {} if not: normal {}, rolling resistance {}",
-            self.is_aerial(),
-            self.normal_force_on_object(),
-            self.rolling_resistance_force_on_object()
-        );
-
         let air_forces = self.gravitational_force_on_object()
             + self.player_applied_force_on_object()
             + self.air_resistance_force_on_object();
