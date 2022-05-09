@@ -49,19 +49,3 @@ pub trait Packet: Serialize + DeserializeOwned {
 
 impl Packet for ClientBoundPacket {}
 impl Packet for ServerBoundPacket {}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub enum WSAudienceBoundMessage {
-    Prompt(Prompt), // Question, 4 Answer Choices
-
-    Winner(i32), // The winning choice (tuple index)
-
-    Assignment(Uuid), // Sends a uuid that the server will use to identify the client
-}
-
-pub type Prompt = (String, (String, String, String, String));
-
-#[derive(Serialize, Deserialize)]
-pub enum WSServerBoundMessage {
-    Vote(Uuid, i32), // Client UUID, the option to vote for
-}

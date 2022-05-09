@@ -4,11 +4,10 @@ use std::ops::Add;
 use std::thread::{self};
 use std::time::{Duration, Instant};
 
-use chariot_core::networking::ws::Message;
+use chariot_core::networking::ws::{QuestionBody, WSAudienceBoundMessage, WSServerBoundMessage};
 use chariot_core::networking::Uuid;
 use chariot_core::networking::{
-    ClientBoundPacket, ClientConnection, Prompt, ServerBoundPacket, WSAudienceBoundMessage,
-    WebSocketConnection,
+    ClientBoundPacket, ClientConnection, ServerBoundPacket, WebSocketConnection,
 };
 use chariot_core::player_inputs::InputEvent;
 use chariot_core::GLOBAL_CONFIG;
@@ -35,7 +34,7 @@ pub struct ServerGameState {
     new_players_joined: Vec<usize>,
     players: [PlayerEntity; 4],
     audience_votes: HashMap<Uuid, i32>,
-    current_question: Prompt,
+    current_question: QuestionBody,
     voting_game_state: VotingGameState,
     vote_close_time: Instant,
 }
@@ -108,6 +107,7 @@ impl GameServer {
                     "patrick stewart".to_string(),
                     "the submariner".to_string(),
                     "aquaman".to_string(),
+                    Duration::new(30, 0),
                 );
             }
 
@@ -120,7 +120,7 @@ impl GameServer {
                     .audience_votes
                     .iter()
                     .max_by(|a, b| a.1.cmp(&b.1))
-                    .map(|(k, v)| v)
+                    .map(|(_key, vote)| vote)
                     .unwrap_or(&0);
 
                 println!("Option {} won!", winner);
@@ -225,10 +225,10 @@ impl GameServer {
 
     // handle socket data
     fn process_ws_packets(&mut self) {
-        for (id, connection) in self.ws_connections.iter_mut() {
+        for (_id, connection) in self.ws_connections.iter_mut() {
             while let Some(packet) = connection.pop_incoming() {
                 match packet {
-                    chariot_core::networking::WSServerBoundMessage::Vote(id, vote) => {
+                    WSServerBoundMessage::Vote(id, vote) => {
                         println!("{} voted for {}", id, vote);
                         self.game_state.audience_votes.insert(id, vote);
                     }
@@ -245,6 +245,7 @@ impl GameServer {
         option2: String,
         option3: String,
         option4: String,
+        poll_time: Duration,
     ) {
         self.game_state.current_question = (question, (option1, option2, option3, option4));
 
@@ -255,7 +256,7 @@ impl GameServer {
 
         self.game_state.audience_votes = HashMap::new(); // clear past votes
         self.game_state.voting_game_state = VotingGameState::Voting;
-        self.game_state.vote_close_time = Instant::now().add(Duration::new(30, 0));
+        self.game_state.vote_close_time = Instant::now().add(poll_time);
         // check on votes in 30 seconds
     }
 

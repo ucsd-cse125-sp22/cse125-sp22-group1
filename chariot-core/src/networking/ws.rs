@@ -1,9 +1,25 @@
+use serde::{Deserialize, Serialize};
 use serde_json::Error;
 use std::collections::VecDeque;
 use std::net::TcpStream;
 pub use tungstenite::{accept, Message, WebSocket};
+pub use uuid::Uuid;
 
-use super::{WSAudienceBoundMessage, WSServerBoundMessage};
+#[derive(Serialize, Deserialize, Clone)]
+pub enum WSAudienceBoundMessage {
+    Prompt(QuestionBody), // Question, 4 Answer Choices
+
+    Winner(i32), // The winning choice (tuple index)
+
+    Assignment(Uuid), // Sends a uuid that the server will use to identify the client
+}
+
+pub type QuestionBody = (String, (String, String, String, String));
+
+#[derive(Serialize, Deserialize)]
+pub enum WSServerBoundMessage {
+    Vote(Uuid, i32), // Client UUID, the option to vote for
+}
 
 pub struct WSConnection {
     socket: WebSocket<TcpStream>,
@@ -35,24 +51,24 @@ impl WSConnection {
     }
 
     pub fn fetch_incoming_packets(&mut self) {
-        let msg_result = self.socket.read_message();
-        match msg_result {
-            Ok(msg) => {
-                if msg.is_binary() || msg.is_text() {
-                    // this is where we handle shit
-                    let txt = msg
-                        .to_text()
-                        .expect("should have been able to convert message to string");
-                    let message_result: Result<WSServerBoundMessage, Error> =
-                        serde_json::from_str(txt);
-                    if message_result.is_err() {
-                        // self.incoming_packets.push_back(msg);
-                    } else {
-                        self.incoming_packets.push_back(message_result.unwrap());
+        if let Ok(msg) = self.socket.read_message() {
+            if msg.is_text() {
+                // this is where we handle shit
+                let txt = msg
+                    .to_text()
+                    .expect("should have been able to convert message to string");
+                let message_result: Result<WSServerBoundMessage, Error> = serde_json::from_str(txt);
+
+                match message_result {
+                    Ok(server_bound_message) => {
+                        self.incoming_packets.push_back(server_bound_message)
+                    }
+                    Err(err) => {
+                        println!("got an error! we're going to do nothing about this!");
+                        println!("{}", err);
                     }
                 }
             }
-            Err(_) => {}
         }
     }
 
