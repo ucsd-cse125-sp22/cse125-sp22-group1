@@ -91,7 +91,9 @@ impl WSConnection {
     pub fn sync_outgoing(&mut self) {
         while let Some(msg) = self.outgoing_packets.pop_front() {
             if self.socket.can_write() {
-                self.socket.write_message(msg); // not guaranteed to succeed, but I'd rather not fail the code if something breaks here
+                self.socket
+                    .write_message(msg)
+                    .expect("failed to write outgoing ws message");
             }
         }
     }
