@@ -77,8 +77,6 @@ impl GameServer {
     pub fn start_loop(&mut self) {
         let max_server_tick_duration = Duration::from_millis(GLOBAL_CONFIG.server_tick_ms);
 
-        let mut runOnce = true;
-
         loop {
             self.block_until_minimum_connections();
             self.acquire_any_audience_connections();
@@ -97,39 +95,9 @@ impl GameServer {
 
             self.process_incoming_packets();
             self.process_ws_packets();
+            self.check_audience_voting();
             self.simulate_game();
 
-            if runOnce {
-                runOnce = false;
-                self.start_audience_voting(
-                    "Who lives in a pineapple under the sea?".to_string(),
-                    "spongebob square pants".to_string(),
-                    "patrick stewart".to_string(),
-                    "the submariner".to_string(),
-                    "aquaman".to_string(),
-                    Duration::from_millis(GLOBAL_CONFIG.audience_vote_time_ms),
-                );
-            }
-
-            if self.game_state.voting_game_state == VotingGameState::Voting
-                && self.game_state.vote_close_time < Instant::now()
-            {
-                // time to tally up votes
-                let winner = self
-                    .game_state
-                    .audience_votes
-                    .iter()
-                    .max_by(|a, b| a.1.cmp(&b.1))
-                    .map(|(_key, vote)| vote)
-                    .unwrap_or(&0);
-
-                println!("Option {} won!", winner);
-                self.game_state.voting_game_state = VotingGameState::Waiting;
-                GameServer::broadcast_ws(
-                    &mut self.ws_connections,
-                    WSAudienceBoundMessage::Winner(*winner),
-                );
-            }
             self.sync_state();
 
             // empty outgoing packet queue and send to clients
@@ -234,6 +202,29 @@ impl GameServer {
                     }
                 }
             }
+        }
+    }
+
+    // check to see if we need to tally up votes and do something
+    fn check_audience_voting(&mut self) {
+        if self.game_state.voting_game_state == VotingGameState::Voting
+            && self.game_state.vote_close_time < Instant::now()
+        {
+            // time to tally up votes
+            let winner = self
+                .game_state
+                .audience_votes
+                .iter()
+                .max_by(|a, b| a.1.cmp(&b.1))
+                .map(|(_key, vote)| vote)
+                .unwrap_or(&0);
+
+            println!("Option {} won!", winner);
+            self.game_state.voting_game_state = VotingGameState::Waiting;
+            GameServer::broadcast_ws(
+                &mut self.ws_connections,
+                WSAudienceBoundMessage::Winner(*winner),
+            );
         }
     }
 
