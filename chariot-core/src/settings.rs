@@ -23,6 +23,8 @@ pub struct Settings {
 
     pub max_car_speed: f64,
     pub max_car_spin: f64,
+
+    pub audience_vote_time_ms: u64,
 }
 
 impl Settings {
@@ -63,6 +65,7 @@ impl Settings {
             .set_default("car_spin", 0.025)?
             .set_default("max_car_speed", 1.0)?
             .set_default("max_car_spin", 0.25)?
+            .set_default("audience_vote_time_ms", 30000)?
             .add_source(File::with_name("config.yaml").required(false))
             .build()?;
 

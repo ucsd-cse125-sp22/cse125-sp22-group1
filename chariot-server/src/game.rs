@@ -107,7 +107,7 @@ impl GameServer {
                     "patrick stewart".to_string(),
                     "the submariner".to_string(),
                     "aquaman".to_string(),
-                    Duration::new(30, 0),
+                    Duration::from_millis(GLOBAL_CONFIG.audience_vote_time_ms),
                 );
             }
 
