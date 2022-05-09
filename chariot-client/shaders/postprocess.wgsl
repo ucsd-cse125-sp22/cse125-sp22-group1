@@ -83,6 +83,34 @@ fn srgb_to_linear_color(x: vec4<f32>) -> vec4<f32> {
 	);
 }
 
+fn linear_to_srgb(x: f32) -> f32{
+	if (x <= 0.0) {
+		return 0.0;
+	} else if (x >= 1.0) {
+		return 1.0;
+	} else if (x < 0.0031308) {
+		return x * 12.92;
+	} else {
+		return pow(x, 1.0 / 2.4) * 1.055 - 0.055;
+	}
+}
+
+fn linear_to_srgb_color(x: vec4<f32>) -> vec4<f32> {
+	return vec4<f32>(
+		linear_to_srgb(x.r), linear_to_srgb(x.g), 
+		linear_to_srgb(x.b), linear_to_srgb(x.a)
+	);
+}
+
+fn aces_film(x: vec3<f32>) -> vec3<f32>
+{
+    let a: f32 = 2.51;
+    let b: f32 = 0.03;
+    let c: f32 = 2.43;
+    let d: f32 = 0.59;
+    let e: f32 = 0.14;
+    return clamp((x*(a*x+b))/(x*(c*x+d)+e), vec3<f32>(0.0), vec3<f32>(1.0));
+}
 
 [[stage(fragment)]]
 fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
@@ -166,8 +194,8 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 	let world_normal = textureLoad(t_normal, tc + vec2<i32>(0,  0), 0).xyz;
 
 	//let world_normal = normalize((view.normal_to_world * vec4<f32>(local_normal, 0.0)).xyz);
-	//let color = srgb_to_linear_color(textureLoad(t_forward, tc, 0)).rgb;
-	let color = textureLoad(t_forward, tc, 0).rgb;
+	let color = linear_to_srgb_color(textureLoad(t_forward, tc, 0)).rgb;
+	//let color = textureLoad(t_forward, tc, 0).rgb;
 	let diffuse = max(dot(world_normal, -light_dir), 0.0);
 
 	//return vec4<f32>(variance) + diffuse;
@@ -176,7 +204,7 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 	let light_pos = world_pos_to_light_pos(world_pos);
 	
 	var light_depth: f32 = 100.0;
-	if (light_pos.x > -1.0 && light_pos.x < 1.0 && light_pos.y > -1.0 && light_pos.y < 1.0) {
+	if (light_pos.x > 0.0 && light_pos.x < 1.0 && light_pos.y > 0.0 && light_pos.y < 1.0) {
 		light_depth = textureLoad(t_shadow, vec2<i32>(light_pos.xy * shadow_sizef), 0).r;
 	}
 	
@@ -190,6 +218,6 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 
 	let s_col = textureLoad(t_shadow, tc_shadow, 0).r;
 	//return vec4<f32>(s_col, s_col, s_col, 1.0);
-	return vec4<f32>(shaded, 1.0);
+	return vec4<f32>(aces_film(shaded), 1.0);
 	//return vec4<f32>((world_normal+1.0)*0.5, 1.0);
 }
