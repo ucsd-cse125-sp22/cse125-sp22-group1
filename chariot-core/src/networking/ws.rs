@@ -52,17 +52,20 @@ impl WSConnection {
 
     pub fn fetch_incoming_packets(&mut self) {
         if let Ok(msg) = self.socket.read_message() {
-            if msg.is_text() && let Ok(txt) = msg.to_text() {
-                // this is where we handle shit
-                let message_result: Result<WSServerBoundMessage, Error> = serde_json::from_str(txt);
+            if msg.is_text() {
+                if let Ok(txt) = msg.to_text() {
+                    // this is where we handle shit
+                    let message_result: Result<WSServerBoundMessage, Error> =
+                        serde_json::from_str(txt);
 
-                match message_result {
-                    Ok(server_bound_message) => {
-                        self.incoming_packets.push_back(server_bound_message)
-                    }
-                    Err(err) => {
-                        println!("got an error! we're going to do nothing about this!");
-                        println!("{}", err);
+                    match message_result {
+                        Ok(server_bound_message) => {
+                            self.incoming_packets.push_back(server_bound_message)
+                        }
+                        Err(err) => {
+                            println!("got an error! we're going to do nothing about this!");
+                            println!("{}", err);
+                        }
                     }
                 }
             }
