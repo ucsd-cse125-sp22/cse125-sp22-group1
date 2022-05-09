@@ -9,6 +9,7 @@ pub struct Settings {
     pub server_address: String,
     pub server_tick_ms: u64,
     pub player_amount: usize,
+    pub ws_server_port: String,
 
     // Physics
     pub gravity_coefficient: f64,
@@ -33,6 +34,7 @@ impl Settings {
             // networking
             .set_default("port", "24247")?
             .set_default("server_address", "127.0.0.1")?
+            .set_default("ws_server_port", "2334")?
             .set_default("server_tick_ms", 30)?
             .set_default("player_amount", 1)?
             // physics

@@ -3,15 +3,14 @@ import Router from 'next/router'
 import { useContext, useState } from 'react'
 import { Button } from '../src/components/Button'
 import { GlobalContext } from '../src/contexts/GlobalContext'
-import { handleSocket } from '../src/utils/networking'
+import { handleSocket, WS_SERVER } from '../src/utils/networking'
 
 const Home: NextPage = () => {
 	const context = useContext(GlobalContext);
 
 	const connectToWebSocket = () => {
-		const sock = new WebSocket('ws://127.0.0.1:9001');
+		const sock = new WebSocket(WS_SERVER);
 		sock.onopen = () => {
-			sock.send("Hello server!");
 			context.setSocket(sock);
 			(window as any).socket = sock;
 			Router.push("/game");

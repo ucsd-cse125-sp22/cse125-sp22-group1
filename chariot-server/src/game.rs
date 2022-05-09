@@ -45,7 +45,8 @@ impl GameServer {
         let listener =
             TcpListener::bind(&ip_addr).expect("could not bind to configured server address");
         println!("game server now listening on {}", ip_addr);
-        let ws_server = TcpListener::bind("127.0.0.1:9001").expect("could not bind to ws server");
+        let ws_server = TcpListener::bind(GLOBAL_CONFIG.ws_server_port.clone())
+            .expect("could not bind to ws server");
 
         GameServer {
             listener,

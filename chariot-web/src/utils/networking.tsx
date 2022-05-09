@@ -29,3 +29,5 @@ export const handleSocket = (context: GlobalContextType, msg: MessageEvent) => {
 export const sendMessage = (context: GlobalContextType, message: WSServerBoundMessage) => {
 	context.socket?.send(JSON.stringify(message));
 }
+
+export const WS_SERVER = `ws://127.0.0.1:9001`;
