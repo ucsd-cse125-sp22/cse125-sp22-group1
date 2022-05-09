@@ -5,7 +5,7 @@ use std::thread;
 use std::path::PathBuf;
 use std::io::BufReader;
 use std::time::{SystemTime, Duration};
-use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
+use rodio::{Decoder, OutputStream, OutputStreamHandle, SpatialSink};
 use rodio::source::{Source};
 
 // Audio Context
@@ -32,6 +32,9 @@ pub struct SourceOptions {
   skip_duration: Duration,
   take_duration: Duration,
   pitch: f32,
+  emitter_pos: [f32; 3],
+  left_ear: [f32; 3],
+  right_ear: [f32; 3],
 }
 
 impl SourceOptions {
@@ -42,6 +45,9 @@ impl SourceOptions {
       skip_duration: Duration::ZERO,
       take_duration: Duration::from_secs(3600),
       pitch: 1.0,
+      emitter_pos: [0.0; 3],
+      left_ear: [-0.000001, 0.0, 0.0],
+      right_ear: [0.000001, 0.0, 0.0]
     }
   }
 
@@ -64,6 +70,18 @@ impl SourceOptions {
   pub fn set_pitch(&mut self, pitch: f32) {
     self.pitch = pitch;
   }
+
+  pub fn set_emitter_pos(&mut self, pos: [f32; 3]) {
+    self.emitter_pos = pos;
+  }
+
+  pub fn set_left_ear_pos(&mut self, pos: [f32; 3]) {
+    self.left_ear = pos;
+  }
+
+  pub fn set_right_ear_pos(&mut self, pos: [f32; 3]) {
+    self.right_ear = pos;
+  }
 }
 
 pub struct AudioThread {
@@ -71,13 +89,14 @@ pub struct AudioThread {
   volume: f32,
   pitch: f32,
   file: fs::File,
-  sink: Sink,
-  src_opt: SourceOptions
+  sink: SpatialSink,
+  src_opt: SourceOptions,
 }
 
 impl AudioThread {
   pub fn new(ctx: &AudioCtx, path_buf: PathBuf, src_opt: SourceOptions) -> Self {
-    let sink = Sink::try_new(&ctx.stream_handle).unwrap();
+    let sink = SpatialSink::try_new(&ctx.stream_handle, 
+      src_opt.emitter_pos, src_opt.left_ear, src_opt.right_ear).unwrap();
     let file = fs::File::open(path_buf.clone()).unwrap();
 
     Self {

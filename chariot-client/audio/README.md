@@ -45,6 +45,9 @@ Usage: `AudioSource::new(Path);`
 * threads: `Vec<AudioThread>`,
 * volume: `f32`,
 * pitch: `f32`,
+* emitter_pos: `[f32; 3]`,
+* left_ear: `[f32; 3]`,
+* right_ear: `[f32; 3]`,
 
 ## Instructions
 1. Begin with the relevant imports
