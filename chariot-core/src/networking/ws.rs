@@ -52,11 +52,8 @@ impl WSConnection {
 
     pub fn fetch_incoming_packets(&mut self) {
         if let Ok(msg) = self.socket.read_message() {
-            if msg.is_text() {
+            if msg.is_text() && let Ok(txt) = msg.to_text() {
                 // this is where we handle shit
-                let txt = msg
-                    .to_text()
-                    .expect("should have been able to convert message to string");
                 let message_result: Result<WSServerBoundMessage, Error> = serde_json::from_str(txt);
 
                 match message_result {
