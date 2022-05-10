@@ -8,6 +8,7 @@ use std::{
 pub mod material;
 pub mod static_mesh;
 
+use chariot_core::GLOBAL_CONFIG;
 use material::*;
 use static_mesh::*;
 use wgpu::util::DeviceExt;
