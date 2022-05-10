@@ -5,6 +5,8 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
+use serde_json::Value;
+
 use crate::drawable::*;
 use crate::renderer::*;
 
@@ -115,6 +117,17 @@ impl ResourceManager {
 
         let mut mesh_handles = Vec::new();
         for (mesh_idx, mesh) in document.meshes().enumerate() {
+            if let Some(extras) = mesh.extras().as_ref() {
+                let mesh_data: Value = serde_json::from_str(extras.as_ref().get()).unwrap();
+                if (mesh_data["render"] == 0) {
+                    println!(
+                        "skipping mesh {}",
+                        mesh.name().unwrap_or("[a mesh that's not named]")
+                    );
+                    continue;
+                }
+            }
+
             println!(
                 "processing mesh {}",
                 mesh.name().unwrap_or("[a mesh that's not named]")
