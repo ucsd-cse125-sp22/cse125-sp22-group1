@@ -13,7 +13,7 @@ use components::*;
 
 pub type Entity = u32;
 
-pub const NULL_ENTITY: Entity = 0;
+pub const NULL_ENTITY: Entity = Entity::MAX;
 
 pub trait Component: Sized + Default + 'static {
     type Storage: ComponentStorage<Self>;
@@ -201,8 +201,8 @@ impl World {
     pub fn new() -> Self {
         let mut world = Self {
             components: HashMap::new(),
-            next_entity: NULL_ENTITY + 1,
-            root: NULL_ENTITY + 1,
+            next_entity: 0,
+            root: 0,
         };
 
         world.register::<Transform>();
