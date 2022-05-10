@@ -4,6 +4,8 @@ use bincode::{DefaultOptions, Options, Result};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
+pub use uuid::Uuid;
+
 use crate::entity_location::EntityLocation;
 use crate::player_inputs::InputEvent;
 
