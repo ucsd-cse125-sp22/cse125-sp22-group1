@@ -1,99 +1,30 @@
+use chariot_core::networking::ClientBoundPacket;
+use chariot_core::GLOBAL_CONFIG;
 use std::collections::HashSet;
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, VirtualKeyCode};
 
-use crate::drawable::*;
-use crate::game::GameClient;
-use crate::renderer::*;
-use crate::resources::*;
-use crate::scenegraph::*;
+use crate::game::{self, GameClient};
+use crate::graphics::GraphicsManager;
 
 use chariot_core::player_inputs::{EngineStatus, InputEvent, RotationStatus};
 
 pub struct Application {
-    pub world: World,
-    pub renderer: Renderer,
-    pub resources: ResourceManager,
+    pub graphics: GraphicsManager,
     pub game: GameClient,
     pub pressed_keys: HashSet<VirtualKeyCode>,
     mouse_pos: PhysicalPosition<f64>,
 }
 
 impl Application {
-    pub fn new(mut renderer: Renderer, game: GameClient) -> Self {
-        renderer.register_pass(
-            "boring",
-            &direct_graphics_depth_pass!(include_str!("shader.wgsl")),
-        );
+    pub fn new(graphics_manager: GraphicsManager) -> Self {
+        let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
+        let mut game = game::GameClient::new(ip_addr);
 
-        renderer.register_pass(
-            "forward",
-            &indirect_graphics_depth_pass!(
-                include_str!("shader.wgsl"),
-                [wgpu::TextureFormat::Rgba16Float]
-            ),
-        );
-
-        renderer.register_pass(
-            "postprocess",
-            &direct_graphics_nodepth_pass!(include_str!("postprocess.wgsl")),
-        );
-
-        let (depth_tex, color_tex, fb_desc) =
-            depth_color_framebuffer(&renderer, wgpu::TextureFormat::Rgba16Float);
-        renderer.register_framebuffer("forward_out", fb_desc, [depth_tex, color_tex]);
-
-        let mut resources = ResourceManager::new();
-
-        let mut world = World::new();
-
-        {
-            let chair_import_result = resources.import_gltf(&mut renderer, "models/chair.glb");
-
-            let mut chair = Entity::new();
-            chair.set_component(Transform {
-                translation: glam::vec3(0.0, 0.5, 0.0),
-                rotation: glam::Quat::IDENTITY,
-                scale: glam::vec3(1.1995562314987183, 2.2936718463897705, 1.1995562314987183) * 0.2,
-            });
-
-            // temporarily commenting this since the new import stuff is in a different branch
-            chair.set_component(
-                chair_import_result
-                    .expect("Failed to import chair")
-                    .drawables,
-            );
-
-            chair.set_component(Camera {
-                orbit_angle: glam::Vec2::ZERO,
-                distance: 2.0,
-            });
-
-            world.root_mut().add_child(chair);
-        }
-        {
-            let track_import_result = resources.import_gltf(&mut renderer, "models/racetrack.glb");
-
-            let mut track = Entity::new();
-            track.set_component(Transform {
-                translation: glam::Vec3::ZERO,
-                rotation: glam::Quat::IDENTITY,
-                scale: glam::vec3(20.0, 20.0, 20.0),
-            });
-
-            track.set_component(
-                track_import_result
-                    .expect("Unable to load racetrack")
-                    .drawables,
-            );
-
-            world.root_mut().add_child(track);
-        }
+        game.send_ready_packet("standard".to_string());
 
         Self {
-            world: world,
-            renderer: renderer,
-            resources: resources,
+            graphics: graphics_manager,
             game,
             pressed_keys: HashSet::new(),
             mouse_pos: PhysicalPosition::<f64> { x: -1.0, y: -1.0 },
@@ -101,85 +32,31 @@ impl Application {
     }
 
     pub fn render(&mut self) {
-        let root_transform = self
-            .world
-            .root()
-            .get_component::<Transform>()
-            .unwrap_or(&Transform::default())
-            .to_mat4();
-
-        // Right now, we're iterating over the scene graph and evaluating all the global transforms once
-        // which is kind of annoying. First to find the camera and get the view matrix and again to actually
-        // render everything. Ideally maybe in the future this could be simplified
-
-        let mut view_local =
-            glam::Mat4::look_at_rh(glam::vec3(0.0, 0.0, -2.0), glam::Vec3::ZERO, glam::Vec3::Y);
-        let mut view_global = glam::Mat4::IDENTITY;
-        dfs_acc(self.world.root_mut(), root_transform.inverse(), |e, acc| {
-            let mut cur_model_transform: Transform = e
-                .get_component::<Transform>()
-                .map_or(Transform::default(), |t| *t);
-
-            cur_model_transform.scale = glam::Vec3::ONE;
-            let cur_model = cur_model_transform.to_mat4();
-
-            let acc_model = *acc * cur_model;
-
-            if let Some(camera) = e.get_component::<Camera>() {
-                view_local = camera.view_mat4();
-                view_global = acc_model;
-            }
-
-            acc_model
-        });
-
-        let view = view_global.inverse() * view_local;
-
-        let proj = glam::Mat4::perspective_rh(f32::to_radians(60.0), 1.0, 0.1, 100.0);
-        let proj_view = proj * view;
-
-        let mut render_job = render_job::RenderJob::default();
-        dfs_acc(self.world.root_mut(), root_transform, |e, acc| {
-            let cur_model = e
-                .get_component::<Transform>()
-                .unwrap_or(&Transform::default())
-                .to_mat4();
-            let acc_model = *acc * cur_model;
-
-            if let Some(drawables) = e.get_component::<Vec<StaticMeshDrawable>>() {
-                for drawable in drawables.iter() {
-                    drawable.update_xforms(&self.renderer, &proj_view, &acc_model);
-                    let render_graph = drawable.render_graph(&self.resources);
-                    render_job.merge_graph(render_graph);
-                }
-            }
-
-            acc_model
-        });
-
-        self.renderer.render(&render_job);
+        self.graphics.render();
     }
 
     pub fn update(&mut self) {
-        let surface_size = self.renderer.surface_size();
-        let surface_size = glam::Vec2::new(surface_size.width as f32, surface_size.height as f32);
         let mouse_pos = glam::Vec2::new(self.mouse_pos.x as f32, self.mouse_pos.y as f32);
+        self.graphics.update(mouse_pos);
 
-        let rot_range = glam::Vec2::new(std::f32::consts::PI, std::f32::consts::FRAC_PI_2);
+        self.game.fetch_incoming_packets();
 
-        dfs_mut(self.world.root_mut(), &|e| {
-            if let Some(camera) = e.get_component::<Camera>() {
-                let norm_orbit_angle = (mouse_pos / surface_size) * 2.0 - 1.0;
-                let orbit_angle = norm_orbit_angle * rot_range;
-                let new_camera = Camera {
-                    orbit_angle,
-                    ..*camera
-                };
-                e.set_component(new_camera);
+        for packet in self.game.current_packets() {
+            match packet {
+                ClientBoundPacket::PlayerNumber(player_number) => {
+                    self.graphics.add_player(player_number, true)
+                }
+                ClientBoundPacket::LocationUpdate(locations) => {
+                    for (i, location) in locations.iter().enumerate() {
+                        if location.is_some() {
+                            self.graphics
+                                .update_player_location(&location.unwrap(), i as u8);
+                        }
+                    }
+                }
+                _ => {}
             }
-        });
-
-        self.game.sync_incoming();
+        }
     }
 
     // Input configuration

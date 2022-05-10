@@ -98,6 +98,16 @@ impl Component for Camera {
     }
 }
 
+pub struct EntityID {
+    pub id: u64,
+}
+
+impl Component for EntityID {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
 impl Entity {
     pub fn new() -> Self {
         Self {

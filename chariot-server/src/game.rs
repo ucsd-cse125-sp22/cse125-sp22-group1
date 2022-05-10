@@ -1,8 +1,11 @@
+use std::collections::HashMap;
 use std::net::TcpListener;
+use std::ops::Add;
 use std::thread::{self};
 use std::time::{Duration, Instant};
 
-use chariot_core::networking::ws::Message;
+use chariot_core::networking::ws::{QuestionBody, WSAudienceBoundMessage, WSServerBoundMessage};
+use chariot_core::networking::Uuid;
 use chariot_core::networking::{
     ClientBoundPacket, ClientConnection, ServerBoundPacket, WebSocketConnection,
 };
@@ -18,13 +21,25 @@ pub struct GameServer {
     listener: TcpListener,
     ws_server: TcpListener,
     connections: Vec<ClientConnection>,
-    ws_connections: Vec<WebSocketConnection>,
+    ws_connections: HashMap<Uuid, WebSocketConnection>,
     game_state: ServerGameState,
     map: Option<Map>,
 }
 
+#[derive(PartialEq)]
+enum VotingGameState {
+    Voting,
+    Waiting,
+}
+
 pub struct ServerGameState {
-    players: Vec<PlayerEntity>,
+    players_ready: [bool; 4],
+    new_players_joined: Vec<usize>,
+    players: [PlayerEntity; 4],
+    audience_votes: HashMap<Uuid, i32>,
+    current_question: QuestionBody,
+    voting_game_state: VotingGameState,
+    vote_close_time: Instant,
 }
 
 impl GameServer {
@@ -33,15 +48,31 @@ impl GameServer {
         let listener =
             TcpListener::bind(&ip_addr).expect("could not bind to configured server address");
         println!("game server now listening on {}", ip_addr);
-        let ws_server = TcpListener::bind("127.0.0.1:9001").expect("could not bind to ws server");
+        let ws_server = TcpListener::bind(GLOBAL_CONFIG.ws_server_port.clone())
+            .expect("could not bind to ws server");
 
         GameServer {
             listener,
             ws_server,
             connections: Vec::new(),
-            ws_connections: Vec::new(),
+            ws_connections: HashMap::new(),
             game_state: ServerGameState {
-                players: Vec::new(),
+                players_ready: [false, false, false, false],
+                new_players_joined: Vec::new(),
+                players: [0, 1, 2, 3]
+                    .map(|num| get_player_start_physics_properties(&String::from("standard"), num)),
+                audience_votes: HashMap::new(),
+                voting_game_state: VotingGameState::Waiting,
+                vote_close_time: Instant::now(),
+                current_question: (
+                    "q".to_string(),
+                    (
+                        "1".to_string(),
+                        "2".to_string(),
+                        "3".to_string(),
+                        "4".to_string(),
+                    ),
+                ),
             },
             map: None,
         }
@@ -60,16 +91,18 @@ impl GameServer {
             // poll for input events and add them to the incoming packet queue
             self.connections
                 .iter_mut()
-                .for_each(|con| con.sync_incoming());
+                .for_each(|con| con.fetch_incoming_packets());
 
             // poll for ws input events
             self.ws_connections
                 .iter_mut()
-                .for_each(|con| con.sync_incoming());
+                .for_each(|(_, con)| con.fetch_incoming_packets());
 
             self.process_incoming_packets();
             self.process_ws_packets();
+            self.check_audience_voting();
             self.simulate_game();
+
             self.sync_state();
 
             // empty outgoing packet queue and send to clients
@@ -79,7 +112,7 @@ impl GameServer {
 
             self.ws_connections
                 .iter_mut()
-                .for_each(|con| con.sync_outgoing());
+                .for_each(|(_, con)| con.sync_outgoing());
 
             // wait until server tick time has elapsed
             let remaining_tick_duration = max_server_tick_duration
@@ -108,10 +141,14 @@ impl GameServer {
             .set_nonblocking(true)
             .expect("non blocking should be ok");
 
+        let mut new_uuids: Vec<Uuid> = Vec::new();
+
         if let Some(stream_result) = self.ws_server.incoming().next() {
             if let Ok(stream) = stream_result {
-                println!("we have a stream now");
-                self.ws_connections.push(WebSocketConnection::new(stream));
+                let id = Uuid::new_v4();
+                let connection = WebSocketConnection::new(stream);
+                self.ws_connections.insert(id, connection);
+                new_uuids.push(id);
                 println!("acquired an audience connection!");
             }
         }
@@ -119,6 +156,17 @@ impl GameServer {
         self.ws_server
             .set_nonblocking(false)
             .expect("non blocking should be ok");
+
+        for id in new_uuids {
+            let conn = self.ws_connections.get_mut(&id).unwrap();
+
+            conn.push_outgoing_messge(WSAudienceBoundMessage::Assignment(id));
+            if self.game_state.voting_game_state == VotingGameState::Voting {
+                conn.push_outgoing_messge(WSAudienceBoundMessage::Prompt(
+                    self.game_state.current_question.clone(),
+                ));
+            }
+        }
     }
 
     // handle every packet in received order
@@ -126,32 +174,19 @@ impl GameServer {
         for (i, connection) in self.connections.iter_mut().enumerate() {
             while let Some(packet) = connection.pop_incoming() {
                 match packet {
-                    ServerBoundPacket::Ping => {
-                        println!("Received a Ping packet from client #{}!", i);
-                        connection.push_outgoing(ClientBoundPacket::Pong);
-                        // below sends a message to every single connection
-                        GameServer::broadcast_ws(
-                            &mut self.ws_connections,
-                            Message::Text("".to_string()),
-                        );
-
-                        // self.ws_connections.iter_mut().for_each(|ws| {
-                        //     ws.push_outgoing(Message::Text(format!(
-                        //         "broadcasting that the server got a ping packet from client #{}!",
-                        //         i
-                        //     )));
-                        // })
-                    }
                     ServerBoundPacket::ChairSelectAndReady(chair_name) => {
+                        self.game_state.new_players_joined.push(i);
                         self.game_state.players[i] =
                             get_player_start_physics_properties(&chair_name, i.try_into().unwrap());
                     }
                     ServerBoundPacket::InputToggle(event) => match event {
                         InputEvent::Engine(status) => {
+                            assert!(self.game_state.players_ready[i]);
                             self.game_state.players[i].player_inputs.engine_status = status;
                             println!("Engine status: {:?}", status);
                         }
                         InputEvent::Rotation(status) => {
+                            assert!(self.game_state.players_ready[i]);
                             self.game_state.players[i].player_inputs.rotation_status = status;
                             println!("Turn status: {:?}", status);
                         }
@@ -163,60 +198,83 @@ impl GameServer {
 
     // handle socket data
     fn process_ws_packets(&mut self) {
-        let mut message_to_send = String::new();
-        for (i, connection) in self.ws_connections.iter_mut().enumerate() {
+        for (_id, connection) in self.ws_connections.iter_mut() {
             while let Some(packet) = connection.pop_incoming() {
                 match packet {
-                    Message::Text(txt) => {
-                        println!(
-                            "got message from client #{} of type Text, it says {}",
-                            i,
-                            txt.clone()
-                        );
-
-                        self.connections.iter_mut().for_each(|client| {
-                            client.push_outgoing(ClientBoundPacket::Message(txt.clone()))
-                        });
-
-                        message_to_send = txt.clone();
-                    }
-                    Message::Binary(_) => {
-                        println!("got message from client #{} of type Binary", i)
-                    }
-                    Message::Ping(_) => {
-                        println!("got message from client #{} of type Ping", i)
-                    }
-                    Message::Pong(_) => {
-                        println!("got message from client #{} of type Pong", i)
-                    }
-                    Message::Close(_) => {
-                        println!("got message from client #{} of type Close", i)
+                    WSServerBoundMessage::Vote(id, vote) => {
+                        println!("{} voted for {}", id, vote);
+                        self.game_state.audience_votes.insert(id, vote);
                     }
                 }
             }
         }
+    }
 
-        if message_to_send.len() > 0 {
-            // comment out later ; this is just for testing
+    // check to see if we need to tally up votes and do something
+    fn check_audience_voting(&mut self) {
+        if self.game_state.voting_game_state == VotingGameState::Voting
+            && self.game_state.vote_close_time < Instant::now()
+        {
+            // time to tally up votes
+            let winner = self
+                .game_state
+                .audience_votes
+                .iter()
+                .max_by(|a, b| a.1.cmp(&b.1))
+                .map(|(_key, vote)| vote)
+                .unwrap_or(&0);
+
+            println!("Option {} won!", winner);
+            self.game_state.voting_game_state = VotingGameState::Waiting;
             GameServer::broadcast_ws(
                 &mut self.ws_connections,
-                Message::Text(message_to_send.clone()),
+                WSAudienceBoundMessage::Winner(*winner),
             );
         }
     }
 
+    // prompts for a question
+    fn start_audience_voting(
+        &mut self,
+        question: String,
+        option1: String,
+        option2: String,
+        option3: String,
+        option4: String,
+        poll_time: Duration,
+    ) {
+        self.game_state.current_question = (question, (option1, option2, option3, option4));
+
+        GameServer::broadcast_ws(
+            &mut self.ws_connections,
+            WSAudienceBoundMessage::Prompt(self.game_state.current_question.clone()),
+        );
+
+        self.game_state.audience_votes = HashMap::new(); // clear past votes
+        self.game_state.voting_game_state = VotingGameState::Voting;
+        self.game_state.vote_close_time = Instant::now().add(poll_time);
+        // check on votes in 30 seconds
+    }
+
     // sends a message to all connected web clients
-    fn broadcast_ws(ws_connections: &mut Vec<WebSocketConnection>, message: Message) {
-        ws_connections.iter_mut().for_each(|con| {
-            con.push_outgoing(message.clone());
+    fn broadcast_ws(
+        ws_connections: &mut HashMap<Uuid, WebSocketConnection>,
+        message: WSAudienceBoundMessage,
+    ) {
+        ws_connections.iter_mut().for_each(|(_, con)| {
+            con.push_outgoing_messge(message.clone());
         });
     }
 
     // update game state
     fn simulate_game(&mut self) {
-        let mut new_players = vec![];
-
         let now = Instant::now();
+
+        // Add any new players
+        while let Some(index) = self.game_state.new_players_joined.pop() {
+            self.game_state.players_ready[index] = true;
+            self.connections[index].push_outgoing(ClientBoundPacket::PlayerNumber(index as u8));
+        }
 
         // earlier_time.duration_since(later_time) will return 0; filter out those for which the expiration time is earlier than the current time
         for player in &mut self.game_state.players {
@@ -227,8 +285,18 @@ impl GameServer {
             player.set_upward_direction_from_bounding_box();
         }
 
-        let triggers: &mut Vec<Box<&dyn TriggerEntity>> = &mut Vec::new();
+        let others = |this_index: usize| -> Vec<&PlayerEntity> {
+            self.game_state
+                .players
+                .iter()
+                .enumerate()
+                .filter(|(other_index, _)| *other_index != this_index)
+                .filter(|(other_index, _)| self.game_state.players_ready[*other_index])
+                .map(|(_, player_entity)| player_entity)
+                .collect()
+        };
 
+        let triggers: &mut Vec<Box<&dyn TriggerEntity>> = &mut Vec::new();
         if let Some(map) = &self.map {
             for checkpoint in map.checkpoints.iter() {
                 triggers.push(Box::new(checkpoint));
@@ -241,24 +309,24 @@ impl GameServer {
             triggers.push(Box::new(&map.finish_line));
         }
 
-        for (this_index, player) in self.game_state.players.iter().enumerate() {
-            let others = self
-                .game_state
-                .players
-                .iter()
-                .enumerate()
-                .filter(|(other_index, _)| *other_index != this_index)
-                .map(|(_, player_entity)| player_entity)
-                .collect();
-
-            new_players.push(player.do_physics_step(1.0, others, triggers.to_vec()));
-        }
-
-        self.game_state.players = new_players;
+        self.game_state.players = [0, 1, 2, 3]
+            .map(|n| self.game_state.players[n].do_physics_step(1.0, others(n), triggers.to_vec()));
     }
 
     // queue up sending updated game state
-    fn sync_state(&mut self) {}
+    fn sync_state(&mut self) {
+        for connection in &mut self.connections {
+            let locations = [0, 1, 2, 3].map(|n| {
+                if self.game_state.players_ready[n] {
+                    Some(self.game_state.players[n].entity_location.clone())
+                } else {
+                    None
+                }
+            });
+
+            connection.push_outgoing(ClientBoundPacket::LocationUpdate(locations));
+        }
+    }
 }
 
 pub struct Map {

@@ -1,4 +1,4 @@
-use chariot_core::GLOBAL_CONFIG;
+use graphics::GraphicsManager;
 use winit::{
     event::{ElementState, Event, MouseButton, WindowEvent},
     event_loop::ControlFlow,
@@ -7,32 +7,31 @@ use winit::{
 mod application;
 mod drawable;
 mod game;
+mod graphics;
 mod renderer;
 mod resources;
 mod scenegraph;
 
 fn main() {
-    let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
-    let mut game_client = game::GameClient::new(ip_addr);
-
     let event_loop = winit::event_loop::EventLoop::new();
     let context = renderer::context::Context::new(&event_loop);
     let renderer = renderer::Renderer::new(context);
 
-    let mut application = application::Application::new(renderer, game_client);
+    let graphics_manager = GraphicsManager::new(renderer);
+    let mut application = application::Application::new(graphics_manager);
 
     // Example of main loop deferring to elsewhere
     event_loop.run(move |event, _, control_flow| {
         // TRIGGER EVENTS
         *control_flow = ControlFlow::Poll;
         match event {
-            Event::MainEventsCleared => application.renderer.request_redraw(),
+            Event::MainEventsCleared => application.graphics.renderer.request_redraw(),
             // Window changes
             Event::WindowEvent {
                 event: WindowEvent::Resized(size),
                 ..
             } => {
-                application.renderer.handle_surface_resize(size);
+                application.graphics.renderer.handle_surface_resize(size);
             }
 
             // Forced redraw from OS

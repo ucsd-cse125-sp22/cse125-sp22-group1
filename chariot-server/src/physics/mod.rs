@@ -31,8 +31,7 @@ impl PlayerEntity {
         let diagonal_1 = lower_right_corner - upper_left_corner;
         let diagonal_2 = upper_right_corner - lower_left_corner;
 
-        // Right hand rule! This should be pointing "upwards"
-        self.entity_location.unit_upward_direction = diagonal_1.cross(diagonal_2).normalize();
+        self.entity_location.unit_upward_direction = diagonal_2.cross(diagonal_1).normalize();
     }
 
     /* Given a set of physical properties, compute and return what next tick's
@@ -47,19 +46,38 @@ impl PlayerEntity {
         let acceleration = self_forces / self.mass;
 
         let angular_velocity: f64 = match self.player_inputs.rotation_status {
-            RotationStatus::InSpinClockwise => self.angular_velocity + GLOBAL_CONFIG.car_spin,
-            RotationStatus::InSpinCounterclockwise => {
-                self.angular_velocity - GLOBAL_CONFIG.car_spin
-            }
+            RotationStatus::InSpinClockwise => f64::min(
+                GLOBAL_CONFIG.max_car_spin,
+                self.angular_velocity + GLOBAL_CONFIG.car_spin,
+            ),
+            RotationStatus::InSpinCounterclockwise => f64::max(
+                -GLOBAL_CONFIG.max_car_spin,
+                self.angular_velocity - GLOBAL_CONFIG.car_spin,
+            ),
             RotationStatus::NotInSpin => {
                 self.angular_velocity * GLOBAL_CONFIG.rotation_reduction_coefficient
             }
         };
 
+        let rotation_matrix = glam::Mat3::from_axis_angle(
+            self.entity_location.unit_upward_direction.as_vec3(),
+            angular_velocity as f32,
+        );
+
+        let new_steer_direction = rotation_matrix
+            .mul_vec3(self.entity_location.unit_steer_direction.as_vec3())
+            .normalize()
+            .as_dvec3();
+
         let mut delta_velocity = acceleration * time_step;
 
         for collider in potential_colliders.iter() {
             delta_velocity += self.delta_v_from_collision_with_player(collider);
+        }
+
+        let mut new_velocity = self.velocity + delta_velocity;
+        if new_velocity.length() > GLOBAL_CONFIG.max_car_speed {
+            new_velocity = new_velocity.normalize() * GLOBAL_CONFIG.max_car_speed;
         }
 
         let mut new_player = PlayerEntity {
@@ -70,11 +88,11 @@ impl PlayerEntity {
 
             entity_location: EntityLocation {
                 position: self.entity_location.position + self.velocity * time_step,
-                unit_steer_direction: self.entity_location.unit_steer_direction,
+                unit_steer_direction: new_steer_direction,
                 unit_upward_direction: self.entity_location.unit_upward_direction,
             },
 
-            velocity: self.velocity + delta_velocity,
+            velocity: new_velocity,
             angular_velocity: angular_velocity,
             mass: self.mass,
             size: self.size,
@@ -252,7 +270,10 @@ mod tests {
             + DVec3::new(0.6, 0.0, 0.8) * GLOBAL_CONFIG.car_accelerator
             + DVec3::new(-2.0, 0.0, -1.0) * GLOBAL_CONFIG.drag_coefficient * (5.0 as f64).sqrt()
             + DVec3::new(-2.0, 0.0, -1.0) * GLOBAL_CONFIG.rolling_resistance_coefficient;
-        assert!(props.velocity.abs_diff_eq(expected_velocity, 0.001));
+        assert!(props.velocity.abs_diff_eq(
+            expected_velocity.normalize() * GLOBAL_CONFIG.max_car_speed,
+            0.001
+        ));
     }
 
     #[test]
@@ -291,7 +312,10 @@ mod tests {
         let expected_velocity = DVec3::new(2.0, 0.0, 1.0)
             + DVec3::new(-2.0, 0.0, -1.0) * GLOBAL_CONFIG.drag_coefficient * (5.0 as f64).sqrt()
             + DVec3::new(-2.0, 0.0, -1.0) * GLOBAL_CONFIG.rolling_resistance_coefficient;
-        assert!(props.velocity.abs_diff_eq(expected_velocity, 0.001));
+        assert!(props.velocity.abs_diff_eq(
+            expected_velocity.normalize() * GLOBAL_CONFIG.max_car_speed,
+            0.001
+        ));
     }
     #[test]
     fn test_decelerating() {
@@ -332,7 +356,10 @@ mod tests {
             + (neg_prev_velocity / neg_prev_velocity.length()) * GLOBAL_CONFIG.car_brake
             + neg_prev_velocity * GLOBAL_CONFIG.drag_coefficient * (5.0 as f64).sqrt()
             + neg_prev_velocity * GLOBAL_CONFIG.rolling_resistance_coefficient;
-        assert!(props.velocity.abs_diff_eq(expected_velocity, 0.001));
+        assert!(props.velocity.abs_diff_eq(
+            expected_velocity.normalize() * GLOBAL_CONFIG.max_car_speed,
+            0.001
+        ));
     }
 
     #[test]

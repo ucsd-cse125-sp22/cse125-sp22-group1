@@ -1,0 +1,20 @@
+.main {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+}
+
+.header {
+	text-align: center;
+	font-family: 'Futura';
+	height: 22vh;
+}
+
+.rest {
+	height: 78vh;
+}
+.headerText {
+	color: #0070f3;
+	line-height: 1.15;
+  	font-size: 4rem;
+}
