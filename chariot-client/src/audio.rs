@@ -141,19 +141,24 @@ impl AudioThread {
   }
 
   // Fade out the sink
-  pub fn fade_out(&mut self, duration: Duration) {
+  pub fn fade_out(self, duration: Duration) {
     // 1 step every 10 ms
     let steps = duration.as_millis() / 10;
     let delta_time = duration.as_millis() / steps;
     
-    for n in 1..steps {
-      let volume = (self.volume / steps as f32) * (steps - n) as f32;
-      self.sink.set_volume(volume);
-      thread::sleep(Duration::from_millis(delta_time as u64));
-      // println!("current volume is {}", volume);
-    }
+    let x = Arc::new(Mutex::new(self));
+    let alias = x.clone();
 
-    self.sink.stop();
+    thread::spawn(move || {
+      let mutref = alias.lock().unwrap(); 
+      for n in 1..steps {
+        let volume = (mutref.volume / steps as f32) * (steps - n) as f32;
+        mutref.sink.set_volume(volume);
+        thread::sleep(Duration::from_millis(delta_time as u64));
+        // println!("current volume is {}", volume);
+      }
+      mutref.sink.stop();
+    });
   }
 
   // Pause playback
@@ -248,7 +253,7 @@ impl AudioSource {
   }
 
   // Play audio, & return a thread for self management
-  pub fn play_self(&mut self, track_id: usize, ctx: &AudioCtx, opt: SourceOptions) -> AudioThread {
+  pub fn play_alone(&mut self, track_id: usize, ctx: &AudioCtx, opt: SourceOptions) -> AudioThread {
     let path_buf = self.tracks.get(track_id).unwrap();
     let mut thread = AudioThread::new(ctx, path_buf.to_path_buf(), opt);
     thread.set_volume(self.volume);
@@ -284,19 +289,8 @@ impl AudioSource {
     // Fade Out All Currently Active Threads
     while self.threads.len() > 0 {
       let active_thread = self.threads.pop().unwrap();
-      self.fade_out_thread(active_thread, duration);
+      active_thread.fade_out(duration);
     }
-  }
-
-  // Fade Out a specific Audio Thread
-  pub fn fade_out_thread(&mut self, thread: AudioThread, duration: Duration) {
-    let x = Arc::new(Mutex::new(thread));
-    let alias = x.clone();
-
-    thread::spawn(move || {
-      let mut mutref = alias.lock().unwrap(); 
-      mutref.fade_out(duration);
-    });
   }
 
   // Pause All Audio Threads
