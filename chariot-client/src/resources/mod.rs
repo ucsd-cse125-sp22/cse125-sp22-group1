@@ -11,6 +11,7 @@ pub mod static_mesh;
 use material::*;
 use static_mesh::*;
 use wgpu::util::DeviceExt;
+use chariot_core::GLOBAL_CONFIG;
 
 use crate::drawable::*;
 use crate::renderer::*;
@@ -135,7 +136,8 @@ impl ResourceManager {
             filename
         );
         let model_name = filename.split(".").next().expect("invalid filename format");
-        let (document, buffers, images) = gltf::import(filename)?;
+        let resource_path = format!("{}/{}", GLOBAL_CONFIG.resource_folder, filename);
+        let (document, buffers, images) = gltf::import(resource_path)?;
 
         let mut bounds = new_bounds();
         let mut mesh_handles = Vec::new();
