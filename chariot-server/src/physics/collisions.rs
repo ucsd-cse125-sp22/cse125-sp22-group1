@@ -1,6 +1,6 @@
 use glam::{DVec3, Mat3};
 
-use super::player_entity::PlayerEntity;
+use super::{player_entity::PlayerEntity, trigger_entity::TriggerEntity};
 
 impl PlayerEntity {
     fn check_bounding_box_collisions(&self, other: &PlayerEntity) -> bool {

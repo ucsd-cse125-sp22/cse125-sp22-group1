@@ -14,6 +14,7 @@ use chariot_core::GLOBAL_CONFIG;
 
 use crate::chairs::get_player_start_physics_properties;
 use crate::checkpoints::{FinishLine, MajorCheckpoint, MinorCheckpoint};
+use crate::map::Map;
 use crate::physics::player_entity::PlayerEntity;
 use crate::physics::trigger_entity::TriggerEntity;
 
@@ -327,10 +328,4 @@ impl GameServer {
             connection.push_outgoing(ClientBoundPacket::LocationUpdate(locations));
         }
     }
-}
-
-pub struct Map {
-    major_zones: Vec<MajorCheckpoint>,
-    checkpoints: Vec<MinorCheckpoint>,
-    finish_line: FinishLine,
 }
