@@ -8,6 +8,35 @@ use crate::chairs::get_player_start_physics_properties;
 
 use super::ServerGameState;
 
+/*
+ * Phases of the game are as follows:
+*
+ * 1. GamePhase::WaitingForPlayerReady
+ *  During this phase, players are in selection screens choosing their chair
+ *  and marking ready; they'll be waiting in UI for all of this phase. The
+ *  transition from Phase 1 to 2 occurs when the server sends all clients an
+ *  GameStart packet, which will include a time to transition from phase 2
+ *  to 3.
+ *
+ * 2. GamePhase::CountingDownToGameStart
+ *  During this phase, players can see the track, the other players, and have
+ *  a countdown until they'll be able to use controls. The transition from Phase
+ *  2 to 3 is timed by the server, synchronized by an earlier GameStart packet.
+ *
+ * 3. GamePhase::PlayingBeforeVoting
+ *  The idea we had was to have idk 30 seconds at the start of the race
+ *  before voting starts; players will be driving around normally and the
+ *  clients will be oblivious to the difference between Phase 3 and 4. (client
+ *  will time itself internally)
+ *
+ * 4. GamePhase::PlayingWithVoting
+ *  All the good stuff happening at once! >:))) The transition from Phase 4 to
+ *  Phase 5 is marked by the server's AllDone packet.
+ *
+ * 5. GamePhase::AllPlayersDone
+ *  Show standings, perhaps a retry button, any other end-of-race stuff
+ */
+
 pub enum GamePhase {
     // During this phase, players are in selection screens choosing their chair
     // and marking ready; they'll be waiting in UI for all of this phase
