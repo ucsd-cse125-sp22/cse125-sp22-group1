@@ -26,20 +26,55 @@ pub struct GameServer {
     map: Option<Map>,
 }
 
-#[derive(PartialEq)]
-enum VotingGameState {
-    Voting,
-    Waiting,
+pub enum GamePhase {
+    // During this phase, players are in selection screens choosing their chair
+    // and marking ready; they'll be waiting in UI for all of this phase
+    WaitingForPlayerReady,
+    // During this phase, players can see the track, the other players, and have
+    // a countdown until they'll be able to use controls
+    CountingDownToGameStart,
+    // The idea we had was to have idk 30 seconds at the start of the race
+    // before voting starts; players will be driving around normally
+    PlayingBeforeVoting,
+    // >:)))
+    PlayingWithVoting,
+    // Show standings, perhaps a retry button, any other end-of-race stuff
+    AllPlayersDone,
 }
 
-pub struct ServerGameState {
+struct WaitingForPlayerReadyState {
     players_ready: [bool; 4],
     new_players_joined: Vec<usize>,
-    players: [PlayerEntity; 4],
+}
+
+struct CountingDownToGameStartState {
+    countdown_end_time: Instant,
+}
+
+struct PlayingBeforeVotingState {
+    voting_start_time: Instant,
+}
+
+struct PlayingWithVotingState {
     audience_votes: HashMap<Uuid, i32>,
     current_question: QuestionBody,
-    voting_game_state: VotingGameState,
+    is_voting_ongoing: bool,
     vote_close_time: Instant,
+}
+
+struct AllPlayersDoneState {}
+
+pub struct ServerGameState {
+    phase: GamePhase,
+
+    // gets its own slot because it persists across several phases; is awkward to behave identically in all
+    players: [PlayerEntity; 4],
+
+    waiting_for_player_ready_state: WaitingForPlayerReadyState,
+    counting_down_to_game_start_state: CountingDownToGameStartState,
+    playing_before_voting_state: PlayingBeforeVotingState,
+    playing_with_voting_state: PlayingWithVotingState,
+    all_players_done_state: AllPlayersDoneState,
 }
 
 impl GameServer {
@@ -57,22 +92,34 @@ impl GameServer {
             connections: Vec::new(),
             ws_connections: HashMap::new(),
             game_state: ServerGameState {
-                players_ready: [false, false, false, false],
-                new_players_joined: Vec::new(),
+                phase: GamePhase::WaitingForPlayerReady,
                 players: [0, 1, 2, 3]
                     .map(|num| get_player_start_physics_properties(&String::from("standard"), num)),
-                audience_votes: HashMap::new(),
-                voting_game_state: VotingGameState::Waiting,
-                vote_close_time: Instant::now(),
-                current_question: (
-                    "q".to_string(),
-                    (
-                        "1".to_string(),
-                        "2".to_string(),
-                        "3".to_string(),
-                        "4".to_string(),
+                waiting_for_player_ready_state: WaitingForPlayerReadyState {
+                    players_ready: [false, false, false, false],
+                    new_players_joined: Vec::new(),
+                },
+                counting_down_to_game_start_state: CountingDownToGameStartState {
+                    countdown_end_time: Instant::now(),
+                },
+                playing_before_voting_state: PlayingBeforeVotingState {
+                    voting_start_time: Instant::now(),
+                },
+                playing_with_voting_state: PlayingWithVotingState {
+                    audience_votes: HashMap::new(),
+                    current_question: (
+                        "q".to_string(),
+                        (
+                            "1".to_string(),
+                            "2".to_string(),
+                            "3".to_string(),
+                            "4".to_string(),
+                        ),
                     ),
-                ),
+                    is_voting_ongoing: false,
+                    vote_close_time: Instant::now(),
+                },
+                all_players_done_state: AllPlayersDoneState {},
             },
             map: None,
         }
@@ -161,10 +208,16 @@ impl GameServer {
             let conn = self.ws_connections.get_mut(&id).unwrap();
 
             conn.push_outgoing_messge(WSAudienceBoundMessage::Assignment(id));
-            if self.game_state.voting_game_state == VotingGameState::Voting {
-                conn.push_outgoing_messge(WSAudienceBoundMessage::Prompt(
-                    self.game_state.current_question.clone(),
-                ));
+
+            if matches!(self.game_state.phase, GamePhase::PlayingWithVoting) {
+                if self.game_state.playing_with_voting_state.is_voting_ongoing {
+                    conn.push_outgoing_messge(WSAudienceBoundMessage::Prompt(
+                        self.game_state
+                            .playing_with_voting_state
+                            .current_question
+                            .clone(),
+                    ));
+                }
             }
         }
     }
@@ -175,20 +228,17 @@ impl GameServer {
             while let Some(packet) = connection.pop_incoming() {
                 match packet {
                     ServerBoundPacket::ChairSelectAndReady(chair_name) => {
-                        self.game_state.new_players_joined.push(i);
-                        self.game_state.players[i] =
-                            get_player_start_physics_properties(&chair_name, i.try_into().unwrap());
+                        self.game_state
+                            .waiting_for_player_ready_state
+                            .new_players_joined
+                            .push(i);
                     }
                     ServerBoundPacket::InputToggle(event) => match event {
                         InputEvent::Engine(status) => {
-                            assert!(self.game_state.players_ready[i]);
                             self.game_state.players[i].player_inputs.engine_status = status;
-                            println!("Engine status: {:?}", status);
                         }
                         InputEvent::Rotation(status) => {
-                            assert!(self.game_state.players_ready[i]);
                             self.game_state.players[i].player_inputs.rotation_status = status;
-                            println!("Turn status: {:?}", status);
                         }
                     },
                 }
@@ -203,7 +253,10 @@ impl GameServer {
                 match packet {
                     WSServerBoundMessage::Vote(id, vote) => {
                         println!("{} voted for {}", id, vote);
-                        self.game_state.audience_votes.insert(id, vote);
+                        self.game_state
+                            .playing_with_voting_state
+                            .audience_votes
+                            .insert(id, vote);
                     }
                 }
             }
@@ -212,12 +265,10 @@ impl GameServer {
 
     // check to see if we need to tally up votes and do something
     fn check_audience_voting(&mut self) {
-        if self.game_state.voting_game_state == VotingGameState::Voting
-            && self.game_state.vote_close_time < Instant::now()
-        {
+        let state = &mut self.game_state.playing_with_voting_state;
+        if state.is_voting_ongoing && state.vote_close_time < Instant::now() {
             // time to tally up votes
-            let winner = self
-                .game_state
+            let winner = state
                 .audience_votes
                 .iter()
                 .max_by(|a, b| a.1.cmp(&b.1))
@@ -225,7 +276,7 @@ impl GameServer {
                 .unwrap_or(&0);
 
             println!("Option {} won!", winner);
-            self.game_state.voting_game_state = VotingGameState::Waiting;
+            state.is_voting_ongoing = false;
             GameServer::broadcast_ws(
                 &mut self.ws_connections,
                 WSAudienceBoundMessage::Winner(*winner),
@@ -243,16 +294,17 @@ impl GameServer {
         option4: String,
         poll_time: Duration,
     ) {
-        self.game_state.current_question = (question, (option1, option2, option3, option4));
+        let state = &mut self.game_state.playing_with_voting_state;
+        state.current_question = (question, (option1, option2, option3, option4));
 
         GameServer::broadcast_ws(
             &mut self.ws_connections,
-            WSAudienceBoundMessage::Prompt(self.game_state.current_question.clone()),
+            WSAudienceBoundMessage::Prompt(state.current_question.clone()),
         );
 
-        self.game_state.audience_votes = HashMap::new(); // clear past votes
-        self.game_state.voting_game_state = VotingGameState::Voting;
-        self.game_state.vote_close_time = Instant::now().add(poll_time);
+        state.audience_votes = HashMap::new(); // clear past votes
+        state.is_voting_ongoing = true;
+        state.vote_close_time = Instant::now().add(poll_time);
         // check on votes in 30 seconds
     }
 
@@ -270,61 +322,72 @@ impl GameServer {
     fn simulate_game(&mut self) {
         let now = Instant::now();
 
-        // Add any new players
-        while let Some(index) = self.game_state.new_players_joined.pop() {
-            self.game_state.players_ready[index] = true;
-            self.connections[index].push_outgoing(ClientBoundPacket::PlayerNumber(index as u8));
-        }
-
-        // earlier_time.duration_since(later_time) will return 0; filter out those for which the expiration time is earlier than the current time
-        for player in &mut self.game_state.players {
-            player
-                .physics_changes
-                .retain(|change| !change.expiration_time.duration_since(now).is_zero());
-            player.set_bounding_box_dimensions();
-            player.set_upward_direction_from_bounding_box();
-        }
-
-        let others = |this_index: usize| -> Vec<&PlayerEntity> {
-            self.game_state
-                .players
-                .iter()
-                .enumerate()
-                .filter(|(other_index, _)| *other_index != this_index)
-                .filter(|(other_index, _)| self.game_state.players_ready[*other_index])
-                .map(|(_, player_entity)| player_entity)
-                .collect()
-        };
-
-        let triggers: &mut Vec<Box<&dyn TriggerEntity>> = &mut Vec::new();
-        if let Some(map) = &self.map {
-            for checkpoint in map.checkpoints.iter() {
-                triggers.push(Box::new(checkpoint));
+        match self.game_state.phase {
+            GamePhase::WaitingForPlayerReady => {
+                // Add any new players
+                let state = &mut self.game_state.waiting_for_player_ready_state;
+                while let Some(index) = state.new_players_joined.pop() {
+                    state.players_ready[index] = true;
+                    self.connections[index]
+                        .push_outgoing(ClientBoundPacket::PlayerNumber(index as u8));
+                }
             }
+            GamePhase::CountingDownToGameStart => todo!(),
+            GamePhase::PlayingBeforeVoting | GamePhase::PlayingWithVoting => {
+                // earlier_time.duration_since(later_time) will return 0; filter out those for which the expiration time is earlier than the current time
+                for player in &mut self.game_state.players {
+                    player
+                        .physics_changes
+                        .retain(|change| !change.expiration_time.duration_since(now).is_zero());
+                    player.set_bounding_box_dimensions();
+                    player.set_upward_direction_from_bounding_box();
+                }
 
-            for zone in map.major_zones.iter() {
-                triggers.push(Box::new(zone));
+                let others = |this_index: usize| -> Vec<&PlayerEntity> {
+                    self.game_state
+                        .players
+                        .iter()
+                        .enumerate()
+                        .filter(|(other_index, _)| *other_index != this_index)
+                        .map(|(_, player_entity)| player_entity)
+                        .collect()
+                };
+
+                let triggers: &mut Vec<Box<&dyn TriggerEntity>> = &mut Vec::new();
+                if let Some(map) = &self.map {
+                    for checkpoint in map.checkpoints.iter() {
+                        triggers.push(Box::new(checkpoint));
+                    }
+
+                    for zone in map.major_zones.iter() {
+                        triggers.push(Box::new(zone));
+                    }
+
+                    triggers.push(Box::new(&map.finish_line));
+                }
+
+                self.game_state.players = [0, 1, 2, 3].map(|n| {
+                    self.game_state.players[n].do_physics_step(1.0, others(n), triggers.to_vec())
+                });
             }
-
-            triggers.push(Box::new(&map.finish_line));
+            GamePhase::AllPlayersDone => todo!(),
         }
-
-        self.game_state.players = [0, 1, 2, 3]
-            .map(|n| self.game_state.players[n].do_physics_step(1.0, others(n), triggers.to_vec()));
     }
 
     // queue up sending updated game state
     fn sync_state(&mut self) {
-        for connection in &mut self.connections {
-            let locations = [0, 1, 2, 3].map(|n| {
-                if self.game_state.players_ready[n] {
-                    Some(self.game_state.players[n].entity_location.clone())
-                } else {
-                    None
-                }
-            });
+        match self.game_state.phase {
+            GamePhase::WaitingForPlayerReady => todo!(),
+            GamePhase::CountingDownToGameStart => todo!(),
+            GamePhase::PlayingBeforeVoting | GamePhase::PlayingWithVoting => {
+                for connection in &mut self.connections {
+                    let locations = [0, 1, 2, 3]
+                        .map(|n| Some(self.game_state.players[n].entity_location.clone()));
 
-            connection.push_outgoing(ClientBoundPacket::LocationUpdate(locations));
+                    connection.push_outgoing(ClientBoundPacket::LocationUpdate(locations));
+                }
+            }
+            GamePhase::AllPlayersDone => todo!(),
         }
     }
 }
