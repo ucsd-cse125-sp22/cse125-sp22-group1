@@ -13,7 +13,9 @@ use chariot_core::player_inputs::InputEvent;
 use chariot_core::GLOBAL_CONFIG;
 
 use crate::chairs::get_player_start_physics_properties;
+use crate::checkpoints::{FinishLine, MajorCheckpoint, MinorCheckpoint};
 use crate::physics::player_entity::PlayerEntity;
+use crate::physics::trigger_entity::TriggerEntity;
 
 pub struct GameServer {
     listener: TcpListener,
@@ -21,6 +23,7 @@ pub struct GameServer {
     connections: Vec<ClientConnection>,
     ws_connections: HashMap<Uuid, WebSocketConnection>,
     game_state: ServerGameState,
+    map: Option<Map>,
 }
 
 #[derive(PartialEq)]
@@ -71,6 +74,7 @@ impl GameServer {
                     ),
                 ),
             },
+            map: None,
         }
     }
 
@@ -292,8 +296,21 @@ impl GameServer {
                 .collect()
         };
 
-        self.game_state.players =
-            [0, 1, 2, 3].map(|n| self.game_state.players[n].do_physics_step(1.0, others(n)));
+        let triggers: &mut Vec<Box<&dyn TriggerEntity>> = &mut Vec::new();
+        if let Some(map) = &self.map {
+            for checkpoint in map.checkpoints.iter() {
+                triggers.push(Box::new(checkpoint));
+            }
+
+            for zone in map.major_zones.iter() {
+                triggers.push(Box::new(zone));
+            }
+
+            triggers.push(Box::new(&map.finish_line));
+        }
+
+        self.game_state.players = [0, 1, 2, 3]
+            .map(|n| self.game_state.players[n].do_physics_step(1.0, others(n), triggers.to_vec()));
     }
 
     // queue up sending updated game state
@@ -310,4 +327,10 @@ impl GameServer {
             connection.push_outgoing(ClientBoundPacket::LocationUpdate(locations));
         }
     }
+}
+
+pub struct Map {
+    major_zones: Vec<MajorCheckpoint>,
+    checkpoints: Vec<MinorCheckpoint>,
+    finish_line: FinishLine,
 }
