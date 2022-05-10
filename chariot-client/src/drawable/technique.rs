@@ -1,6 +1,5 @@
 use crate::renderer::*;
 use crate::resources::*;
-use crate::scenegraph::Transform;
 use wgpu::util::DeviceExt;
 
 pub trait Technique {

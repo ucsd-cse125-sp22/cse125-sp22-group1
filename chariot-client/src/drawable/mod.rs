@@ -2,7 +2,6 @@ pub mod technique;
 
 use crate::renderer::*;
 use crate::resources::*;
-use crate::scenegraph::Light;
 use technique::*;
 
 /*

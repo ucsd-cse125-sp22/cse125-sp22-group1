@@ -14,7 +14,6 @@ use wgpu::util::DeviceExt;
 
 use crate::drawable::*;
 use crate::renderer::*;
-use crate::scenegraph::Light;
 
 // This file has the ResourceManager, which is responsible for loading gltf models and assigning resource handles
 

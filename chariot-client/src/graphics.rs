@@ -4,6 +4,7 @@ use crate::drawable::technique::Technique;
 use crate::drawable::*;
 use crate::renderer::*;
 use crate::resources::*;
+use crate::scenegraph::components::*;
 use crate::scenegraph::*;
 
 pub fn register_passes(renderer: &mut Renderer) {
@@ -24,6 +25,62 @@ pub fn register_passes(renderer: &mut Renderer) {
         "postprocess",
         &util::direct_graphics_depth_pass!("shaders/postprocess.wgsl"),
     );
+}
+
+fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer) -> (World, Entity) {
+    let mut world = World::new();
+    world.register::<Camera>();
+    world.register::<Vec<StaticMeshDrawable>>();
+    world.register::<Bounds>();
+    world.register::<Light>();
+    let world_root = world.root();
+    let chair = {
+        let chair_import_result = resources.import_gltf(renderer, "models/chair.glb");
+        let chair_import = chair_import_result.expect("Failed to import chair");
+
+        world
+            .builder()
+            .attach(world_root)
+            .with(Transform {
+                translation: glam::vec3(0.0, 0.5, 0.0),
+                rotation: glam::Quat::IDENTITY,
+                scale: glam::vec3(1.1995562314987183, 2.2936718463897705, 1.1995562314987183) * 0.2,
+            })
+            .with(chair_import.drawables)
+            .with(chair_import.bounds)
+            .build()
+    };
+    {
+        let track_import_result = resources.import_gltf(renderer, "models/baked.glb");
+        let track_import = track_import_result.expect("Unable to load racetrack");
+
+        let track = world
+            .builder()
+            .attach(world_root)
+            .with(Transform {
+                translation: glam::Vec3::ZERO,
+                rotation: glam::Quat::IDENTITY,
+                scale: glam::vec3(20.0, 20.0, 20.0),
+            })
+            .with(track_import.drawables)
+            .with(track_import.bounds)
+            .build();
+    }
+
+    {
+        let scene_bounds = world.calc_bounds(world.root());
+        let light = world
+            .builder()
+            .attach(world_root)
+            .with(Light::new_directional(
+                glam::vec3(-0.5, -1.0, 0.5),
+                scene_bounds,
+            ))
+            .with(Transform::default())
+            .build();
+    }
+
+    (world, chair)
 }
 
 pub struct GraphicsManager {
@@ -70,58 +127,7 @@ impl GraphicsManager {
 
         let postprocess = technique::FSQTechnique::new(&renderer, &resources, "postprocess");
 
-        let mut world = World::new();
-        world.register::<Camera>();
-        world.register::<Vec<StaticMeshDrawable>>();
-        world.register::<Bounds>();
-        world.register::<Light>();
-        let world_root = world.root();
-        let chair = {
-            let chair_import_result = resources.import_gltf(&mut renderer, "models/chair.glb");
-            let chair_import = chair_import_result.expect("Failed to import chair");
-
-            world
-                .builder()
-                .attach(world_root)
-                .with(Transform {
-                    translation: glam::vec3(0.0, 0.5, 0.0),
-                    rotation: glam::Quat::IDENTITY,
-                    scale: glam::vec3(1.1995562314987183, 2.2936718463897705, 1.1995562314987183)
-                        * 0.2,
-                })
-                .with(chair_import.drawables)
-                .with(chair_import.bounds)
-                .build()
-        };
-        {
-            let track_import_result = resources.import_gltf(&mut renderer, "models/baked.glb");
-            let track_import = track_import_result.expect("Unable to load racetrack");
-
-            let track = world
-                .builder()
-                .attach(world_root)
-                .with(Transform {
-                    translation: glam::Vec3::ZERO,
-                    rotation: glam::Quat::IDENTITY,
-                    scale: glam::vec3(20.0, 20.0, 20.0),
-                })
-                .with(track_import.drawables)
-                .with(track_import.bounds)
-                .build();
-        }
-
-        {
-            let scene_bounds = world.calc_bounds(world.root());
-            let light = world
-                .builder()
-                .attach(world_root)
-                .with(Light::new_directional(
-                    glam::vec3(-0.5, -1.0, 0.5),
-                    scene_bounds,
-                ))
-                .with(Transform::default())
-                .build();
-        }
+        let (world, chair) = setup_world(&mut resources, &mut renderer);
 
         Self {
             world: world,
