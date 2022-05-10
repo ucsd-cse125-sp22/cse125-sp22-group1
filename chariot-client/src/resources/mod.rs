@@ -9,10 +9,10 @@ pub mod material;
 pub mod static_mesh;
 
 use chariot_core::GLOBAL_CONFIG;
+use chariot_core::GLOBAL_CONFIG;
 use material::*;
 use static_mesh::*;
 use wgpu::util::DeviceExt;
-use chariot_core::GLOBAL_CONFIG;
 
 use crate::drawable::*;
 use crate::renderer::*;
