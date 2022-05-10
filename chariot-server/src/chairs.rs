@@ -1,5 +1,6 @@
 use chariot_core::{
     entity_location::EntityLocation,
+    lap_info::LapInformation,
     player_inputs::{EngineStatus, PlayerInputs, RotationStatus},
 };
 use glam::DVec3;
@@ -46,5 +47,6 @@ pub fn get_player_start_physics_properties(chair_name: &String, player_number: u
             unit_upward_direction: DVec3::Y,
         },
         physics_changes: vec![],
+        lap_info: LapInformation::new(),
     };
 }

@@ -1,7 +1,6 @@
 use std::{
-    borrow::{Borrow, Cow},
+    borrow::Cow,
     collections::HashMap,
-    iter::Peekable,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -11,6 +10,7 @@ use winit::dpi::PhysicalSize;
 pub mod context;
 mod reflection;
 pub mod render_job;
+pub mod util;
 
 use context::*;
 use reflection::shader_metadata;
@@ -48,7 +48,7 @@ use render_job::*;
 pub struct FramebufferDescriptor {
     pub color_attachments: Vec<wgpu::TextureView>,
     pub depth_stencil_attachment: Option<wgpu::TextureView>,
-    pub clear_color: bool,
+    pub clear_color: Option<wgpu::Color>,
     pub clear_depth: bool,
 }
 
@@ -58,7 +58,6 @@ pub struct Renderer {
     queue: wgpu::Queue,
     passes: HashMap<String, RenderPass>,
     framebuffers: HashMap<String, FramebufferDescriptor>,
-    framebuffer_textures: HashMap<String, Vec<wgpu::Texture>>, // Backing textures, the above only has views
     bind_group_layouts: HashMap<String, Vec<wgpu::BindGroupLayout>>,
     surface_format: wgpu::TextureFormat,
     depth_texture: wgpu::Texture,
@@ -112,23 +111,8 @@ impl Renderer {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
         });
 
-        let depth_texture_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
-        let depth_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Nearest,
-            compare: Some(wgpu::CompareFunction::LessEqual),
-            lod_min_clamp: -100.0,
-            lod_max_clamp: 100.0,
-            ..Default::default()
-        });
-
         let passes = HashMap::new();
         let framebuffers = HashMap::new();
-        let framebuffer_textures = HashMap::new();
         let bind_group_layouts = HashMap::new();
         Renderer {
             context,
@@ -136,7 +120,6 @@ impl Renderer {
             queue,
             passes,
             framebuffers,
-            framebuffer_textures,
             bind_group_layouts,
             surface_format,
             depth_texture,
@@ -147,30 +130,17 @@ impl Renderer {
         self.context.window.request_redraw()
     }
 
-    pub fn register_framebuffer<'a, T>(
+    pub fn register_framebuffer<'a>(
         &mut self,
         name: &str,
         framebuffer_desc: FramebufferDescriptor,
-        backing_textures: T,
-    ) where
-        T: IntoIterator<Item = wgpu::Texture>,
-    {
+    ) {
         self.framebuffers
             .insert(String::from(name), framebuffer_desc);
-        self.framebuffer_textures
-            .insert(String::from(name), backing_textures.into_iter().collect());
-    }
-
-    pub fn framebuffer_tex(&self, name: &str, index: usize) -> Option<&wgpu::Texture> {
-        self.framebuffer_textures.get(&name.to_string())?.get(index)
     }
 
     // TODO: add index buffer layout
     pub fn register_pass(&mut self, name: &str, render_pass_desc: &RenderPassDescriptor) {
-        if self.passes.contains_key(name) {
-            return;
-        }
-
         match render_pass_desc {
             RenderPassDescriptor::Graphics {
                 source,
@@ -350,7 +320,8 @@ impl Renderer {
         })
     }
 
-    pub fn create_2D_texture_init(
+    #[allow(non_snake_case)]
+    pub fn create_texture2D_init(
         &self,
         name: &str,
         size: PhysicalSize<u32>,
@@ -378,7 +349,8 @@ impl Renderer {
         // TODO: mipmapping
     }
 
-    pub fn create_2D_texture(
+    #[allow(non_snake_case)]
+    pub fn create_texture2D(
         &self,
         name: &str,
         size: PhysicalSize<u32>,
@@ -424,8 +396,8 @@ impl Renderer {
                 view: &color_tex_view,
                 resolve_target: None,
                 ops: wgpu::Operations {
-                    load: if framebuffer_desc.clear_color {
-                        wgpu::LoadOp::Clear(wgpu::Color::BLACK)
+                    load: if let Some(color) = framebuffer_desc.clear_color {
+                        wgpu::LoadOp::Clear(color)
                     } else {
                         wgpu::LoadOp::Load
                     },
@@ -526,7 +498,7 @@ impl Renderer {
                         self.depth_texture
                             .create_view(&wgpu::TextureViewDescriptor::default()),
                     ),
-                    clear_color: true,
+                    clear_color: Some(wgpu::Color::BLACK),
                     clear_depth: true,
                 },
             );
@@ -545,9 +517,9 @@ impl Renderer {
                 .expect("Invalid pass name in graph");
             match pass {
                 RenderPass::Graphics {
-                    shader,
-                    pipeline_layout,
-                    render_pipeline,
+                    shader: _,
+                    pipeline_layout: _,
+                    render_pipeline: _,
                 } => {
                     let fb_name = render_item_framebuffer_name(&items[0]).unwrap();
                     let mut wgpu_rpass =

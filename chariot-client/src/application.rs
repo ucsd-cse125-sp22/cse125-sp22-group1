@@ -5,7 +5,7 @@ use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, VirtualKeyCode};
 
 use crate::game::{self, GameClient};
-use crate::graphics::GraphicsManager;
+use crate::graphics::{register_passes, GraphicsManager};
 
 use chariot_core::player_inputs::{EngineStatus, InputEvent, RotationStatus};
 
@@ -106,6 +106,11 @@ impl Application {
         if let Some(event) = self.get_input_event(key) {
             self.game.send_input_event(event);
         };
+
+        if key == VirtualKeyCode::R {
+            println!("Reloading shaders");
+            register_passes(&mut self.graphics.renderer);
+        }
     }
 
     pub fn on_key_up(&mut self, key: VirtualKeyCode) {
