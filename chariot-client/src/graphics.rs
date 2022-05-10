@@ -119,7 +119,7 @@ impl GraphicsManager {
         }
         {
             // insanely large shadow map for now
-            let shadow_map_res = winit::dpi::PhysicalSize::<u32>::new(8192, 8192);
+            let shadow_map_res = winit::dpi::PhysicalSize::<u32>::new(2048, 2048);
             let fb_desc =
                 resources.depth_framebuffer("shadow_out1", &renderer, shadow_map_res, &[], None);
             renderer.register_framebuffer("shadow_out1", fb_desc);
