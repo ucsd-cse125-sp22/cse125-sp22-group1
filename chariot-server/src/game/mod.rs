@@ -169,7 +169,9 @@ impl GameServer {
                         .push_outgoing(ClientBoundPacket::PlayerNumber(index as u8));
                 }
 
-                if state.players_ready.iter().all(|&x| x) {
+                if state.players_ready.iter().all(|&x| x)
+                    || GLOBAL_CONFIG.bypass_multiplayer_requirement
+                {
                     let time_until_start = Duration::new(10, 0);
                     self.game_state
                         .counting_down_to_game_start_state
@@ -236,7 +238,7 @@ impl GameServer {
                         .game_state
                         .playing_before_voting_state
                         .voting_start_time
-                        > now
+                        < now
                 {
                     self.game_state.phase = GamePhase::PlayingWithVoting;
                 }
@@ -248,7 +250,7 @@ impl GameServer {
     // queue up sending updated game state
     fn sync_state(&mut self) {
         match self.game_state.phase {
-            GamePhase::WaitingForPlayerReady => todo!(),
+            GamePhase::WaitingForPlayerReady => {}
 
             // These three phases have visible players
             GamePhase::CountingDownToGameStart

@@ -35,7 +35,7 @@ fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer) -> (Wor
     world.register::<Light>();
     let world_root = world.root();
     let chair = {
-        let chair_import_result = resources.import_gltf(renderer, "models/chair.glb");
+        let chair_import_result = resources.import_gltf(renderer, "models/defaultchair.glb");
         let chair_import = chair_import_result.expect("Failed to import chair");
 
         world
@@ -142,7 +142,7 @@ impl GraphicsManager {
     pub fn add_player(&mut self, player_num: u8, is_self: bool) {
         let chair_import_result = self
             .resources
-            .import_gltf(&mut self.renderer, "models/chair.glb");
+            .import_gltf(&mut self.renderer, "models/defaultchair.glb");
         let chair_import = chair_import_result.expect("Failed to import chair");
 
         let world_root = self.world.root();
