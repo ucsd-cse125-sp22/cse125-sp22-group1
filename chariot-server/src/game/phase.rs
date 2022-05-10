@@ -38,24 +38,16 @@ use super::ServerGameState;
  */
 
 pub enum GamePhase {
-    // During this phase, players are in selection screens choosing their chair
-    // and marking ready; they'll be waiting in UI for all of this phase
     WaitingForPlayerReady,
-    // During this phase, players can see the track, the other players, and have
-    // a countdown until they'll be able to use controls
     CountingDownToGameStart,
-    // The idea we had was to have idk 30 seconds at the start of the race
-    // before voting starts; players will be driving around normally
     PlayingBeforeVoting,
-    // >:)))
     PlayingWithVoting,
-    // Show standings, perhaps a retry button, any other end-of-race stuff
     AllPlayersDone,
 }
 
 pub struct WaitingForPlayerReadyState {
     pub players_ready: [bool; 4],
-    pub new_players_joined: Vec<usize>,
+    pub new_players_joined: Vec<(String, usize)>,
 }
 
 pub struct CountingDownToGameStartState {
