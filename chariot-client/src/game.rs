@@ -5,7 +5,6 @@ use std::net::TcpStream;
 
 pub struct GameClient {
     connection: ServerConnection,
-    lap_info: LapInformation,
 }
 
 impl GameClient {
@@ -14,7 +13,6 @@ impl GameClient {
         println!("game client now listening on {}", ip_addr);
         GameClient {
             connection: ServerConnection::new(connection),
-            lap_info: LapInformation::new(),
         }
     }
 

@@ -18,8 +18,6 @@ use crate::map::Map;
 use crate::physics::player_entity::PlayerEntity;
 use crate::physics::trigger_entity::TriggerEntity;
 
-use serde_json::Value;
-
 pub struct GameServer {
     listener: TcpListener,
     ws_server: TcpListener,
@@ -330,50 +328,5 @@ impl GameServer {
 
             connection.push_outgoing(ClientBoundPacket::LocationUpdate(locations));
         }
-    }
-}
-
-impl Map {
-    //pub fn load(filename: &str) -> Result<Map, gltf::Error> {
-    pub fn load(filename: &str) {
-        println!(
-            "loading {}, please give a sec I swear it's not lagging",
-            filename
-        );
-        let model_name = filename.split(".").next().expect("invalid filename format");
-        let (document, buffers, images) = gltf::import(filename).unwrap();
-
-        //let mut mesh_handles = Vec::new();
-        for (mesh_idx, mesh) in document.meshes().enumerate() {
-            println!(
-                "processing mesh {}",
-                mesh.name().unwrap_or("[a mesh that's not named]")
-            );
-
-            if mesh.primitives().len() != 1 {
-                print!(
-                    "Warning: I'm expecting one prim per mesh so things might not work properly"
-                );
-            }
-
-            for (prim_idx, primitive) in mesh.primitives().enumerate() {
-                println!("\tprocessing prim {}", prim_idx);
-                //let handle = self.import_mesh(renderer, &buffers, &primitive);
-                //mesh_handles.push(handle);
-            }
-
-            if let Some(extras) = mesh.extras().as_ref() {
-                let mesh_data: Value = serde_json::from_str(extras.as_ref().get()).unwrap();
-                println!("X: {:?}", mesh_data["render"] == 0);
-            }
-        }
-
-        println!("done!");
-
-        // core::result::Result::Ok(Map {
-        // 	major_zones = Vec::new(),
-        // 	checkpoints = Vec::new(),
-        // 	finish_line = FinishLine::new(),
-        // })
     }
 }
