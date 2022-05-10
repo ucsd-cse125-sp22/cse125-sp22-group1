@@ -142,10 +142,12 @@ impl AudioThread {
 
   // Fade out the sink
   pub fn fade_out(&mut self, duration: Duration) {
-    let delta_time = duration.as_millis() / 100;
+    // 1 step every 10 ms
+    let steps = duration.as_millis() / 10;
+    let delta_time = duration.as_millis() / steps;
     
-    for n in 1..100 {
-      let volume = (self.volume / 100.0) * (100 - n) as f32;
+    for n in 1..steps {
+      let volume = (self.volume / steps as f32) * (steps - n) as f32;
       self.sink.set_volume(volume);
       thread::sleep(Duration::from_millis(delta_time as u64));
       // println!("current volume is {}", volume);
@@ -245,6 +247,17 @@ impl AudioSource {
     self.threads.push(thread);
   }
 
+  // Play audio, & return a thread for self management
+  pub fn play_self(&mut self, track_id: usize, ctx: &AudioCtx, opt: SourceOptions) -> AudioThread {
+    let path_buf = self.tracks.get(track_id).unwrap();
+    let mut thread = AudioThread::new(ctx, path_buf.to_path_buf(), opt);
+    thread.set_volume(self.volume);
+    thread.set_pitch(self.pitch);
+
+    thread.play();
+    return thread;
+  }
+
   // Play an Audio such that it will crossfade with all currently playing tracks
   pub fn play_cf(&mut self, track_id: usize, ctx: &AudioCtx, mut opt: SourceOptions, duration: Duration) {
     // Clean Up All Stopped Threads
@@ -266,6 +279,7 @@ impl AudioSource {
     self.threads.push(thread);
   }
 
+  // Do a fade-out on all currently playing threads in this manager
   pub fn fade_all_threads(&mut self, duration: Duration) {
     // Fade Out All Currently Active Threads
     while self.threads.len() > 0 {
@@ -274,7 +288,7 @@ impl AudioSource {
     }
   }
 
-  // Fade Out An Audio Thread
+  // Fade Out a specific Audio Thread
   pub fn fade_out_thread(&mut self, thread: AudioThread, duration: Duration) {
     let x = Arc::new(Mutex::new(thread));
     let alias = x.clone();
