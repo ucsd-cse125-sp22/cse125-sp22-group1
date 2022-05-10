@@ -11,6 +11,9 @@ pub struct Settings {
     pub player_amount: usize,
     pub ws_server_port: String,
 
+    // Resources
+    pub resource_folder: String,
+
     // Physics
     pub gravity_coefficient: f64,
     pub drag_coefficient: f64,
@@ -37,6 +40,8 @@ impl Settings {
             .set_default("ws_server_port", "0.0.0.0:9001")?
             .set_default("server_tick_ms", 30)?
             .set_default("player_amount", 1)?
+            // files_and_resources (client)
+            .set_default("resource_folder", "./resources")?
             // physics
             // `gravity_coefficient` is acceleration due to gravity: this is
             // little g (whose IRL value is 9.81 meters per second squared, but
