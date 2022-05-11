@@ -264,15 +264,12 @@ impl GameServer {
                                 ],
                             );
 
-                            self.game_state.phase = GamePhase::PlayingGame(PlayingGameState {
-                                voting_game_state: VotingState::WaitingForVotes(
-                                    WaitingForVotesState {
-                                        audience_votes: HashMap::new(),
-                                        current_question: question.clone(),
-                                        vote_close_time: now + time_until_voting_enabled, // now + 30 seconds
-                                    },
-                                ),
-                            });
+                            state.voting_game_state =
+                                VotingState::WaitingForVotes(WaitingForVotesState {
+                                    audience_votes: HashMap::new(),
+                                    current_question: question.clone(),
+                                    vote_close_time: now + time_until_voting_enabled, // now + 30 seconds
+                                });
 
                             GameServer::broadcast_ws(
                                 &mut self.ws_connections,
