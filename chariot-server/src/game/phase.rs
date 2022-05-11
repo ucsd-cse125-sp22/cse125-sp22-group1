@@ -26,6 +26,7 @@ use chariot_core::networking::Uuid;
  *  Show standings, perhaps a retry button, any other end-of-race stuff
  */
 
+#[derive(Debug)]
 pub enum GamePhase {
     WaitingForPlayerReady(WaitingForPlayerReadyState),
     CountingDownToGameStart(CountingDownToGameStartState),
@@ -33,35 +34,36 @@ pub enum GamePhase {
     AllPlayersDone(AllPlayersDoneState),
 }
 
+#[derive(Debug)]
 pub enum VotingGameState {
     WaitingForVoting(WaitingForVotingState),
     DecisionMade(i32),
 }
 
+#[derive(Debug)]
 pub struct WaitingForVotingState {
     pub audience_votes: HashMap<Uuid, i32>,
     pub current_question: QuestionBody,
     pub vote_close_time: Instant,
 }
 
+#[derive(Debug)]
 pub struct WaitingForPlayerReadyState {
     pub players_ready: [bool; 4],
     pub new_players_joined: Vec<(String, usize)>,
 }
 
+#[derive(Debug)]
 pub struct CountingDownToGameStartState {
     pub countdown_end_time: Instant,
 }
 
+#[derive(Debug)]
 pub struct PlayingGameState {
     pub voting_game_state: VotingGameState,
 }
 
-// deprecated
-pub struct PlayingBeforeVotingState {
-    pub voting_start_time: Instant,
-}
-
 // end deprecated
 
+#[derive(Debug)]
 pub struct AllPlayersDoneState {}

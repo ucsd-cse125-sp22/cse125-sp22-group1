@@ -156,6 +156,7 @@ impl GameServer {
 
     // update game state
     fn simulate_game(&mut self) {
+        println!("We are in the {:?} phase!", self.game_state.phase);
         let now = Instant::now();
         match &mut self.game_state.phase {
             GamePhase::WaitingForPlayerReady(state) => {
