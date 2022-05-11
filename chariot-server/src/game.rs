@@ -16,6 +16,7 @@ use crate::chairs::get_player_start_physics_properties;
 use crate::checkpoints::{FinishLine, MajorCheckpoint, MinorCheckpoint};
 use crate::physics::player_entity::PlayerEntity;
 use crate::physics::trigger_entity::TriggerEntity;
+use crate::progress::get_player_placement_array;
 
 pub struct GameServer {
     listener: TcpListener,
@@ -40,6 +41,7 @@ pub struct ServerGameState {
     current_question: QuestionBody,
     voting_game_state: VotingGameState,
     vote_close_time: Instant,
+    player_placement: [u8; 4],
 }
 
 impl GameServer {
@@ -73,6 +75,7 @@ impl GameServer {
                         "4".to_string(),
                     ),
                 ),
+                player_placement: [0, 1, 2, 3],
             },
             map: None,
         }
@@ -315,16 +318,30 @@ impl GameServer {
 
     // queue up sending updated game state
     fn sync_state(&mut self) {
-        for connection in &mut self.connections {
-            let locations = [0, 1, 2, 3].map(|n| {
-                if self.game_state.players_ready[n] {
-                    Some(self.game_state.players[n].entity_location.clone())
-                } else {
-                    None
-                }
-            });
+        let locations = [0, 1, 2, 3].map(|n| {
+            if self.game_state.players_ready[n] {
+                Some(self.game_state.players[n].entity_location.clone())
+            } else {
+                None
+            }
+        });
 
+        for connection in &mut self.connections {
             connection.push_outgoing(ClientBoundPacket::LocationUpdate(locations));
+        }
+
+        if let Some(map) = &self.map {
+            let old_placement_array = self.game_state.player_placement;
+            let new_placement_array =
+                get_player_placement_array(&self.game_state.players, &map.checkpoints);
+
+            for index in 0..=3 {
+                if old_placement_array[index] != new_placement_array[index] {
+                    // notify the player who used to be here that their placement is different; the other one will get notified when it's their turn
+                    self.connections[old_placement_array[index] as usize]
+                        .push_outgoing(ClientBoundPacket::PlacementUpdate(index as u8));
+                }
+            }
         }
     }
 }

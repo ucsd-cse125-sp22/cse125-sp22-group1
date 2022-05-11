@@ -7,7 +7,7 @@ type BoundingBoxDimensions = [[f64; 2]; 3];
 #[derive(Clone, Copy)]
 pub struct MinorCheckpoint {
     pub id: MinorCheckpointID,
-    pos: DVec3,
+    pub pos: DVec3,
     size: DVec3,
     pub bounding_box: BoundingBoxDimensions,
 }
