@@ -249,10 +249,13 @@ impl GameServer {
 
                             let decision = voting_state.current_question.options[*winner].clone();
 
-                            state.voting_game_state =
-                                VotingState::VoteResultActive(decision.clone());
+                            for client in self.connections.iter_mut() {
+                                client.push_outgoing(ClientBoundPacket::InteractionActivate(
+                                    voting_state.current_question.clone(),
+                                    decision.clone(),
+                                ));
+                            }
 
-                            // somehow tell all the clients that a vote has happened
                             match decision.action {
                                 chariot_core::questions::AudienceAction::NoLeft => {
                                     self.game_state.players.iter_mut().for_each(|playa| {
@@ -271,6 +274,9 @@ impl GameServer {
                                     });
                                 }
                             }
+
+                            state.voting_game_state =
+                                VotingState::VoteResultActive(decision.clone());
                         }
                     }
 
@@ -289,6 +295,12 @@ impl GameServer {
                                     current_question: question.clone(),
                                     vote_close_time: now + time_until_voting_enabled, // now + 30 seconds
                                 });
+
+                            for client in self.connections.iter_mut() {
+                                client.push_outgoing(ClientBoundPacket::VotingStarted(
+                                    question.clone(),
+                                ));
+                            }
 
                             GameServer::broadcast_ws(
                                 &mut self.ws_connections,

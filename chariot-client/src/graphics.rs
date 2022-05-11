@@ -203,15 +203,6 @@ impl GraphicsManager {
         }
         let player_entity = self.player_entities[player_num as usize].unwrap();
 
-        println!("new location for #{}: {}", player_num, location.position);
-        println!(
-            "new steer direction for #{}: {}",
-            player_num, location.unit_steer_direction
-        );
-        println!(
-            "new upward direction for #{}: {}",
-            player_num, location.unit_upward_direction
-        );
         let player_transform = self
             .world
             .get_mut::<Transform>(player_entity)

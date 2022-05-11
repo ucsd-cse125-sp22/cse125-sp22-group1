@@ -9,6 +9,7 @@ pub use uuid::Uuid;
 
 use crate::entity_location::EntityLocation;
 use crate::player_inputs::InputEvent;
+use crate::questions::{QuestionData, QuestionOption};
 
 #[derive(Serialize, Deserialize)]
 pub enum ServerBoundPacket {
@@ -28,9 +29,10 @@ pub enum ClientBoundPacket {
     // During game
     LocationUpdate([Option<EntityLocation>; 4]), // Clients will need to know the location of every player
     PowerupPickup,                               // Add a payload here when appropriate
-    InteractionActivate,                         // Add a payload here when appropriate
-    LapUpdate(u8),                               // What lap are you now on?
-    PlacementUpdate(u8),                         // What place in the race are you now at?
+    VotingStarted(QuestionData),                 // Sent when the audience begins voting (suspense!)
+    InteractionActivate(QuestionData, QuestionOption), // Sent when the audience has voted on something
+    LapUpdate(u8),                                     // What lap are you now on?
+    PlacementUpdate(u8),                               // What place in the race are you now at?
 
     // After game
     AllDone,
