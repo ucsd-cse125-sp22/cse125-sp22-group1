@@ -19,7 +19,7 @@ fn get_mass_from_chair_name(chair_name: &String) -> f64 {
 
 fn get_size_from_chair_name(chair_name: &String) -> DVec3 {
     return match chair_name.as_str() {
-        "standard" => DVec3::new(10.0, 20.0, 10.0),
+        "standard" => DVec3::new(1.0, 2.0, 1.0),
         _ => panic!("unexpected chair name"),
     };
 }
@@ -43,7 +43,7 @@ pub fn get_player_start_physics_properties(chair_name: &String, player_number: u
         },
         entity_location: EntityLocation {
             position: get_starting_position_from_player_number(player_number),
-            unit_steer_direction: DVec3::X,
+            unit_steer_direction: DVec3::Z,
             unit_upward_direction: DVec3::Y,
         },
         physics_changes: vec![],

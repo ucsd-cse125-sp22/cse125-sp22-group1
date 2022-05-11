@@ -181,7 +181,7 @@ impl GraphicsManager {
 
     fn EntityLocation_to_Transform(location: &EntityLocation) -> Transform {
         let rotation_1 = glam::Quat::from_rotation_arc(
-            glam::Vec3::X,
+            glam::Vec3::Z,
             location.unit_steer_direction.normalize().as_vec3(),
         );
         let rotation_2 = glam::Quat::from_rotation_arc(
