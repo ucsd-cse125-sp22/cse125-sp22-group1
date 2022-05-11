@@ -13,8 +13,10 @@ use chariot_core::GLOBAL_CONFIG;
 
 use crate::chairs::get_player_start_physics_properties;
 use crate::checkpoints::{FinishLine, MajorCheckpoint, MinorCheckpoint};
+use crate::game::GamePhase::PlayingGame;
 use crate::physics::player_entity::PlayerEntity;
 use crate::physics::trigger_entity::TriggerEntity;
+use crate::progress::get_player_placement_array;
 
 use self::phase::*;
 
@@ -303,15 +305,17 @@ impl GameServer {
         }
 
         if let Some(map) = &self.map {
-            let old_placement_array = self.game_state.player_placement;
-            let new_placement_array =
-                get_player_placement_array(&self.game_state.players, &map.checkpoints);
+            if let PlayingGame(state) = &self.game_state.phase {
+                let old_placement_array = state.player_placement;
+                let new_placement_array =
+                    get_player_placement_array(&self.game_state.players, &map.checkpoints);
 
-            for index in 0..=3 {
-                if old_placement_array[index] != new_placement_array[index] {
-                    // notify the player who used to be here that their placement is different; the other one will get notified when it's their turn
-                    self.connections[old_placement_array[index] as usize]
-                        .push_outgoing(ClientBoundPacket::PlacementUpdate(index as u8));
+                for index in 0..=3 {
+                    if old_placement_array[index] != new_placement_array[index] {
+                        // notify the player who used to be here that their placement is different; the other one will get notified when it's their turn
+                        self.connections[old_placement_array[index] as usize]
+                            .push_outgoing(ClientBoundPacket::PlacementUpdate(index as u8));
+                    }
                 }
             }
         }
