@@ -11,10 +11,12 @@ impl PlayerEntity {
         let zone_number = self.lap_info.zone;
         let checkpoint_number = self.lap_info.last_checkpoint;
 
-        let current_checkpoint = minor_checkpoints.get(checkpoint_number as usize).unwrap();
+        let current_checkpoint = minor_checkpoints
+            .get(checkpoint_number as usize)
+            .expect("Invalid current checkpoint number");
         let next_checkpoint = minor_checkpoints
             .get(checkpoint_number as usize + 1)
-            .unwrap();
+            .expect("Invalid next checkpoint number");
 
         let trackline = next_checkpoint.pos - current_checkpoint.pos;
         let player_relative_location = self.entity_location.position - current_checkpoint.pos;
@@ -34,15 +36,14 @@ pub fn get_player_placement_array(
     players: &[PlayerEntity; 4],
     minor_checkpoints: &Vec<MinorCheckpoint>,
 ) -> [u8; 4] {
-    let mut player_nums_with_scores: Vec<(u8, (u8, u8, u8, f64))> =
-        [0 as u8, 1 as u8, 2 as u8, 3 as u8]
-            .into_iter()
-            .zip(
-                players
-                    .iter()
-                    .map(|p| p.get_progress_score(minor_checkpoints)),
-            )
-            .collect();
+    let mut player_nums_with_scores: Vec<(u8, (u8, u8, u8, f64))> = [0, 1, 2, 3]
+        .into_iter()
+        .zip(
+            players
+                .iter()
+                .map(|p| p.get_progress_score(minor_checkpoints)),
+        )
+        .collect();
 
     // Sort progress scores, priority given to most significant placement measures
     player_nums_with_scores.sort_by(|a, b| {
