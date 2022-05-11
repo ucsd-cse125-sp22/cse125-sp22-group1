@@ -305,18 +305,21 @@ impl GameServer {
         }
 
         if let Some(map) = &self.map {
-            if let PlayingGame(state) = &self.game_state.phase {
+            if let PlayingGame(state) = &mut self.game_state.phase {
                 let old_placement_array = state.player_placement;
                 let new_placement_array =
                     get_player_placement_array(&self.game_state.players, &map.checkpoints);
 
                 for index in 0..=3 {
                     if old_placement_array[index] != new_placement_array[index] {
-                        // notify the player who used to be here that their placement is different; the other one will get notified when it's their turn
-                        self.connections[old_placement_array[index] as usize]
+                        // notify the player now in a different placement that
+                        // their new placement is different; the one that used
+                        // to be there will get notified when it's their turn
+                        self.connections[new_placement_array[index] as usize]
                             .push_outgoing(ClientBoundPacket::PlacementUpdate(index as u8));
                     }
                 }
+                state.player_placement = new_placement_array;
             }
         }
     }
