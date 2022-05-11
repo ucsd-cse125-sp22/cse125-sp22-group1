@@ -65,6 +65,7 @@ pub struct CountingDownToGameStartState {
 #[derive(Debug)]
 pub struct PlayingGameState {
     pub voting_game_state: VotingState,
+    pub player_placement: [u8; 4],
 }
 
 // end deprecated

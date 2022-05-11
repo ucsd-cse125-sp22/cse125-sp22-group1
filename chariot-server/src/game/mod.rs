@@ -13,8 +13,10 @@ use chariot_core::GLOBAL_CONFIG;
 
 use crate::chairs::get_player_start_physics_properties;
 use crate::checkpoints::{FinishLine, MajorCheckpoint, MinorCheckpoint};
+use crate::game::GamePhase::PlayingGame;
 use crate::physics::player_entity::PlayerEntity;
 use crate::physics::trigger_entity::TriggerEntity;
+use crate::progress::get_player_placement_array;
 
 use self::phase::*;
 
@@ -189,6 +191,7 @@ impl GameServer {
                     // start off with 10 seconds of vote free gameplay
                     self.game_state.phase = GamePhase::PlayingGame(PlayingGameState {
                         voting_game_state: VotingState::VoteCooldown(now + Duration::new(10, 0)),
+                        player_placement: [0, 1, 2, 3],
                     })
                 }
             }
@@ -291,15 +294,33 @@ impl GameServer {
 
             // These three phases have visible players
             GamePhase::CountingDownToGameStart(_) | GamePhase::PlayingGame(_) => {
+                let locations =
+                    [0, 1, 2, 3].map(|n| Some(self.game_state.players[n].entity_location.clone()));
                 for connection in &mut self.connections {
-                    let locations = [0, 1, 2, 3]
-                        .map(|n| Some(self.game_state.players[n].entity_location.clone()));
-
                     connection.push_outgoing(ClientBoundPacket::LocationUpdate(locations));
                 }
             }
 
             GamePhase::AllPlayersDone(_) => todo!(),
+        }
+
+        if let Some(map) = &self.map {
+            if let PlayingGame(state) = &mut self.game_state.phase {
+                let old_placement_array = state.player_placement;
+                let new_placement_array =
+                    get_player_placement_array(&self.game_state.players, &map.checkpoints);
+
+                for player_num in 0..=3 {
+                    if old_placement_array[player_num] != new_placement_array[player_num] {
+                        // notify the player now in a different place that
+                        // their new placement is different; the one that used
+                        // to be there will get notified when it's their turn
+                        self.connections[new_placement_array[player_num] as usize]
+                            .push_outgoing(ClientBoundPacket::PlacementUpdate(player_num as u8));
+                    }
+                }
+                state.player_placement = new_placement_array;
+            }
         }
     }
 }
