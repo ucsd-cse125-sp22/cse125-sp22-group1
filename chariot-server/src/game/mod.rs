@@ -197,13 +197,11 @@ impl GameServer {
                         ),
                     );
                     self.game_state.phase = GamePhase::PlayingGame(PlayingGameState {
-                        voting_game_state: VotingGameState::WaitingForVoting(
-                            WaitingForVotingState {
-                                audience_votes: HashMap::new(),
-                                current_question: question,
-                                vote_close_time: now + time_until_voting_enabled, // now + 30 seconds
-                            },
-                        ),
+                        voting_game_state: VotingState::WaitingForVotes(WaitingForVotesState {
+                            audience_votes: HashMap::new(),
+                            current_question: question,
+                            vote_close_time: now + time_until_voting_enabled, // now + 30 seconds
+                        }),
                     });
                 }
             }
@@ -244,7 +242,7 @@ impl GameServer {
                 });
 
                 match &mut state.voting_game_state {
-                    VotingGameState::WaitingForVoting(voting_state) => {
+                    VotingState::WaitingForVotes(voting_state) => {
                         if voting_state.vote_close_time < now {
                             let winner = voting_state
                                 .audience_votes
@@ -258,10 +256,10 @@ impl GameServer {
                                 WSAudienceBoundMessage::Winner(*winner),
                             );
 
-                            state.voting_game_state = VotingGameState::DecisionMade(*winner);
+                            state.voting_game_state = VotingState::DecisionMade(*winner);
                         }
                     }
-                    VotingGameState::DecisionMade(decision) => {
+                    VotingState::DecisionMade(decision) => {
                         println!("The audience has chosen {}", decision);
                     }
                 }

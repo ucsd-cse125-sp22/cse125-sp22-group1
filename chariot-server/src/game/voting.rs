@@ -6,7 +6,7 @@ use chariot_core::networking::ws::{WSAudienceBoundMessage, WSServerBoundMessage}
 use chariot_core::networking::Uuid;
 use chariot_core::networking::WebSocketConnection;
 
-use crate::game::phase::VotingGameState;
+use crate::game::phase::VotingState;
 use crate::game::GameServer;
 
 use super::phase::GamePhase;
@@ -19,7 +19,7 @@ impl GameServer {
                 match packet {
                     WSServerBoundMessage::Vote(id, vote) => {
                         if let GamePhase::PlayingGame(game_state) = &mut self.game_state.phase {
-                            if let VotingGameState::WaitingForVoting(state) =
+                            if let VotingState::WaitingForVotes(state) =
                                 &mut game_state.voting_game_state
                             {
                                 println!("{} voted for {}", id, vote);
@@ -60,8 +60,7 @@ impl GameServer {
             conn.push_outgoing_message(WSAudienceBoundMessage::Assignment(id));
 
             if let GamePhase::PlayingGame(game_state) = &mut self.game_state.phase {
-                if let VotingGameState::WaitingForVoting(state) = &mut game_state.voting_game_state
-                {
+                if let VotingState::WaitingForVotes(state) = &mut game_state.voting_game_state {
                     conn.push_outgoing_message(WSAudienceBoundMessage::Prompt(
                         state.current_question.clone(),
                     ))
@@ -81,7 +80,7 @@ impl GameServer {
         poll_time: Duration,
     ) {
         if let GamePhase::PlayingGame(game_state) = &mut self.game_state.phase {
-            if let VotingGameState::WaitingForVoting(state) = &mut game_state.voting_game_state {
+            if let VotingState::WaitingForVotes(state) = &mut game_state.voting_game_state {
                 state.current_question = (question, (option1, option2, option3, option4));
 
                 GameServer::broadcast_ws(

@@ -20,7 +20,10 @@ use chariot_core::networking::Uuid;
  *  2 to 3 is timed by the server, synchronized by an earlier GameStart packet.
  *
  * 3. GamePhase::PlayingGameState
- *  The transition from Phase 4 to Phase 5 is marked by the server's AllDone packet.
+ *  This is the phase when players will be zooming around and doing stuff. This phase ends when
+ *  someone wins, and the server changes state to AllPlayersDone, and sends the AllDone packet.
+ *  This phase also features a property called VotingState, which determines if we are waiting for
+ *  votes right now or acting on decision to be made
  *
  * 5. GamePhase::AllPlayersDone
  *  Show standings, perhaps a retry button, any other end-of-race stuff
@@ -35,13 +38,13 @@ pub enum GamePhase {
 }
 
 #[derive(Debug)]
-pub enum VotingGameState {
-    WaitingForVoting(WaitingForVotingState),
+pub enum VotingState {
+    WaitingForVotes(WaitingForVotesState),
     DecisionMade(i32),
 }
 
 #[derive(Debug)]
-pub struct WaitingForVotingState {
+pub struct WaitingForVotesState {
     pub audience_votes: HashMap<Uuid, i32>,
     pub current_question: QuestionBody,
     pub vote_close_time: Instant,
@@ -60,7 +63,7 @@ pub struct CountingDownToGameStartState {
 
 #[derive(Debug)]
 pub struct PlayingGameState {
-    pub voting_game_state: VotingGameState,
+    pub voting_game_state: VotingState,
 }
 
 // end deprecated
