@@ -183,34 +183,16 @@ impl GameServer {
                     }
                 }
             }
+
             GamePhase::CountingDownToGameStart(state) => {
                 if now > state.countdown_end_time {
-                    let time_until_voting_enabled = Duration::new(30, 0);
-                    // somehow get a random question
-                    let question: QuestionBody = (
-                        "Some Question".to_string(),
-                        [
-                            "Option 1".to_string(),
-                            "Option 2".to_string(),
-                            "Option 3".to_string(),
-                            "Option 4".to_string(),
-                        ],
-                    );
-
+                    // start off with 10 seconds of vote free gameplay
                     self.game_state.phase = GamePhase::PlayingGame(PlayingGameState {
-                        voting_game_state: VotingState::WaitingForVotes(WaitingForVotesState {
-                            audience_votes: HashMap::new(),
-                            current_question: question.clone(),
-                            vote_close_time: now + time_until_voting_enabled, // now + 30 seconds
-                        }),
-                    });
-
-                    GameServer::broadcast_ws(
-                        &mut self.ws_connections,
-                        WSAudienceBoundMessage::Prompt(question.clone()),
-                    );
+                        voting_game_state: VotingState::VoteCooldown(now + Duration::new(10, 0)),
+                    })
                 }
             }
+
             GamePhase::PlayingGame(state) => {
                 for player in &mut self.game_state.players {
                     player
@@ -262,14 +244,45 @@ impl GameServer {
                                 WSAudienceBoundMessage::Winner(*winner),
                             );
 
-                            state.voting_game_state = VotingState::DecisionMade(*winner);
+                            state.voting_game_state = VotingState::VoteResultActive(*winner);
                         }
                     }
-                    VotingState::DecisionMade(decision) => {
+                    VotingState::VoteResultActive(decision) => {
                         println!("The audience has chosen {}", decision);
+                    }
+                    VotingState::VoteCooldown(cooldown) => {
+                        if *cooldown < now {
+                            let time_until_voting_enabled = Duration::new(30, 0);
+                            // somehow get a random question
+                            let question: QuestionBody = (
+                                "Some Question".to_string(),
+                                vec![
+                                    "Option 1".to_string(),
+                                    "Option 2".to_string(),
+                                    "Option 3".to_string(),
+                                    "Option 4".to_string(),
+                                ],
+                            );
+
+                            self.game_state.phase = GamePhase::PlayingGame(PlayingGameState {
+                                voting_game_state: VotingState::WaitingForVotes(
+                                    WaitingForVotesState {
+                                        audience_votes: HashMap::new(),
+                                        current_question: question.clone(),
+                                        vote_close_time: now + time_until_voting_enabled, // now + 30 seconds
+                                    },
+                                ),
+                            });
+
+                            GameServer::broadcast_ws(
+                                &mut self.ws_connections,
+                                WSAudienceBoundMessage::Prompt(question.clone()),
+                            );
+                        }
                     }
                 }
             }
+
             GamePhase::AllPlayersDone(_) => todo!(),
         }
     }

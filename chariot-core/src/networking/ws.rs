@@ -14,7 +14,7 @@ pub enum WSAudienceBoundMessage {
     Assignment(Uuid), // Sends a uuid that the server will use to identify the client
 }
 
-pub type QuestionBody = (String, [String; 4]);
+pub type QuestionBody = (String, Vec<String>);
 
 #[derive(Serialize, Deserialize)]
 pub enum WSServerBoundMessage {

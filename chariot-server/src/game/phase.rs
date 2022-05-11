@@ -39,8 +39,9 @@ pub enum GamePhase {
 
 #[derive(Debug)]
 pub enum VotingState {
+    VoteCooldown(Instant), // Instant corresponds to the time we will start waitingforvotes again
     WaitingForVotes(WaitingForVotesState),
-    DecisionMade(i32),
+    VoteResultActive(i32), // i32 corresponds to the decision that was made (will likely change into a more complex data structure later)
 }
 
 #[derive(Debug)]

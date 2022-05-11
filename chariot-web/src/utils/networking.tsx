@@ -1,6 +1,6 @@
 import { GlobalContextType } from "../contexts/GlobalContext"
 
-export type Prompt = [string, [string, string, string, string]];
+export type Prompt = [string, string[]];
 export interface WSAudienceBoundMessage {
 	Prompt?: Prompt, // Question, 4 Answer Choices
 	Winner?: number// The winning choice (tuple index)
