@@ -14,7 +14,7 @@ pub enum WSAudienceBoundMessage {
     Assignment(Uuid), // Sends a uuid that the server will use to identify the client
 }
 
-pub type QuestionBody = (String, (String, String, String, String));
+pub type QuestionBody = (String, [String; 4]);
 
 #[derive(Serialize, Deserialize)]
 pub enum WSServerBoundMessage {
@@ -91,9 +91,13 @@ impl WSConnection {
     pub fn sync_outgoing(&mut self) {
         while let Some(msg) = self.outgoing_packets.pop_front() {
             if self.socket.can_write() {
-                self.socket
-                    .write_message(msg)
-                    .expect("failed to write outgoing ws message");
+                let result = self.socket.write_message(msg);
+                if result.is_err() {
+                    println!(
+                        "failed to write to socket because of {}",
+                        result.unwrap_err()
+                    );
+                }
             }
         }
     }

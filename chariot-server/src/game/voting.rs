@@ -68,30 +68,4 @@ impl GameServer {
             }
         }
     }
-
-    // prompts for a question
-    pub fn start_audience_voting(
-        &mut self,
-        question: String,
-        option1: String,
-        option2: String,
-        option3: String,
-        option4: String,
-        poll_time: Duration,
-    ) {
-        if let GamePhase::PlayingGame(game_state) = &mut self.game_state.phase {
-            if let VotingState::WaitingForVotes(state) = &mut game_state.voting_game_state {
-                state.current_question = (question, (option1, option2, option3, option4));
-
-                GameServer::broadcast_ws(
-                    &mut self.ws_connections,
-                    WSAudienceBoundMessage::Prompt(state.current_question.clone()),
-                );
-
-                state.audience_votes = HashMap::new(); // clear past votes
-                state.vote_close_time = Instant::now().add(poll_time);
-                // check on votes in 30 seconds
-            }
-        }
-    }
 }

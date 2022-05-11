@@ -189,20 +189,26 @@ impl GameServer {
                     // somehow get a random question
                     let question: QuestionBody = (
                         "Some Question".to_string(),
-                        (
+                        [
                             "Option 1".to_string(),
                             "Option 2".to_string(),
                             "Option 3".to_string(),
                             "Option 4".to_string(),
-                        ),
+                        ],
                     );
+
                     self.game_state.phase = GamePhase::PlayingGame(PlayingGameState {
                         voting_game_state: VotingState::WaitingForVotes(WaitingForVotesState {
                             audience_votes: HashMap::new(),
-                            current_question: question,
+                            current_question: question.clone(),
                             vote_close_time: now + time_until_voting_enabled, // now + 30 seconds
                         }),
                     });
+
+                    GameServer::broadcast_ws(
+                        &mut self.ws_connections,
+                        WSAudienceBoundMessage::Prompt(question.clone()),
+                    );
                 }
             }
             GamePhase::PlayingGame(state) => {

@@ -13,6 +13,7 @@ export interface WSServerBoundMessage {
 
 export const handleSocket = (context: GlobalContextType, msg: MessageEvent) => {
 	const message: WSAudienceBoundMessage = JSON.parse(msg.data);
+
 	if (message.Assignment !== undefined) {
 		context.setUuid(message.Assignment);
 	} else if (message.Winner !== undefined) {
