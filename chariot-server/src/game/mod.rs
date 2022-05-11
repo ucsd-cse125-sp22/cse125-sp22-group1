@@ -3,12 +3,14 @@ use std::net::TcpListener;
 use std::thread::{self};
 use std::time::{Duration, Instant};
 
-use chariot_core::networking::ws::{QuestionBody, WSAudienceBoundMessage};
+use chariot_core::networking::ws::WSAudienceBoundMessage;
 use chariot_core::networking::Uuid;
 use chariot_core::networking::{
     ClientBoundPacket, ClientConnection, ServerBoundPacket, WebSocketConnection,
 };
+use chariot_core::physics_changes::{PhysicsChange, PhysicsChangeType};
 use chariot_core::player_inputs::InputEvent;
+use chariot_core::questions::{QuestionData, QUESTIONS};
 use chariot_core::GLOBAL_CONFIG;
 
 use crate::chairs::get_player_start_physics_properties;
@@ -28,6 +30,7 @@ pub struct GameServer {
     ws_connections: HashMap<Uuid, WebSocketConnection>,
     game_state: ServerGameState,
     map: Option<Map>,
+    question_idx: usize, // to keep track of which question we have asked
 }
 
 pub struct ServerGameState {
@@ -61,6 +64,7 @@ impl GameServer {
                     .map(|num| get_player_start_physics_properties(&String::from("standard"), num)),
             },
             map: None,
+            question_idx: 0,
         }
     }
 
@@ -156,7 +160,6 @@ impl GameServer {
 
     // update game state
     fn simulate_game(&mut self) {
-        println!("We are in the {:?} phase!", self.game_state.phase);
         let now = Instant::now();
         match &mut self.game_state.phase {
             GamePhase::WaitingForPlayerReady(state) => {
@@ -244,25 +247,41 @@ impl GameServer {
                                 WSAudienceBoundMessage::Winner(*winner),
                             );
 
-                            state.voting_game_state = VotingState::VoteResultActive(*winner);
+                            let decision = voting_state.current_question.options[*winner].clone();
+
+                            state.voting_game_state =
+                                VotingState::VoteResultActive(decision.clone());
+
+                            // somehow tell all the clients that a vote has happened
+                            match decision.action {
+                                chariot_core::questions::AudienceAction::NoLeft => {
+                                    self.game_state.players.iter_mut().for_each(|playa| {
+                                        playa.physics_changes.push(PhysicsChange {
+                                            change_type: PhysicsChangeType::NoTurningLeft,
+                                            expiration_time: now + Duration::new(30, 0),
+                                        });
+                                    });
+                                }
+                                chariot_core::questions::AudienceAction::NoRight => {
+                                    self.game_state.players.iter_mut().for_each(|playa| {
+                                        playa.physics_changes.push(PhysicsChange {
+                                            change_type: PhysicsChangeType::NoTurningRight,
+                                            expiration_time: now + Duration::new(30, 0),
+                                        });
+                                    });
+                                }
+                            }
                         }
                     }
-                    VotingState::VoteResultActive(decision) => {
-                        println!("The audience has chosen {}", decision);
-                    }
+
+                    VotingState::VoteResultActive(decision) => {}
+
                     VotingState::VoteCooldown(cooldown) => {
                         if *cooldown < now {
                             let time_until_voting_enabled = Duration::new(30, 0);
-                            // somehow get a random question
-                            let question: QuestionBody = (
-                                "Some Question".to_string(),
-                                vec![
-                                    "Option 1".to_string(),
-                                    "Option 2".to_string(),
-                                    "Option 3".to_string(),
-                                    "Option 4".to_string(),
-                                ],
-                            );
+                            let question: QuestionData =
+                                QUESTIONS.questions[self.question_idx].clone();
+                            self.question_idx = (self.question_idx + 1) % QUESTIONS.questions.len();
 
                             state.voting_game_state =
                                 VotingState::WaitingForVotes(WaitingForVotesState {
