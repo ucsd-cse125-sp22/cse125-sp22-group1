@@ -80,7 +80,7 @@ impl WSConnection {
         self.outgoing_packets.push_back(packet);
     }
 
-    pub fn push_outgoing_messge(&mut self, packet: WSAudienceBoundMessage) -> () {
+    pub fn push_outgoing_message(&mut self, packet: WSAudienceBoundMessage) -> () {
         let json_string =
             serde_json::to_string(&packet).expect("should have been able to serialize packet");
         let message = Message::Text(json_string);

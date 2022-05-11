@@ -6,6 +6,7 @@ use chariot_core::networking::ws::{WSAudienceBoundMessage, WSServerBoundMessage}
 use chariot_core::networking::Uuid;
 use chariot_core::networking::WebSocketConnection;
 
+use crate::game::phase::VotingGameState;
 use crate::game::GameServer;
 
 use super::phase::GamePhase;
@@ -17,11 +18,14 @@ impl GameServer {
             while let Some(packet) = connection.pop_incoming() {
                 match packet {
                     WSServerBoundMessage::Vote(id, vote) => {
-                        println!("{} voted for {}", id, vote);
-                        self.game_state
-                            .playing_with_voting_state
-                            .audience_votes
-                            .insert(id, vote);
+                        if let GamePhase::PlayingGame(game_state) = &mut self.game_state.phase {
+                            if let VotingGameState::WaitingForVoting(state) =
+                                &mut game_state.voting_game_state
+                            {
+                                println!("{} voted for {}", id, vote);
+                                state.audience_votes.insert(id, vote);
+                            }
+                        }
                     }
                 }
             }
@@ -53,39 +57,16 @@ impl GameServer {
         for id in new_uuids {
             let conn = self.ws_connections.get_mut(&id).unwrap();
 
-            conn.push_outgoing_messge(WSAudienceBoundMessage::Assignment(id));
+            conn.push_outgoing_message(WSAudienceBoundMessage::Assignment(id));
 
-            if matches!(self.game_state.phase, GamePhase::PlayingWithVoting) {
-                if self.game_state.playing_with_voting_state.is_voting_ongoing {
-                    conn.push_outgoing_messge(WSAudienceBoundMessage::Prompt(
-                        self.game_state
-                            .playing_with_voting_state
-                            .current_question
-                            .clone(),
-                    ));
+            if let GamePhase::PlayingGame(game_state) = &mut self.game_state.phase {
+                if let VotingGameState::WaitingForVoting(state) = &mut game_state.voting_game_state
+                {
+                    conn.push_outgoing_message(WSAudienceBoundMessage::Prompt(
+                        state.current_question.clone(),
+                    ))
                 }
             }
-        }
-    }
-
-    // check to see if we need to tally up votes and do something
-    pub fn check_audience_voting(&mut self) {
-        let state = &mut self.game_state.playing_with_voting_state;
-        if state.is_voting_ongoing && state.vote_close_time < Instant::now() {
-            // time to tally up votes
-            let winner = state
-                .audience_votes
-                .iter()
-                .max_by(|a, b| a.1.cmp(&b.1))
-                .map(|(_key, vote)| vote)
-                .unwrap_or(&0);
-
-            println!("Option {} won!", winner);
-            state.is_voting_ongoing = false;
-            GameServer::broadcast_ws(
-                &mut self.ws_connections,
-                WSAudienceBoundMessage::Winner(*winner),
-            );
         }
     }
 
@@ -99,17 +80,19 @@ impl GameServer {
         option4: String,
         poll_time: Duration,
     ) {
-        let state = &mut self.game_state.playing_with_voting_state;
-        state.current_question = (question, (option1, option2, option3, option4));
+        if let GamePhase::PlayingGame(game_state) = &mut self.game_state.phase {
+            if let VotingGameState::WaitingForVoting(state) = &mut game_state.voting_game_state {
+                state.current_question = (question, (option1, option2, option3, option4));
 
-        GameServer::broadcast_ws(
-            &mut self.ws_connections,
-            WSAudienceBoundMessage::Prompt(state.current_question.clone()),
-        );
+                GameServer::broadcast_ws(
+                    &mut self.ws_connections,
+                    WSAudienceBoundMessage::Prompt(state.current_question.clone()),
+                );
 
-        state.audience_votes = HashMap::new(); // clear past votes
-        state.is_voting_ongoing = true;
-        state.vote_close_time = Instant::now().add(poll_time);
-        // check on votes in 30 seconds
+                state.audience_votes = HashMap::new(); // clear past votes
+                state.vote_close_time = Instant::now().add(poll_time);
+                // check on votes in 30 seconds
+            }
+        }
     }
 }
