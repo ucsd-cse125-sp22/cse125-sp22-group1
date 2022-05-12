@@ -61,7 +61,7 @@ impl PlayerEntity {
 
         let rotation_matrix = glam::Mat3::from_axis_angle(
             self.entity_location.unit_upward_direction.as_vec3(),
-            angular_velocity as f32,
+            -1.0 * angular_velocity as f32,
         );
 
         let new_steer_direction = rotation_matrix
