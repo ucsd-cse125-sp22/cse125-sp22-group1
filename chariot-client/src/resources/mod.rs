@@ -130,7 +130,7 @@ impl ResourceManager {
     pub fn import_gltf(
         &mut self,
         renderer: &mut Renderer,
-        filename: &str,
+        filename: String,
     ) -> core::result::Result<ImportData, gltf::Error> {
         println!(
             "loading {}, please give a sec I swear it's not lagging",
@@ -191,12 +191,14 @@ impl ResourceManager {
         let mut drawables = Vec::<StaticMeshDrawable>::new();
         for (mesh_idx, mesh) in document.meshes().enumerate() {
             for (prim_idx, primitive) in mesh.primitives().enumerate() {
-                let material_handle = material_handles[primitive.material().index().unwrap()];
-                let mesh_handle = mesh_handles[handle_idx]; // TODO: bug if more than one prim per mesh
-                let drawable =
-                    StaticMeshDrawable::new(renderer, self, material_handle, mesh_handle, 0);
-                drawables.push(drawable);
-                handle_idx += 1;
+                if let Some(idx) = primitive.material().index() {
+                    let material_handle = material_handles[idx];
+                    let mesh_handle = mesh_handles[handle_idx]; // TODO: bug if more than one prim per mesh
+                    let drawable =
+                        StaticMeshDrawable::new(renderer, self, material_handle, mesh_handle, 0);
+                    drawables.push(drawable);
+                    handle_idx += 1;
+                }
             }
         }
 

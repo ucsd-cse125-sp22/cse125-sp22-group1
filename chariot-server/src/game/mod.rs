@@ -71,7 +71,10 @@ impl GameServer {
     // WARNING: this function never returns
     pub fn start_loop(&mut self) {
         let max_server_tick_duration = Duration::from_millis(GLOBAL_CONFIG.server_tick_ms);
-        let map = Map::load("moels/racetrack.glb");
+        let map = Map::load(format!(
+            "{}/models/{}.glb",
+            GLOBAL_CONFIG.resource_folder, GLOBAL_CONFIG.map_name
+        ));
 
         loop {
             self.block_until_minimum_connections();

@@ -1,4 +1,5 @@
 use chariot_core::entity_location::EntityLocation;
+use chariot_core::GLOBAL_CONFIG;
 
 use crate::drawable::technique::Technique;
 use crate::drawable::*;
@@ -36,7 +37,7 @@ fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer) -> (Wor
     let world_root = world.root();
     let chair = {
         let chair_import = resources
-            .import_gltf(renderer, "models/defaultchair.glb")
+            .import_gltf(renderer, "models/defaultchair.glb".to_string())
             .expect("Failed to import chair");
 
         world
@@ -53,7 +54,7 @@ fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer) -> (Wor
     };
     {
         let track_import = resources
-            .import_gltf(renderer, "models/baked.glb")
+            .import_gltf(renderer, format!("models/{}.glb", GLOBAL_CONFIG.map_name))
             .expect("Unable to load racetrack");
 
         let track = world
@@ -144,7 +145,7 @@ impl GraphicsManager {
     pub fn add_player(&mut self, player_num: u8, is_self: bool) {
         let chair_import = self
             .resources
-            .import_gltf(&mut self.renderer, "models/defaultchair.glb")
+            .import_gltf(&mut self.renderer, "models/defaultchair.glb".to_string())
             .expect("Failed to import chair");
 
         let world_root = self.world.root();
