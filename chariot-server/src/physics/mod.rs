@@ -1,18 +1,17 @@
-use chariot_core::lap_info::LapInformation;
-use chariot_core::physics_changes::PhysicsChangeType;
 use glam::DVec3;
 
 use chariot_core::entity_location::EntityLocation;
+use chariot_core::GLOBAL_CONFIG;
+use chariot_core::physics_changes::PhysicsChangeType;
 use chariot_core::player_inputs::EngineStatus;
 use chariot_core::player_inputs::PlayerInputs;
 use chariot_core::player_inputs::RotationStatus;
-use chariot_core::GLOBAL_CONFIG;
+use player_entity::PlayerEntity;
+use trigger_entity::TriggerEntity;
+
 mod collisions;
 pub mod player_entity;
 pub mod trigger_entity;
-
-use player_entity::PlayerEntity;
-use trigger_entity::TriggerEntity;
 
 fn get_height_at_coordinates(_x: f64, _z: f64) -> f64 {
     return 0.0;
@@ -221,14 +220,14 @@ impl PlayerEntity {
 
 #[cfg(test)]
 mod tests {
-    use chariot_core::lap_info::LapInformation;
     use glam::DVec3;
 
     use chariot_core::entity_location::EntityLocation;
+    use chariot_core::GLOBAL_CONFIG;
+    use chariot_core::lap_info::LapInformation;
     use chariot_core::player_inputs::EngineStatus;
     use chariot_core::player_inputs::PlayerInputs;
     use chariot_core::player_inputs::RotationStatus;
-    use chariot_core::GLOBAL_CONFIG;
 
     use crate::physics::player_entity::PlayerEntity;
 

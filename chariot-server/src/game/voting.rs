@@ -14,12 +14,10 @@ impl GameServer {
             while let Some(packet) = connection.pop_incoming() {
                 match packet {
                     WSServerBoundMessage::Vote(id, vote) => {
-                        if let GamePhase::PlayingGame(game_state) = &mut self.game_state.phase {
-                            if let VotingState::WaitingForVotes(state) =
-                                &mut game_state.voting_game_state
-                            {
+                        if let GamePhase::PlayingGame { voting_game_state, .. } = &mut self.game_state.phase {
+                            if let VotingState::WaitingForVotes { audience_votes, .. } = voting_game_state {
                                 println!("{} voted for {}", id, vote);
-                                state.audience_votes.insert(id, vote);
+                                audience_votes.insert(id, vote);
                             }
                         }
                     }
@@ -55,10 +53,10 @@ impl GameServer {
 
             conn.push_outgoing_message(WSAudienceBoundMessage::Assignment(id));
 
-            if let GamePhase::PlayingGame(game_state) = &mut self.game_state.phase {
-                if let VotingState::WaitingForVotes(state) = &mut game_state.voting_game_state {
+            if let GamePhase::PlayingGame{ voting_game_state, .. } = &mut self.game_state.phase {
+                if let VotingState::WaitingForVotes { current_question, .. } = voting_game_state {
                     conn.push_outgoing_message(WSAudienceBoundMessage::Prompt(
-                        state.current_question.clone(),
+                        current_question.clone(),
                     ))
                 }
             }
