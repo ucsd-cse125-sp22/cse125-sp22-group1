@@ -1,6 +1,5 @@
+use crate::physics::bounding_box::BoundingBoxDimensions;
 use crate::physics::player_entity::PlayerEntity;
-
-type BoundingBoxDimensions = [[f64; 2]; 3];
 
 pub trait TriggerEntity {
     fn get_bounding_box(&self) -> BoundingBoxDimensions;

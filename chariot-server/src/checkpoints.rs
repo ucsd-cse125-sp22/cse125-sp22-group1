@@ -16,7 +16,6 @@ impl TriggerEntity for MinorCheckpoint {
     fn get_bounding_box(&self) -> BoundingBoxDimensions {
         self.bounding_box
     }
-
     fn trigger(&self, ply: &mut PlayerEntity) {
         ply.lap_info.last_checkpoint = self.id;
     }
