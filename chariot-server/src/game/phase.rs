@@ -29,46 +29,25 @@ use chariot_core::networking::Uuid;
  *  Show standings, perhaps a retry button, any other end-of-race stuff
  */
 
-#[derive(Debug)]
 pub enum GamePhase {
-    WaitingForPlayerReady(WaitingForPlayerReadyState),
-    CountingDownToGameStart(CountingDownToGameStartState),
-    PlayingGame(PlayingGameState),
-    AllPlayersDone(AllPlayersDoneState),
+    WaitingForPlayerReady {
+        players_ready: [bool; 4],
+        new_players_joined: Vec<(String, usize)>,
+    },
+    CountingDownToGameStart(Instant),
+    PlayingGame {
+        voting_game_state: VotingState,
+        player_placement: [u8; 4],
+    },
+    AllPlayersDone,
 }
 
-#[derive(Debug)]
 pub enum VotingState {
     VoteCooldown(Instant), // Instant corresponds to the time we will start waitingforvotes again
-    WaitingForVotes(WaitingForVotesState),
+    WaitingForVotes {
+        audience_votes: HashMap<Uuid, i32>,
+        current_question: QuestionBody,
+        vote_close_time: Instant,
+    },
     VoteResultActive(i32), // i32 corresponds to the decision that was made (will likely change into a more complex data structure later)
 }
-
-#[derive(Debug)]
-pub struct WaitingForVotesState {
-    pub audience_votes: HashMap<Uuid, i32>,
-    pub current_question: QuestionBody,
-    pub vote_close_time: Instant,
-}
-
-#[derive(Debug)]
-pub struct WaitingForPlayerReadyState {
-    pub players_ready: [bool; 4],
-    pub new_players_joined: Vec<(String, usize)>,
-}
-
-#[derive(Debug)]
-pub struct CountingDownToGameStartState {
-    pub countdown_end_time: Instant,
-}
-
-#[derive(Debug)]
-pub struct PlayingGameState {
-    pub voting_game_state: VotingState,
-    pub player_placement: [u8; 4],
-}
-
-// end deprecated
-
-#[derive(Debug)]
-pub struct AllPlayersDoneState {}
