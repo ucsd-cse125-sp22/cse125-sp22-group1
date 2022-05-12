@@ -1,7 +1,7 @@
+use crate::physics::bounding_box::BoundingBox;
 use crate::physics::{player_entity::PlayerEntity, trigger_entity::TriggerEntity};
 use chariot_core::lap_info::*;
 use glam::DVec3;
-use crate::physics::bounding_box::BoundingBox;
 
 #[derive(Clone, Copy)]
 pub struct MinorCheckpoint {
@@ -12,7 +12,9 @@ pub struct MinorCheckpoint {
 }
 
 impl TriggerEntity for MinorCheckpoint {
-    fn get_bounding_box(&self) -> BoundingBox { self.bounding_box }
+    fn get_bounding_box(&self) -> BoundingBox {
+        self.bounding_box
+    }
     fn trigger(&self, ply: &mut PlayerEntity) {
         ply.lap_info.last_checkpoint = self.id;
     }
@@ -32,7 +34,14 @@ impl MajorCheckpoint {
             id: id,
             pos: pos,
             size: size,
-            bounding_box: BoundingBox::new(pos.x, pos.x + size.x, pos.y, pos.y + size.y, pos.z, pos.z + size.z),
+            bounding_box: BoundingBox::new(
+                pos.x,
+                pos.x + size.x,
+                pos.y,
+                pos.y + size.y,
+                pos.z,
+                pos.z + size.z,
+            ),
         }
     }
 }
@@ -64,7 +73,14 @@ impl FinishLine {
             last_zone,
             pos,
             size,
-            bounding_box: BoundingBox::new(pos.x, pos.x + size.x, pos.y, pos.y + size.y, pos.z, pos.z + size.z),
+            bounding_box: BoundingBox::new(
+                pos.x,
+                pos.x + size.x,
+                pos.y,
+                pos.y + size.y,
+                pos.z,
+                pos.z + size.z,
+            ),
         }
     }
 }

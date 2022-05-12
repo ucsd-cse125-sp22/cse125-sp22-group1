@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::time::Instant;
 
-use chariot_core::networking::Uuid;
 use chariot_core::networking::ws::QuestionBody;
+use chariot_core::networking::Uuid;
 
 /*
  * Phases of the game are as follows:

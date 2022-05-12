@@ -11,8 +11,22 @@ pub struct BoundingBox {
 }
 
 impl BoundingBox {
-    pub fn new(min_x: f64, max_x: f64, min_y: f64, max_y: f64, min_z: f64, max_z: f64) -> BoundingBox {
-        BoundingBox { min_x, max_x, min_y, max_y, min_z, max_z}
+    pub fn new(
+        min_x: f64,
+        max_x: f64,
+        min_y: f64,
+        max_y: f64,
+        min_z: f64,
+        max_z: f64,
+    ) -> BoundingBox {
+        BoundingBox {
+            min_x,
+            max_x,
+            min_y,
+            max_y,
+            min_z,
+            max_z,
+        }
     }
 
     pub fn is_colliding(&self, other: &BoundingBox) -> bool {

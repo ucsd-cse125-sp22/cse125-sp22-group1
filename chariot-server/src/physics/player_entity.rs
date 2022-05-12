@@ -1,10 +1,10 @@
+use crate::physics::bounding_box::BoundingBox;
 use chariot_core::entity_location::EntityLocation;
 use chariot_core::lap_info::LapInformation;
 use chariot_core::physics_changes::{PhysicsChange, PhysicsChangeType};
 use chariot_core::player_inputs::{EngineStatus, PlayerInputs, RotationStatus};
-use glam::DVec3;
 use chariot_core::GLOBAL_CONFIG;
-use crate::physics::bounding_box::BoundingBox;
+use glam::DVec3;
 
 use crate::physics::trigger_entity::TriggerEntity;
 
@@ -31,7 +31,13 @@ pub struct PlayerEntity {
 impl PlayerEntity {
     // set the upward direction based on the bounding box
     pub fn set_upward_direction_from_bounding_box(&mut self) {
-        let BoundingBox { min_x, max_x, min_z, max_z, .. } = self.bounding_box;
+        let BoundingBox {
+            min_x,
+            max_x,
+            min_z,
+            max_z,
+            ..
+        } = self.bounding_box;
 
         let lower_left_corner = DVec3::new(min_x, get_height_at_coordinates(min_x, min_z), min_z);
         let lower_right_corner = DVec3::new(max_x, get_height_at_coordinates(max_x, min_z), min_z);
@@ -50,14 +56,25 @@ impl PlayerEntity {
         // decomposed into pitch and roll; with these, we can get Euler angles
         // for the 3d rotation
 
-        let yaw = DVec3::new(self.entity_location.unit_steer_direction.x, 0.0, self.entity_location.unit_steer_direction.z).angle_between(DVec3::X);
+        let yaw = DVec3::new(
+            self.entity_location.unit_steer_direction.x,
+            0.0,
+            self.entity_location.unit_steer_direction.z,
+        )
+        .angle_between(DVec3::X);
         let (up_x, up_y, up_z) = self.entity_location.unit_upward_direction.into();
 
         // positive on the x-axis is by default forward
         let pitch = DVec3::new(up_x, up_y, 0.0).angle_between(DVec3::Y);
         let roll = DVec3::new(0.0, up_y, up_z).angle_between(DVec3::Y);
 
-        self.bounding_box.set_dimensions(&self.entity_location.position, &self.size, pitch, yaw, roll);
+        self.bounding_box.set_dimensions(
+            &self.entity_location.position,
+            &self.size,
+            pitch,
+            yaw,
+            roll,
+        );
     }
 
     // Returns the velocity change to self from colliding with other
@@ -167,10 +184,10 @@ impl PlayerEntity {
     fn is_aerial(&self) -> bool {
         return self.entity_location.position[1]
             > self.size[1]
-            + get_height_at_coordinates(
-            self.entity_location.position[0],
-            self.entity_location.position[2],
-        );
+                + get_height_at_coordinates(
+                    self.entity_location.position[0],
+                    self.entity_location.position[2],
+                );
     }
 
     fn sum_of_self_forces(&self) -> DVec3 {
