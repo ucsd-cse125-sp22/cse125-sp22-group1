@@ -4,8 +4,8 @@ use chariot_core::physics_changes::{PhysicsChange, PhysicsChangeType};
 use chariot_core::player_inputs::{EngineStatus, PlayerInputs, RotationStatus};
 use glam::DVec3;
 use chariot_core::GLOBAL_CONFIG;
+use crate::physics::bounding_box::BoundingBox;
 
-use crate::physics::bounding_box::BoundingBoxDimensions;
 use crate::physics::trigger_entity::TriggerEntity;
 
 fn get_height_at_coordinates(_x: f64, _z: f64) -> f64 {
@@ -18,7 +18,7 @@ pub struct PlayerEntity {
 
     pub mass: f64,
     pub size: DVec3,
-    pub bounding_box: BoundingBoxDimensions,
+    pub bounding_box: BoundingBox,
 
     pub player_inputs: PlayerInputs,
     pub entity_location: EntityLocation,
@@ -29,9 +29,9 @@ pub struct PlayerEntity {
 }
 
 impl PlayerEntity {
+    // set the upward direction based on the bounding box
     pub fn set_upward_direction_from_bounding_box(&mut self) {
-        let [min_x, max_x] = self.bounding_box[0];
-        let [min_z, max_z] = self.bounding_box[2];
+        let BoundingBox { min_x, max_x, min_z, max_z, .. } = self.bounding_box;
 
         let lower_left_corner = DVec3::new(min_x, get_height_at_coordinates(min_x, min_z), min_z);
         let lower_right_corner = DVec3::new(max_x, get_height_at_coordinates(max_x, min_z), min_z);
@@ -42,6 +42,48 @@ impl PlayerEntity {
         let diagonal_2 = upper_right_corner - lower_left_corner;
 
         self.entity_location.unit_upward_direction = diagonal_2.cross(diagonal_1).normalize();
+    }
+
+    // update the underlying bounding box based on position, size, and steer angles
+    pub fn update_bounding_box(&mut self) {
+        // unit_steer_direction defines yaw, unit_upward_direction can be
+        // decomposed into pitch and roll; with these, we can get Euler angles
+        // for the 3d rotation
+
+        let yaw = DVec3::new(self.entity_location.unit_steer_direction.x, 0.0, self.entity_location.unit_steer_direction.z).angle_between(DVec3::X);
+        let (up_x, up_y, up_z) = self.entity_location.unit_upward_direction.into();
+
+        // positive on the x-axis is by default forward
+        let pitch = DVec3::new(up_x, up_y, 0.0).angle_between(DVec3::Y);
+        let roll = DVec3::new(0.0, up_y, up_z).angle_between(DVec3::Y);
+
+        self.bounding_box.set_dimensions(&self.entity_location.position, &self.size, pitch, yaw, roll);
+    }
+
+    // Returns the velocity change to self from colliding with other
+    pub fn delta_v_from_collision_with_player(&self, other: &PlayerEntity) -> DVec3 {
+        if !self.bounding_box.is_colliding(&other.bounding_box) {
+            return DVec3::new(0.0, 0.0, 0.0);
+        }
+
+        // Uses the angle-free equation from
+        // https://en.wikipedia.org/wiki/Elastic_collision#Two-dimensional
+        // Which applies symmetrically so it shouldn't be much of a performance
+        // hit to call this method once for each member of a colliding pair -
+        // and the formula should be fast anyways.
+
+        let v1 = self.velocity;
+        let v2 = other.velocity;
+        let m1 = self.mass;
+        let m2 = other.mass;
+        let x1 = self.entity_location.position;
+        let x2 = other.entity_location.position;
+
+        let term1 = (-2.0 * m2) / (m1 + m2);
+        let term2 = (v1 - v2).dot(x1 - x2) / (x1 - x2).length_squared();
+        let term3 = x1 - x2;
+
+        return term1 * term2 * term3;
     }
 
     /* Given a set of physical properties, compute and return what next tick's
@@ -114,7 +156,7 @@ impl PlayerEntity {
         new_player.apply_physics_changes();
 
         for b in potential_triggers.iter() {
-            if b.check_bounding_box_collisions(&new_player) {
+            if b.get_bounding_box().is_colliding(&new_player.bounding_box) {
                 b.trigger(&mut new_player);
             }
         }
@@ -162,7 +204,7 @@ impl PlayerEntity {
             EngineStatus::Accelerating => {
                 return self.entity_location.unit_steer_direction
                     * self.mass
-                    * GLOBAL_CONFIG.car_accelerator
+                    * GLOBAL_CONFIG.car_accelerator;
             }
             // divide velocity by its magnitude to have a unit vector pointing
             // towards current heading, then apply the force in the reverse direction
@@ -170,7 +212,7 @@ impl PlayerEntity {
                 return self.velocity / self.velocity.length()
                     * -1.0
                     * self.mass
-                    * GLOBAL_CONFIG.car_brake
+                    * GLOBAL_CONFIG.car_brake;
             }
             // And there is no player-applied force when not accelerating or braking
             EngineStatus::Neutral => return DVec3::new(0.0, 0.0, 0.0),

@@ -197,7 +197,7 @@ impl GameServer {
                 // update bounding box dimensions and temporary physics changes for each player
                 for player in &mut self.game_state.players {
                     player.physics_changes.retain(|change| change.expiration_time > now);
-                    player.set_bounding_box_dimensions();
+                    player.update_bounding_box();
                     player.set_upward_direction_from_bounding_box();
                 }
 

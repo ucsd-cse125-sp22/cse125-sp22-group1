@@ -4,6 +4,7 @@ use chariot_core::{
     player_inputs::{EngineStatus, PlayerInputs, RotationStatus},
 };
 use glam::DVec3;
+use crate::physics::bounding_box::BoundingBox;
 
 use crate::physics::player_entity::PlayerEntity;
 
@@ -36,7 +37,7 @@ pub fn get_player_start_physics_properties(chair_name: &String, player_number: u
         angular_velocity: 0.0,
         mass: get_mass_from_chair_name(chair_name),
         size: get_size_from_chair_name(chair_name),
-        bounding_box: [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]], // will be made correct on the first physics tick
+        bounding_box: BoundingBox::new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0), // will be made correct on the first physics tick
         player_inputs: PlayerInputs {
             engine_status: EngineStatus::Neutral,
             rotation_status: RotationStatus::NotInSpin,
