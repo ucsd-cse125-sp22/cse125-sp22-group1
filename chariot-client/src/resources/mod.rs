@@ -141,26 +141,30 @@ impl ResourceManager {
 
         let mut bounds = new_bounds();
         let mut mesh_handles = Vec::new();
-        for (mesh_idx, mesh) in document.meshes().enumerate() {
-            println!(
-                "processing mesh {}",
-                mesh.name().unwrap_or("[a mesh that's not named]")
-            );
-
-            if mesh.primitives().len() != 1 {
+        for (node_idx, node) in document.nodes().enumerate() {
+            if let Some(mesh) = node.mesh() {
                 println!(
-                    "Warning: I'm expecting one prim per mesh so things might not work properly"
+                    "processing mesh {}",
+                    mesh.name().unwrap_or("[a mesh that's not named]")
                 );
-            }
 
-            for (prim_idx, primitive) in mesh.primitives().enumerate() {
-                println!("\tprocessing prim {}", prim_idx);
-                let (handle, mesh_bounds) = self.import_mesh(renderer, &buffers, &primitive);
-                mesh_handles.push(handle);
+                if mesh.primitives().len() != 1 {
+                    println!(
+						"Warning: I'm expecting one prim per mesh so things might not work properly"
+					);
+                }
 
-                bounds = accum_bounds(bounds, mesh_bounds);
+                println!("{:?}", mesh.weights());
+                for (prim_idx, primitive) in mesh.primitives().enumerate() {
+                    println!("\tprocessing prim {}", prim_idx);
+                    let (handle, mesh_bounds) = self.import_mesh(renderer, &buffers, &primitive);
+                    mesh_handles.push(handle);
+
+                    bounds = accum_bounds(bounds, mesh_bounds);
+                }
             }
         }
+        //for (mesh_idx, mesh) in document.meshes().enumerate() {}
 
         println!("uploading textures...");
         let tex_handles = self.upload_textures(renderer, &images);

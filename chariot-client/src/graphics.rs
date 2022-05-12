@@ -53,7 +53,7 @@ fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer) -> (Wor
     };
     {
         let track_import = resources
-            .import_gltf(renderer, "models/baked.glb")
+            .import_gltf(renderer, "models/baked-triggered.glb")
             .expect("Unable to load racetrack");
 
         let track = world
