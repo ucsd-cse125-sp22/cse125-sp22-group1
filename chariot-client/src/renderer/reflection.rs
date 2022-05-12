@@ -1,7 +1,4 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    result::Result,
-};
+use std::{collections::BTreeMap, result::Result};
 
 /*
  * This file contains the function shader_metadata (at the bottom), which parses a shader using the naga library,
@@ -30,7 +27,7 @@ fn constant_size_val(
 ) -> Result<u64, &'static str> {
     let constant = module.constants.try_get(const_handle).unwrap();
     match constant.inner {
-        naga::ConstantInner::Scalar { width, value } => scalar_uint_val(&value),
+        naga::ConstantInner::Scalar { width: _, value } => scalar_uint_val(&value),
         _ => Err("Type cannot be used as index"),
     }
 }
@@ -105,12 +102,16 @@ fn to_wgpu_binding_type(
     naga_type: &naga::TypeInner,
 ) -> Result<wgpu::BindingType, &'static str> {
     match naga_type {
-        naga::TypeInner::Scalar { kind, width } => Ok(wgpu::BindingType::Buffer {
+        naga::TypeInner::Scalar { kind: _, width } => Ok(wgpu::BindingType::Buffer {
             ty: wgpu::BufferBindingType::Uniform,
             has_dynamic_offset: false,
             min_binding_size: wgpu::BufferSize::new(*width as u64),
         }),
-        naga::TypeInner::Vector { size, kind, width } => Ok(wgpu::BindingType::Buffer {
+        naga::TypeInner::Vector {
+            size,
+            kind: _,
+            width,
+        } => Ok(wgpu::BindingType::Buffer {
             ty: wgpu::BufferBindingType::Uniform,
             has_dynamic_offset: false,
             min_binding_size: wgpu::BufferSize::new(u64::from(*width) * u64::from(*size as u8)),
@@ -126,22 +127,26 @@ fn to_wgpu_binding_type(
                 u64::from(*width) * u64::from(*rows as u8) * u64::from(*columns as u8),
             ),
         }),
-        naga::TypeInner::Pointer { base, class } => Ok(wgpu::BindingType::Buffer {
+        naga::TypeInner::Pointer { base: _, class: _ } => Ok(wgpu::BindingType::Buffer {
             ty: wgpu::BufferBindingType::Storage { read_only: false }, // TODO: read only?
             has_dynamic_offset: false,
             min_binding_size: None, // TODO: is this correct?
         }),
         naga::TypeInner::ValuePointer {
-            size,
-            kind,
-            width,
-            class,
+            size: _,
+            kind: _,
+            width: _,
+            class: _,
         } => Ok(wgpu::BindingType::Buffer {
             ty: wgpu::BufferBindingType::Storage { read_only: false },
             has_dynamic_offset: false,
             min_binding_size: None, // TODO: is this correct?
         }),
-        naga::TypeInner::Array { base, size, stride } => match size {
+        naga::TypeInner::Array {
+            base: _,
+            size,
+            stride,
+        } => match size {
             naga::ArraySize::Constant(sz_handle) => Ok(wgpu::BindingType::Buffer {
                 ty: wgpu::BufferBindingType::Uniform,
                 has_dynamic_offset: false,
@@ -165,7 +170,7 @@ fn to_wgpu_binding_type(
         }),
         naga::TypeInner::Image {
             dim,
-            arrayed,
+            arrayed: _,
             class,
         } => match class {
             naga::ImageClass::Sampled { kind, multi } => Ok(wgpu::BindingType::Texture {
@@ -178,7 +183,7 @@ fn to_wgpu_binding_type(
                 format: to_wgpu_format(*format),
                 view_dimension: to_wgpu_tex_dimension(*dim),
             }),
-            naga::ImageClass::Depth { multi } => Err("Depth not supported yet"),
+            naga::ImageClass::Depth { multi: _ } => Err("Depth not supported yet"),
         },
         naga::TypeInner::Sampler { comparison } => Ok(wgpu::BindingType::Sampler(if *comparison {
             wgpu::SamplerBindingType::Comparison
@@ -186,16 +191,6 @@ fn to_wgpu_binding_type(
             wgpu::SamplerBindingType::Filtering
         })),
         _ => Err("Uniform type not supportedd"),
-    }
-}
-
-fn vertex_type_size(ty: &naga::TypeInner) -> Result<u64, &'static str> {
-    match ty {
-        naga::TypeInner::Scalar { kind, width } => Ok(u64::from(*width)),
-        naga::TypeInner::Vector { size, kind, width } => {
-            Ok(u64::from(*width) * u64::from(*size as u8))
-        }
-        _ => Err("Invalid vertex type"),
     }
 }
 

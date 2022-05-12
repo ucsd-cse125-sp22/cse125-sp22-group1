@@ -14,7 +14,13 @@ mod scenegraph;
 
 fn main() {
     let event_loop = winit::event_loop::EventLoop::new();
-    let context = renderer::context::Context::new(&event_loop);
+    let context = renderer::context::Context::new(
+        &event_loop,
+        winit::dpi::PhysicalSize::<u32>::new(1280, 720),
+    );
+    // makes the cursor invisible and grabs it
+    context.capture_cursor();
+
     let renderer = renderer::Renderer::new(context);
 
     let graphics_manager = GraphicsManager::new(renderer);

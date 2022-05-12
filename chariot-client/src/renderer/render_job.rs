@@ -3,6 +3,7 @@ use std::{
     num::NonZeroU32,
 };
 
+#[allow(dead_code)] // Compute stuff is unused for now
 pub enum RenderPassDescriptor<'a> {
     Graphics {
         source: &'a str,
@@ -48,6 +49,7 @@ pub fn pass_render_pipeline<'a>(pass: &'a RenderPass) -> Option<&'a wgpu::Render
     }
 }
 
+#[allow(dead_code)] // Compute stuff is unused for now
 pub fn pass_compute_pipeline(pass: &RenderPass) -> Option<&wgpu::ComputePipeline> {
     match pass {
         RenderPass::Compute {
@@ -58,19 +60,10 @@ pub fn pass_compute_pipeline(pass: &RenderPass) -> Option<&wgpu::ComputePipeline
 }
 
 /*
- * Ignore this push constant stuff since I've kind of forgotten about it and it's just more work.
- * It's just a way to store small amounts of data in a faster to access way. For now in our game,
- * any uniforms will just be stored in a uniform buffer and accessed through a bind group.
- */
-pub struct PushConstantData<'a> {
-    stages: wgpu::ShaderStages,
-    offset: u32,
-    data: &'a [u8],
-}
-
-/*
  * A RenderItem stores all state for a single draw call (or in the future, a compute dispatch call)
  */
+
+#[allow(dead_code)] // Compute and Custom stuff is unused for now
 #[derive(Clone)]
 pub enum RenderItem<'a> {
     Graphics {
@@ -85,7 +78,6 @@ pub enum RenderItem<'a> {
     Compute {
         pass_name: &'a str,
         bind_group: Vec<&'a wgpu::BindGroup>,
-        push_constants: &'a [PushConstantData<'a>],
     },
     Custom {
         pass_name: &'a str,
@@ -200,6 +192,7 @@ impl<'a> RenderGraphBuilder<'a> {
 
         if deps.is_empty() {
             self.render_graph.roots.push(res_id);
+            self.render_graph.nodes.insert(res_id, vec![]);
         }
 
         res_id
@@ -273,12 +266,10 @@ impl<'a> RenderJob<'a> {
             let pass_name = render_item_pass_name(&graph.items[graph_id]);
             self.pass_to_id.insert(pass_name.to_string(), job_id);
 
+            let cur_node = self.graph.entry(job_id).or_default();
             for child_graph_id in graph.nodes.get(&graph_id).unwrap_or(&vec![]).iter() {
                 let child_pass_name = render_item_pass_name(&graph.items[*child_graph_id]);
-                let child_job_id = self
-                    .graph
-                    .entry(job_id)
-                    .or_default()
+                let child_job_id = cur_node
                     .entry(String::from(child_pass_name))
                     .or_insert_with(|| {
                         let new_id = self.pass_items.len();

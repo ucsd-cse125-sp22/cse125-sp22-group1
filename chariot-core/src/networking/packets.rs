@@ -1,4 +1,5 @@
 use std::io::{Read, Write};
+use std::time::Duration;
 
 use bincode::{DefaultOptions, Options, Result};
 use serde::de::DeserializeOwned;
@@ -22,7 +23,7 @@ pub enum ServerBoundPacket {
 pub enum ClientBoundPacket {
     // Before game
     PlayerNumber(u8),
-    EveryoneReady,
+    GameStart(Duration), // How long until the game starts?
 
     // During game
     LocationUpdate([Option<EntityLocation>; 4]), // Clients will need to know the location of every player

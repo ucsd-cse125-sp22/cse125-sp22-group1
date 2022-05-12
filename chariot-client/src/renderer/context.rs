@@ -4,6 +4,7 @@
  * TODO: Maybe in the future I'll add initial width and height paramters.
  */
 
+#[allow(dead_code)] // instance is just here to be kept alive
 pub struct Context {
     pub(super) window: winit::window::Window,
     pub(super) instance: wgpu::Instance,
@@ -12,8 +13,13 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn new(event_loop: &winit::event_loop::EventLoop<()>) -> Self {
+    pub fn new(
+        event_loop: &winit::event_loop::EventLoop<()>,
+        size: winit::dpi::PhysicalSize<u32>,
+    ) -> Self {
         let window = winit::window::Window::new(&event_loop).unwrap();
+        window.set_inner_size(size);
+        window.set_resizable(false);
 
         let instance = wgpu::Instance::new(wgpu::Backends::all());
         let surface = unsafe { instance.create_surface(&window) };
@@ -31,5 +37,11 @@ impl Context {
             surface,
             adapter,
         }
+    }
+
+    // this does a lot for playability
+    pub fn capture_cursor(&self) {
+        self.window.set_cursor_visible(false);
+        self.window.set_cursor_grab(true);
     }
 }
