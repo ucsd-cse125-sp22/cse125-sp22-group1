@@ -148,6 +148,8 @@ impl PlayerEntity {
         let mut new_velocity = self.velocity + delta_velocity;
         if new_velocity.length() > GLOBAL_CONFIG.max_car_speed {
             new_velocity = new_velocity.normalize() * GLOBAL_CONFIG.max_car_speed;
+        } else if new_velocity.length() < 0.05 {
+            new_velocity = DVec3::ZERO;
         }
 
         let mut new_player = PlayerEntity {
@@ -227,10 +229,14 @@ impl PlayerEntity {
             // divide velocity by its magnitude to have a unit vector pointing
             // towards current heading, then apply the force in the reverse direction
             EngineStatus::Braking => {
-                return self.velocity / self.velocity.length()
-                    * -1.0
-                    * self.mass
-                    * GLOBAL_CONFIG.car_brake;
+                return if self.velocity == DVec3::ZERO {
+                    DVec3::ZERO
+                } else {
+                    self.velocity / self.velocity.length()
+                        * -1.0
+                        * self.mass
+                        * GLOBAL_CONFIG.car_brake
+                };
             }
             // And there is no player-applied force when not accelerating or braking
             EngineStatus::Neutral => return DVec3::new(0.0, 0.0, 0.0),
