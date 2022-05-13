@@ -149,7 +149,7 @@ impl GraphicsManager {
                 chair,
                 Camera {
                     orbit_angle: glam::Vec2::ZERO,
-                    distance: 10.0,
+                    distance: 3.0,
                 },
             );
 
@@ -227,7 +227,7 @@ impl GraphicsManager {
                 .get::<Transform>(e)
                 .map_or(Transform::default(), |t| *t);
 
-            //cur_model_transform.scale = glam::Vec3::ONE;
+            cur_model_transform.scale = glam::Vec3::ONE;
             let cur_model = cur_model_transform.to_mat4();
 
             let acc_model = *acc * cur_model;

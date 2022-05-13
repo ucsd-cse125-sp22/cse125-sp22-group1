@@ -290,7 +290,15 @@ impl ResourceManager {
 
         if let Some(norm_iter) = reader.read_normals() {
             mesh_builder.vertex_buffer(bytemuck::cast_slice::<[f32; 3], u8>(
-                &norm_iter.collect::<Vec<[f32; 3]>>(),
+                &norm_iter
+                    .collect::<Vec<[f32; 3]>>()
+                    .iter()
+                    .map(|n| {
+                        transform
+                            .transform_vector3(glam::Vec3::from_slice(n))
+                            .to_array()
+                    })
+                    .collect::<Vec<[f32; 3]>>(),
             ));
         }
 
