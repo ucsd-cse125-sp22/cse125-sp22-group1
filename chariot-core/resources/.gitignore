@@ -1,4 +1,0 @@
-# Ignore all files except this one
-# Place resources into here from the google drive!
-*
-!.gitignore
