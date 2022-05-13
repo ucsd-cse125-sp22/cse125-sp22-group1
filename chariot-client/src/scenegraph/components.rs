@@ -1,3 +1,4 @@
+use chariot_core::entity_location::EntityLocation;
 use crate::scenegraph::*;
 
 // ---------- Components ---------- //
@@ -29,6 +30,24 @@ pub struct Transform {
 }
 
 impl Transform {
+    pub fn from_entity_location(entity_location: &EntityLocation) -> Transform {
+        let rotation_1 = glam::Quat::from_rotation_arc(
+            glam::Vec3::Z,
+            entity_location.unit_steer_direction.normalize().as_vec3(),
+        );
+        let rotation_2 = glam::Quat::from_rotation_arc(
+            glam::Vec3::Y,
+            entity_location.unit_upward_direction.normalize().as_vec3(),
+        );
+
+        Transform {
+            translation: entity_location.position.as_vec3() + glam::Vec3::new(0.0, 1.0, 0.0),
+            rotation: rotation_1.mul_quat(rotation_2),
+            // only works for chairs! do something more robust for other entities later
+            scale: glam::vec3(1.1995562314987183, 2.2936718463897705, 1.1995562314987183) * 0.2,
+        }
+    }
+
     pub fn to_mat4(&self) -> glam::Mat4 {
         glam::Mat4::from_scale_rotation_translation(self.scale, self.rotation, self.translation)
     }
@@ -59,7 +78,6 @@ impl Camera {
             0.0,
         );
         let look_dir = look_rot * glam::Vec3::Z;
-
         let look_offset = look_dir * self.distance;
 
         glam::Mat4::look_at_rh(look_offset, glam::Vec3::ZERO, glam::Vec3::Y)

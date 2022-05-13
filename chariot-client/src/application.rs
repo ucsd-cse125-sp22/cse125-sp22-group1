@@ -1,13 +1,14 @@
-use chariot_core::networking::ClientBoundPacket;
-use chariot_core::GLOBAL_CONFIG;
 use std::collections::HashSet;
+
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, VirtualKeyCode};
 
-use crate::game::{self, GameClient};
-use crate::graphics::{register_passes, GraphicsManager};
-
+use chariot_core::GLOBAL_CONFIG;
+use chariot_core::networking::ClientBoundPacket;
 use chariot_core::player_inputs::{EngineStatus, InputEvent, RotationStatus};
+
+use crate::game::{self, GameClient};
+use crate::graphics::{GraphicsManager, register_passes};
 
 pub struct Application {
     pub graphics: GraphicsManager,
@@ -36,23 +37,17 @@ impl Application {
     }
 
     pub fn update(&mut self) {
-        let mouse_pos = glam::Vec2::new(self.mouse_pos.x as f32, self.mouse_pos.y as f32);
-        self.graphics.update(mouse_pos);
-
         self.game.fetch_incoming_packets();
 
-        for packet in self.game.current_packets() {
+        // process current packets
+        while let Some(packet) = self.game.connection.pop_incoming() {
             match packet {
                 ClientBoundPacket::PlayerNumber(player_number) => {
                     self.graphics.add_player(player_number, true)
                 }
-                ClientBoundPacket::LocationUpdate(locations) => {
-                    for (i, location) in locations.iter().enumerate() {
-                        if location.is_some() {
-                            self.graphics
-                                .update_player_location(&location.unwrap(), i as u8);
-                        }
-                    }
+                ClientBoundPacket::EntityUpdate(locations) => {
+                    locations.iter().enumerate()
+                        .for_each(|(i, update)| { self.graphics.update_player_location(&update.0, &update.1, i as u8) });
                 }
                 _ => {}
             }

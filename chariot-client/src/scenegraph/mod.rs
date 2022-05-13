@@ -1,15 +1,14 @@
-use crate::drawable::*;
-use crate::resources::{accum_bounds, new_bounds, Bounds};
 use std::any::{Any, TypeId};
-use std::borrow::Borrow;
 use std::boxed::Box;
-use std::cell::{Ref, RefCell};
+use std::cell::{RefCell};
 use std::collections::HashMap;
-use std::marker::PhantomData;
 use std::mem::MaybeUninit;
 
-pub mod components;
 use components::*;
+
+use crate::resources::{accum_bounds, Bounds, new_bounds};
+
+pub mod components;
 
 pub type Entity = u32;
 
