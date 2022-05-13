@@ -207,15 +207,7 @@ impl GraphicsManager {
                     DVec3::new(velocity.x, 0.0, velocity.z).angle_between(DVec3::X);
 
                 // there's actually some magic trig cancellations happening here that simplify this calculation
-                let orbit_yaw = if location.unit_steer_direction.z > 0.0 {
-                    -rotation_angle
-                } else {
-                    rotation_angle
-                } - if velocity.z > 0.0 {
-                    -velocity_angle
-                } else {
-                    velocity_angle
-                };
+                let orbit_yaw = velocity.z.signum()*velocity_angle - location.unit_steer_direction.z.signum()*rotation_angle;
 
                 // set the new orbit angle complete with magic pitch for now
                 camera.orbit_angle = Vec2::new(orbit_yaw as f32, -0.3);
