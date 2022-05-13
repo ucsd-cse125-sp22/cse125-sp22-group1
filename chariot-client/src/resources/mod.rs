@@ -1,6 +1,6 @@
 use std::{
     cmp::Eq,
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     default,
     sync::atomic::{AtomicUsize, Ordering},
 };
@@ -138,67 +138,121 @@ impl ResourceManager {
         let model_name = filename.split(".").next().expect("invalid filename format");
         let resource_path = format!("{}/{}", GLOBAL_CONFIG.resource_folder, filename);
         let (document, buffers, images) = gltf::import(resource_path)?;
+        if document.scenes().count() != 1 {
+            panic!(
+                "Document {} has {} scenes!",
+                filename,
+                document.scenes().count()
+            );
+        }
 
         let mut bounds = new_bounds();
         let mut mesh_handles = Vec::new();
-        for (node_idx, node) in document.nodes().enumerate() {
+        let tex_handles = self.upload_textures(renderer, &images);
+        let mut material_handles = HashMap::<usize, MaterialHandle>::new();
+        let mut drawables = Vec::<StaticMeshDrawable>::new();
+
+        // Queue of (Node, Transformation) tuples
+        let mut queue: VecDeque<(gltf::Node, glam::Mat4)> = document
+            .scenes()
+            .next()
+            .expect("No root node in scene")
+            .nodes()
+            .map(|n| (n, glam::Mat4::IDENTITY))
+            .collect::<VecDeque<(gltf::Node, glam::Mat4)>>();
+
+        // Probably better to do this recursively but i didn't wanna change stuff like crazy, not that it really matters since this is just loading anyways
+        while let Some((node, parent_transform)) = queue.pop_front() {
+            println!("Processing node '{}'", node.name().unwrap_or("<unnamed>"));
+
+            let transform = (match node.transform() {
+                gltf::scene::Transform::Matrix { matrix } => {
+                    glam::Mat4::from_cols_array_2d(&matrix)
+                }
+                gltf::scene::Transform::Decomposed {
+                    translation,
+                    rotation,
+                    scale,
+                } => glam::Mat4::from_scale_rotation_translation(
+                    glam::Vec3::from(scale),
+                    glam::Quat::from_array(rotation),
+                    glam::Vec3::from(translation),
+                ),
+            }) * parent_transform;
+
             if let Some(mesh) = node.mesh() {
                 println!(
-                    "processing mesh {}",
+                    "\tprocessing mesh {}",
                     mesh.name().unwrap_or("[a mesh that's not named]")
                 );
 
-                if mesh.primitives().len() != 1 {
-                    println!(
-						"Warning: I'm expecting one prim per mesh so things might not work properly"
-					);
-                }
-
-                println!("\t{:?}", node.transform());
                 for (prim_idx, primitive) in mesh.primitives().enumerate() {
-                    println!("\tprocessing prim {}", prim_idx);
-                    let (handle, mesh_bounds) =
-                        self.import_mesh(renderer, &buffers, &primitive, node.transform().matrix());
-                    mesh_handles.push(handle);
+                    //println!("\t\tprocessing prim {}", prim_idx);
 
+                    let (mesh_handle, mesh_bounds) =
+                        self.import_mesh(renderer, &buffers, &primitive, transform);
+
+                    if let Some(material_id) = primitive.material().index() {
+                        let material_handle = match material_handles.get(&material_id) {
+                            Some(h) => {
+                                //println!("\t\t\tReusing loaded material '{}'", primitive.material().name().unwrap_or("<unnamed>"));
+                                h
+                            }
+                            None => {
+                                println!(
+                                    "\t\t\tProcessing material '{}'...",
+                                    primitive.material().name().unwrap_or("<unnamed>")
+                                );
+                                material_handles.insert(
+                                    material_id,
+                                    self.import_material(
+                                        renderer,
+                                        &tex_handles,
+                                        &primitive.material(),
+                                    ),
+                                );
+                                material_handles.get(&material_id).unwrap()
+                            }
+                        };
+
+                        let drawable = StaticMeshDrawable::new(
+                            renderer,
+                            self,
+                            *material_handle,
+                            mesh_handle,
+                            0,
+                        );
+                        drawables.push(drawable);
+                    } else {
+                        println!(
+                            "Warning: Primitive {}.{} has no material",
+                            mesh.name().unwrap_or("<unnamed>"),
+                            prim_idx
+                        );
+                    }
+
+                    mesh_handles.push(mesh_handle);
                     bounds = accum_bounds(bounds, mesh_bounds);
                 }
             } else {
-                panic!(
+                println!(
                     "Node '{}' is not a mesh",
-                    node.name().unwrap_or("unnamed mesh"),
+                    node.name().unwrap_or("<unnamed>"),
                 );
             }
-        }
-        //for (mesh_idx, mesh) in document.meshes().enumerate() {}
 
-        println!("uploading textures...");
-        let tex_handles = self.upload_textures(renderer, &images);
-
-        let mut material_handles = Vec::<MaterialHandle>::new();
-        for material in document.materials() {
-            println!(
-                "Processing material {}...",
-                material.name().unwrap_or("[unnamed material]")
-            );
-            let handle = self.import_material(renderer, &tex_handles, &material);
-            material_handles.push(handle);
-        }
-
-        let mut handle_idx = 0;
-        let mut drawables = Vec::<StaticMeshDrawable>::new();
-        for (mesh_idx, mesh) in document.meshes().enumerate() {
-            for (prim_idx, primitive) in mesh.primitives().enumerate() {
-                let material_handle = material_handles[primitive.material().index().unwrap()];
-                let mesh_handle = mesh_handles[handle_idx]; // TODO: bug if more than one prim per mesh
-                let drawable =
-                    StaticMeshDrawable::new(renderer, self, material_handle, mesh_handle, 0);
-                drawables.push(drawable);
-                handle_idx += 1;
+            for child in node.children() {
+                queue.push_back((child, transform));
             }
         }
 
         println!("done!");
+
+        let mut s = material_handles
+            .iter()
+            .collect::<Vec<(&usize, &MaterialHandle)>>();
+        s.sort_by_key(|(idx, m)| **idx);
+        let material_handles = s.iter().map(|(idx, m)| **m).collect();
 
         core::result::Result::Ok(ImportData {
             tex_handles,
@@ -214,7 +268,7 @@ impl ResourceManager {
         renderer: &Renderer,
         buffers: &[gltf::buffer::Data],
         primitive: &gltf::Primitive,
-        transform: [[f32; 4]; 4],
+        transform: glam::Mat4,
     ) -> (StaticMeshHandle, Bounds) {
         let f32_low = f32::MIN;
 
@@ -226,11 +280,8 @@ impl ResourceManager {
             let mut vert_buf = vert_iter.collect::<Vec<[f32; 3]>>();
 
             for vertex in vert_buf.iter_mut() {
-                //println!("Before: {:?}", vertex);
-                let M = glam::Mat4::from_cols_array_2d(&transform);
-                let x = M * glam::Vec4::from((glam::Vec3::from_slice(vertex), 1.0));
+                let x = transform * glam::Vec4::from((glam::Vec3::from_slice(vertex), 1.0));
                 *vertex = [x.x / x.w, x.y / x.w, x.z / x.w];
-                //println!("After: {:?}", vertex);
             }
 
             let glam_verts = vert_buf.iter().map(|e| glam::Vec3::from_slice(e));
