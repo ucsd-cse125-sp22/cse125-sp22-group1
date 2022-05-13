@@ -6,13 +6,13 @@ use std::time::{Duration, Instant};
 use glam::DVec3;
 
 use chariot_core::entity_location::EntityLocation;
-use chariot_core::GLOBAL_CONFIG;
+use chariot_core::networking::ws::{QuestionBody, WSAudienceBoundMessage};
+use chariot_core::networking::Uuid;
 use chariot_core::networking::{
     ClientBoundPacket, ClientConnection, ServerBoundPacket, WebSocketConnection,
 };
-use chariot_core::networking::Uuid;
-use chariot_core::networking::ws::{QuestionBody, WSAudienceBoundMessage};
 use chariot_core::player_inputs::InputEvent;
+use chariot_core::GLOBAL_CONFIG;
 
 use crate::chairs::get_player_start_physics_properties;
 use crate::checkpoints::{FinishLine, MajorCheckpoint, MinorCheckpoint};
@@ -345,7 +345,12 @@ impl GameServer {
 
     // send player location and velocity data to every client
     fn sync_player_state(&mut self) {
-        let updates: Vec<(EntityLocation, DVec3)> = self.game_state.players.iter().map(|player| (player.entity_location, player.velocity)).collect();
+        let updates: Vec<(EntityLocation, DVec3)> = self
+            .game_state
+            .players
+            .iter()
+            .map(|player| (player.entity_location, player.velocity))
+            .collect();
         for connection in &mut self.connections {
             connection.push_outgoing(ClientBoundPacket::EntityUpdate(updates.clone()));
         }

@@ -3,12 +3,12 @@ use std::collections::HashSet;
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, VirtualKeyCode};
 
-use chariot_core::GLOBAL_CONFIG;
 use chariot_core::networking::ClientBoundPacket;
 use chariot_core::player_inputs::{EngineStatus, InputEvent, RotationStatus};
+use chariot_core::GLOBAL_CONFIG;
 
 use crate::game::{self, GameClient};
-use crate::graphics::{GraphicsManager, register_passes};
+use crate::graphics::{register_passes, GraphicsManager};
 
 pub struct Application {
     pub graphics: GraphicsManager,
@@ -46,8 +46,10 @@ impl Application {
                     self.graphics.add_player(player_number, true)
                 }
                 ClientBoundPacket::EntityUpdate(locations) => {
-                    locations.iter().enumerate()
-                        .for_each(|(i, update)| { self.graphics.update_player_location(&update.0, &update.1, i as u8) });
+                    locations.iter().enumerate().for_each(|(i, update)| {
+                        self.graphics
+                            .update_player_location(&update.0, &update.1, i as u8)
+                    });
                 }
                 _ => {}
             }

@@ -1,12 +1,12 @@
 use std::any::{Any, TypeId};
 use std::boxed::Box;
-use std::cell::{RefCell};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::mem::MaybeUninit;
 
 use components::*;
 
-use crate::resources::{accum_bounds, Bounds, new_bounds};
+use crate::resources::{accum_bounds, new_bounds, Bounds};
 
 pub mod components;
 

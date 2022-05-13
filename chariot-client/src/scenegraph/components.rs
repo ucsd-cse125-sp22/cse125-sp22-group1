@@ -1,5 +1,5 @@
-use chariot_core::entity_location::EntityLocation;
 use crate::scenegraph::*;
+use chariot_core::entity_location::EntityLocation;
 
 // ---------- Components ---------- //
 

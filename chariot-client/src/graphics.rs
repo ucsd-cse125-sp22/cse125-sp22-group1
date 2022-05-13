@@ -1,6 +1,6 @@
-use std::f32::consts::PI;
-use glam::{DVec3, Vec2};
 use chariot_core::entity_location::EntityLocation;
+use glam::{DVec3, Vec2};
+use std::f32::consts::PI;
 
 use crate::drawable::technique::Technique;
 use crate::drawable::*;
@@ -181,7 +181,12 @@ impl GraphicsManager {
         println!("Adding new player: {}, self? {}", player_num, is_self);
     }
 
-    pub fn update_player_location(&mut self, location: &EntityLocation, velocity: &DVec3, player_num: u8) {
+    pub fn update_player_location(
+        &mut self,
+        location: &EntityLocation,
+        velocity: &DVec3,
+        player_num: u8,
+    ) {
         if self.player_entities[player_num as usize].is_none() {
             self.add_player(player_num, false);
         }
@@ -198,11 +203,19 @@ impl GraphicsManager {
                 // first we have to compensate for the rotation of the chair model
                 let rotation_angle = location.unit_steer_direction.angle_between(DVec3::X);
                 // next, we add the angle of the direction of the velocity
-                let velocity_angle = DVec3::new(velocity.x, 0.0, velocity.z).angle_between(DVec3::X);
+                let velocity_angle =
+                    DVec3::new(velocity.x, 0.0, velocity.z).angle_between(DVec3::X);
 
                 // there's actually some magic trig cancellations happening here that simplify this calculation
-                let orbit_yaw = if location.unit_steer_direction.z > 0.0 { -rotation_angle } else { rotation_angle }
-                    - if velocity.z > 0.0 { -velocity_angle } else { velocity_angle };
+                let orbit_yaw = if location.unit_steer_direction.z > 0.0 {
+                    -rotation_angle
+                } else {
+                    rotation_angle
+                } - if velocity.z > 0.0 {
+                    -velocity_angle
+                } else {
+                    velocity_angle
+                };
 
                 // set the new orbit angle complete with magic pitch for now
                 camera.orbit_angle = Vec2::new(orbit_yaw as f32, -0.3);
