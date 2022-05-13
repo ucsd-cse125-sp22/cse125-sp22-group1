@@ -154,14 +154,20 @@ impl ResourceManager {
 					);
                 }
 
-                println!("{:?}", mesh.weights());
+                println!("\t{:?}", node.transform());
                 for (prim_idx, primitive) in mesh.primitives().enumerate() {
                     println!("\tprocessing prim {}", prim_idx);
-                    let (handle, mesh_bounds) = self.import_mesh(renderer, &buffers, &primitive);
+                    let (handle, mesh_bounds) =
+                        self.import_mesh(renderer, &buffers, &primitive, node.transform().matrix());
                     mesh_handles.push(handle);
 
                     bounds = accum_bounds(bounds, mesh_bounds);
                 }
+            } else {
+                panic!(
+                    "Node '{}' is not a mesh",
+                    node.name().unwrap_or("unnamed mesh"),
+                );
             }
         }
         //for (mesh_idx, mesh) in document.meshes().enumerate() {}
@@ -208,6 +214,7 @@ impl ResourceManager {
         renderer: &Renderer,
         buffers: &[gltf::buffer::Data],
         primitive: &gltf::Primitive,
+        transform: [[f32; 4]; 4],
     ) -> (StaticMeshHandle, Bounds) {
         let f32_low = f32::MIN;
 
@@ -216,7 +223,16 @@ impl ResourceManager {
         let mut mesh_builder = MeshBuilder::new(renderer, None);
         let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
         if let Some(vert_iter) = reader.read_positions() {
-            let vert_buf = vert_iter.collect::<Vec<[f32; 3]>>();
+            let mut vert_buf = vert_iter.collect::<Vec<[f32; 3]>>();
+
+            for vertex in vert_buf.iter_mut() {
+                //println!("Before: {:?}", vertex);
+                let M = glam::Mat4::from_cols_array_2d(&transform);
+                let x = M * glam::Vec4::from((glam::Vec3::from_slice(vertex), 1.0));
+                *vertex = [x.x / x.w, x.y / x.w, x.z / x.w];
+                //println!("After: {:?}", vertex);
+            }
+
             let glam_verts = vert_buf.iter().map(|e| glam::Vec3::from_slice(e));
 
             bounds = accum_bounds(

@@ -42,11 +42,7 @@ fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer) -> (Wor
         world
             .builder()
             .attach(world_root)
-            .with(Transform {
-                translation: glam::vec3(0.0, 0.5, 0.0),
-                rotation: glam::Quat::IDENTITY,
-                scale: glam::vec3(1.1995562314987183, 2.2936718463897705, 1.1995562314987183) * 0.2,
-            })
+            .with(Transform::default())
             .with(chair_import.drawables)
             .with(chair_import.bounds)
             .build()
@@ -60,9 +56,9 @@ fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer) -> (Wor
             .builder()
             .attach(world_root)
             .with(Transform {
-                translation: glam::Vec3::ZERO,
+                translation: glam::vec3(0.0, -0.5, 0.0),
                 rotation: glam::Quat::IDENTITY,
-                scale: glam::vec3(20.0, 20.0, 20.0),
+                scale: glam::Vec3::ONE,
             })
             .with(track_import.drawables)
             .with(track_import.bounds)
@@ -153,9 +149,9 @@ impl GraphicsManager {
             .builder()
             .attach(world_root)
             .with(Transform {
-                translation: glam::vec3(0.0, 0.5, 0.0),
+                translation: glam::vec3(0.0, 50.0, 0.0),
                 rotation: glam::Quat::IDENTITY,
-                scale: glam::vec3(1.1995562314987183, 2.2936718463897705, 1.1995562314987183) * 0.2,
+                scale: glam::Vec3::ONE,
             })
             .with(chair_import.drawables)
             .with(chair_import.bounds)
@@ -203,6 +199,7 @@ impl GraphicsManager {
         }
         let player_entity = self.player_entities[player_num as usize].unwrap();
 
+        /*
         println!("new location for #{}: {}", player_num, location.position);
         println!(
             "new steer direction for #{}: {}",
@@ -212,6 +209,7 @@ impl GraphicsManager {
             "new upward direction for #{}: {}",
             player_num, location.unit_upward_direction
         );
+        */
         let player_transform = self
             .world
             .get_mut::<Transform>(player_entity)
