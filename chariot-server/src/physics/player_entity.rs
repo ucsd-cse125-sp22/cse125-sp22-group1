@@ -100,7 +100,8 @@ impl PlayerEntity {
         let term2 = (v1 - v2).dot(x1 - x2) / (x1 - x2).length_squared();
         let term3 = x1 - x2;
 
-        return term1 * term2 * term3;
+        let result = term1 * term2 * term3;
+        return DVec3::new(result.x, 0.0, result.z);
     }
 
     /* Given a set of physical properties, compute and return what next tick's
