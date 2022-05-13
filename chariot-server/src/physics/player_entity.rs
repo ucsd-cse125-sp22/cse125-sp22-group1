@@ -96,7 +96,7 @@ impl PlayerEntity {
         let x1 = self.entity_location.position;
         let x2 = other.entity_location.position;
 
-        let term1 = (-2.0 * m2) / (m1 + m2);
+        let term1 = (2.0 * m2) / (m1 + m2);
         let term2 = (v1 - v2).dot(x1 - x2) / (x1 - x2).length_squared();
         let term3 = x1 - x2;
 
