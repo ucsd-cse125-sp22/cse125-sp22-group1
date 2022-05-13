@@ -1,6 +1,6 @@
 use chariot_core::entity_location::EntityLocation;
 use glam::{DVec3, Vec2};
-use std::f32::consts::PI;
+use std::f64::consts::PI;
 
 use crate::drawable::technique::Technique;
 use crate::drawable::*;
@@ -207,18 +207,18 @@ impl GraphicsManager {
                     DVec3::new(velocity.x, 0.0, velocity.z).angle_between(DVec3::X);
 
                 // there's actually some magic trig cancellations happening here that simplify this calculation
-                let orbit_yaw = if location.unit_steer_direction.z > 0.0 {
-                    -rotation_angle
-                } else {
-                    rotation_angle
-                } - if velocity.z > 0.0 {
-                    -velocity_angle
-                } else {
-                    velocity_angle
-                };
+                let mut orbit_yaw = velocity.z.signum() * velocity_angle
+                    - location.unit_steer_direction.z.signum() * rotation_angle;
+
+                // if the yaw change would be bigger than PI, wrap back around
+                let yaw_difference = orbit_yaw - camera.orbit_angle.x as f64;
+                if yaw_difference.abs() > PI {
+                    orbit_yaw += yaw_difference.signum() * 2.0 * PI;
+                }
 
                 // set the new orbit angle complete with magic pitch for now
-                camera.orbit_angle = Vec2::new(orbit_yaw as f32, -0.3);
+                camera.orbit_angle =
+                    Vec2::new(orbit_yaw as f32, -0.3).lerp(camera.orbit_angle, 0.5);
             }
         }
     }
