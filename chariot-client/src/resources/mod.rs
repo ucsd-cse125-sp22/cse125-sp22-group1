@@ -98,7 +98,6 @@ pub fn accum_bounds(mut acc: Bounds, new: Bounds) -> Bounds {
 
 pub struct ImportData {
     pub tex_handles: Vec<TextureHandle>,
-    pub material_handles: Vec<MaterialHandle>,
     pub mesh_handles: Vec<StaticMeshHandle>,
     pub drawables: Vec<StaticMeshDrawable>,
     pub bounds: Bounds,
@@ -165,26 +164,24 @@ impl ResourceManager {
         while let Some((node, parent_transform)) = queue.pop_front() {
             println!("Processing node '{}'", node.name().unwrap_or("<unnamed>"));
 
-            let transform = (match node.transform() {
-                gltf::scene::Transform::Matrix { matrix } => {
-                    glam::Mat4::from_cols_array_2d(&matrix)
-                }
-                gltf::scene::Transform::Decomposed {
-                    translation,
-                    rotation,
-                    scale,
-                } => glam::Mat4::from_scale_rotation_translation(
-                    glam::Vec3::from(scale),
-                    glam::Quat::from_array(rotation),
-                    glam::Vec3::from(translation),
-                ),
-            }) * parent_transform;
+            let transform = parent_transform
+                * (match node.transform() {
+                    gltf::scene::Transform::Matrix { matrix } => {
+                        glam::Mat4::from_cols_array_2d(&matrix)
+                    }
+                    gltf::scene::Transform::Decomposed {
+                        translation,
+                        rotation,
+                        scale,
+                    } => glam::Mat4::from_scale_rotation_translation(
+                        glam::Vec3::from(scale),
+                        glam::Quat::from_array(rotation),
+                        glam::Vec3::from(translation),
+                    ),
+                });
 
             if let Some(mesh) = node.mesh() {
-                println!(
-                    "\tprocessing mesh {}",
-                    mesh.name().unwrap_or("[a mesh that's not named]")
-                );
+                println!("\tprocessing mesh '{}'", mesh.name().unwrap_or("<unnamed>"));
 
                 for (prim_idx, primitive) in mesh.primitives().enumerate() {
                     //println!("\t\tprocessing prim {}", prim_idx);
@@ -248,15 +245,8 @@ impl ResourceManager {
 
         println!("done!");
 
-        let mut s = material_handles
-            .iter()
-            .collect::<Vec<(&usize, &MaterialHandle)>>();
-        s.sort_by_key(|(idx, m)| **idx);
-        let material_handles = s.iter().map(|(idx, m)| **m).collect();
-
         core::result::Result::Ok(ImportData {
             tex_handles,
-            material_handles,
             mesh_handles,
             drawables,
             bounds,
@@ -280,8 +270,9 @@ impl ResourceManager {
             let mut vert_buf = vert_iter.collect::<Vec<[f32; 3]>>();
 
             for vertex in vert_buf.iter_mut() {
-                let x = transform * glam::Vec4::from((glam::Vec3::from_slice(vertex), 1.0));
-                *vertex = [x.x / x.w, x.y / x.w, x.z / x.w];
+                *vertex = transform
+                    .transform_point3(glam::Vec3::from_slice(vertex))
+                    .to_array();
             }
 
             let glam_verts = vert_buf.iter().map(|e| glam::Vec3::from_slice(e));

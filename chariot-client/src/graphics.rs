@@ -43,11 +43,7 @@ fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer) -> Worl
         let track = world
             .builder()
             .attach(world_root)
-            .with(Transform {
-                translation: glam::vec3(0.0, -0.5, 0.0),
-                rotation: glam::Quat::IDENTITY,
-                scale: glam::Vec3::ONE,
-            })
+            .with(Transform::default())
             .with(track_import.drawables)
             .with(track_import.bounds)
             .build();
@@ -139,9 +135,9 @@ impl GraphicsManager {
             .builder()
             .attach(world_root)
             .with(Transform {
-                translation: glam::vec3(0.0, 00.0, 0.0),
+                translation: glam::vec3(0.0, -100.0, 0.0),
                 rotation: glam::Quat::IDENTITY,
-                scale: glam::vec3(0.0, 50.0, 0.0),
+                scale: glam::Vec3::ONE * 0.2,
             })
             .with(chair_import.drawables)
             .with(chair_import.bounds)
@@ -153,7 +149,7 @@ impl GraphicsManager {
                 chair,
                 Camera {
                     orbit_angle: glam::Vec2::ZERO,
-                    distance: 2.0,
+                    distance: 10.0,
                 },
             );
 
@@ -163,7 +159,7 @@ impl GraphicsManager {
         self.player_entities[player_num as usize] = Some(chair);
     }
 
-    fn EntityLocation_to_Transform(location: &EntityLocation) -> Transform {
+    fn EntityLocation_to_Transform(location: &EntityLocation, scale: glam::Vec3) -> Transform {
         let rotation_1 = glam::Quat::from_rotation_arc(
             glam::Vec3::Z,
             location.unit_steer_direction.normalize().as_vec3(),
@@ -174,10 +170,9 @@ impl GraphicsManager {
         );
 
         return Transform {
-            translation: location.position.as_vec3() + glam::Vec3::new(0.0, 1.0, 0.0),
+            translation: location.position.as_vec3(),
             rotation: rotation_1.mul_quat(rotation_2),
-            // only works for chairs! do something more robust for other entities later
-            scale: glam::vec3(1.1995562314987183, 2.2936718463897705, 1.1995562314987183) * 0.2,
+            scale: scale,
         };
     }
 
@@ -202,7 +197,8 @@ impl GraphicsManager {
             .world
             .get_mut::<Transform>(player_entity)
             .expect("Trying to update player location when transform does not exist");
-        *player_transform = GraphicsManager::EntityLocation_to_Transform(&location);
+        *player_transform =
+            GraphicsManager::EntityLocation_to_Transform(&location, player_transform.scale);
     }
 
     pub fn render(&mut self) {
@@ -231,7 +227,7 @@ impl GraphicsManager {
                 .get::<Transform>(e)
                 .map_or(Transform::default(), |t| *t);
 
-            cur_model_transform.scale = glam::Vec3::ONE;
+            //cur_model_transform.scale = glam::Vec3::ONE;
             let cur_model = cur_model_transform.to_mat4();
 
             let acc_model = *acc * cur_model;
