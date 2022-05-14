@@ -151,6 +151,13 @@ impl ResourceManager {
         let mut material_handles = HashMap::<usize, MaterialHandle>::new();
         let mut drawables = Vec::<StaticMeshDrawable>::new();
 
+        // TODO: Make a real default material, instead of just using the first one
+        let default_material_handle: MaterialHandle = self.import_material(
+            renderer,
+            &tex_handles,
+            &document.materials().next().unwrap(),
+        );
+
         // Queue of (Node, Transformation) tuples
         let mut queue: VecDeque<(gltf::Node, glam::Mat4)> = document
             .scenes()
@@ -189,10 +196,15 @@ impl ResourceManager {
                     let (mesh_handle, mesh_bounds) =
                         self.import_mesh(renderer, &buffers, &primitive, transform);
 
+                    let mut material_handle: &MaterialHandle = &default_material_handle;
+
                     if let Some(material_id) = primitive.material().index() {
-                        let material_handle = match material_handles.get(&material_id) {
+                        material_handle = match material_handles.get(&material_id) {
                             Some(h) => {
-                                //println!("\t\t\tReusing loaded material '{}'", primitive.material().name().unwrap_or("<unnamed>"));
+                                println!(
+                                    "\t\t\tReusing loaded material '{}'",
+                                    primitive.material().name().unwrap_or("<unnamed>")
+                                );
                                 h
                             }
                             None => {
@@ -211,22 +223,17 @@ impl ResourceManager {
                                 material_handles.get(&material_id).unwrap()
                             }
                         };
-
-                        let drawable = StaticMeshDrawable::new(
-                            renderer,
-                            self,
-                            *material_handle,
-                            mesh_handle,
-                            0,
-                        );
-                        drawables.push(drawable);
                     } else {
                         println!(
-                            "Warning: Primitive {}.{} has no material",
+                            "Warning: Primitive {}.{} has no material. Using default instead",
                             mesh.name().unwrap_or("<unnamed>"),
                             prim_idx
                         );
                     }
+
+                    let drawable =
+                        StaticMeshDrawable::new(renderer, self, *material_handle, mesh_handle, 0);
+                    drawables.push(drawable);
 
                     mesh_handles.push(mesh_handle);
                     bounds = accum_bounds(bounds, mesh_bounds);
