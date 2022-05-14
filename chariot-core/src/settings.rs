@@ -45,7 +45,7 @@ impl Settings {
             // for debugging purposes: don't require all players to join to get to see the graphical view
             .set_default("bypass_multiplayer_requirement", false)?
             // files_and_resources (client)
-            .set_default("resource_folder", "./resources")?
+            .set_default("resource_folder", "../chariot-core/resources")?
             // physics
             // `gravity_coefficient` is acceleration due to gravity: this is
             // little g (whose IRL value is 9.81 meters per second squared, but
