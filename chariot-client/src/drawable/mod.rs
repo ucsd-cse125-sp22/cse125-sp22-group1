@@ -32,18 +32,6 @@ impl StaticMeshDrawable {
         submesh_idx: usize,
     ) -> Self {
         let shadow_pass = "shadow";
-        /*let shadow_draws = lights
-        .iter()
-        .map(|l| {
-            ShadowDrawTechnique::new(
-                renderer,
-                static_mesh,
-                submesh_idx,
-                shadow_pass,
-                l.framebuffer_name.as_str(),
-            )
-        })
-        .collect();*/
 
         let shadow_draws = vec![ShadowDrawTechnique::new(
             renderer,
@@ -104,6 +92,26 @@ impl Drawable for StaticMeshDrawable {
 
         let forward_item = self.forward_draw.render_item(resources);
         builder.add(forward_item, &shadow_deps);
+
+        builder.build()
+    }
+}
+
+pub struct UIDrawable {
+    pub layers: Vec<UILayerTechnique>,
+}
+
+impl Drawable for UIDrawable {
+    fn render_graph<'a>(&'a self, resources: &'a ResourceManager) -> render_job::RenderGraph<'a> {
+        let mut builder = render_job::RenderGraphBuilder::new();
+
+        if !self.layers.is_empty() {
+            let mut last_dep =
+                builder.add_root(self.layers.first().unwrap().render_item(resources));
+            for layer in self.layers.iter().skip(1) {
+                last_dep = builder.add(layer.render_item(resources), &[last_dep]);
+            }
+        }
 
         builder.build()
     }

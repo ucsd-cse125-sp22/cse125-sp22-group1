@@ -25,7 +25,12 @@ pub fn register_passes(renderer: &mut Renderer) {
 
     renderer.register_pass(
         "postprocess",
-        &util::direct_graphics_depth_pass!("shaders/postprocess.wgsl"),
+        &util::direct_graphics_nodepth_pass!("shaders/postprocess.wgsl"),
+    );
+
+    renderer.register_pass(
+        "ui",
+        &util::direct_graphics_nodepth_pass!("shaders/ui.wgsl"),
     );
 }
 
@@ -92,6 +97,7 @@ pub struct GraphicsManager {
     pub renderer: Renderer,
     pub resources: ResourceManager,
 
+    test_ui: UIDrawable,
     postprocess: technique::FSQTechnique,
     player_entities: [Option<Entity>; 4],
     camera_entity: Entity,
@@ -129,6 +135,19 @@ impl GraphicsManager {
             renderer.register_framebuffer("shadow_out1", fb_desc);
         }
 
+        let text_handle = resources.import_texture(&renderer, "text.png");
+        let text_tex = resources.textures.get(&text_handle).unwrap();
+        let test_ui = UIDrawable {
+            layers: vec![technique::UILayerTechnique::new(
+                &renderer,
+                glam::vec2(0.0, 0.0),
+                glam::vec2(0.2, 0.2),
+                glam::vec2(0.0, 0.0),
+                glam::vec2(1.0, 1.0),
+                &text_tex,
+            )],
+        };
+
         let postprocess = technique::FSQTechnique::new(&renderer, &resources, "postprocess");
 
         let (world, chair) = setup_world(&mut resources, &mut renderer);
@@ -137,6 +156,7 @@ impl GraphicsManager {
             world: world,
             renderer: renderer,
             resources: resources,
+            test_ui: test_ui,
             postprocess: postprocess,
             player_entities: [Some(chair), None, None, None],
             camera_entity: NULL_ENTITY,
@@ -339,6 +359,9 @@ impl GraphicsManager {
         );
         let postprocess_graph = self.postprocess.render_item(&self.resources).to_graph();
         render_job.merge_graph_after("forward", postprocess_graph);
+
+        let ui_graph = self.test_ui.render_graph(&self.resources);
+        render_job.merge_graph_after("postprocess", ui_graph);
 
         self.renderer.render(&render_job);
     }

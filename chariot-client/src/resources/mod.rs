@@ -486,4 +486,26 @@ impl ResourceManager {
         let handle = self.framebuffers.get(&name.to_string())?.get(index)?;
         self.textures.get(&handle)
     }
+
+    pub fn import_texture(&mut self, renderer: &Renderer, filename: &str) -> TextureHandle {
+        let tex_name = filename.split(".").next().expect("invalid filename format");
+        let resource_path = format!("{}/{}", GLOBAL_CONFIG.resource_folder, filename);
+        let img = image::open(resource_path).unwrap();
+        let img_rgba8 = img.into_rgba8();
+
+        let texture = renderer.create_texture2D_init(
+            tex_name,
+            winit::dpi::PhysicalSize::<u32> {
+                width: img_rgba8.width(),
+                height: img_rgba8.height(),
+            },
+            wgpu::TextureFormat::Rgba8Unorm,
+            wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::STORAGE_BINDING,
+            &img_rgba8.into_raw(),
+        );
+
+        let handle = TextureHandle::unique();
+        self.textures.insert(handle, texture);
+        return handle;
+    }
 }
