@@ -30,7 +30,10 @@ pub struct Transform {
 }
 
 impl Transform {
-    pub fn from_entity_location(entity_location: &EntityLocation) -> Transform {
+    pub fn from_entity_location(
+        entity_location: &EntityLocation,
+        entity_scale: glam::Vec3,
+    ) -> Transform {
         let rotation_1 = glam::Quat::from_rotation_arc(
             glam::Vec3::Z,
             entity_location.unit_steer_direction.normalize().as_vec3(),
@@ -41,10 +44,9 @@ impl Transform {
         );
 
         Transform {
-            translation: entity_location.position.as_vec3() + glam::Vec3::new(0.0, 1.0, 0.0),
+            translation: entity_location.position.as_vec3(),
             rotation: rotation_1.mul_quat(rotation_2),
-            // only works for chairs! do something more robust for other entities later
-            scale: glam::vec3(1.1995562314987183, 2.2936718463897705, 1.1995562314987183) * 0.2,
+            scale: entity_scale,
         }
     }
 

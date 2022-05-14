@@ -1,6 +1,6 @@
 use graphics::GraphicsManager;
 use winit::{
-    event::{ElementState, Event, MouseButton, WindowEvent},
+    event::{ElementState, Event, MouseButton, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
 };
 
@@ -55,6 +55,10 @@ fn main() {
                 event: WindowEvent::KeyboardInput { input, .. },
                 ..
             } => {
+                if let Some(VirtualKeyCode::Escape) = input.virtual_keycode {
+                    *control_flow = ControlFlow::Exit;
+                }
+
                 if let Some(key) = input.virtual_keycode {
                     match input.state {
                         ElementState::Pressed => application.on_key_down(key),

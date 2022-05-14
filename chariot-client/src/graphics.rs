@@ -34,43 +34,23 @@ pub fn register_passes(renderer: &mut Renderer) {
     );
 }
 
-fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer) -> (World, Entity) {
+fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer) -> World {
     let mut world = World::new();
     world.register::<Camera>();
     world.register::<Vec<StaticMeshDrawable>>();
     world.register::<Bounds>();
     world.register::<Light>();
     let world_root = world.root();
-    let chair = {
-        let chair_import = resources
-            .import_gltf(renderer, "models/defaultchair.glb")
-            .expect("Failed to import chair");
 
-        world
-            .builder()
-            .attach(world_root)
-            .with(Transform {
-                translation: glam::vec3(0.0, 0.5, 0.0),
-                rotation: glam::Quat::IDENTITY,
-                scale: glam::vec3(1.1995562314987183, 2.2936718463897705, 1.1995562314987183) * 0.2,
-            })
-            .with(chair_import.drawables)
-            .with(chair_import.bounds)
-            .build()
-    };
     {
         let track_import = resources
-            .import_gltf(renderer, "models/baked.glb")
+            .import_gltf(renderer, "models/track.glb")
             .expect("Unable to load racetrack");
 
         let track = world
             .builder()
             .attach(world_root)
-            .with(Transform {
-                translation: glam::Vec3::ZERO,
-                rotation: glam::Quat::IDENTITY,
-                scale: glam::vec3(20.0, 20.0, 20.0),
-            })
+            .with(Transform::default())
             .with(track_import.drawables)
             .with(track_import.bounds)
             .build();
@@ -89,7 +69,7 @@ fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer) -> (Wor
             .build();
     }
 
-    (world, chair)
+    world
 }
 
 pub struct GraphicsManager {
@@ -150,7 +130,7 @@ impl GraphicsManager {
 
         let postprocess = technique::FSQTechnique::new(&renderer, &resources, "postprocess");
 
-        let (world, chair) = setup_world(&mut resources, &mut renderer);
+        let world = setup_world(&mut resources, &mut renderer);
 
         Self {
             world: world,
@@ -158,12 +138,14 @@ impl GraphicsManager {
             resources: resources,
             test_ui: test_ui,
             postprocess: postprocess,
-            player_entities: [Some(chair), None, None, None],
+            player_entities: [None, None, None, None],
             camera_entity: NULL_ENTITY,
         }
     }
 
     pub fn add_player(&mut self, player_num: u8, is_self: bool) {
+        println!("Adding new player: {}, self? {}", player_num, is_self);
+
         let chair_import = self
             .resources
             .import_gltf(&mut self.renderer, "models/defaultchair.glb")
@@ -175,9 +157,9 @@ impl GraphicsManager {
             .builder()
             .attach(world_root)
             .with(Transform {
-                translation: glam::vec3(0.0, 0.5, 0.0),
+                translation: glam::vec3(0.0, -100.0, 0.0),
                 rotation: glam::Quat::IDENTITY,
-                scale: glam::vec3(1.1995562314987183, 2.2936718463897705, 1.1995562314987183) * 0.2,
+                scale: glam::Vec3::ONE * 0.2,
             })
             .with(chair_import.drawables)
             .with(chair_import.bounds)
@@ -197,8 +179,6 @@ impl GraphicsManager {
         }
 
         self.player_entities[player_num as usize] = Some(chair);
-
-        println!("Adding new player: {}, self? {}", player_num, is_self);
     }
 
     pub fn update_player_location(
@@ -215,7 +195,7 @@ impl GraphicsManager {
             .world
             .get_mut::<Transform>(player_entity)
             .expect("Trying to update player location when transform does not exist");
-        *player_transform = Transform::from_entity_location(&location);
+        *player_transform = Transform::from_entity_location(&location, player_transform.scale);
 
         // if this player is the main player, update the camera too (based on velocity)
         if player_entity == self.camera_entity && *velocity != DVec3::ZERO {
