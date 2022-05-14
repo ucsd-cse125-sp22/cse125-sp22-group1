@@ -295,7 +295,10 @@ impl ResourceManager {
                     .iter()
                     .map(|n| {
                         transform
+                            .inverse()
+                            .transpose()
                             .transform_vector3(glam::Vec3::from_slice(n))
+                            .normalize()
                             .to_array()
                     })
                     .collect::<Vec<[f32; 3]>>(),
