@@ -497,7 +497,7 @@ impl Renderer {
 
         // kind of sketch to re-set this every frame
         {
-            /*let surface_view = frame
+            let surface_view = frame
                 .texture
                 .create_view(&wgpu::TextureViewDescriptor::default());
             self.framebuffers.insert(
@@ -511,7 +511,7 @@ impl Renderer {
                     clear_color: Some(wgpu::Color::BLACK),
                     clear_depth: true,
                 },
-            );*/
+            );
 
             let surface_nodepth_view = frame
                 .texture
