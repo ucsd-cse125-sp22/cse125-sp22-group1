@@ -3,6 +3,9 @@ use std::net::TcpListener;
 use std::thread::{self};
 use std::time::{Duration, Instant};
 
+use glam::DVec3;
+
+use chariot_core::entity_location::EntityLocation;
 use chariot_core::networking::ws::{QuestionBody, WSAudienceBoundMessage};
 use chariot_core::networking::Uuid;
 use chariot_core::networking::{
@@ -340,12 +343,16 @@ impl GameServer {
         }
     }
 
-    // send player location data to every client
+    // send player location and velocity data to every client
     fn sync_player_state(&mut self) {
-        let locations =
-            [0, 1, 2, 3].map(|n| Some(self.game_state.players[n].entity_location.clone()));
+        let updates: Vec<(EntityLocation, DVec3)> = self
+            .game_state
+            .players
+            .iter()
+            .map(|player| (player.entity_location, player.velocity))
+            .collect();
         for connection in &mut self.connections {
-            connection.push_outgoing(ClientBoundPacket::LocationUpdate(locations));
+            connection.push_outgoing(ClientBoundPacket::EntityUpdate(updates.clone()));
         }
     }
 }
