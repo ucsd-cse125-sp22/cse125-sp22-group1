@@ -198,7 +198,7 @@ impl GraphicsManager {
         *player_transform = Transform::from_entity_location(&location);
 
         // if this player is the main player, update the camera too (based on velocity)
-        if player_entity == self.camera_entity {
+        if player_entity == self.camera_entity && *velocity != DVec3::ZERO {
             if let Some(camera) = self.world.get_mut::<Camera>(self.camera_entity) {
                 // first we have to compensate for the rotation of the chair model
                 let rotation_angle = location.unit_steer_direction.angle_between(DVec3::X);

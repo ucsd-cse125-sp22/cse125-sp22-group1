@@ -96,11 +96,12 @@ impl PlayerEntity {
         let x1 = self.entity_location.position;
         let x2 = other.entity_location.position;
 
-        let term1 = (-2.0 * m2) / (m1 + m2);
+        let term1 = (2.0 * m2) / (m1 + m2);
         let term2 = (v1 - v2).dot(x1 - x2) / (x1 - x2).length_squared();
         let term3 = x1 - x2;
 
-        return term1 * term2 * term3;
+        let result = term1 * term2 * term3;
+        return DVec3::new(result.x, 0.0, result.z);
     }
 
     /* Given a set of physical properties, compute and return what next tick's
@@ -147,6 +148,8 @@ impl PlayerEntity {
         let mut new_velocity = self.velocity + delta_velocity;
         if new_velocity.length() > GLOBAL_CONFIG.max_car_speed {
             new_velocity = new_velocity.normalize() * GLOBAL_CONFIG.max_car_speed;
+        } else if new_velocity.length() < 0.05 {
+            new_velocity = DVec3::ZERO;
         }
 
         let mut new_player = PlayerEntity {
@@ -223,10 +226,10 @@ impl PlayerEntity {
                     * self.mass
                     * GLOBAL_CONFIG.car_accelerator;
             }
-            // divide velocity by its magnitude to have a unit vector pointing
-            // towards current heading, then apply the force in the reverse direction
+            // apply the force in the reverse direction of current velocity;
+            // just do nothing if velocity is zero
             EngineStatus::Braking => {
-                return self.velocity / self.velocity.length()
+                return self.velocity.normalize_or_zero()
                     * -1.0
                     * self.mass
                     * GLOBAL_CONFIG.car_brake;
