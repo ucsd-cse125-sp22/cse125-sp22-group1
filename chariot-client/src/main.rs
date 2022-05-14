@@ -57,7 +57,6 @@ fn main() {
                 event: WindowEvent::KeyboardInput { input, .. },
                 ..
             } => {
-                // TODO: Make this be a more real thing, rather than hard coding it here
                 if let Some(VirtualKeyCode::Escape) = input.virtual_keycode {
                     *control_flow = ControlFlow::Exit;
                 }
