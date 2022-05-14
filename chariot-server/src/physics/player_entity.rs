@@ -226,17 +226,13 @@ impl PlayerEntity {
                     * self.mass
                     * GLOBAL_CONFIG.car_accelerator;
             }
-            // divide velocity by its magnitude to have a unit vector pointing
-            // towards current heading, then apply the force in the reverse direction
+            // apply the force in the reverse direction of current velocity;
+            // just do nothing if velocity is zero
             EngineStatus::Braking => {
-                return if self.velocity == DVec3::ZERO {
-                    DVec3::ZERO
-                } else {
-                    self.velocity / self.velocity.length()
-                        * -1.0
-                        * self.mass
-                        * GLOBAL_CONFIG.car_brake
-                };
+                return self.velocity.normalize_or_zero()
+                    * -1.0
+                    * self.mass
+                    * GLOBAL_CONFIG.car_brake;
             }
             // And there is no player-applied force when not accelerating or braking
             EngineStatus::Neutral => return DVec3::new(0.0, 0.0, 0.0),
