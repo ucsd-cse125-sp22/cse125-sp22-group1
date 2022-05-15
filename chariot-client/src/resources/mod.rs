@@ -17,8 +17,6 @@ use wgpu::util::DeviceExt;
 use crate::drawable::*;
 use crate::renderer::*;
 
-pub use chariot_core::entity_location::{accum_bounds, new_bounds, Bounds};
-
 // This file has the ResourceManager, which is responsible for loading gltf models and assigning resource handles
 
 fn to_wgpu_format(format: gltf::image::Format) -> wgpu::TextureFormat {
@@ -44,6 +42,20 @@ fn rgb8_to_rgba8(data: &[u8]) -> Vec<u8> {
     }
 
     res
+}
+
+pub type Bounds = (glam::Vec3, glam::Vec3);
+
+pub fn new_bounds() -> Bounds {
+    let low_bound = glam::vec3(f32::MAX, f32::MAX, f32::MAX);
+    let high_bound = glam::vec3(f32::MIN, f32::MIN, f32::MIN);
+    (low_bound, high_bound)
+}
+
+pub fn accum_bounds(mut acc: Bounds, new: Bounds) -> Bounds {
+    acc.0 = acc.0.min(new.0);
+    acc.1 = acc.1.max(new.1);
+    acc
 }
 
 /*
