@@ -1,3 +1,5 @@
+use std::ops::Bound;
+
 use glam::{DVec3, Mat3};
 
 #[derive(Copy, Clone)]
@@ -26,6 +28,17 @@ impl BoundingBox {
             max_y,
             min_z,
             max_z,
+        }
+    }
+
+    pub fn from_vecs(min: DVec3, max: DVec3) -> BoundingBox {
+        BoundingBox {
+            min_x: min.x,
+            max_x: max.x,
+            min_y: min.y,
+            max_y: max.y,
+            min_z: min.z,
+            max_z: max.z,
         }
     }
 

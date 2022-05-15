@@ -6,9 +6,16 @@ use glam::DVec3;
 #[derive(Clone, Copy)]
 pub struct Checkpoint {
     pub id: CheckpointID,
-    pub pos: DVec3,
-    pub size: DVec3,
     pub bounding_box: BoundingBox,
+}
+
+impl Checkpoint {
+    pub fn new(id: CheckpointID, min: DVec3, max: DVec3) -> Self {
+        Self {
+            id,
+            bounding_box: BoundingBox::from_vecs(min, max),
+        }
+    }
 }
 
 impl TriggerEntity for Checkpoint {
@@ -23,25 +30,14 @@ impl TriggerEntity for Checkpoint {
 #[derive(Clone, Copy)]
 pub struct Zone {
     pub id: ZoneID,
-    pos: DVec3,
-    size: DVec3,
     pub bounding_box: BoundingBox,
 }
 
 impl Zone {
-    pub fn new(id: ZoneID, pos: DVec3, size: DVec3) -> Self {
+    pub fn new(id: ZoneID, min: DVec3, max: DVec3) -> Self {
         Self {
-            id: id,
-            pos: pos,
-            size: size,
-            bounding_box: BoundingBox::new(
-                pos.x,
-                pos.x + size.x,
-                pos.y,
-                pos.y + size.y,
-                pos.z,
-                pos.z + size.z,
-            ),
+            id,
+            bounding_box: BoundingBox::from_vecs(min, max),
         }
     }
 }
@@ -62,25 +58,14 @@ impl TriggerEntity for Zone {
 #[derive(Clone, Copy)]
 pub struct FinishLine {
     last_zone: ZoneID,
-    pos: DVec3,
-    size: DVec3,
     pub bounding_box: BoundingBox,
 }
 
 impl FinishLine {
-    pub fn new(pos: DVec3, size: DVec3, last_zone: ZoneID) -> Self {
+    pub fn new(min: DVec3, max: DVec3, last_zone: ZoneID) -> Self {
         Self {
             last_zone,
-            pos,
-            size,
-            bounding_box: BoundingBox::new(
-                pos.x,
-                pos.x + size.x,
-                pos.y,
-                pos.y + size.y,
-                pos.z,
-                pos.z + size.z,
-            ),
+            bounding_box: BoundingBox::from_vecs(min, max),
         }
     }
 }
