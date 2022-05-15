@@ -5,6 +5,7 @@ mod checkpoints;
 mod game;
 mod map;
 mod physics;
+mod progress;
 
 fn main() {
     // kick off the game loop

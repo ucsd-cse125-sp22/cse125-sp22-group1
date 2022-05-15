@@ -1,4 +1,6 @@
 use chariot_core::entity_location::EntityLocation;
+use glam::{DVec3, Vec2};
+use std::f64::consts::PI;
 
 use crate::drawable::technique::Technique;
 use crate::drawable::*;
@@ -27,43 +29,23 @@ pub fn register_passes(renderer: &mut Renderer) {
     );
 }
 
-fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer) -> (World, Entity) {
+fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer) -> World {
     let mut world = World::new();
     world.register::<Camera>();
     world.register::<Vec<StaticMeshDrawable>>();
     world.register::<Bounds>();
     world.register::<Light>();
     let world_root = world.root();
-    let chair = {
-        let chair_import = resources
-            .import_gltf(renderer, "models/defaultchair.glb")
-            .expect("Failed to import chair");
 
-        world
-            .builder()
-            .attach(world_root)
-            .with(Transform {
-                translation: glam::vec3(0.0, 0.5, 0.0),
-                rotation: glam::Quat::IDENTITY,
-                scale: glam::vec3(1.1995562314987183, 2.2936718463897705, 1.1995562314987183) * 0.2,
-            })
-            .with(chair_import.drawables)
-            .with(chair_import.bounds)
-            .build()
-    };
     {
         let track_import = resources
-            .import_gltf(renderer, "models/baked.glb")
+            .import_gltf(renderer, "models/track.glb")
             .expect("Unable to load racetrack");
 
         let track = world
             .builder()
             .attach(world_root)
-            .with(Transform {
-                translation: glam::Vec3::ZERO,
-                rotation: glam::Quat::IDENTITY,
-                scale: glam::vec3(20.0, 20.0, 20.0),
-            })
+            .with(Transform::default())
             .with(track_import.drawables)
             .with(track_import.bounds)
             .build();
@@ -82,7 +64,7 @@ fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer) -> (Wor
             .build();
     }
 
-    (world, chair)
+    world
 }
 
 pub struct GraphicsManager {
@@ -129,19 +111,21 @@ impl GraphicsManager {
 
         let postprocess = technique::FSQTechnique::new(&renderer, &resources, "postprocess");
 
-        let (world, chair) = setup_world(&mut resources, &mut renderer);
+        let world = setup_world(&mut resources, &mut renderer);
 
         Self {
             world: world,
             renderer: renderer,
             resources: resources,
             postprocess: postprocess,
-            player_entities: [Some(chair), None, None, None],
+            player_entities: [None, None, None, None],
             camera_entity: NULL_ENTITY,
         }
     }
 
     pub fn add_player(&mut self, player_num: u8, is_self: bool) {
+        println!("Adding new player: {}, self? {}", player_num, is_self);
+
         let chair_import = self
             .resources
             .import_gltf(&mut self.renderer, "models/defaultchair.glb")
@@ -153,9 +137,9 @@ impl GraphicsManager {
             .builder()
             .attach(world_root)
             .with(Transform {
-                translation: glam::vec3(0.0, 0.5, 0.0),
+                translation: glam::vec3(0.0, -100.0, 0.0),
                 rotation: glam::Quat::IDENTITY,
-                scale: glam::vec3(1.1995562314987183, 2.2936718463897705, 1.1995562314987183) * 0.2,
+                scale: glam::Vec3::ONE * 0.2,
             })
             .with(chair_import.drawables)
             .with(chair_import.bounds)
@@ -167,7 +151,7 @@ impl GraphicsManager {
                 chair,
                 Camera {
                     orbit_angle: glam::Vec2::ZERO,
-                    distance: 2.0,
+                    distance: 3.0,
                 },
             );
 
@@ -175,29 +159,14 @@ impl GraphicsManager {
         }
 
         self.player_entities[player_num as usize] = Some(chair);
-
-        println!("Adding new player: {}, self? {}", player_num, is_self);
     }
 
-    fn EntityLocation_to_Transform(location: &EntityLocation) -> Transform {
-        let rotation_1 = glam::Quat::from_rotation_arc(
-            glam::Vec3::Z,
-            location.unit_steer_direction.normalize().as_vec3(),
-        );
-        let rotation_2 = glam::Quat::from_rotation_arc(
-            glam::Vec3::Y,
-            location.unit_upward_direction.normalize().as_vec3(),
-        );
-
-        return Transform {
-            translation: location.position.as_vec3() + glam::Vec3::new(0.0, 1.0, 0.0),
-            rotation: rotation_1.mul_quat(rotation_2),
-            // only works for chairs! do something more robust for other entities later
-            scale: glam::vec3(1.1995562314987183, 2.2936718463897705, 1.1995562314987183) * 0.2,
-        };
-    }
-
-    pub fn update_player_location(&mut self, location: &EntityLocation, player_num: u8) {
+    pub fn update_player_location(
+        &mut self,
+        location: &EntityLocation,
+        velocity: &DVec3,
+        player_num: u8,
+    ) {
         if self.player_entities[player_num as usize].is_none() {
             self.add_player(player_num, false);
         }
@@ -207,7 +176,32 @@ impl GraphicsManager {
             .world
             .get_mut::<Transform>(player_entity)
             .expect("Trying to update player location when transform does not exist");
-        *player_transform = GraphicsManager::EntityLocation_to_Transform(&location);
+        *player_transform = Transform::from_entity_location(&location, player_transform.scale);
+
+        // if this player is the main player, update the camera too (based on velocity)
+        if player_entity == self.camera_entity && *velocity != DVec3::ZERO {
+            if let Some(camera) = self.world.get_mut::<Camera>(self.camera_entity) {
+                // first we have to compensate for the rotation of the chair model
+                let rotation_angle = location.unit_steer_direction.angle_between(DVec3::X);
+                // next, we add the angle of the direction of the velocity
+                let velocity_angle =
+                    DVec3::new(velocity.x, 0.0, velocity.z).angle_between(DVec3::X);
+
+                // there's actually some magic trig cancellations happening here that simplify this calculation
+                let mut orbit_yaw = velocity.z.signum() * velocity_angle
+                    - location.unit_steer_direction.z.signum() * rotation_angle;
+
+                // if the yaw change would be bigger than PI, wrap back around
+                let yaw_difference = orbit_yaw - camera.orbit_angle.x as f64;
+                if yaw_difference.abs() > PI {
+                    orbit_yaw += yaw_difference.signum() * 2.0 * PI;
+                }
+
+                // set the new orbit angle complete with magic pitch for now
+                camera.orbit_angle =
+                    Vec2::new(orbit_yaw as f32, -0.3).lerp(camera.orbit_angle, 0.5);
+            }
+        }
     }
 
     pub fn render(&mut self) {
@@ -328,22 +322,5 @@ impl GraphicsManager {
         render_job.merge_graph_after("forward", postprocess_graph);
 
         self.renderer.render(&render_job);
-    }
-
-    pub fn update(&mut self, mouse_pos: glam::Vec2) {
-        let surface_size = self.renderer.surface_size();
-        let surface_size = glam::Vec2::new(surface_size.width as f32, surface_size.height as f32);
-
-        let rot_range = glam::Vec2::new(std::f32::consts::PI, std::f32::consts::FRAC_PI_2);
-
-        if let Some(camera) = self.world.get_mut::<Camera>(self.camera_entity) {
-            let norm_orbit_angle = (mouse_pos / surface_size) * 2.0 - 1.0;
-            let orbit_angle = norm_orbit_angle * rot_range;
-            let new_camera = Camera {
-                orbit_angle,
-                ..*camera
-            };
-            *camera = new_camera;
-        }
     }
 }

@@ -1,9 +1,9 @@
-use chariot_core::networking::{ClientBoundPacket, ServerBoundPacket, ServerConnection};
+use chariot_core::networking::{ServerBoundPacket, ServerConnection};
 use chariot_core::player_inputs::InputEvent;
 use std::net::TcpStream;
 
 pub struct GameClient {
-    connection: ServerConnection,
+    pub connection: ServerConnection,
 }
 
 impl GameClient {
@@ -21,14 +21,6 @@ impl GameClient {
 
     pub fn fetch_incoming_packets(&mut self) {
         self.connection.fetch_incoming_packets();
-    }
-
-    pub fn current_packets(&mut self) -> Vec<ClientBoundPacket> {
-        let mut ret = vec![];
-        while let Some(packet) = self.connection.pop_incoming() {
-            ret.push(packet);
-        }
-        return ret;
     }
 
     pub fn send_ready_packet(&mut self, chair_name: String) {

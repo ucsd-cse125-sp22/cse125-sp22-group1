@@ -2,6 +2,7 @@ use std::io::{Read, Write};
 use std::time::Duration;
 
 use bincode::{DefaultOptions, Options, Result};
+use glam::DVec3;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -27,9 +28,9 @@ pub enum ClientBoundPacket {
     GameStart(Duration), // How long until the game starts?
 
     // During game
-    LocationUpdate([Option<EntityLocation>; 4]), // Clients will need to know the location of every player
-    PowerupPickup,                               // Add a payload here when appropriate
-    VotingStarted(QuestionData),                 // Sent when the audience begins voting (suspense!)
+    EntityUpdate(Vec<(EntityLocation, DVec3)>), // Clients will need to know the location and velocity of every player
+    PowerupPickup,                              // Add a payload here when appropriate
+    VotingStarted(QuestionData),                // Sent when the audience begins voting (suspense!)
     InteractionActivate(QuestionData, QuestionOption), // Sent when the audience has voted on something
     LapUpdate(u8),                                     // What lap are you now on?
     PlacementUpdate(u8),                               // What place in the race are you now at?

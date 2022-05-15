@@ -1,6 +1,6 @@
 use graphics::GraphicsManager;
 use winit::{
-    event::{ElementState, Event, MouseButton, WindowEvent},
+    event::{ElementState, Event, MouseButton, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
 };
 
@@ -18,8 +18,6 @@ fn main() {
         &event_loop,
         winit::dpi::PhysicalSize::<u32>::new(1280, 720),
     );
-    // makes the cursor invisible and grabs it
-    context.capture_cursor();
 
     let renderer = renderer::Renderer::new(context);
 
@@ -57,6 +55,10 @@ fn main() {
                 event: WindowEvent::KeyboardInput { input, .. },
                 ..
             } => {
+                if let Some(VirtualKeyCode::Escape) = input.virtual_keycode {
+                    *control_flow = ControlFlow::Exit;
+                }
+
                 if let Some(key) = input.virtual_keycode {
                     match input.state {
                         ElementState::Pressed => application.on_key_down(key),
