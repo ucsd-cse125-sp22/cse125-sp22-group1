@@ -15,7 +15,7 @@ use chariot_core::player_inputs::InputEvent;
 use chariot_core::GLOBAL_CONFIG;
 
 use crate::chairs::get_player_start_physics_properties;
-use crate::checkpoints::{FinishLine, MajorCheckpoint, MinorCheckpoint};
+use crate::checkpoints::{Checkpoint, FinishLine, Zone};
 use crate::physics::player_entity::PlayerEntity;
 use crate::physics::trigger_entity::TriggerEntity;
 use crate::progress::get_player_placement_array;

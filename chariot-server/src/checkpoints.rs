@@ -4,14 +4,14 @@ use chariot_core::lap_info::*;
 use glam::DVec3;
 
 #[derive(Clone, Copy)]
-pub struct MinorCheckpoint {
-    pub id: MinorCheckpointID,
+pub struct Checkpoint {
+    pub id: CheckpointID,
     pub pos: DVec3,
     pub size: DVec3,
     pub bounding_box: BoundingBox,
 }
 
-impl TriggerEntity for MinorCheckpoint {
+impl TriggerEntity for Checkpoint {
     fn get_bounding_box(&self) -> BoundingBox {
         self.bounding_box
     }
@@ -21,15 +21,15 @@ impl TriggerEntity for MinorCheckpoint {
 }
 
 #[derive(Clone, Copy)]
-pub struct MajorCheckpoint {
-    pub id: MajorCheckpointID,
+pub struct Zone {
+    pub id: ZoneID,
     pos: DVec3,
     size: DVec3,
     pub bounding_box: BoundingBox,
 }
 
-impl MajorCheckpoint {
-    pub fn new(id: MajorCheckpointID, pos: DVec3, size: DVec3) -> Self {
+impl Zone {
+    pub fn new(id: ZoneID, pos: DVec3, size: DVec3) -> Self {
         Self {
             id: id,
             pos: pos,
@@ -46,7 +46,7 @@ impl MajorCheckpoint {
     }
 }
 
-impl TriggerEntity for MajorCheckpoint {
+impl TriggerEntity for Zone {
     fn get_bounding_box(&self) -> BoundingBox {
         self.bounding_box
     }
@@ -61,14 +61,14 @@ impl TriggerEntity for MajorCheckpoint {
 
 #[derive(Clone, Copy)]
 pub struct FinishLine {
-    last_zone: MajorCheckpointID,
+    last_zone: ZoneID,
     pos: DVec3,
     size: DVec3,
     pub bounding_box: BoundingBox,
 }
 
 impl FinishLine {
-    pub fn new(pos: DVec3, size: DVec3, last_zone: MajorCheckpointID) -> Self {
+    pub fn new(pos: DVec3, size: DVec3, last_zone: ZoneID) -> Self {
         Self {
             last_zone,
             pos,

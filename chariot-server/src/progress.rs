@@ -1,8 +1,8 @@
-use crate::{checkpoints::MinorCheckpoint, physics::player_entity::PlayerEntity};
+use crate::{checkpoints::Checkpoint, physics::player_entity::PlayerEntity};
 
 impl PlayerEntity {
     // Values returned aren't intended to be interpreted directly, only compared
-    fn get_progress_score(&self, minor_checkpoints: &Vec<MinorCheckpoint>) -> (u8, u8, u8, f64) {
+    fn get_progress_score(&self, minor_checkpoints: &Vec<Checkpoint>) -> (u8, u8, u8, f64) {
         // There's a hierarchy of four pieces of progress information we have:
         // from least to most granular lap number, zone number (zones are
         // between major checkpoints), minor checkpoint number, and linear
@@ -34,7 +34,7 @@ impl PlayerEntity {
 
 pub fn get_player_placement_array(
     players: &[PlayerEntity; 4],
-    minor_checkpoints: &Vec<MinorCheckpoint>,
+    minor_checkpoints: &Vec<Checkpoint>,
 ) -> [u8; 4] {
     let mut player_nums_with_scores: Vec<(u8, (u8, u8, u8, f64))> = [0, 1, 2, 3]
         .into_iter()

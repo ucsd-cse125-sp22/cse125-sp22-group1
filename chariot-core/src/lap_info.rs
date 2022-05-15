@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 pub type LapNumber = u8;
-pub type MinorCheckpointID = u8;
-pub type MajorCheckpointID = u8;
+pub type CheckpointID = u8;
+pub type ZoneID = u8;
 
 #[derive(Serialize, Deserialize, Clone, Copy)]
 pub struct LapInformation {
