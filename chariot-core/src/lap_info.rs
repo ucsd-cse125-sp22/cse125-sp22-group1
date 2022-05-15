@@ -7,8 +7,8 @@ pub type ZoneID = u8;
 #[derive(Serialize, Deserialize, Clone, Copy)]
 pub struct LapInformation {
     pub lap: LapNumber,
-    pub last_checkpoint: MinorCheckpointID,
-    pub zone: MajorCheckpointID,
+    pub last_checkpoint: CheckpointID,
+    pub zone: ZoneID,
 }
 
 impl LapInformation {
