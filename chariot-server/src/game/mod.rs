@@ -259,18 +259,22 @@ impl GameServer {
                         current_question,
                     } => {
                         if *vote_close_time < now {
-                            let winner = audience_votes
+                            let mut counts = HashMap::new();
+                            for vote in audience_votes {
+                                *counts.entry(vote.1).or_insert(0) += 1;
+                            }
+                            let winner: usize = **counts
                                 .iter()
                                 .max_by(|a, b| a.1.cmp(&b.1))
-                                .map(|(_key, vote)| vote)
-                                .unwrap_or(&0);
+                                .map(|(vote, _c)| vote)
+                                .unwrap_or(&&mut (0 as usize));
 
                             GameServer::broadcast_ws(
                                 &mut self.ws_connections,
-                                WSAudienceBoundMessage::Winner(*winner),
+                                WSAudienceBoundMessage::Winner(winner),
                             );
 
-                            let decision = current_question.options[*winner].clone();
+                            let decision = current_question.options[winner].clone();
 
                             for client in self.connections.iter_mut() {
                                 client.push_outgoing(ClientBoundPacket::InteractionActivate(
