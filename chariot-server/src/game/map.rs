@@ -57,11 +57,6 @@ fn import_mesh(
             .as_dvec3(),
     ));
 
-    println!("Bounds {:?}", bounds);
-
-    // TODO: unindexed meshes
-    // TODO: rest
-
     bounds
 }
 
@@ -82,9 +77,12 @@ impl Map {
             );
         }
 
-        let colliders: Vec<BoundingBox> = Vec::new();
-        let checkpoints: Vec<Checkpoint> = Vec::new();
-        let major_zones: Vec<Zone> = Vec::new();
+        let mut colliders: Vec<BoundingBox> = Vec::new();
+
+        let mut checkpoints: Vec<Checkpoint> = Vec::new();
+        let mut major_zones: Vec<Zone> = Vec::new();
+        let mut last_zone = 0;
+
         let mut finish_line: Option<FinishLine> = None;
         let mut world_bounds = BoundingBox::extremes();
 
@@ -127,17 +125,28 @@ impl Map {
                             if purpose == "trigger" {
                                 if let Some(Value::String(trigger_type)) = mesh_data.get("trigger")
                                 {
-                                    println!(
-                                        "Loading mesh '{}' as a trigger_{}",
-                                        mesh.name().unwrap_or("<unnamed>"),
-                                        trigger_type
-                                    );
-
                                     if trigger_type == "checkpoint" {
+                                        println!(
+                                            "Loading mesh '{}' as a trigger_checkpoint_{}",
+                                            mesh.name().unwrap_or("<unnamed>"),
+                                            -1
+                                        );
                                         todo!();
                                     } else if trigger_type == "zone" {
-                                        todo!();
+                                        let idx =
+                                            mesh_data.get("zone_id").unwrap().as_u64().unwrap();
+                                        println!(
+                                            "Loading mesh '{}' as a trigger_zone_{}",
+                                            mesh.name().unwrap_or("<unnamed>"),
+                                            idx
+                                        );
+                                        last_zone = idx.max(last_zone);
+                                        major_zones.push(Zone::new(idx, mesh_bounds));
                                     } else if trigger_type == "finish_line" {
+                                        println!(
+                                            "Loading mesh '{}' as a trigger_finish_line",
+                                            mesh.name().unwrap_or("<unnamed>")
+                                        );
                                         finish_line = Some(FinishLine::new(mesh_bounds, 1));
                                         // } else if trigger_type == "powerup" {
                                     } else {
@@ -176,7 +185,8 @@ impl Map {
             checkpoints,
             major_zones,
             finish_line: finish_line
-                .expect(format!("Map {} has no finish line!", filename).as_str()),
+                .expect(format!("Map {} has no finish line!", filename).as_str())
+                .set_last_zone(last_zone),
         })
     }
 

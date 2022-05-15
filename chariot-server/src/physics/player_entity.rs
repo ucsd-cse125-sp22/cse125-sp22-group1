@@ -110,7 +110,7 @@ impl PlayerEntity {
         &self,
         time_step: f64,
         potential_colliders: Vec<&PlayerEntity>,
-        mut potential_triggers: impl Iterator<Item = &'a dyn TriggerEntity>,
+        potential_triggers: impl Iterator<Item = &'a dyn TriggerEntity>,
     ) -> PlayerEntity {
         let self_forces = self.sum_of_self_forces();
         let acceleration = self_forces / self.mass;

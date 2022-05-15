@@ -51,6 +51,12 @@ impl Application {
                             .update_player_location(&update.0, &update.1, i as u8)
                     });
                 }
+                ClientBoundPacket::PlacementUpdate(position) => {
+                    println!("I am now placed {}!", position);
+                }
+                ClientBoundPacket::LapUpdate(lap_num) => {
+                    println!("I am now on lap {}!", lap_num);
+                }
                 _ => {}
             }
         }
@@ -97,7 +103,7 @@ impl Application {
             return;
         };
 
-        println!("Key down [{:?}]!", key);
+        // println!("Key down [{:?}]!", key);
         self.pressed_keys.insert(key);
 
         if let Some(event) = self.get_input_event(key) {
@@ -111,7 +117,7 @@ impl Application {
     }
 
     pub fn on_key_up(&mut self, key: VirtualKeyCode) {
-        println!("Key up [{:?}]!", key);
+        // println!("Key up [{:?}]!", key);
         self.pressed_keys.remove(&key);
 
         if let Some(event) = self.invert_event(self.get_input_event(key)) {

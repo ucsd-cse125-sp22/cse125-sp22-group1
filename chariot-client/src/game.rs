@@ -30,7 +30,7 @@ impl GameClient {
     }
 
     pub fn send_input_event(&mut self, event: InputEvent) {
-        println!("sending input event");
+        // println!("sending input event");
         self.connection
             .push_outgoing(ServerBoundPacket::InputToggle(event));
         self.connection.sync_outgoing();

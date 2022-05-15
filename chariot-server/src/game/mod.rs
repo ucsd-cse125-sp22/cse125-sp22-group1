@@ -3,6 +3,7 @@ use std::net::TcpListener;
 use std::thread::{self};
 use std::time::{Duration, Instant};
 
+use chariot_core::lap_info::LapInformation;
 use glam::DVec3;
 
 use chariot_core::entity_location::EntityLocation;
@@ -205,7 +206,7 @@ impl GameServer {
                     self.game_state.phase = GamePhase::PlayingGame {
                         // start off with 10 seconds of vote free gameplay
                         voting_game_state: VotingState::VoteCooldown(now + Duration::new(10, 0)),
-                        player_placement: [0, 1, 2, 3],
+                        player_placement: [0, 1, 2, 3].map(|_| LapInformation::new()),
                     }
                 }
             }
@@ -266,7 +267,8 @@ impl GameServer {
                         }
                     }
                     VotingState::VoteResultActive(decision) => {
-                        println!("The audience has chosen {}", decision);
+                        // println!("The audience has chosen {}", decision);
+                        ();
                     }
                     VotingState::VoteCooldown(cooldown) => {
                         if *cooldown < now {
@@ -322,19 +324,32 @@ impl GameServer {
                 player_placement, ..
             } = &mut self.game_state.phase
             {
-                let new_placement_array = [0, 1, 2, 3];
-                //get_player_placement_array(&self.game_state.players, &map.checkpoints);
+                let new_placement_array =
+                    get_player_placement_array(&self.game_state.players, &map.checkpoints);
 
-                for player_num in 0..=3 {
-                    if player_placement[player_num] != new_placement_array[player_num] {
+                for &(player_num, lap_information @ LapInformation { lap, placement, .. }) in
+                    new_placement_array.iter()
+                {
+                    if self.connections.len() <= player_num {
+                        continue;
+                    };
+
+                    if player_placement[player_num].lap != lap {
+                        if lap == GLOBAL_CONFIG.number_laps {
+                            println!("Handle win!");
+                        }
+                        self.connections[player_num]
+                            .push_outgoing(ClientBoundPacket::LapUpdate(lap));
+                    } else if player_placement[player_num].placement != placement {
                         // notify the player now in a different place that
                         // their new placement is different; the one that used
                         // to be there will get notified when it's their turn
-                        self.connections[new_placement_array[player_num] as usize]
-                            .push_outgoing(ClientBoundPacket::PlacementUpdate(player_num as u8));
+                        self.connections[player_num]
+                            .push_outgoing(ClientBoundPacket::PlacementUpdate(placement));
                     }
+
+                    player_placement[player_num] = lap_information;
                 }
-                *player_placement = new_placement_array;
             }
         }
     }

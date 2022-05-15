@@ -1,6 +1,7 @@
 use crate::physics::bounding_box::BoundingBox;
 use crate::physics::{player_entity::PlayerEntity, trigger_entity::TriggerEntity};
 use chariot_core::lap_info::*;
+use chariot_core::networking::ClientBoundPacket;
 use glam::DVec3;
 
 #[derive(Clone, Copy)]
@@ -24,8 +25,8 @@ impl TriggerEntity for Checkpoint {
         self.bounds
     }
 
-    fn trigger(&self, ply: &mut PlayerEntity) {
-        ply.lap_info.last_checkpoint = self.id;
+    fn trigger(&self, player: &mut PlayerEntity) {
+        player.lap_info.last_checkpoint = self.id;
     }
 }
 
@@ -50,10 +51,11 @@ impl TriggerEntity for Zone {
         self.bounds
     }
 
-    fn trigger(&self, ply: &mut PlayerEntity) {
+    fn trigger(&self, player: &mut PlayerEntity) {
         // Only advance zone if the player is in the zone before us
-        if (ply.lap_info.zone + 1) == self.id {
-            ply.lap_info.zone = self.id;
+        if (player.lap_info.zone + 1) == self.id {
+            player.lap_info.zone = self.id;
+            println!("Player now in zone {}", self.id);
         }
     }
 }
@@ -68,6 +70,11 @@ impl FinishLine {
     pub fn new(bounds: BoundingBox, last_zone: ZoneID) -> Self {
         Self { last_zone, bounds }
     }
+
+    pub fn set_last_zone(&mut self, last_zone: ZoneID) -> Self {
+        self.last_zone = last_zone;
+        *self
+    }
 }
 
 impl TriggerEntity for FinishLine {
@@ -79,11 +86,12 @@ impl TriggerEntity for FinishLine {
         self.bounds
     }
 
-    fn trigger(&self, ply: &mut PlayerEntity) {
-        println!("INSIDE");
+    fn trigger(&self, player: &mut PlayerEntity) {
         // Player is only allowed to advance if they are on the track's last zone
-        if ply.lap_info.zone == self.last_zone {
-            ply.lap_info.zone = 0;
+        if player.lap_info.zone == self.last_zone {
+            player.lap_info.lap += 1;
+            player.lap_info.zone = 0;
+            println!("Player now on lap {}", player.lap_info.lap);
         }
     }
 }

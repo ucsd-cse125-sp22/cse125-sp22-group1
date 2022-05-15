@@ -16,6 +16,9 @@ pub struct Settings {
     pub resource_folder: String,
     pub map_name: String,
 
+    // Gameplay
+    pub number_laps: u8,
+
     // Physics
     pub gravity_coefficient: f64,
     pub drag_coefficient: f64,
@@ -48,6 +51,7 @@ impl Settings {
             // files_and_resources (client)
             .set_default("resource_folder", "../chariot-core/resources")?
             .set_default("map_name", "track")?
+            .set_default("number_laps", 3)?
             // physics
             // `gravity_coefficient` is acceleration due to gravity: this is
             // little g (whose IRL value is 9.81 meters per second squared, but
