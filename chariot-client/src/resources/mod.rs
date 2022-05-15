@@ -189,62 +189,70 @@ impl ResourceManager {
                 });
 
             if let Some(mesh) = node.mesh() {
+                let mut render = true;
                 if let Some(extras) = mesh.extras().as_ref() {
                     let mesh_data: Value = serde_json::from_str(extras.as_ref().get()).unwrap();
-                    if (mesh_data["render"] == 0) {
+                    if mesh_data["render"] == 0 {
                         println!("\tskipping mesh '{}'", mesh.name().unwrap_or("<unnamed>"));
-                        continue;
+                        render = false;
                     }
                 }
 
-                println!("\tprocessing mesh '{}'", mesh.name().unwrap_or("<unnamed>"));
-                for (prim_idx, primitive) in mesh.primitives().enumerate() {
-                    //println!("\t\tprocessing prim {}", prim_idx);
+                if render {
+                    println!("\tprocessing mesh '{}'", mesh.name().unwrap_or("<unnamed>"));
+                    for (prim_idx, primitive) in mesh.primitives().enumerate() {
+                        //println!("\t\tprocessing prim {}", prim_idx);
 
-                    let (mesh_handle, mesh_bounds) =
-                        self.import_mesh(renderer, &buffers, &primitive, transform);
+                        let (mesh_handle, mesh_bounds) =
+                            self.import_mesh(renderer, &buffers, &primitive, transform);
 
-                    let mut material_handle: &MaterialHandle = &default_material_handle;
+                        let mut material_handle: &MaterialHandle = &default_material_handle;
 
-                    if let Some(material_id) = primitive.material().index() {
-                        material_handle = match material_handles.get(&material_id) {
-                            Some(h) => {
-                                println!(
-                                    "\t\t\tReusing loaded material '{}'",
-                                    primitive.material().name().unwrap_or("<unnamed>")
-                                );
-                                h
-                            }
-                            None => {
-                                println!(
-                                    "\t\t\tProcessing material '{}'...",
-                                    primitive.material().name().unwrap_or("<unnamed>")
-                                );
-                                material_handles.insert(
-                                    material_id,
-                                    self.import_material(
-                                        renderer,
-                                        &tex_handles,
-                                        &primitive.material(),
-                                    ),
-                                );
-                                material_handles.get(&material_id).unwrap()
-                            }
-                        };
-                    } else {
-                        println!(
-                            "Warning: Primitive {}.{} has no material. Using default instead",
-                            mesh.name().unwrap_or("<unnamed>"),
-                            prim_idx
+                        if let Some(material_id) = primitive.material().index() {
+                            material_handle = match material_handles.get(&material_id) {
+                                Some(h) => {
+                                    println!(
+                                        "\t\t\tReusing loaded material '{}'",
+                                        primitive.material().name().unwrap_or("<unnamed>")
+                                    );
+                                    h
+                                }
+                                None => {
+                                    println!(
+                                        "\t\t\tProcessing material '{}'...",
+                                        primitive.material().name().unwrap_or("<unnamed>")
+                                    );
+                                    material_handles.insert(
+                                        material_id,
+                                        self.import_material(
+                                            renderer,
+                                            &tex_handles,
+                                            &primitive.material(),
+                                        ),
+                                    );
+                                    material_handles.get(&material_id).unwrap()
+                                }
+                            };
+                        } else {
+                            println!(
+                                "Warning: Primitive {}.{} has no material. Using default instead",
+                                mesh.name().unwrap_or("<unnamed>"),
+                                prim_idx
+                            );
+                        }
+
+                        let drawable = StaticMeshDrawable::new(
+                            renderer,
+                            self,
+                            *material_handle,
+                            mesh_handle,
+                            0,
                         );
+                        drawables.push(drawable);
+
+                        mesh_handles.push(mesh_handle);
+                        bounds = accum_bounds(bounds, mesh_bounds);
                     }
-
-                    let drawable =
-                        StaticMeshDrawable::new(renderer, self, *material_handle, mesh_handle, 0);
-                    drawables.push(drawable);
-
-                    mesh_handles.push(mesh_handle);
-                    bounds = accum_bounds(bounds, mesh_bounds);
                 }
             } else {
                 println!(
