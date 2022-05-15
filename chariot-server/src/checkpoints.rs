@@ -1,22 +1,20 @@
+use crate::physics::bounding_box::BoundingBox;
 use crate::physics::{player_entity::PlayerEntity, trigger_entity::TriggerEntity};
 use chariot_core::lap_info::*;
 use glam::DVec3;
-
-type BoundingBoxDimensions = [[f64; 2]; 3];
 
 #[derive(Clone, Copy)]
 pub struct MinorCheckpoint {
     pub id: MinorCheckpointID,
     pub pos: DVec3,
     pub size: DVec3,
-    pub bounding_box: BoundingBoxDimensions,
+    pub bounding_box: BoundingBox,
 }
 
 impl TriggerEntity for MinorCheckpoint {
-    fn get_bounding_box(&self) -> BoundingBoxDimensions {
+    fn get_bounding_box(&self) -> BoundingBox {
         self.bounding_box
     }
-
     fn trigger(&self, ply: &mut PlayerEntity) {
         ply.lap_info.last_checkpoint = self.id;
     }
@@ -27,7 +25,7 @@ pub struct MajorCheckpoint {
     pub id: MajorCheckpointID,
     pos: DVec3,
     size: DVec3,
-    pub bounding_box: BoundingBoxDimensions,
+    pub bounding_box: BoundingBox,
 }
 
 impl MajorCheckpoint {
@@ -36,17 +34,20 @@ impl MajorCheckpoint {
             id: id,
             pos: pos,
             size: size,
-            bounding_box: [
-                [pos.x, pos.x + size.x],
-                [pos.y, pos.y + size.y],
-                [pos.z, pos.z + size.z],
-            ],
+            bounding_box: BoundingBox::new(
+                pos.x,
+                pos.x + size.x,
+                pos.y,
+                pos.y + size.y,
+                pos.z,
+                pos.z + size.z,
+            ),
         }
     }
 }
 
 impl TriggerEntity for MajorCheckpoint {
-    fn get_bounding_box(&self) -> BoundingBoxDimensions {
+    fn get_bounding_box(&self) -> BoundingBox {
         self.bounding_box
     }
 
@@ -63,7 +64,7 @@ pub struct FinishLine {
     last_zone: MajorCheckpointID,
     pos: DVec3,
     size: DVec3,
-    pub bounding_box: BoundingBoxDimensions,
+    pub bounding_box: BoundingBox,
 }
 
 impl FinishLine {
@@ -72,17 +73,20 @@ impl FinishLine {
             last_zone,
             pos,
             size,
-            bounding_box: [
-                [pos.x, pos.x + size.x],
-                [pos.y, pos.y + size.y],
-                [pos.z, pos.z + size.z],
-            ],
+            bounding_box: BoundingBox::new(
+                pos.x,
+                pos.x + size.x,
+                pos.y,
+                pos.y + size.y,
+                pos.z,
+                pos.z + size.z,
+            ),
         }
     }
 }
 
 impl TriggerEntity for FinishLine {
-    fn get_bounding_box(&self) -> BoundingBoxDimensions {
+    fn get_bounding_box(&self) -> BoundingBox {
         self.bounding_box
     }
 

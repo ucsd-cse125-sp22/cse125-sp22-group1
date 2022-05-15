@@ -47,7 +47,7 @@ impl Settings {
             .set_default("bypass_multiplayer_requirement", false)?
             // files_and_resources (client)
             .set_default("resource_folder", "../chariot-core/resources")?
-            .set_default("map_name", "racetrack")?
+            .set_default("map_name", "track")?
             // physics
             // `gravity_coefficient` is acceleration due to gravity: this is
             // little g (whose IRL value is 9.81 meters per second squared, but

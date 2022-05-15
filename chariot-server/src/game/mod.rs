@@ -3,6 +3,9 @@ use std::net::TcpListener;
 use std::thread::{self};
 use std::time::{Duration, Instant};
 
+use glam::DVec3;
+
+use chariot_core::entity_location::EntityLocation;
 use chariot_core::networking::ws::{QuestionBody, WSAudienceBoundMessage};
 use chariot_core::networking::Uuid;
 use chariot_core::networking::{
@@ -13,12 +16,11 @@ use chariot_core::GLOBAL_CONFIG;
 
 use crate::chairs::get_player_start_physics_properties;
 use crate::checkpoints::{FinishLine, MajorCheckpoint, MinorCheckpoint};
-use crate::game::GamePhase::PlayingGame;
 use crate::physics::player_entity::PlayerEntity;
 use crate::physics::trigger_entity::TriggerEntity;
 use crate::progress::get_player_placement_array;
 
-use self::map::*;
+use self::map::Map;
 use self::phase::*;
 
 mod map;
@@ -57,10 +59,10 @@ impl GameServer {
             ws_connections: HashMap::new(),
             game_state: ServerGameState {
                 // notable: we don't allow more than 4 players
-                phase: GamePhase::WaitingForPlayerReady(WaitingForPlayerReadyState {
+                phase: GamePhase::WaitingForPlayerReady {
                     players_ready: [false, false, false, false],
                     new_players_joined: Vec::new(),
-                }),
+                },
                 players: [0, 1, 2, 3]
                     .map(|num| get_player_start_physics_properties(&String::from("standard"), num)),
             },
@@ -134,9 +136,11 @@ impl GameServer {
             while let Some(packet) = connection.pop_incoming() {
                 match packet {
                     ServerBoundPacket::ChairSelectAndReady(chair_name) => {
-                        if let GamePhase::WaitingForPlayerReady(state) = &mut self.game_state.phase
+                        if let GamePhase::WaitingForPlayerReady {
+                            new_players_joined, ..
+                        } = &mut self.game_state.phase
                         {
-                            state.new_players_joined.push((chair_name, i));
+                            new_players_joined.push((chair_name, i));
                         }
                     }
                     ServerBoundPacket::InputToggle(event) => match event {
@@ -162,29 +166,31 @@ impl GameServer {
         });
     }
 
+    fn simulate_checkpoints(&mut self) {}
+
     // update game state
     fn simulate_game(&mut self) {
-        println!("We are in the {:?} phase!", self.game_state.phase);
         let now = Instant::now();
         match &mut self.game_state.phase {
-            GamePhase::WaitingForPlayerReady(state) => {
-                // Add any new players
-                while let Some((chair_name, index)) = state.new_players_joined.pop() {
-                    state.players_ready[index] = true;
+            GamePhase::WaitingForPlayerReady {
+                players_ready,
+                new_players_joined,
+            } => {
+                // create new players and physics for each new join
+                while let Some((chair_name, index)) = new_players_joined.pop() {
+                    players_ready[index] = true;
                     self.game_state.players[index] =
                         get_player_start_physics_properties(&chair_name, index as u8);
                     self.connections[index]
                         .push_outgoing(ClientBoundPacket::PlayerNumber(index as u8));
                 }
 
-                if state.players_ready.iter().all(|&x| x)
-                    || GLOBAL_CONFIG.bypass_multiplayer_requirement
+                // start game countdown if we're ready to go
+                if players_ready.iter().all(|&x| x) || GLOBAL_CONFIG.bypass_multiplayer_requirement
                 {
                     let time_until_start = Duration::new(10, 0);
                     self.game_state.phase =
-                        GamePhase::CountingDownToGameStart(CountingDownToGameStartState {
-                            countdown_end_time: now + time_until_start,
-                        });
+                        GamePhase::CountingDownToGameStart(now + time_until_start);
 
                     for connection in &mut self.connections {
                         connection.push_outgoing(ClientBoundPacket::GameStart(time_until_start));
@@ -192,22 +198,26 @@ impl GameServer {
                 }
             }
 
-            GamePhase::CountingDownToGameStart(state) => {
-                if now > state.countdown_end_time {
-                    // start off with 10 seconds of vote free gameplay
-                    self.game_state.phase = GamePhase::PlayingGame(PlayingGameState {
+            GamePhase::CountingDownToGameStart(countdown_end_time) => {
+                if now > *countdown_end_time {
+                    // transition to playing game after countdown
+                    self.game_state.phase = GamePhase::PlayingGame {
+                        // start off with 10 seconds of vote free gameplay
                         voting_game_state: VotingState::VoteCooldown(now + Duration::new(10, 0)),
                         player_placement: [0, 1, 2, 3],
-                    })
+                    }
                 }
             }
 
-            GamePhase::PlayingGame(state) => {
+            GamePhase::PlayingGame {
+                voting_game_state, ..
+            } => {
+                // update bounding box dimensions and temporary physics changes for each player
                 for player in &mut self.game_state.players {
                     player
                         .physics_changes
                         .retain(|change| change.expiration_time > now);
-                    player.set_bounding_box_dimensions();
+                    player.update_bounding_box();
                     player.set_upward_direction_from_bounding_box();
                 }
 
@@ -238,11 +248,14 @@ impl GameServer {
                     self.game_state.players[n].do_physics_step(1.0, others(n), triggers.to_vec())
                 });
 
-                match &mut state.voting_game_state {
-                    VotingState::WaitingForVotes(voting_state) => {
-                        if voting_state.vote_close_time < now {
-                            let winner = voting_state
-                                .audience_votes
+                match &mut *voting_game_state {
+                    VotingState::WaitingForVotes {
+                        audience_votes,
+                        vote_close_time,
+                        ..
+                    } => {
+                        if *vote_close_time < now {
+                            let winner = audience_votes
                                 .iter()
                                 .max_by(|a, b| a.1.cmp(&b.1))
                                 .map(|(_key, vote)| vote)
@@ -253,7 +266,7 @@ impl GameServer {
                                 WSAudienceBoundMessage::Winner(*winner),
                             );
 
-                            state.voting_game_state = VotingState::VoteResultActive(*winner);
+                            *voting_game_state = VotingState::VoteResultActive(*winner);
                         }
                     }
                     VotingState::VoteResultActive(decision) => {
@@ -273,12 +286,11 @@ impl GameServer {
                                 ],
                             );
 
-                            state.voting_game_state =
-                                VotingState::WaitingForVotes(WaitingForVotesState {
-                                    audience_votes: HashMap::new(),
-                                    current_question: question.clone(),
-                                    vote_close_time: now + time_until_voting_enabled, // now + 30 seconds
-                                });
+                            *voting_game_state = VotingState::WaitingForVotes {
+                                audience_votes: HashMap::new(),
+                                current_question: question.clone(),
+                                vote_close_time: now + time_until_voting_enabled, // now + 30 seconds
+                            };
 
                             GameServer::broadcast_ws(
                                 &mut self.ws_connections,
@@ -289,35 +301,36 @@ impl GameServer {
                 }
             }
 
-            GamePhase::AllPlayersDone(_) => todo!(),
+            GamePhase::AllPlayersDone => todo!(),
         }
     }
 
     // queue up sending updated game state
     fn sync_state(&mut self) {
         match self.game_state.phase {
-            GamePhase::WaitingForPlayerReady(_) => {}
-
-            // These three phases have visible players
-            GamePhase::CountingDownToGameStart(_) | GamePhase::PlayingGame(_) => {
-                let locations =
-                    [0, 1, 2, 3].map(|n| Some(self.game_state.players[n].entity_location.clone()));
-                for connection in &mut self.connections {
-                    connection.push_outgoing(ClientBoundPacket::LocationUpdate(locations));
-                }
+            GamePhase::WaitingForPlayerReady { .. } => {}
+            // These two phases have visible players
+            GamePhase::CountingDownToGameStart(_) | GamePhase::PlayingGame { .. } => {
+                self.sync_player_state()
             }
-
-            GamePhase::AllPlayersDone(_) => todo!(),
+            GamePhase::AllPlayersDone => todo!(),
         }
 
+        self.update_and_sync_placement_state();
+    }
+
+    // send placement data to each client, if its changed
+    fn update_and_sync_placement_state(&mut self) {
         if let Some(map) = &self.map {
-            if let PlayingGame(state) = &mut self.game_state.phase {
-                let old_placement_array = state.player_placement;
+            if let GamePhase::PlayingGame {
+                player_placement, ..
+            } = &mut self.game_state.phase
+            {
                 let new_placement_array =
                     get_player_placement_array(&self.game_state.players, &map.checkpoints);
 
                 for player_num in 0..=3 {
-                    if old_placement_array[player_num] != new_placement_array[player_num] {
+                    if player_placement[player_num] != new_placement_array[player_num] {
                         // notify the player now in a different place that
                         // their new placement is different; the one that used
                         // to be there will get notified when it's their turn
@@ -325,8 +338,21 @@ impl GameServer {
                             .push_outgoing(ClientBoundPacket::PlacementUpdate(player_num as u8));
                     }
                 }
-                state.player_placement = new_placement_array;
+                *player_placement = new_placement_array;
             }
+        }
+    }
+
+    // send player location and velocity data to every client
+    fn sync_player_state(&mut self) {
+        let updates: Vec<(EntityLocation, DVec3)> = self
+            .game_state
+            .players
+            .iter()
+            .map(|player| (player.entity_location, player.velocity))
+            .collect();
+        for connection in &mut self.connections {
+            connection.push_outgoing(ClientBoundPacket::EntityUpdate(updates.clone()));
         }
     }
 }

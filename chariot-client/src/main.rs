@@ -18,8 +18,6 @@ fn main() {
         &event_loop,
         winit::dpi::PhysicalSize::<u32>::new(1280, 720),
     );
-    // makes the cursor invisible and grabs it
-    context.capture_cursor();
 
     let renderer = renderer::Renderer::new(context);
 
@@ -57,7 +55,6 @@ fn main() {
                 event: WindowEvent::KeyboardInput { input, .. },
                 ..
             } => {
-                // TODO: Make this be a more real thing, rather than hard coding it here
                 if let Some(VirtualKeyCode::Escape) = input.virtual_keycode {
                     *control_flow = ControlFlow::Exit;
                 }
