@@ -42,6 +42,36 @@ impl BoundingBox {
         }
     }
 
+    pub fn extremes() -> BoundingBox {
+        BoundingBox {
+            min_x: f64::MAX,
+            max_x: f64::MIN,
+            min_y: f64::MAX,
+            max_y: f64::MIN,
+            min_z: f64::MAX,
+            max_z: f64::MIN,
+        }
+    }
+
+    pub fn accum(&self, new: BoundingBox) -> BoundingBox {
+        BoundingBox {
+            min_x: self.min_x.min(new.min_x),
+            max_x: self.max_x.max(new.max_x),
+            min_y: self.min_y.min(new.min_y),
+            max_y: self.max_y.max(new.max_y),
+            min_z: self.min_z.min(new.min_z),
+            max_z: self.max_z.max(new.max_z),
+        }
+    }
+
+    pub fn pos(&self) -> DVec3 {
+        DVec3::new(
+            (self.min_x + self.max_x) / 2.0,
+            (self.min_y + self.max_y) / 2.0,
+            (self.min_z + self.max_z) / 2.0,
+        )
+    }
+
     pub fn is_colliding(&self, other: &BoundingBox) -> bool {
         // https://developer.mozilla.org/en-US/docs/Games/Techniques/3D_collision_detection
         (self.min_x <= other.max_x && self.max_x >= other.min_x)

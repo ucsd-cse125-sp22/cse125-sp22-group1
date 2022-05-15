@@ -106,11 +106,11 @@ impl PlayerEntity {
 
     /* Given a set of physical properties, compute and return what next tick's
      * physics properties will be for that object */
-    pub fn do_physics_step(
+    pub fn do_physics_step<'a>(
         &self,
         time_step: f64,
         potential_colliders: Vec<&PlayerEntity>,
-        potential_triggers: Vec<Box<&dyn TriggerEntity>>,
+        potential_triggers: impl Iterator<Item = &'a dyn TriggerEntity>,
     ) -> PlayerEntity {
         let self_forces = self.sum_of_self_forces();
         let acceleration = self_forces / self.mass;
@@ -175,9 +175,12 @@ impl PlayerEntity {
 
         new_player.apply_physics_changes();
 
-        for b in potential_triggers.iter() {
-            if b.get_bounding_box().is_colliding(&new_player.bounding_box) {
-                b.trigger(&mut new_player);
+        for trigger in potential_triggers {
+            if trigger
+                .get_bounding_box()
+                .is_colliding(&new_player.bounding_box)
+            {
+                trigger.trigger(&mut new_player);
             }
         }
 

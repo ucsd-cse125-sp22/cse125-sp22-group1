@@ -1,4 +1,7 @@
-use crate::{checkpoints::Checkpoint, physics::player_entity::PlayerEntity};
+use crate::{
+    checkpoints::Checkpoint,
+    physics::{player_entity::PlayerEntity, trigger_entity::TriggerEntity},
+};
 
 impl PlayerEntity {
     // Values returned aren't intended to be interpreted directly, only compared
@@ -18,8 +21,9 @@ impl PlayerEntity {
             .get(checkpoint_number as usize + 1)
             .expect("Invalid next checkpoint number");
 
-        let trackline = next_checkpoint.pos - current_checkpoint.pos;
-        let player_relative_location = self.entity_location.position - current_checkpoint.pos;
+        let trackline = next_checkpoint.pos() - current_checkpoint.pos();
+        let mut player_relative_location = self.entity_location.position - current_checkpoint.pos();
+        player_relative_location[1] = trackline[1]; // Ignore the y component for now, if we add vertical maps later we should remove this maybe?
 
         let position_within_checkpoint = player_relative_location.project_onto(trackline).length();
 
@@ -34,15 +38,11 @@ impl PlayerEntity {
 
 pub fn get_player_placement_array(
     players: &[PlayerEntity; 4],
-    minor_checkpoints: &Vec<Checkpoint>,
+    checkpoints: &Vec<Checkpoint>,
 ) -> [u8; 4] {
     let mut player_nums_with_scores: Vec<(u8, (u8, u8, u8, f64))> = [0, 1, 2, 3]
         .into_iter()
-        .zip(
-            players
-                .iter()
-                .map(|p| p.get_progress_score(minor_checkpoints)),
-        )
+        .zip(players.iter().map(|p| p.get_progress_score(checkpoints)))
         .collect();
 
     // Sort progress scores, priority given to most significant placement measures

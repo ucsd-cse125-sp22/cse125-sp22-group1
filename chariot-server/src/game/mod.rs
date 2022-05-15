@@ -33,7 +33,6 @@ pub struct GameServer {
     connections: Vec<ClientConnection>,
     ws_connections: HashMap<Uuid, WebSocketConnection>,
     game_state: ServerGameState,
-    map: Option<Map>,
 }
 
 pub struct ServerGameState {
@@ -41,6 +40,8 @@ pub struct ServerGameState {
 
     // gets its own slot because it persists across several phases; is awkward to behave identically in all
     players: [PlayerEntity; 4],
+
+    map: Option<Map>,
 }
 
 impl GameServer {
@@ -65,18 +66,21 @@ impl GameServer {
                 },
                 players: [0, 1, 2, 3]
                     .map(|num| get_player_start_physics_properties(&String::from("standard"), num)),
+                map: None,
             },
-            map: None,
         }
     }
 
     // WARNING: this function never returns
     pub fn start_loop(&mut self) {
         let max_server_tick_duration = Duration::from_millis(GLOBAL_CONFIG.server_tick_ms);
-        let map = Map::load(format!(
-            "{}/models/{}.glb",
-            GLOBAL_CONFIG.resource_folder, GLOBAL_CONFIG.map_name
-        ));
+        self.game_state.map = Some(
+            Map::load(format!(
+                "{}/models/{}.glb",
+                GLOBAL_CONFIG.resource_folder, GLOBAL_CONFIG.map_name
+            ))
+            .expect("Couldn't load the map on the server!"),
+        );
 
         loop {
             self.block_until_minimum_connections();
@@ -231,21 +235,16 @@ impl GameServer {
                         .collect()
                 };
 
-                let triggers: &mut Vec<Box<&dyn TriggerEntity>> = &mut Vec::new();
-                if let Some(map) = &self.map {
-                    for checkpoint in map.checkpoints.iter() {
-                        triggers.push(Box::new(checkpoint));
-                    }
-
-                    for zone in map.major_zones.iter() {
-                        triggers.push(Box::new(zone));
-                    }
-
-                    triggers.push(Box::new(&map.finish_line));
-                }
-
                 self.game_state.players = [0, 1, 2, 3].map(|n| {
-                    self.game_state.players[n].do_physics_step(1.0, others(n), triggers.to_vec())
+                    self.game_state.players[n].do_physics_step(
+                        1.0,
+                        others(n),
+                        self.game_state
+                            .map
+                            .as_ref()
+                            .expect("No map loaded in game loop!")
+                            .trigger_iter(),
+                    )
                 });
 
                 match &mut *voting_game_state {
@@ -321,7 +320,7 @@ impl GameServer {
 
     // send placement data to each client, if its changed
     fn update_and_sync_placement_state(&mut self) {
-        if let Some(map) = &self.map {
+        if let Some(map) = &self.game_state.map {
             if let GamePhase::PlayingGame {
                 player_placement, ..
             } = &mut self.game_state.phase

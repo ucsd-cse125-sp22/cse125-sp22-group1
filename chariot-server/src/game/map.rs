@@ -1,15 +1,25 @@
 use std::collections::VecDeque;
 
+use glam::dvec3;
 use serde_json::Value;
 
-use crate::checkpoints::*;
-use chariot_core::entity_location::{accum_bounds, new_bounds, Bounds};
+use crate::{
+    checkpoints::*,
+    physics::{bounding_box::BoundingBox, trigger_entity::TriggerEntity},
+};
 use chariot_core::GLOBAL_CONFIG;
 
 pub struct Map {
-    pub colliders: Vec<Bounds>,
+    // Something you cannot pass through/has collision
+    pub colliders: Vec<BoundingBox>,
+
+    // Map's checkpoints, which track progress through the track
     pub checkpoints: Vec<Checkpoint>,
+
+    // Map's zones, which divide the map into large blocks you must pass through
     pub major_zones: Vec<Zone>,
+
+    // Map's finish line, which... is the finish line
     pub finish_line: FinishLine,
 }
 
@@ -17,7 +27,7 @@ fn import_mesh(
     buffers: &[gltf::buffer::Data],
     primitive: &gltf::Primitive,
     transform: glam::Mat4,
-) -> Bounds {
+) -> BoundingBox {
     todo!()
 }
 
@@ -38,11 +48,11 @@ impl Map {
             );
         }
 
-        let colliders = Vec::new();
-        let checkpoints = Vec::new();
+        let colliders: Vec<BoundingBox> = Vec::new();
+        let checkpoints: Vec<Checkpoint> = Vec::new();
         let major_zones: Vec<Zone> = Vec::new();
-        let finish_line: Option<FinishLine> = None;
-        let mut world_bounds = new_bounds();
+        let mut finish_line: Option<FinishLine> = None;
+        let mut world_bounds = BoundingBox::extremes();
 
         // Queue of (Node, Transformation) tuples
         let mut queue: VecDeque<(gltf::Node, glam::Mat4)> = document
@@ -76,15 +86,50 @@ impl Map {
             if let Some(mesh) = node.mesh() {
                 if let Some(extras) = mesh.extras().as_ref() {
                     let mesh_data: Value = serde_json::from_str(extras.as_ref().get()).unwrap();
-                    if mesh_data["collide"] == 1 {
-                        println!("processing mesh '{}'", mesh.name().unwrap_or("<unnamed>"));
+                    if let Some(Value::String(purpose)) = mesh_data.get("purpose") {
                         for (prim_idx, primitive) in mesh.primitives().enumerate() {
-                            println!("\tprocessing prim {}", prim_idx);
-
                             let mesh_bounds = import_mesh(&buffers, &primitive, transform);
 
-                            //mesh_handles.push(mesh_handle);
-                            bounds = accum_bounds(bounds, mesh_bounds);
+                            if purpose == "trigger" {
+                                if let Some(Value::String(trigger_type)) =
+                                    mesh_data.get("trigger_type")
+                                {
+                                    println!(
+                                        "Loading mesh '{}' as a trigger_{}",
+                                        mesh.name().unwrap_or("<unnamed>"),
+                                        trigger_type
+                                    );
+
+                                    if trigger_type == "checkpoint" {
+                                        todo!();
+                                    } else if trigger_type == "zone" {
+                                        todo!();
+                                    } else if trigger_type == "finish_line" {
+                                        finish_line = Some(FinishLine::new(
+                                            dvec3(0.0, 0.0, 0.0),
+                                            dvec3(1.0, 1.0, 1.0),
+                                            1,
+                                        ));
+                                        // } else if trigger_type == "powerup" {
+                                    } else {
+                                        panic!("Unknown trigger type '{}'!", trigger_type);
+                                    }
+                                }
+                            } else if purpose == "collision" {
+                                println!(
+                                    "Loading mesh '{}' as a collider",
+                                    mesh.name().unwrap_or("<unnamed>")
+                                );
+                                todo!();
+                            } else {
+                                panic!(
+                                    "Mesh '{}' has unknown purpose '{}'!",
+                                    mesh.name().unwrap_or("<unnamed>"),
+                                    purpose
+                                );
+                            }
+
+                            world_bounds = world_bounds.accum(mesh_bounds);
                         }
                     }
                 }
@@ -98,10 +143,20 @@ impl Map {
         println!("done!");
 
         core::result::Result::Ok(Self {
-            colliders: todo!(),
-            checkpoints: todo!(),
-            major_zones: todo!(),
-            finish_line: todo!(),
+            colliders,
+            checkpoints,
+            major_zones,
+            finish_line: finish_line
+                .expect(format!("Map {} has no finish line!", filename).as_str()),
         })
+    }
+
+    // good god figuring out type stuff here made me want to pivot to javascript permanently
+    pub fn trigger_iter(&self) -> impl Iterator<Item = &dyn TriggerEntity> {
+        self.checkpoints
+            .iter()
+            .map(|c| c as &dyn TriggerEntity)
+            .chain(self.major_zones.iter().map(|z| z as &dyn TriggerEntity))
+            .chain(std::iter::once(&self.finish_line as &dyn TriggerEntity))
     }
 }

@@ -19,9 +19,14 @@ impl Checkpoint {
 }
 
 impl TriggerEntity for Checkpoint {
+    fn pos(&self) -> DVec3 {
+        self.bounding_box.pos()
+    }
+
     fn get_bounding_box(&self) -> BoundingBox {
         self.bounding_box
     }
+
     fn trigger(&self, ply: &mut PlayerEntity) {
         ply.lap_info.last_checkpoint = self.id;
     }
@@ -43,6 +48,10 @@ impl Zone {
 }
 
 impl TriggerEntity for Zone {
+    fn pos(&self) -> DVec3 {
+        self.bounding_box.pos()
+    }
+
     fn get_bounding_box(&self) -> BoundingBox {
         self.bounding_box
     }
@@ -71,6 +80,10 @@ impl FinishLine {
 }
 
 impl TriggerEntity for FinishLine {
+    fn pos(&self) -> DVec3 {
+        self.bounding_box.pos()
+    }
+
     fn get_bounding_box(&self) -> BoundingBox {
         self.bounding_box
     }
