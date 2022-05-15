@@ -270,6 +270,15 @@ impl PlayerEntity {
                         self.angular_velocity -= GLOBAL_CONFIG.car_spin;
                     }
                 }
+                PhysicsChangeType::NoTurningLeft => {
+                    if matches!(
+                        self.player_inputs.rotation_status,
+                        RotationStatus::InSpinCounterclockwise
+                    ) {
+                        self.player_inputs.rotation_status = RotationStatus::NotInSpin;
+                        self.angular_velocity += GLOBAL_CONFIG.car_spin;
+                    }
+                }
                 PhysicsChangeType::ShoppingCart => {
                     self.angular_velocity += GLOBAL_CONFIG.car_spin / 2.0;
                 }

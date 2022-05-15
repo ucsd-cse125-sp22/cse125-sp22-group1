@@ -51,7 +51,20 @@ impl Application {
                             .update_player_location(&update.0, &update.1, i as u8)
                     });
                 }
-                _ => {}
+                ClientBoundPacket::GameStart(_) => println!("The game has begun!"),
+                ClientBoundPacket::PowerupPickup => println!("we got a powerup!"),
+                ClientBoundPacket::InteractionActivate(question, decision) => {
+                    println!(
+                        "The Audience has voted on {}, and voted for option {}!",
+                        question.prompt, decision.label
+                    );
+                }
+                ClientBoundPacket::LapUpdate(lap) => println!("We are now on lap {}", lap),
+                ClientBoundPacket::PlacementUpdate(place) => println!("We are in {} place", place),
+                ClientBoundPacket::AllDone => println!("This game is over!"),
+                ClientBoundPacket::VotingStarted(question) => {
+                    println!("The audience is now voting on {}", question.prompt)
+                }
             }
         }
     }
@@ -97,7 +110,6 @@ impl Application {
             return;
         };
 
-        println!("Key down [{:?}]!", key);
         self.pressed_keys.insert(key);
 
         if let Some(event) = self.get_input_event(key) {
@@ -111,7 +123,6 @@ impl Application {
     }
 
     pub fn on_key_up(&mut self, key: VirtualKeyCode) {
-        println!("Key up [{:?}]!", key);
         self.pressed_keys.remove(&key);
 
         if let Some(event) = self.invert_event(self.get_input_event(key)) {
@@ -122,7 +133,6 @@ impl Application {
     pub fn on_mouse_move(&mut self, x: f64, y: f64) {
         self.mouse_pos.x = x;
         self.mouse_pos.y = y;
-        //println!("Mouse moved! ({}, {})", x, y);
     }
 
     pub fn on_left_mouse(&mut self, state: ElementState) {
@@ -130,7 +140,7 @@ impl Application {
         let y = self.mouse_pos.y;
 
         if let ElementState::Released = state {
-            println!("Mouse clicked @ ({}, {})!", x, y);
+            // println!("Mouse clicked @ ({}, {})!", x, y);
         }
     }
 
@@ -139,7 +149,7 @@ impl Application {
         let y = self.mouse_pos.y;
 
         if let ElementState::Released = state {
-            println!("Mouse right clicked @ ({}, {})!", x, y);
+            // println!("Mouse right clicked @ ({}, {})!", x, y);
         }
     }
 
