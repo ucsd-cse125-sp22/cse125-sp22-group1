@@ -6,6 +6,7 @@ use std::{
 };
 
 pub mod material;
+pub mod minimap;
 pub mod static_mesh;
 
 use chariot_core::GLOBAL_CONFIG;
