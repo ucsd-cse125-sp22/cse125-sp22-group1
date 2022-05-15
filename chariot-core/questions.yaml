@@ -1,7 +1,6 @@
-questions:
-  - prompt: Q1 Turning is overrated. Which direction should we ban?
-    options:
-      - label: Left
-        action: NoLeft
-      - label: Right
-        action: NoRight
+- prompt: Q1 Turning is overrated. Which direction should we ban?
+  options:
+    - label: Left
+      action: NoLeft
+    - label: Right
+      action: NoRight

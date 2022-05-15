@@ -312,8 +312,8 @@ impl GameServer {
                     VotingState::VoteCooldown(cooldown) => {
                         if *cooldown < now {
                             let time_until_voting_enabled = Duration::new(30, 0);
-                            let question: QuestionData = QUESTIONS.questions[*question_idx].clone();
-                            *question_idx = (*question_idx + 1) % QUESTIONS.questions.len();
+                            let question: QuestionData = QUESTIONS[*question_idx].clone();
+                            *question_idx = (*question_idx + 1) % QUESTIONS.len();
 
                             *voting_game_state = VotingState::WaitingForVotes {
                                 audience_votes: HashMap::new(),

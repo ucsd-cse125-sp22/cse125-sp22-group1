@@ -5,11 +5,6 @@ use serde::{Deserialize, Serialize};
 use std::env;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Questions {
-    pub questions: Vec<QuestionData>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct QuestionData {
     pub prompt: String,
     pub options: Vec<QuestionOption>,
@@ -26,29 +21,26 @@ pub enum AudienceAction {
     NoRight,
 }
 
-impl Questions {
-    fn load_questions() -> Questions {
-        // get questions file
-        let questions_yaml_path = format!(
-            "{}/chariot-core/questions.yaml",
-            env::current_dir() // gets the path to the root directory for chariot
-                .unwrap()
-                .parent()
-                .unwrap()
-                .to_str()
-                .unwrap()
-        );
+pub fn load_questions() -> Vec<QuestionData> {
+    // get questions file
+    let questions_yaml_path = format!(
+        "{}/chariot-core/questions.yaml",
+        env::current_dir() // gets the path to the root directory for chariot
+            .unwrap()
+            .parent()
+            .unwrap()
+            .to_str()
+            .unwrap()
+    );
 
-        let f =
-            std::fs::File::open(questions_yaml_path).expect("Should have a questions.yaml file!");
-        let q_data: Questions =
-            serde_yaml::from_reader(f).expect("should be able to read yaml file!");
-        let mut questions = q_data.questions.to_vec();
-        questions.shuffle(&mut thread_rng());
-        return Questions { questions };
-    }
+    let f = std::fs::File::open(questions_yaml_path).expect("Should have a questions.yaml file!");
+    let q_data: Vec<QuestionData> =
+        serde_yaml::from_reader(f).expect("should be able to read yaml file!");
+    let mut questions = q_data.to_vec();
+    questions.shuffle(&mut thread_rng());
+    return questions;
 }
 
 lazy_static! {
-    pub static ref QUESTIONS: Questions = Questions::load_questions();
+    pub static ref QUESTIONS: Vec<QuestionData> = load_questions();
 }
