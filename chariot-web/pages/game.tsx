@@ -40,8 +40,8 @@ const Game: NextPage = () => {
 		<br />
 		{!showStandings && prompt !== null &&
 			<Grid>
-				{prompt[1].map(((option, choice) => (
-					<Button state={choice === winner ? 'voted' : choice === selectedIdx ? 'selected' : 'unselected'} key={choice} text={option} onClick={() => {
+				{prompt.options.map((({ label }, choice) => (
+					<Button state={choice === winner ? 'voted' : choice === selectedIdx ? 'selected' : 'unselected'} key={choice} text={label} onClick={() => {
 						if (winner === null) {
 							sendMessage(context, { Vote: [uuid, choice] })
 							setSelectedIdx(choice);
