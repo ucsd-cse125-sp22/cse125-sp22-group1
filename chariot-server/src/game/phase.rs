@@ -38,6 +38,7 @@ pub enum GamePhase {
     PlayingGame {
         voting_game_state: VotingState,
         player_placement: [u8; 4],
+        question_idx: usize, // to keep track of which question we have asked
     },
     AllPlayersDone,
 }

@@ -34,7 +34,6 @@ pub struct GameServer {
     ws_connections: HashMap<Uuid, WebSocketConnection>,
     game_state: ServerGameState,
     map: Option<Map>,
-    question_idx: usize, // to keep track of which question we have asked
 }
 
 pub struct ServerGameState {
@@ -74,7 +73,6 @@ impl GameServer {
                     .map(|num| get_player_start_physics_properties(&String::from("standard"), num)),
             },
             map: None,
-            question_idx: 0,
         }
     }
 
@@ -209,12 +207,15 @@ impl GameServer {
                         // start off with 10 seconds of vote free gameplay
                         voting_game_state: VotingState::VoteCooldown(now + Duration::new(10, 0)),
                         player_placement: [0, 1, 2, 3],
+                        question_idx: 0,
                     }
                 }
             }
 
             GamePhase::PlayingGame {
-                voting_game_state, ..
+                voting_game_state,
+                question_idx,
+                ..
             } => {
                 // update bounding box dimensions and temporary physics changes for each player
                 for player in &mut self.game_state.players {
@@ -311,9 +312,8 @@ impl GameServer {
                     VotingState::VoteCooldown(cooldown) => {
                         if *cooldown < now {
                             let time_until_voting_enabled = Duration::new(30, 0);
-                            let question: QuestionData =
-                                QUESTIONS.questions[self.question_idx].clone();
-                            self.question_idx = (self.question_idx + 1) % QUESTIONS.questions.len();
+                            let question: QuestionData = QUESTIONS.questions[*question_idx].clone();
+                            *question_idx = (*question_idx + 1) % QUESTIONS.questions.len();
 
                             *voting_game_state = VotingState::WaitingForVotes {
                                 audience_votes: HashMap::new(),
