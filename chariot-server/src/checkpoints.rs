@@ -6,25 +6,22 @@ use glam::DVec3;
 #[derive(Clone, Copy)]
 pub struct Checkpoint {
     pub id: CheckpointID,
-    pub bounding_box: BoundingBox,
+    pub bounds: BoundingBox,
 }
 
 impl Checkpoint {
-    pub fn new(id: CheckpointID, min: DVec3, max: DVec3) -> Self {
-        Self {
-            id,
-            bounding_box: BoundingBox::from_vecs(min, max),
-        }
+    pub fn new(id: CheckpointID, bounds: BoundingBox) -> Self {
+        Self { id, bounds }
     }
 }
 
 impl TriggerEntity for Checkpoint {
     fn pos(&self) -> DVec3 {
-        self.bounding_box.pos()
+        self.bounds.pos()
     }
 
     fn get_bounding_box(&self) -> BoundingBox {
-        self.bounding_box
+        self.bounds
     }
 
     fn trigger(&self, ply: &mut PlayerEntity) {
@@ -35,25 +32,22 @@ impl TriggerEntity for Checkpoint {
 #[derive(Clone, Copy)]
 pub struct Zone {
     pub id: ZoneID,
-    pub bounding_box: BoundingBox,
+    pub bounds: BoundingBox,
 }
 
 impl Zone {
-    pub fn new(id: ZoneID, min: DVec3, max: DVec3) -> Self {
-        Self {
-            id,
-            bounding_box: BoundingBox::from_vecs(min, max),
-        }
+    pub fn new(id: ZoneID, bounds: BoundingBox) -> Self {
+        Self { id, bounds }
     }
 }
 
 impl TriggerEntity for Zone {
     fn pos(&self) -> DVec3 {
-        self.bounding_box.pos()
+        self.bounds.pos()
     }
 
     fn get_bounding_box(&self) -> BoundingBox {
-        self.bounding_box
+        self.bounds
     }
 
     fn trigger(&self, ply: &mut PlayerEntity) {
@@ -67,28 +61,26 @@ impl TriggerEntity for Zone {
 #[derive(Clone, Copy)]
 pub struct FinishLine {
     last_zone: ZoneID,
-    pub bounding_box: BoundingBox,
+    pub bounds: BoundingBox,
 }
 
 impl FinishLine {
-    pub fn new(min: DVec3, max: DVec3, last_zone: ZoneID) -> Self {
-        Self {
-            last_zone,
-            bounding_box: BoundingBox::from_vecs(min, max),
-        }
+    pub fn new(bounds: BoundingBox, last_zone: ZoneID) -> Self {
+        Self { last_zone, bounds }
     }
 }
 
 impl TriggerEntity for FinishLine {
     fn pos(&self) -> DVec3 {
-        self.bounding_box.pos()
+        self.bounds.pos()
     }
 
     fn get_bounding_box(&self) -> BoundingBox {
-        self.bounding_box
+        self.bounds
     }
 
     fn trigger(&self, ply: &mut PlayerEntity) {
+        println!("INSIDE");
         // Player is only allowed to advance if they are on the track's last zone
         if ply.lap_info.zone == self.last_zone {
             ply.lap_info.zone = 0;

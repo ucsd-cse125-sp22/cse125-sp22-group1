@@ -28,7 +28,41 @@ fn import_mesh(
     primitive: &gltf::Primitive,
     transform: glam::Mat4,
 ) -> BoundingBox {
-    todo!()
+    let mut bounds = BoundingBox::extremes();
+
+    let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
+    let vert_iter = reader
+        .read_positions()
+        .expect("Couldn't read primitive's positions!");
+    let mut vert_buf = vert_iter.collect::<Vec<[f32; 3]>>();
+
+    for vertex in vert_buf.iter_mut() {
+        *vertex = transform
+            .transform_point3(glam::Vec3::from_slice(vertex))
+            .to_array();
+    }
+
+    let glam_verts = vert_buf.iter().map(|e| glam::Vec3::from_slice(e));
+
+    bounds = bounds.accum(BoundingBox::from_vecs(
+        glam_verts
+            .clone()
+            .reduce(|a, e| a.min(e))
+            .unwrap()
+            .as_dvec3(),
+        glam_verts
+            .clone()
+            .reduce(|a, e| a.max(e))
+            .unwrap()
+            .as_dvec3(),
+    ));
+
+    println!("Bounds {:?}", bounds);
+
+    // TODO: unindexed meshes
+    // TODO: rest
+
+    bounds
 }
 
 impl Map {
@@ -38,8 +72,8 @@ impl Map {
             filename
         );
         let model_name = filename.split(".").next().expect("invalid filename format");
-        let resource_path = format!("{}/{}", GLOBAL_CONFIG.resource_folder, filename);
-        let (document, buffers, images) = gltf::import(resource_path)?;
+        let map_path = format!("{}/models/{}.glb", GLOBAL_CONFIG.resource_folder, filename);
+        let (document, buffers, images) = gltf::import(map_path)?;
         if document.scenes().count() != 1 {
             panic!(
                 "Document {} has {} scenes!",
@@ -91,8 +125,7 @@ impl Map {
                             let mesh_bounds = import_mesh(&buffers, &primitive, transform);
 
                             if purpose == "trigger" {
-                                if let Some(Value::String(trigger_type)) =
-                                    mesh_data.get("trigger_type")
+                                if let Some(Value::String(trigger_type)) = mesh_data.get("trigger")
                                 {
                                     println!(
                                         "Loading mesh '{}' as a trigger_{}",
@@ -105,11 +138,7 @@ impl Map {
                                     } else if trigger_type == "zone" {
                                         todo!();
                                     } else if trigger_type == "finish_line" {
-                                        finish_line = Some(FinishLine::new(
-                                            dvec3(0.0, 0.0, 0.0),
-                                            dvec3(1.0, 1.0, 1.0),
-                                            1,
-                                        ));
+                                        finish_line = Some(FinishLine::new(mesh_bounds, 1));
                                         // } else if trigger_type == "powerup" {
                                     } else {
                                         panic!("Unknown trigger type '{}'!", trigger_type);

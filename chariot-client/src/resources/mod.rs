@@ -211,10 +211,7 @@ impl ResourceManager {
                         if let Some(material_id) = primitive.material().index() {
                             material_handle = match material_handles.get(&material_id) {
                                 Some(h) => {
-                                    println!(
-                                        "\t\t\tReusing loaded material '{}'",
-                                        primitive.material().name().unwrap_or("<unnamed>")
-                                    );
+                                    // println!("\t\t\tReusing loaded material '{}'", primitive.material().name().unwrap_or("<unnamed>"));
                                     h
                                 }
                                 None => {

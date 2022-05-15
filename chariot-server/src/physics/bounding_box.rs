@@ -2,7 +2,7 @@ use std::ops::Bound;
 
 use glam::{DVec3, Mat3};
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct BoundingBox {
     pub min_x: f64,
     pub max_x: f64,

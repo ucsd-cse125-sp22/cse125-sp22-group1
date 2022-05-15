@@ -75,11 +75,8 @@ impl GameServer {
     pub fn start_loop(&mut self) {
         let max_server_tick_duration = Duration::from_millis(GLOBAL_CONFIG.server_tick_ms);
         self.game_state.map = Some(
-            Map::load(format!(
-                "{}/models/{}.glb",
-                GLOBAL_CONFIG.resource_folder, GLOBAL_CONFIG.map_name
-            ))
-            .expect("Couldn't load the map on the server!"),
+            Map::load(GLOBAL_CONFIG.map_name.clone())
+                .expect("Couldn't load the map on the server!"),
         );
 
         loop {
@@ -325,8 +322,8 @@ impl GameServer {
                 player_placement, ..
             } = &mut self.game_state.phase
             {
-                let new_placement_array =
-                    get_player_placement_array(&self.game_state.players, &map.checkpoints);
+                let new_placement_array = [0, 1, 2, 3];
+                //get_player_placement_array(&self.game_state.players, &map.checkpoints);
 
                 for player_num in 0..=3 {
                     if player_placement[player_num] != new_placement_array[player_num] {
