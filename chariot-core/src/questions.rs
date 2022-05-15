@@ -31,7 +31,7 @@ impl Questions {
         // get questions file
         let questions_yaml_path = format!(
             "{}/chariot-core/questions.yaml",
-            env::current_dir()
+            env::current_dir() // gets the path to the root directory for chariot
                 .unwrap()
                 .parent()
                 .unwrap()
