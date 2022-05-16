@@ -111,6 +111,7 @@ use audio::thread::options::SourceOptions;
 pub mod audio;
 
 fn main() {
+  let audio_ctx = AudioCtx::new();
   let mut opt = SourceOptions::new();
   opt.set_repeat(true);
   music_manager.play(1, &audio_ctx, opt);
