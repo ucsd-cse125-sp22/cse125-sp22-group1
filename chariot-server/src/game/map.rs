@@ -9,6 +9,8 @@ use crate::{
 };
 use chariot_core::GLOBAL_CONFIG;
 
+use super::powerup::pickups::PowerUpTrigger;
+
 pub struct Map {
     // Something you cannot pass through/has collision
     pub colliders: Vec<BoundingBox>,
@@ -21,6 +23,8 @@ pub struct Map {
 
     // Map's finish line, which... is the finish line
     pub finish_line: FinishLine,
+
+    pub powerups: Vec<PowerUpTrigger>,
 }
 
 fn import_mesh(
@@ -86,6 +90,8 @@ impl Map {
         let mut finish_line: Option<FinishLine> = None;
         let mut world_bounds = BoundingBox::extremes();
 
+        let mut powerups = Vec::new();
+
         // Queue of (Node, Transformation) tuples
         let mut queue: VecDeque<(gltf::Node, glam::Mat4)> = document
             .scenes()
@@ -126,12 +132,17 @@ impl Map {
                                 if let Some(Value::String(trigger_type)) = mesh_data.get("trigger")
                                 {
                                     if trigger_type == "checkpoint" {
+                                        let idx = mesh_data
+                                            .get("checkpoint_id")
+                                            .unwrap()
+                                            .as_u64()
+                                            .unwrap();
                                         println!(
                                             "Loading mesh '{}' as a trigger_checkpoint_{}",
                                             mesh.name().unwrap_or("<unnamed>"),
-                                            -1
+                                            idx
                                         );
-                                        todo!();
+                                        checkpoints.push(Checkpoint::new(idx, mesh_bounds));
                                     } else if trigger_type == "zone" {
                                         let idx =
                                             mesh_data.get("zone_id").unwrap().as_u64().unwrap();
@@ -149,6 +160,12 @@ impl Map {
                                         );
                                         finish_line = Some(FinishLine::new(mesh_bounds, 1));
                                         // } else if trigger_type == "powerup" {
+                                    } else if trigger_type == "powerup" {
+                                        println!(
+                                            "Loading mesh '{}' as a trigger_powerup",
+                                            mesh.name().unwrap_or("<unnamed>")
+                                        );
+                                        powerups.push(PowerUpTrigger::new(mesh_bounds));
                                     } else {
                                         panic!("Unknown trigger type '{}'!", trigger_type);
                                     }
@@ -187,15 +204,22 @@ impl Map {
             finish_line: finish_line
                 .expect(format!("Map {} has no finish line!", filename).as_str())
                 .set_last_zone(last_zone),
+            powerups,
         })
     }
 
     // good god figuring out type stuff here made me want to pivot to javascript permanently
-    pub fn trigger_iter(&self) -> impl Iterator<Item = &dyn TriggerEntity> {
+    pub fn trigger_iter(&mut self) -> impl Iterator<Item = &mut dyn TriggerEntity> {
         self.checkpoints
-            .iter()
-            .map(|c| c as &dyn TriggerEntity)
-            .chain(self.major_zones.iter().map(|z| z as &dyn TriggerEntity))
-            .chain(std::iter::once(&self.finish_line as &dyn TriggerEntity))
+            .iter_mut()
+            .map(|c| c as &mut dyn TriggerEntity)
+            .chain(
+                self.major_zones
+                    .iter_mut()
+                    .map(|z| z as &mut dyn TriggerEntity),
+            )
+            .chain(std::iter::once(
+                &mut self.finish_line as &mut dyn TriggerEntity,
+            ))
     }
 }

@@ -49,5 +49,6 @@ pub fn get_player_start_physics_properties(chair_name: &String, player_number: u
         },
         physics_changes: vec![],
         lap_info: LapInformation::new(),
+        current_powerup: None,
     };
 }

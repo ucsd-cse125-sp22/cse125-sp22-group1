@@ -26,6 +26,7 @@ use self::phase::*;
 
 mod map;
 mod phase;
+pub mod powerup;
 mod voting;
 
 pub struct GameServer {
@@ -239,7 +240,7 @@ impl GameServer {
                         others(n),
                         self.game_state
                             .map
-                            .as_ref()
+                            .as_mut()
                             .expect("No map loaded in game loop!")
                             .trigger_iter(),
                     )

@@ -25,7 +25,7 @@ impl TriggerEntity for Checkpoint {
         self.bounds
     }
 
-    fn trigger(&self, player: &mut PlayerEntity) {
+    fn trigger(&mut self, player: &mut PlayerEntity) {
         player.lap_info.last_checkpoint = self.id;
     }
 }
@@ -51,7 +51,7 @@ impl TriggerEntity for Zone {
         self.bounds
     }
 
-    fn trigger(&self, player: &mut PlayerEntity) {
+    fn trigger(&mut self, player: &mut PlayerEntity) {
         // Only advance zone if the player is in the zone before us
         if (player.lap_info.zone + 1) == self.id {
             player.lap_info.zone = self.id;
@@ -86,7 +86,7 @@ impl TriggerEntity for FinishLine {
         self.bounds
     }
 
-    fn trigger(&self, player: &mut PlayerEntity) {
+    fn trigger(&mut self, player: &mut PlayerEntity) {
         // Player is only allowed to advance if they are on the track's last zone
         if player.lap_info.zone == self.last_zone {
             player.lap_info.lap += 1;

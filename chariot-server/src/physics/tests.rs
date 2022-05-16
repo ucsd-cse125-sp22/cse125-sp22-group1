@@ -32,6 +32,7 @@ fn test_accelerating() {
         bounding_box: BoundingBox::new(-5.0, 5.0, -5.0, 5.0, -5.0, 5.0),
         physics_changes: Vec::new(),
         lap_info: LapInformation::new(),
+        current_powerup: None,
     };
 
     props = props.do_physics_step(1.0, Vec::new(), std::iter::empty());
@@ -76,6 +77,7 @@ fn test_non_accelerating() {
         bounding_box: BoundingBox::new(15.0, 25.0, 25.0, 35.0, 35.0, 45.0),
         physics_changes: Vec::new(),
         lap_info: LapInformation::new(),
+        current_powerup: None,
     };
 
     props = props.do_physics_step(1.0, Vec::new(), std::iter::empty());
@@ -118,6 +120,7 @@ fn test_decelerating() {
         bounding_box: BoundingBox::new(15.0, 25.0, 25.0, 35.0, 35.0, 45.0),
         physics_changes: Vec::new(),
         lap_info: LapInformation::new(),
+        current_powerup: None,
     };
 
     props = props.do_physics_step(1.0, Vec::new(), std::iter::empty());
@@ -163,6 +166,7 @@ fn test_spinning() {
         bounding_box: BoundingBox::new(15.0, 25.0, 25.0, 35.0, 35.0, 45.0),
         physics_changes: Vec::new(),
         lap_info: LapInformation::new(),
+        current_powerup: None,
     };
 
     props = props.do_physics_step(1.0, Vec::new(), std::iter::empty());
@@ -199,6 +203,7 @@ fn get_origin_cube() -> PlayerEntity {
         bounding_box: BoundingBox::new(-5.0, 5.0, -5.0, 5.0, -5.0, 5.0),
         physics_changes: Vec::new(),
         lap_info: LapInformation::new(),
+        current_powerup: None,
     };
 }
 

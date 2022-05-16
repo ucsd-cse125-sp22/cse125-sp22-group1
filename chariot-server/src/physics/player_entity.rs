@@ -1,3 +1,4 @@
+use crate::game::powerup::PowerUp;
 use crate::physics::bounding_box::BoundingBox;
 use chariot_core::entity_location::EntityLocation;
 use chariot_core::lap_info::LapInformation;
@@ -26,6 +27,8 @@ pub struct PlayerEntity {
     pub physics_changes: Vec<PhysicsChange>,
 
     pub lap_info: LapInformation,
+
+    pub current_powerup: Option<PowerUp>,
 }
 
 impl PlayerEntity {
@@ -110,7 +113,7 @@ impl PlayerEntity {
         &self,
         time_step: f64,
         potential_colliders: Vec<&PlayerEntity>,
-        potential_triggers: impl Iterator<Item = &'a dyn TriggerEntity>,
+        potential_triggers: impl Iterator<Item = &'a mut dyn TriggerEntity>,
     ) -> PlayerEntity {
         let self_forces = self.sum_of_self_forces();
         let acceleration = self_forces / self.mass;
@@ -171,6 +174,7 @@ impl PlayerEntity {
             bounding_box: self.bounding_box,
             physics_changes: self.physics_changes.clone(),
             lap_info: self.lap_info,
+            current_powerup: None,
         };
 
         new_player.apply_physics_changes();
