@@ -7,12 +7,14 @@ use chariot_core::lap_info::LapInformation;
 use glam::DVec3;
 
 use chariot_core::entity_location::EntityLocation;
-use chariot_core::networking::ws::{QuestionBody, WSAudienceBoundMessage};
+use chariot_core::networking::ws::WSAudienceBoundMessage;
 use chariot_core::networking::Uuid;
 use chariot_core::networking::{
     ClientBoundPacket, ClientConnection, ServerBoundPacket, WebSocketConnection,
 };
+use chariot_core::physics_changes::{PhysicsChange, PhysicsChangeType};
 use chariot_core::player_inputs::InputEvent;
+use chariot_core::questions::{QuestionData, QUESTIONS};
 use chariot_core::GLOBAL_CONFIG;
 
 use crate::chairs::get_player_start_physics_properties;
@@ -208,12 +210,15 @@ impl GameServer {
                         // start off with 10 seconds of vote free gameplay
                         voting_game_state: VotingState::VoteCooldown(now + Duration::new(10, 0)),
                         player_placement: [0, 1, 2, 3].map(|_| LapInformation::new()),
+                        question_idx: 0,
                     }
                 }
             }
 
             GamePhase::PlayingGame {
-                voting_game_state, ..
+                voting_game_state,
+                question_idx,
+                ..
             } => {
                 // update bounding box dimensions and temporary physics changes for each player
                 for player in &mut self.game_state.players {
@@ -250,46 +255,73 @@ impl GameServer {
                     VotingState::WaitingForVotes {
                         audience_votes,
                         vote_close_time,
-                        ..
+                        current_question,
                     } => {
                         if *vote_close_time < now {
-                            let winner = audience_votes
+                            let mut counts = HashMap::new();
+                            for vote in audience_votes {
+                                *counts.entry(vote.1).or_insert(0) += 1;
+                            }
+                            let winner: usize = **counts
                                 .iter()
                                 .max_by(|a, b| a.1.cmp(&b.1))
-                                .map(|(_key, vote)| vote)
-                                .unwrap_or(&0);
+                                .map(|(vote, _c)| vote)
+                                .unwrap_or(&&mut (0 as usize));
 
                             GameServer::broadcast_ws(
                                 &mut self.ws_connections,
-                                WSAudienceBoundMessage::Winner(*winner),
+                                WSAudienceBoundMessage::Winner(winner),
                             );
 
-                            *voting_game_state = VotingState::VoteResultActive(*winner);
+                            let decision = current_question.options[winner].clone();
+
+                            for client in self.connections.iter_mut() {
+                                client.push_outgoing(ClientBoundPacket::InteractionActivate(
+                                    current_question.clone(),
+                                    decision.clone(),
+                                ));
+                            }
+
+                            match decision.action {
+                                chariot_core::questions::AudienceAction::NoLeft => {
+                                    self.game_state.players.iter_mut().for_each(|playa| {
+                                        playa.physics_changes.push(PhysicsChange {
+                                            change_type: PhysicsChangeType::NoTurningLeft,
+                                            expiration_time: now + Duration::new(30, 0),
+                                        });
+                                    });
+                                }
+                                chariot_core::questions::AudienceAction::NoRight => {
+                                    self.game_state.players.iter_mut().for_each(|playa| {
+                                        playa.physics_changes.push(PhysicsChange {
+                                            change_type: PhysicsChangeType::NoTurningRight,
+                                            expiration_time: now + Duration::new(30, 0),
+                                        });
+                                    });
+                                }
+                            }
+
+                            *voting_game_state = VotingState::VoteResultActive(decision.clone());
                         }
                     }
-                    VotingState::VoteResultActive(decision) => {
-                        // println!("The audience has chosen {}", decision);
-                        ();
-                    }
+                    VotingState::VoteResultActive(decision) => {}
                     VotingState::VoteCooldown(cooldown) => {
                         if *cooldown < now {
                             let time_until_voting_enabled = Duration::new(30, 0);
-                            // somehow get a random question
-                            let question: QuestionBody = (
-                                "Some Question".to_string(),
-                                vec![
-                                    "Option 1".to_string(),
-                                    "Option 2".to_string(),
-                                    "Option 3".to_string(),
-                                    "Option 4".to_string(),
-                                ],
-                            );
+                            let question: QuestionData = QUESTIONS[*question_idx].clone();
+                            *question_idx = (*question_idx + 1) % QUESTIONS.len();
 
                             *voting_game_state = VotingState::WaitingForVotes {
                                 audience_votes: HashMap::new(),
                                 current_question: question.clone(),
                                 vote_close_time: now + time_until_voting_enabled, // now + 30 seconds
                             };
+
+                            for client in self.connections.iter_mut() {
+                                client.push_outgoing(ClientBoundPacket::VotingStarted(
+                                    question.clone(),
+                                ));
+                            }
 
                             GameServer::broadcast_ws(
                                 &mut self.ws_connections,

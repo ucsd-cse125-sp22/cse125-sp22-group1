@@ -172,6 +172,7 @@ impl GraphicsManager {
             self.add_player(player_num, false);
         }
         let player_entity = self.player_entities[player_num as usize].unwrap();
+
         let player_transform = self
             .world
             .get_mut::<Transform>(player_entity)

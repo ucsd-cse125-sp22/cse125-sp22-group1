@@ -44,7 +44,7 @@ impl Settings {
             // networking
             .set_default("port", "24247")?
             .set_default("server_address", "127.0.0.1")?
-            .set_default("ws_server_port", "0.0.0.0:9001")?
+            .set_default("ws_server_port", "0.0.0.0:2334")?
             .set_default("server_tick_ms", 30)?
             .set_default("player_amount", 1)?
             // for debugging purposes: don't require all players to join to get to see the graphical view
