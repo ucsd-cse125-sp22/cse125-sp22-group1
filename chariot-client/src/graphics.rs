@@ -11,9 +11,20 @@ use crate::scenegraph::*;
 
 pub fn register_passes(renderer: &mut Renderer) {
     renderer.register_pass(
-        "forward",
+        "geometry",
         &util::indirect_graphics_depth_pass!(
-            "shaders/forward.wgsl",
+            "shaders/geometry.wgsl",
+            [
+                wgpu::TextureFormat::Rgba16Float,
+                wgpu::TextureFormat::Rgba8Unorm
+            ]
+        ),
+    );
+
+    renderer.register_pass(
+        "surfel_geometry",
+        &util::indirect_surfel_pass!(
+            "shaders/surfel_geometry.wgsl",
             [
                 wgpu::TextureFormat::Rgba16Float,
                 wgpu::TextureFormat::Rgba8Unorm
@@ -24,8 +35,24 @@ pub fn register_passes(renderer: &mut Renderer) {
     renderer.register_pass("shadow", &util::shadow_pass!("shaders/shadow.wgsl"));
 
     renderer.register_pass(
-        "postprocess",
-        &util::direct_graphics_depth_pass!("shaders/postprocess.wgsl"),
+        "shade",
+        &util::direct_graphics_depth_pass!("shaders/shade.wgsl"),
+    );
+
+    renderer.register_pass(
+        "init_probes",
+        &util::indirect_surfel_pass!(
+            "shaders/init_probes.wgsl",
+            [wgpu::TextureFormat::Rgba16Float]
+        ),
+    );
+
+    renderer.register_pass(
+        "temporal_acc_probes",
+        &util::indirect_surfel_pass!(
+            "shaders/temporal_acc_probes.wgsl",
+            [wgpu::TextureFormat::Rgba16Float]
+        ),
     );
 }
 
@@ -72,7 +99,8 @@ pub struct GraphicsManager {
     pub renderer: Renderer,
     pub resources: ResourceManager,
 
-    postprocess: technique::FSQTechnique,
+    iteration: u32,
+    shade: technique::ShadeTechnique,
     player_entities: [Option<Entity>; 4],
     camera_entity: Entity,
 }
@@ -83,33 +111,56 @@ impl GraphicsManager {
 
         register_passes(&mut renderer);
 
+        let sky_color = wgpu::Color {
+            r: 0.517,
+            g: 0.780,
+            b: 0.980,
+            a: 1.0,
+        };
+
         {
-            let fb_desc = resources.depth_surface_framebuffer(
-                "forward_out",
-                &renderer,
+            resources.register_depth_surface_framebuffer(
+                "geometry_out",
+                &mut renderer,
                 &[
                     wgpu::TextureFormat::Rgba16Float,
                     wgpu::TextureFormat::Rgba8Unorm,
                 ],
-                Some(wgpu::Color {
-                    r: 0.517,
-                    g: 0.780,
-                    b: 0.980,
-                    a: 1.0,
-                }),
+                Some(sky_color),
+                true,
             );
-
-            renderer.register_framebuffer("forward_out", fb_desc);
         }
         {
-            // insanely large shadow map for now
             let shadow_map_res = winit::dpi::PhysicalSize::<u32>::new(2048, 2048);
-            let fb_desc =
-                resources.depth_framebuffer("shadow_out1", &renderer, shadow_map_res, &[], None);
-            renderer.register_framebuffer("shadow_out1", fb_desc);
+            resources.register_depth_framebuffer(
+                "shadow_out1",
+                &mut renderer,
+                shadow_map_res,
+                &[],
+                None,
+                false,
+            );
+        }
+        {
+            resources.register_depth_surface_framebuffer(
+                "probes_out",
+                &mut renderer,
+                &[wgpu::TextureFormat::Rgba16Float],
+                Some(wgpu::Color::BLACK),
+                false,
+            );
+        }
+        {
+            resources.register_depth_surface_framebuffer(
+                "probes_acc_out",
+                &mut renderer,
+                &[wgpu::TextureFormat::Rgba16Float],
+                Some(wgpu::Color::BLACK),
+                true,
+            );
         }
 
-        let postprocess = technique::FSQTechnique::new(&renderer, &resources, "postprocess");
+        let shade = technique::ShadeTechnique::new(&renderer, &resources, "shade");
 
         let world = setup_world(&mut resources, &mut renderer);
 
@@ -117,7 +168,8 @@ impl GraphicsManager {
             world: world,
             renderer: renderer,
             resources: resources,
-            postprocess: postprocess,
+            iteration: 0,
+            shade: shade,
             player_entities: [None, None, None, None],
             camera_entity: NULL_ENTITY,
         }
@@ -289,6 +341,10 @@ impl GraphicsManager {
             .map(|l| l.calc_view_proj(&view_bounds))
             .collect();
 
+        let render_context = RenderContext {
+            resources: &self.resources,
+            iteration: self.iteration,
+        };
         let mut render_job = render_job::RenderJob::default();
         self.world.dfs_acc(self.world.root(), root_xform, |e, acc| {
             let cur_model = self
@@ -302,7 +358,7 @@ impl GraphicsManager {
                 for drawable in drawables.iter() {
                     drawable.update_xforms(&self.renderer, proj, view, acc_model);
                     drawable.update_lights(&self.renderer, acc_model, &lights);
-                    let render_graph = drawable.render_graph(&self.resources);
+                    let render_graph = drawable.render_graph(&render_context);
                     render_job.merge_graph(render_graph);
                 }
             }
@@ -310,16 +366,16 @@ impl GraphicsManager {
             acc_model
         });
 
-        self.postprocess
-            .update_view_data(&self.renderer, view, proj);
-        self.postprocess.update_light_data(
+        self.shade.update_view_data(&self.renderer, view, proj);
+        self.shade.update_light_data(
             &self.renderer,
             lights.first().unwrap().0,
             lights.first().unwrap().1,
         );
-        let postprocess_graph = self.postprocess.render_item(&self.resources).to_graph();
-        render_job.merge_graph_after("forward", postprocess_graph);
+        let shade_graph = self.shade.render_item(&render_context).to_graph();
+        render_job.merge_graph_after("geometry", shade_graph);
 
         self.renderer.render(&render_job);
+        self.iteration += 1;
     }
 }

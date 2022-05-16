@@ -313,7 +313,7 @@ impl Renderer {
             layout: self
                 .bind_group_layouts
                 .get(pass_name)
-                .expect("invalid pass name")
+                .expect(format!("invalid pass name: {}", pass_name).as_str())
                 .get(group_num as usize)
                 .expect("invalid group num"),
             entries: &bind_group_entries,

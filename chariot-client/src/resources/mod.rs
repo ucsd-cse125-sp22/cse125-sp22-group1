@@ -2,6 +2,7 @@ use std::{
     cmp::Eq,
     collections::{HashMap, VecDeque},
     default,
+    num::Wrapping,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -9,6 +10,7 @@ pub mod material;
 pub mod static_mesh;
 
 use chariot_core::GLOBAL_CONFIG;
+use gltf::json::extensions::mesh;
 use material::*;
 use static_mesh::*;
 use wgpu::util::DeviceExt;
@@ -96,6 +98,154 @@ pub fn accum_bounds(mut acc: Bounds, new: Bounds) -> Bounds {
     acc
 }
 
+struct Pcg32 {
+    state: u64,
+    inc: u64,
+}
+
+impl Default for Pcg32 {
+    fn default() -> Self {
+        Self {
+            state: 0x1801_3CAD_3A48_3F72,
+            inc: 0x51DB_FCDA_0D6B_21D4,
+        }
+    }
+}
+
+impl Pcg32 {
+    fn next_u32(&mut self) -> u32 {
+        let oldstate = Wrapping(self.state);
+        self.state = (oldstate * Wrapping(6_364_136_223_846_793_005u64) + Wrapping(self.inc | 1)).0;
+
+        let xorshifted: u32 = (((oldstate >> 18usize) ^ oldstate) >> 27usize).0 as u32;
+        let rot: u32 = (oldstate >> 59usize).0 as u32;
+
+        (xorshifted >> rot) | (xorshifted << ((-(rot as i32)) & 31))
+    }
+
+    fn next_f32(&mut self) -> f32 {
+        let u = (self.next_u32() >> 9) | 0x3f80_0000u32;
+        let f = bytemuck::cast::<u32, f32>(u);
+        return f - 1.0;
+    }
+}
+
+fn sample_surfels(
+    rng: &mut Pcg32,
+    verts: &[glam::Vec3],
+    tex_coords: &[[f32; 2]],
+    inds: &[u32],
+    color_data: Option<&BaseColorData>,
+    images: &[gltf::image::Data],
+    sample_density: f64, // samples / area unit
+) -> (Vec<glam::Vec3>, Vec<glam::Vec3>, Vec<glam::Vec3>) {
+    let mut points = vec![];
+    let mut normals = vec![];
+    let mut colors = vec![];
+
+    // TODO: hard-coded for now
+    let cd = color_data.unwrap_or(&BaseColorData::Color([255, 255, 255, 255]));
+    for tri in inds.chunks(3) {
+        let (i, j, k) = (tri[0] as usize, tri[1] as usize, tri[2] as usize);
+        let (pi, pj, pk) = (verts[i], verts[j], verts[k]);
+        let (tci, tcj, tck) = (
+            glam::Vec2::from_slice(&tex_coords[i]),
+            glam::Vec2::from_slice(&tex_coords[j]),
+            glam::Vec2::from_slice(&tex_coords[k]),
+        );
+        let (eij, eik) = (pj - pi, pk - pi);
+
+        let Nijk = eij.cross(eik).normalize();
+        let Aijk = (eij.cross(eik).length() * 0.5) as f64;
+
+        let extra = if f64::fract(Aijk * sample_density) > rng.next_f32().into() {
+            1usize
+        } else {
+            0usize
+        };
+        let samples = (sample_density * Aijk) as usize + extra;
+
+        let (new_points, new_colors): (Vec<glam::Vec3>, Vec<glam::Vec3>) = (0..samples)
+            .map(|_| {
+                let (mut u0, mut u1) = (rng.next_f32(), rng.next_f32());
+                if u0 + u1 > 1.0 {
+                    u0 = 1.0 - u0;
+                    u1 = 1.0 - u1;
+                }
+
+                let u2 = 1.0 - u0 - u1;
+                let tc = tci * u0 + tcj * u1 + tck * u2;
+                let color = cd.sample(images, tc);
+
+                (pi + eij * u0 + eik * u1, color)
+            })
+            .unzip();
+
+        let new_normals = vec![Nijk; samples];
+
+        points.extend(new_points);
+        normals.extend(new_normals);
+        colors.extend(new_colors);
+    }
+
+    println!("\t\tGenerated {} surfel samples", points.len());
+    (points, normals, colors)
+}
+
+fn sample_image(image: &gltf::image::Data, tc: glam::Vec2) -> [u8; 4] {
+    let size = glam::uvec2(image.width, image.height);
+    let sizef = size.as_vec2();
+    let xyf = tc * sizef;
+    let xy = xyf
+        .as_uvec2()
+        .clamp(glam::UVec2::ZERO, size - glam::UVec2::ONE);
+    match image.format {
+        gltf::image::Format::R8G8B8 => {
+            let idx = ((xy[1] * size[0] + xy[0]) * 3) as usize;
+            [
+                image.pixels[idx],
+                image.pixels[idx + 1],
+                image.pixels[idx + 2],
+                255,
+            ]
+        }
+        gltf::image::Format::R8G8B8A8 => {
+            let idx = ((xy[1] * size[0] + xy[0]) * 4) as usize;
+            if idx >= image.pixels.len() {
+                println!("{}, {}", xy[0], xy[1]);
+                println!("{}, {}", size[0], size[1]);
+            }
+
+            [
+                image.pixels[idx],
+                image.pixels[idx + 1],
+                image.pixels[idx + 2],
+                255,
+            ]
+        }
+        _ => panic!("TODO: trying to sample unimplemented format"),
+    }
+}
+
+pub enum BaseColorData {
+    ImageIndex(usize),
+    Color([u8; 4]),
+}
+
+impl BaseColorData {
+    fn sample(&self, images: &[gltf::image::Data], tc: glam::Vec2) -> glam::Vec3 {
+        let pixel = match self {
+            Self::ImageIndex(i) => {
+                let img = &images[*i];
+                sample_image(img, tc)
+            }
+            Self::Color(color) => *color,
+        };
+
+        glam::vec3(pixel[0] as f32, pixel[1] as f32, pixel[2] as f32) / 256.0
+    }
+}
+
 pub struct ImportData {
     pub tex_handles: Vec<TextureHandle>,
     pub mesh_handles: Vec<StaticMeshHandle>,
@@ -105,6 +255,7 @@ pub struct ImportData {
 
 pub struct ResourceManager {
     pub framebuffers: HashMap<String, Vec<TextureHandle>>,
+    pub alt_framebuffers: HashMap<String, Vec<TextureHandle>>,
     pub textures: HashMap<TextureHandle, wgpu::Texture>,
     pub materials: HashMap<MaterialHandle, Material>,
     pub meshes: HashMap<StaticMeshHandle, StaticMesh>,
@@ -114,6 +265,7 @@ impl ResourceManager {
     pub fn new() -> Self {
         Self {
             framebuffers: HashMap::new(),
+            alt_framebuffers: HashMap::new(),
             textures: HashMap::new(),
             materials: HashMap::new(),
             meshes: HashMap::new(),
@@ -148,11 +300,11 @@ impl ResourceManager {
         let mut bounds = new_bounds();
         let mut mesh_handles = Vec::new();
         let tex_handles = self.upload_textures(renderer, &images);
-        let mut material_handles = HashMap::<usize, MaterialHandle>::new();
+        let mut material_handles = HashMap::<usize, (MaterialHandle, BaseColorData)>::new();
         let mut drawables = Vec::<StaticMeshDrawable>::new();
 
         // TODO: Make a real default material, instead of just using the first one
-        let default_material_handle: MaterialHandle = self.import_material(
+        let (default_material_handle, _) = self.import_material(
             renderer,
             &tex_handles,
             &document.materials().next().unwrap(),
@@ -167,6 +319,7 @@ impl ResourceManager {
             .map(|n| (n, glam::Mat4::IDENTITY))
             .collect::<VecDeque<(gltf::Node, glam::Mat4)>>();
 
+        let mut rng = Pcg32::default();
         // Probably better to do this recursively but i didn't wanna change stuff like crazy, not that it really matters since this is just loading anyways
         while let Some((node, parent_transform)) = queue.pop_front() {
             println!("Processing node '{}'", node.name().unwrap_or("<unnamed>"));
@@ -193,14 +346,11 @@ impl ResourceManager {
                 for (prim_idx, primitive) in mesh.primitives().enumerate() {
                     //println!("\t\tprocessing prim {}", prim_idx);
 
-                    let (mesh_handle, mesh_bounds) =
-                        self.import_mesh(renderer, &buffers, &primitive, transform);
-
                     let mut material_handle: &MaterialHandle = &default_material_handle;
 
                     if let Some(material_id) = primitive.material().index() {
                         material_handle = match material_handles.get(&material_id) {
-                            Some(h) => {
+                            Some((h, _)) => {
                                 println!(
                                     "\t\t\tReusing loaded material '{}'",
                                     primitive.material().name().unwrap_or("<unnamed>")
@@ -220,7 +370,7 @@ impl ResourceManager {
                                         &primitive.material(),
                                     ),
                                 );
-                                material_handles.get(&material_id).unwrap()
+                                &material_handles.get(&material_id).unwrap().0
                             }
                         };
                     } else {
@@ -230,6 +380,20 @@ impl ResourceManager {
                             prim_idx
                         );
                     }
+
+                    let maybe_color_data = primitive
+                        .material()
+                        .index()
+                        .map(|material_id| &material_handles.get(&material_id).unwrap().1);
+                    let (mesh_handle, mesh_bounds) = self.import_mesh(
+                        renderer,
+                        &mut rng,
+                        &buffers,
+                        &primitive,
+                        transform,
+                        maybe_color_data,
+                        &images,
+                    );
 
                     let drawable =
                         StaticMeshDrawable::new(renderer, self, *material_handle, mesh_handle, 0);
@@ -263,13 +427,18 @@ impl ResourceManager {
     fn import_mesh(
         &mut self,
         renderer: &Renderer,
+        rng: &mut Pcg32,
         buffers: &[gltf::buffer::Data],
         primitive: &gltf::Primitive,
         transform: glam::Mat4,
+        color_data: Option<&BaseColorData>,
+        images: &[gltf::image::Data],
     ) -> (StaticMeshHandle, Bounds) {
         let f32_low = f32::MIN;
 
         let mut bounds = new_bounds();
+        let mut vert_vec = None;
+        let mut tc_vec = None;
 
         let mut mesh_builder = MeshBuilder::new(renderer, None);
         let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
@@ -283,6 +452,7 @@ impl ResourceManager {
             }
 
             let glam_verts = vert_buf.iter().map(|e| glam::Vec3::from_slice(e));
+            vert_vec = Some(glam_verts.clone().collect::<Vec<glam::Vec3>>());
 
             bounds = accum_bounds(
                 bounds,
@@ -313,7 +483,7 @@ impl ResourceManager {
         }
 
         if let Some(tc_iter) = reader.read_tex_coords(0) {
-            match tc_iter {
+            match tc_iter.clone() {
                 gltf::mesh::util::ReadTexCoords::U8(iter) => mesh_builder.vertex_buffer(
                     bytemuck::cast_slice::<[u8; 2], u8>(&iter.collect::<Vec<[u8; 2]>>()),
                 ),
@@ -324,6 +494,8 @@ impl ResourceManager {
                     bytemuck::cast_slice::<[f32; 2], u8>(&iter.collect::<Vec<[f32; 2]>>()),
                 ),
             };
+
+            tc_vec = Some(tc_iter.into_f32().collect::<Vec<[f32; 2]>>());
         }
 
         if mesh_builder.vertex_buffers.len() != 3 {
@@ -336,7 +508,7 @@ impl ResourceManager {
         );
         let vertex_ranges = vec![full_range; mesh_builder.vertex_buffers.len()];
         if let Some(indices) = reader.read_indices() {
-            let num_elements = match indices {
+            let num_elements = match indices.clone() {
                 gltf::mesh::util::ReadIndices::U16(iter) => {
                     let tmp_len = iter.len();
                     mesh_builder.index_buffer(
@@ -361,6 +533,22 @@ impl ResourceManager {
                 indices_range,
                 u32::try_from(num_elements).unwrap(),
             );
+
+            if vert_vec.is_some() && tc_vec.is_some() {
+                let (points, normals, colors) = sample_surfels(
+                    rng,
+                    &vert_vec.unwrap(),
+                    &tc_vec.unwrap(),
+                    &indices.clone().into_u32().collect::<Vec<u32>>(),
+                    color_data,
+                    images,
+                    10.0,
+                );
+
+                mesh_builder.surfels(&points, &normals, &colors);
+            } else {
+                println!("Warning: skipping surfel generation for model");
+            }
         };
 
         // TODO: unindexed meshes
@@ -418,41 +606,48 @@ impl ResourceManager {
         renderer: &mut Renderer,
         images: &[TextureHandle],
         material: &gltf::Material,
-    ) -> MaterialHandle {
+    ) -> (MaterialHandle, BaseColorData) {
         let pbr_metallic_roughness = material.pbr_metallic_roughness();
         let base_color_index = pbr_metallic_roughness
             .base_color_texture()
             .map(|info| info.texture().source().index())
             .unwrap_or(0); //"No base color tex for material");
         let base_color_handle = images[base_color_index];
-        let base_color_view = if let Some(tex_info) = pbr_metallic_roughness.base_color_texture() {
-            self.textures
-                .get(&base_color_handle)
-                .expect("Couldn't find base texture")
-                .create_view(&wgpu::TextureViewDescriptor::default())
-        } else {
-            let bc = pbr_metallic_roughness.base_color_factor();
-            let bc_data = [
-                (255.0 * bc[0]) as u8,
-                (255.0 * bc[1]) as u8,
-                (255.0 * bc[2]) as u8,
-                (255.0 * bc[3]) as u8,
-            ];
-            let mat_name = material.name().unwrap_or("unnamed");
-            let constant_color_tex = renderer.create_texture2D_init(
-                mat_name,
-                winit::dpi::PhysicalSize::new(1, 1),
-                wgpu::TextureFormat::Rgba8Unorm,
-                wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::STORAGE_BINDING,
-                bytemuck::bytes_of(&[bc_data]),
-            );
-            let tex_handle = TextureHandle::unique();
-            self.textures.insert(tex_handle, constant_color_tex);
-            self.textures
-                .get(&tex_handle)
-                .unwrap()
-                .create_view(&wgpu::TextureViewDescriptor::default())
-        };
+        let (base_color_view, base_color_data) =
+            if let Some(tex_info) = pbr_metallic_roughness.base_color_texture() {
+                (
+                    self.textures
+                        .get(&base_color_handle)
+                        .expect("Couldn't find base texture")
+                        .create_view(&wgpu::TextureViewDescriptor::default()),
+                    BaseColorData::ImageIndex(base_color_index),
+                )
+            } else {
+                let bc = pbr_metallic_roughness.base_color_factor();
+                let bc_data = [
+                    (255.0 * bc[0]) as u8,
+                    (255.0 * bc[1]) as u8,
+                    (255.0 * bc[2]) as u8,
+                    (255.0 * bc[3]) as u8,
+                ];
+                let mat_name = material.name().unwrap_or("unnamed");
+                let constant_color_tex = renderer.create_texture2D_init(
+                    mat_name,
+                    winit::dpi::PhysicalSize::new(1, 1),
+                    wgpu::TextureFormat::Rgba8Unorm,
+                    wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::STORAGE_BINDING,
+                    bytemuck::bytes_of(&[bc_data]),
+                );
+                let tex_handle = TextureHandle::unique();
+                self.textures.insert(tex_handle, constant_color_tex);
+                (
+                    self.textures
+                        .get(&tex_handle)
+                        .unwrap()
+                        .create_view(&wgpu::TextureViewDescriptor::default()),
+                    BaseColorData::Color(bc_data),
+                )
+            };
 
         let sampler = renderer.device.create_sampler(&wgpu::SamplerDescriptor {
             address_mode_u: wgpu::AddressMode::ClampToEdge,
@@ -473,7 +668,7 @@ impl ResourceManager {
                 usage: wgpu::BufferUsages::UNIFORM,
             });
 
-        let pass_name = "forward";
+        let pass_name = "geometry";
         let material = MaterialBuilder::new(renderer, pass_name)
             .texture_resource(1, 0, base_color_view)
             .sampler_resource(1, 1, sampler)
@@ -481,17 +676,25 @@ impl ResourceManager {
             .produce();
 
         self.materials.insert(material_handle, material);
-        material_handle
+        (material_handle, base_color_data)
     }
 
-    pub fn depth_framebuffer(
+    fn create_framebuffer_textures(
         &mut self,
         name: &str,
-        renderer: &Renderer,
+        renderer: &mut Renderer,
         size: winit::dpi::PhysicalSize<u32>,
         formats: &[wgpu::TextureFormat],
         clear_color: Option<wgpu::Color>,
-    ) -> FramebufferDescriptor {
+        is_alt: bool,
+    ) -> (TextureHandle, Vec<TextureHandle>) {
+        let depth_texture = renderer.create_texture2D(
+            format!("{}_tex_depth", name).as_str(),
+            size,
+            Renderer::DEPTH_FORMAT,
+            wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+        );
+
         let color_textures: Vec<wgpu::Texture> = formats
             .iter()
             .enumerate()
@@ -511,19 +714,7 @@ impl ResourceManager {
             .map(|idx| TextureHandle::unique())
             .collect();
 
-        let depth_texture = renderer.create_texture2D(
-            format!("{}_tex_depth", name).as_str(),
-            size,
-            Renderer::DEPTH_FORMAT,
-            wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
-        );
-
         let depth_handle = TextureHandle::unique();
-
-        self.framebuffers
-            .entry(name.to_string())
-            .or_default()
-            .extend(color_handles.iter().chain([depth_handle].iter()));
 
         let desc = FramebufferDescriptor {
             color_attachments: color_textures
@@ -537,8 +728,12 @@ impl ResourceManager {
             clear_depth: true,
         };
 
+        let register_name = format!("{}.{}", name, if is_alt { 1 } else { 0 });
+        renderer.register_framebuffer(register_name.as_str(), desc);
+
         self.textures.extend(
             color_handles
+                .clone()
                 .into_iter()
                 .chain([depth_handle].into_iter())
                 .zip(
@@ -548,22 +743,67 @@ impl ResourceManager {
                 ),
         );
 
-        desc
+        (depth_handle, color_handles)
     }
 
-    pub fn depth_surface_framebuffer(
+    pub fn register_depth_framebuffer(
         &mut self,
         name: &str,
-        renderer: &Renderer,
+        renderer: &mut Renderer,
+        size: winit::dpi::PhysicalSize<u32>,
         formats: &[wgpu::TextureFormat],
         clear_color: Option<wgpu::Color>,
-    ) -> FramebufferDescriptor {
-        let surface_size = renderer.surface_size();
-        self.depth_framebuffer(name, renderer, surface_size, formats, clear_color)
+        save_prev: bool,
+    ) {
+        let (depth_handle, color_handles) =
+            self.create_framebuffer_textures(name, renderer, size, formats, clear_color, false);
+
+        self.framebuffers
+            .entry(name.to_string())
+            .or_default()
+            .extend(color_handles.iter().chain([depth_handle].iter()));
+
+        if save_prev {
+            let (alt_depth_texture, alt_color_textures) =
+                self.create_framebuffer_textures(name, renderer, size, formats, clear_color, true);
+
+            self.alt_framebuffers
+                .entry(name.to_string())
+                .or_default()
+                .extend(color_handles.iter().chain([depth_handle].iter()));
+        }
     }
 
-    pub fn framebuffer_tex(&self, name: &str, index: usize) -> Option<&wgpu::Texture> {
-        let handle = self.framebuffers.get(&name.to_string())?.get(index)?;
+    pub fn register_depth_surface_framebuffer(
+        &mut self,
+        name: &str,
+        renderer: &mut Renderer,
+        formats: &[wgpu::TextureFormat],
+        clear_color: Option<wgpu::Color>,
+        save_prev: bool,
+    ) {
+        let surface_size = renderer.surface_size();
+        self.register_depth_framebuffer(
+            name,
+            renderer,
+            surface_size,
+            formats,
+            clear_color,
+            save_prev,
+        )
+    }
+
+    pub fn framebuffer_tex(&self, name: &str, index: usize, alt: bool) -> Option<&wgpu::Texture> {
+        let handle = if !alt {
+            self.framebuffers.get(&name.to_string())?.get(index)?
+        } else {
+            self.alt_framebuffers.get(&name.to_string())?.get(index)?
+        };
         self.textures.get(&handle)
+    }
+
+    pub fn framebuffer_name(&self, name: &str, alt: bool) -> String {
+        let get_alt = alt && self.alt_framebuffers.contains_key(&name.to_string());
+        format!("{}.{}", name, if get_alt { 1 } else { 0 })
     }
 }

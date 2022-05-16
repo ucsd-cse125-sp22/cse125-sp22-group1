@@ -2,6 +2,8 @@ use wgpu::util::DeviceExt;
 
 use crate::renderer::Renderer;
 
+use super::Bounds;
+
 pub type IndexRange = (std::ops::Bound<u64>, std::ops::Bound<u64>);
 
 /*
@@ -24,6 +26,10 @@ pub struct StaticMesh {
     pub index_buffer: Option<wgpu::Buffer>,
     pub index_format: wgpu::IndexFormat,
     pub submeshes: Vec<SubMesh>,
+    pub surfel_points_buf: Option<wgpu::Buffer>,
+    pub surfel_normals_buf: Option<wgpu::Buffer>,
+    pub surfel_colors_buf: Option<wgpu::Buffer>,
+    pub num_surfels: u32,
 }
 
 // Helper struct for building meshes
@@ -34,17 +40,25 @@ pub struct MeshBuilder<'a> {
     index_buffer: Option<wgpu::Buffer>,
     index_format: wgpu::IndexFormat,
     submeshes: Vec<SubMesh>,
+    surfel_points_buf: Option<wgpu::Buffer>,
+    surfel_normals_buf: Option<wgpu::Buffer>,
+    surfel_colors_buf: Option<wgpu::Buffer>,
+    num_surfels: u32,
 }
 
 impl<'a> MeshBuilder<'a> {
     pub fn new(renderer: &'a Renderer, name: Option<&'a str>) -> Self {
-        MeshBuilder {
+        Self {
             renderer: renderer,
             label: name,
-            vertex_buffers: Vec::new(),
+            vertex_buffers: vec![],
             index_buffer: None,
             index_format: wgpu::IndexFormat::Uint16,
-            submeshes: Vec::new(),
+            submeshes: vec![],
+            surfel_points_buf: None,
+            surfel_normals_buf: None,
+            surfel_colors_buf: None,
+            num_surfels: 0,
         }
     }
 
@@ -134,12 +148,62 @@ impl<'a> MeshBuilder<'a> {
         self
     }
 
+    pub fn surfels<'b>(
+        &'b mut self,
+        points: &[glam::Vec3],
+        normals: &[glam::Vec3],
+        colors: &[glam::Vec3],
+    ) -> &'b mut Self {
+        self.surfel_points_buf = Some(self.renderer.device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: self.label,
+                contents: unsafe {
+                    core::slice::from_raw_parts(
+                        points.as_ptr() as *const u8,
+                        std::mem::size_of::<glam::Vec3>() * points.len(),
+                    )
+                },
+                usage: wgpu::BufferUsages::VERTEX,
+            },
+        ));
+        self.surfel_normals_buf = Some(self.renderer.device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: self.label,
+                contents: unsafe {
+                    core::slice::from_raw_parts(
+                        normals.as_ptr() as *const u8,
+                        std::mem::size_of::<glam::Vec3>() * normals.len(),
+                    )
+                },
+                usage: wgpu::BufferUsages::VERTEX,
+            },
+        ));
+        self.surfel_colors_buf = Some(self.renderer.device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: self.label,
+                contents: unsafe {
+                    core::slice::from_raw_parts(
+                        colors.as_ptr() as *const u8,
+                        std::mem::size_of::<glam::Vec3>() * colors.len(),
+                    )
+                },
+                usage: wgpu::BufferUsages::VERTEX,
+            },
+        ));
+        self.num_surfels = points.len() as u32;
+        self
+    }
+
     pub fn produce_static_mesh(&mut self) -> StaticMesh {
         StaticMesh {
             vertex_buffers: std::mem::take(&mut self.vertex_buffers),
             index_buffer: std::mem::take(&mut self.index_buffer),
             index_format: self.index_format,
             submeshes: std::mem::take(&mut self.submeshes),
+            surfel_points_buf: std::mem::take(&mut self.surfel_points_buf),
+            surfel_normals_buf: std::mem::take(&mut self.surfel_normals_buf),
+            surfel_colors_buf: std::mem::take(&mut self.surfel_colors_buf),
+            num_surfels: self.num_surfels,
         }
     }
 }
