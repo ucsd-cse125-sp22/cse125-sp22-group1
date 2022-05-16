@@ -11,6 +11,15 @@ pub struct Settings {
     pub player_amount: usize,
     pub ws_server_port: String,
 
+    pub bypass_multiplayer_requirement: bool,
+    // Resources
+    pub resource_folder: String,
+    pub map_name: String,
+
+    // Gameplay
+    pub number_laps: u8,
+    pub powerup_cooldown_time: u64,
+
     // Physics
     pub gravity_coefficient: f64,
     pub drag_coefficient: f64,
@@ -25,6 +34,7 @@ pub struct Settings {
     pub max_car_speed: f64,
     pub max_car_spin: f64,
 
+    // Voting
     pub audience_vote_time_ms: u64,
 }
 
@@ -34,9 +44,16 @@ impl Settings {
             // networking
             .set_default("port", "24247")?
             .set_default("server_address", "127.0.0.1")?
-            .set_default("ws_server_port", "0.0.0.0:9001")?
+            .set_default("ws_server_port", "0.0.0.0:2334")?
             .set_default("server_tick_ms", 30)?
             .set_default("player_amount", 1)?
+            // for debugging purposes: don't require all players to join to get to see the graphical view
+            .set_default("bypass_multiplayer_requirement", false)?
+            // files_and_resources (client)
+            .set_default("resource_folder", "../chariot-core/resources")?
+            .set_default("map_name", "track")?
+            .set_default("number_laps", 3)?
+            .set_default("powerup_cooldown_time", 10)?
             // physics
             // `gravity_coefficient` is acceleration due to gravity: this is
             // little g (whose IRL value is 9.81 meters per second squared, but

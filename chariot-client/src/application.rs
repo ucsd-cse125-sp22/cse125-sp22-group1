@@ -1,13 +1,14 @@
-use chariot_core::networking::ClientBoundPacket;
-use chariot_core::GLOBAL_CONFIG;
 use std::collections::HashSet;
+
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, VirtualKeyCode};
 
+use chariot_core::networking::ClientBoundPacket;
+use chariot_core::player_inputs::{EngineStatus, InputEvent, RotationStatus};
+use chariot_core::GLOBAL_CONFIG;
+
 use crate::game::{self, GameClient};
 use crate::graphics::{register_passes, GraphicsManager};
-
-use chariot_core::player_inputs::{EngineStatus, InputEvent, RotationStatus};
 
 pub struct Application {
     pub graphics: GraphicsManager,
@@ -36,25 +37,38 @@ impl Application {
     }
 
     pub fn update(&mut self) {
-        let mouse_pos = glam::Vec2::new(self.mouse_pos.x as f32, self.mouse_pos.y as f32);
-        self.graphics.update(mouse_pos);
-
         self.game.fetch_incoming_packets();
 
-        for packet in self.game.current_packets() {
+        // process current packets
+        while let Some(packet) = self.game.connection.pop_incoming() {
             match packet {
                 ClientBoundPacket::PlayerNumber(player_number) => {
                     self.graphics.add_player(player_number, true)
                 }
-                ClientBoundPacket::LocationUpdate(locations) => {
-                    for (i, location) in locations.iter().enumerate() {
-                        if location.is_some() {
-                            self.graphics
-                                .update_player_location(&location.unwrap(), i as u8);
-                        }
-                    }
+                ClientBoundPacket::EntityUpdate(locations) => {
+                    locations.iter().enumerate().for_each(|(i, update)| {
+                        self.graphics
+                            .update_player_location(&update.0, &update.1, i as u8)
+                    });
                 }
-                _ => {}
+                ClientBoundPacket::PlacementUpdate(position) => {
+                    println!("I am now placed {}!", position);
+                }
+                ClientBoundPacket::LapUpdate(lap_num) => {
+                    println!("I am now on lap {}!", lap_num);
+                }
+                ClientBoundPacket::GameStart(_) => println!("The game has begun!"),
+                ClientBoundPacket::PowerupPickup => println!("we got a powerup!"),
+                ClientBoundPacket::InteractionActivate(question, decision) => {
+                    println!(
+                        "The Audience has voted on {}, and voted for option {}!",
+                        question.prompt, decision.label
+                    );
+                }
+                ClientBoundPacket::AllDone => println!("This game is over!"),
+                ClientBoundPacket::VotingStarted(question) => {
+                    println!("The audience is now voting on {}", question.prompt)
+                }
             }
         }
     }
@@ -100,7 +114,6 @@ impl Application {
             return;
         };
 
-        println!("Key down [{:?}]!", key);
         self.pressed_keys.insert(key);
 
         if let Some(event) = self.get_input_event(key) {
@@ -114,7 +127,6 @@ impl Application {
     }
 
     pub fn on_key_up(&mut self, key: VirtualKeyCode) {
-        println!("Key up [{:?}]!", key);
         self.pressed_keys.remove(&key);
 
         if let Some(event) = self.invert_event(self.get_input_event(key)) {
@@ -125,7 +137,6 @@ impl Application {
     pub fn on_mouse_move(&mut self, x: f64, y: f64) {
         self.mouse_pos.x = x;
         self.mouse_pos.y = y;
-        //println!("Mouse moved! ({}, {})", x, y);
     }
 
     pub fn on_left_mouse(&mut self, state: ElementState) {
@@ -133,7 +144,7 @@ impl Application {
         let y = self.mouse_pos.y;
 
         if let ElementState::Released = state {
-            println!("Mouse clicked @ ({}, {})!", x, y);
+            // println!("Mouse clicked @ ({}, {})!", x, y);
         }
     }
 
@@ -142,7 +153,7 @@ impl Application {
         let y = self.mouse_pos.y;
 
         if let ElementState::Released = state {
-            println!("Mouse right clicked @ ({}, {})!", x, y);
+            // println!("Mouse right clicked @ ({}, {})!", x, y);
         }
     }
 

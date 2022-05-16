@@ -3,7 +3,7 @@ use chariot_core::player_inputs::InputEvent;
 use std::net::TcpStream;
 
 pub struct GameClient {
-    connection: ServerConnection,
+    pub connection: ServerConnection,
 }
 
 impl GameClient {
@@ -23,14 +23,6 @@ impl GameClient {
         self.connection.fetch_incoming_packets();
     }
 
-    pub fn current_packets(&mut self) -> Vec<ClientBoundPacket> {
-        let mut ret = vec![];
-        while let Some(packet) = self.connection.pop_incoming() {
-            ret.push(packet);
-        }
-        return ret;
-    }
-
     pub fn send_ready_packet(&mut self, chair_name: String) {
         self.connection
             .push_outgoing(ServerBoundPacket::ChairSelectAndReady(chair_name));
@@ -38,7 +30,6 @@ impl GameClient {
     }
 
     pub fn send_input_event(&mut self, event: InputEvent) {
-        println!("sending input event");
         self.connection
             .push_outgoing(ServerBoundPacket::InputToggle(event));
         self.connection.sync_outgoing();

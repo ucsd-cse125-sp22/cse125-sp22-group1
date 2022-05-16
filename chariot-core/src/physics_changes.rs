@@ -3,6 +3,7 @@ use std::time::Instant;
 #[derive(Clone)]
 pub enum PhysicsChangeType {
     NoTurningRight,
+    NoTurningLeft,
     IAmSpeed,
     ShoppingCart,
     InSpainButTheAIsSilent,
