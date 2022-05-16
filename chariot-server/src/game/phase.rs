@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 use chariot_core::lap_info::{LapInformation, LapNumber};
-use chariot_core::networking::{ws::QuestionBody, Uuid};
+use chariot_core::networking::Uuid;
 use chariot_core::questions::{QuestionData, QuestionOption};
 
 /*
