@@ -1,4 +1,4 @@
-use chariot_core::networking::{ServerBoundPacket, ServerConnection};
+use chariot_core::networking::{ClientBoundPacket, ServerBoundPacket, ServerConnection};
 use chariot_core::player_inputs::InputEvent;
 use std::net::TcpStream;
 
@@ -30,7 +30,6 @@ impl GameClient {
     }
 
     pub fn send_input_event(&mut self, event: InputEvent) {
-        println!("sending input event");
         self.connection
             .push_outgoing(ServerBoundPacket::InputToggle(event));
         self.connection.sync_outgoing();

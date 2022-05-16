@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::time::Instant;
 
-use chariot_core::networking::ws::QuestionBody;
+use chariot_core::lap_info::{LapInformation, LapNumber};
 use chariot_core::networking::Uuid;
+use chariot_core::questions::{QuestionData, QuestionOption};
 
 /*
  * Phases of the game are as follows:
@@ -37,7 +38,8 @@ pub enum GamePhase {
     CountingDownToGameStart(Instant),
     PlayingGame {
         voting_game_state: VotingState,
-        player_placement: [u8; 4],
+        player_placement: [LapInformation; 4],
+        question_idx: usize, // to keep track of which question we have asked
     },
     AllPlayersDone,
 }
@@ -45,9 +47,9 @@ pub enum GamePhase {
 pub enum VotingState {
     VoteCooldown(Instant), // Instant corresponds to the time we will start waitingforvotes again
     WaitingForVotes {
-        audience_votes: HashMap<Uuid, i32>,
-        current_question: QuestionBody,
+        audience_votes: HashMap<Uuid, usize>,
+        current_question: QuestionData,
         vote_close_time: Instant,
     },
-    VoteResultActive(i32), // i32 corresponds to the decision that was made (will likely change into a more complex data structure later)
+    VoteResultActive(QuestionOption),
 }
