@@ -1,10 +1,11 @@
+use crate::game::powerup::PowerUp;
 use crate::physics::bounding_box::BoundingBox;
 use chariot_core::entity_location::EntityLocation;
 use chariot_core::lap_info::LapInformation;
 use chariot_core::physics_changes::{PhysicsChange, PhysicsChangeType};
 use chariot_core::player_inputs::{EngineStatus, PlayerInputs, RotationStatus};
 use chariot_core::GLOBAL_CONFIG;
-use glam::DVec3;
+use glam::{dvec3, DVec3};
 
 use crate::physics::trigger_entity::TriggerEntity;
 
@@ -26,6 +27,8 @@ pub struct PlayerEntity {
     pub physics_changes: Vec<PhysicsChange>,
 
     pub lap_info: LapInformation,
+
+    pub current_powerup: Option<PowerUp>,
 }
 
 impl PlayerEntity {
@@ -106,11 +109,11 @@ impl PlayerEntity {
 
     /* Given a set of physical properties, compute and return what next tick's
      * physics properties will be for that object */
-    pub fn do_physics_step(
+    pub fn do_physics_step<'a>(
         &self,
         time_step: f64,
         potential_colliders: Vec<&PlayerEntity>,
-        potential_triggers: Vec<Box<&dyn TriggerEntity>>,
+        potential_triggers: impl Iterator<Item = &'a mut dyn TriggerEntity>,
     ) -> PlayerEntity {
         let self_forces = self.sum_of_self_forces();
         let acceleration = self_forces / self.mass;
@@ -165,19 +168,23 @@ impl PlayerEntity {
             },
 
             velocity: new_velocity,
-            angular_velocity: angular_velocity,
+            angular_velocity,
             mass: self.mass,
             size: self.size,
             bounding_box: self.bounding_box,
             physics_changes: self.physics_changes.clone(),
             lap_info: self.lap_info,
+            current_powerup: None,
         };
 
         new_player.apply_physics_changes();
 
-        for b in potential_triggers.iter() {
-            if b.get_bounding_box().is_colliding(&new_player.bounding_box) {
-                b.trigger(&mut new_player);
+        for trigger in potential_triggers {
+            if trigger
+                .get_bounding_box()
+                .is_colliding(&new_player.bounding_box)
+            {
+                trigger.trigger(&mut new_player);
             }
         }
 

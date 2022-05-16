@@ -1,4 +1,5 @@
 use chariot_core::entity_location::EntityLocation;
+use chariot_core::GLOBAL_CONFIG;
 use glam::{DVec3, Vec2};
 use std::f64::consts::PI;
 
@@ -39,7 +40,7 @@ fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer) -> Worl
 
     {
         let track_import = resources
-            .import_gltf(renderer, "models/track.glb")
+            .import_gltf(renderer, format!("models/{}.glb", GLOBAL_CONFIG.map_name))
             .expect("Unable to load racetrack");
 
         let track = world
@@ -128,7 +129,7 @@ impl GraphicsManager {
 
         let chair_import = self
             .resources
-            .import_gltf(&mut self.renderer, "models/defaultchair.glb")
+            .import_gltf(&mut self.renderer, "models/defaultchair.glb".to_string())
             .expect("Failed to import chair");
 
         let world_root = self.world.root();

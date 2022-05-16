@@ -1,4 +1,4 @@
-use chariot_core::networking::{ServerBoundPacket, ServerConnection};
+use chariot_core::networking::{ClientBoundPacket, ServerBoundPacket, ServerConnection};
 use chariot_core::player_inputs::InputEvent;
 use std::net::TcpStream;
 

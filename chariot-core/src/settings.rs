@@ -14,6 +14,11 @@ pub struct Settings {
     pub bypass_multiplayer_requirement: bool,
     // Resources
     pub resource_folder: String,
+    pub map_name: String,
+
+    // Gameplay
+    pub number_laps: u8,
+    pub powerup_cooldown_time: u64,
 
     // Physics
     pub gravity_coefficient: f64,
@@ -46,6 +51,9 @@ impl Settings {
             .set_default("bypass_multiplayer_requirement", false)?
             // files_and_resources (client)
             .set_default("resource_folder", "../chariot-core/resources")?
+            .set_default("map_name", "track")?
+            .set_default("number_laps", 3)?
+            .set_default("powerup_cooldown_time", 10)?
             // physics
             // `gravity_coefficient` is acceleration due to gravity: this is
             // little g (whose IRL value is 9.81 meters per second squared, but

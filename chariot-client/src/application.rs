@@ -51,6 +51,12 @@ impl Application {
                             .update_player_location(&update.0, &update.1, i as u8)
                     });
                 }
+                ClientBoundPacket::PlacementUpdate(position) => {
+                    println!("I am now placed {}!", position);
+                }
+                ClientBoundPacket::LapUpdate(lap_num) => {
+                    println!("I am now on lap {}!", lap_num);
+                }
                 ClientBoundPacket::GameStart(_) => println!("The game has begun!"),
                 ClientBoundPacket::PowerupPickup => println!("we got a powerup!"),
                 ClientBoundPacket::InteractionActivate(question, decision) => {
@@ -59,8 +65,6 @@ impl Application {
                         question.prompt, decision.label
                     );
                 }
-                ClientBoundPacket::LapUpdate(lap) => println!("We are now on lap {}", lap),
-                ClientBoundPacket::PlacementUpdate(place) => println!("We are in {} place", place),
                 ClientBoundPacket::AllDone => println!("This game is over!"),
                 ClientBoundPacket::VotingStarted(question) => {
                     println!("The audience is now voting on {}", question.prompt)

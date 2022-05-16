@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::time::Instant;
 
+use chariot_core::lap_info::{LapInformation, LapNumber};
 use chariot_core::networking::Uuid;
 use chariot_core::questions::{QuestionData, QuestionOption};
 
@@ -37,7 +38,7 @@ pub enum GamePhase {
     CountingDownToGameStart(Instant),
     PlayingGame {
         voting_game_state: VotingState,
-        player_placement: [u8; 4],
+        player_placement: [LapInformation; 4],
         question_idx: usize, // to keep track of which question we have asked
     },
     AllPlayersDone,
