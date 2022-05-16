@@ -9,7 +9,7 @@ use crate::{
 };
 use chariot_core::GLOBAL_CONFIG;
 
-use super::powerup::pickups::PowerUpTrigger;
+use super::powerup::pickups::ItemBox;
 
 pub struct Map {
     // Something you cannot pass through/has collision
@@ -24,7 +24,7 @@ pub struct Map {
     // Map's finish line, which... is the finish line
     pub finish_line: FinishLine,
 
-    pub powerups: Vec<PowerUpTrigger>,
+    pub powerups: Vec<ItemBox>,
 }
 
 fn import_mesh(
@@ -165,7 +165,7 @@ impl Map {
                                             "Loading mesh '{}' as a trigger_powerup",
                                             mesh.name().unwrap_or("<unnamed>")
                                         );
-                                        powerups.push(PowerUpTrigger::new(mesh_bounds));
+                                        powerups.push(ItemBox::new(mesh_bounds));
                                     } else {
                                         panic!("Unknown trigger type '{}'!", trigger_type);
                                     }

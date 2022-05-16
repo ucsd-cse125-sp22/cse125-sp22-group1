@@ -9,26 +9,19 @@ use crate::physics::{
 
 impl PlayerEntity {
     pub fn give_powerup(&mut self) {
-        if !self.has_powerup() {
+        if !self.current_powerup.is_some() {
             // Give a powerup
-        }
-    }
-
-    pub fn has_powerup(&self) -> bool {
-        match self.current_powerup {
-            Some(_) => true,
-            None => false,
         }
     }
 }
 
 #[derive(Clone, Copy)]
-pub struct PowerUpTrigger {
+pub struct ItemBox {
     pub bounds: BoundingBox,
     pub active_after: Instant,
 }
 
-impl PowerUpTrigger {
+impl ItemBox {
     pub fn new(bounds: BoundingBox) -> Self {
         Self {
             bounds,
@@ -37,7 +30,7 @@ impl PowerUpTrigger {
     }
 }
 
-impl TriggerEntity for PowerUpTrigger {
+impl TriggerEntity for ItemBox {
     fn pos(&self) -> DVec3 {
         self.bounds.pos()
     }
@@ -48,7 +41,7 @@ impl TriggerEntity for PowerUpTrigger {
 
     fn trigger(&mut self, player: &mut PlayerEntity) {
         // Player is only allowed to pick up if we are active
-        if !player.has_powerup() && Instant::now() > self.active_after {
+        if !player.current_powerup.is_some() && Instant::now() > self.active_after {
             player.give_powerup();
             self.active_after =
                 Instant::now() + Duration::from_secs(GLOBAL_CONFIG.powerup_cooldown_time);
