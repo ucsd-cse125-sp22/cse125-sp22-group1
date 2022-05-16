@@ -5,6 +5,7 @@ use std::f64::consts::PI;
 use crate::drawable::technique::Technique;
 use crate::drawable::*;
 use crate::renderer::*;
+use crate::resources::minimap::create_minimap_image;
 use crate::resources::*;
 use crate::scenegraph::components::*;
 use crate::scenegraph::*;
@@ -322,5 +323,28 @@ impl GraphicsManager {
         render_job.merge_graph_after("forward", postprocess_graph);
 
         self.renderer.render(&render_job);
+
+        // temp code just to see what a minimap looks like
+        if rand::random::<f64>() > 0.99 {
+            println!("saving map image");
+            let player_locations: Vec<(f32, f32)> = self
+                .player_entities
+                .iter()
+                .map(|player_num| {
+                    let location = self
+                        .world
+                        .get::<Transform>(player_num.unwrap())
+                        .unwrap()
+                        .translation;
+                    (location.x, location.z)
+                })
+                .collect();
+
+            let minimap =
+                create_minimap_image("track_transparent.png".to_string(), player_locations);
+            minimap
+                .save("minimap_output.png")
+                .expect("couldn't save image?");
+        }
     }
 }
