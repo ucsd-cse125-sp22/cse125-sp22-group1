@@ -44,7 +44,7 @@ pub enum GamePhase {
         player_placement: [LapInformation; 4],
         question_idx: QuestionID, // to keep track of which question we have asked
     },
-    #[allow(dead_code)]
+    #[allow(dead_code)] // Currently unused state for when all players have finished a race
     AllPlayersDone,
 }
 

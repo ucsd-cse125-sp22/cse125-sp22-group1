@@ -156,7 +156,7 @@ impl<T: Any> Resource for T {
 
 impl dyn Resource {
     #[inline]
-    #[allow(dead_code)]
+    #[allow(dead_code)] // Need to keep these functions available for future use, if desired
     pub fn is<T: Resource>(&self) -> bool {
         TypeId::of::<T>() == Resource::__get_type_id(self)
     }
