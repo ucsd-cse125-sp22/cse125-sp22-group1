@@ -1,4 +1,5 @@
 use crate::renderer::*;
+use crate::resources::material::MaterialBuilder;
 use crate::resources::*;
 use wgpu::util::DeviceExt;
 
@@ -260,9 +261,99 @@ impl Technique for FSQTechnique {
 
         render_job::RenderItem::Graphics {
             pass_name: self.material.pass_name.as_str(),
-            framebuffer_name: "surface",
+            framebuffer_name: "surface_nodepth",
             num_elements: 6,
             vertex_buffers: vec![self.vertex_buffer.slice(..)],
+            index_buffer: Some(self.index_buffer.slice(..)),
+            index_format: wgpu::IndexFormat::Uint16,
+            bind_group: bind_groups,
+        }
+    }
+}
+
+pub struct UILayerTechnique {
+    vertex_buffer: wgpu::Buffer,
+    texcoord_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
+    material: material::Material,
+}
+
+impl UILayerTechnique {
+    pub fn new(
+        renderer: &Renderer,
+        pos: glam::Vec2,
+        size: glam::Vec2,
+        tc_pos: glam::Vec2,
+        tc_size: glam::Vec2,
+        texture: &wgpu::Texture,
+    ) -> Self {
+        let pos_ndc = glam::vec2(pos.x, 1.0 - pos.y) * 2.0 - 1.0;
+        let size_ndc = glam::vec2(size.x, -size.y) * 2.0;
+        let verts_data: [[f32; 2]; 4] = [
+            [pos_ndc.x, pos_ndc.y],
+            [pos_ndc.x + size_ndc.x, pos_ndc.y],
+            [pos_ndc.x + size_ndc.x, pos_ndc.y + size_ndc.y],
+            [pos_ndc.x, pos_ndc.y + size_ndc.y],
+        ];
+        let texcoord_data: [[f32; 2]; 4] = [
+            [tc_pos.x, tc_pos.y],
+            [tc_pos.x + tc_size.x, tc_pos.y],
+            [tc_pos.x + tc_size.x, tc_pos.y + tc_size.y],
+            [tc_pos.x, tc_pos.y + tc_size.y],
+        ];
+        let inds_data: [u16; 6] = [0, 2, 1, 0, 3, 2];
+
+        let vertex_buffer = renderer
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("ui_verts"),
+                contents: bytemuck::cast_slice(&verts_data),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+
+        let texcoord_buffer =
+            renderer
+                .device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("ui_texcoords"),
+                    contents: bytemuck::cast_slice(&texcoord_data),
+                    usage: wgpu::BufferUsages::VERTEX,
+                });
+
+        let index_buffer = renderer
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("ui_inds"),
+                contents: bytemuck::cast_slice(&inds_data),
+                usage: wgpu::BufferUsages::INDEX,
+            });
+
+        let material = MaterialBuilder::new(renderer, "ui")
+            .texture_resource(
+                0,
+                0,
+                texture.create_view(&wgpu::TextureViewDescriptor::default()),
+            )
+            .produce();
+
+        Self {
+            vertex_buffer,
+            texcoord_buffer,
+            index_buffer,
+            material,
+        }
+    }
+}
+
+impl Technique for UILayerTechnique {
+    fn render_item<'a>(&'a self, _: &'a ResourceManager) -> render_job::RenderItem<'a> {
+        let bind_groups = self.material.bind_groups.values().collect();
+
+        render_job::RenderItem::Graphics {
+            pass_name: self.material.pass_name.as_str(),
+            framebuffer_name: "surface_nodepth",
+            num_elements: 6,
+            vertex_buffers: vec![self.vertex_buffer.slice(..), self.texcoord_buffer.slice(..)],
             index_buffer: Some(self.index_buffer.slice(..)),
             index_format: wgpu::IndexFormat::Uint16,
             bind_group: bind_groups,

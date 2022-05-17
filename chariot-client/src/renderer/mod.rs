@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -202,7 +202,12 @@ impl Renderer {
                             push_constant_ranges: push_constant_ranges,
                         });
 
-                let surface_target: &[wgpu::ColorTargetState] = &[self.surface_format.into()];
+                let surface_color_state = wgpu::ColorTargetState {
+                    format: self.surface_format,
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                    write_mask: wgpu::ColorWrites::ALL,
+                };
+                let surface_target: &[wgpu::ColorTargetState] = &[surface_color_state];
                 let target_formats = targets.unwrap_or(surface_target);
 
                 let render_pipeline =
@@ -385,6 +390,7 @@ impl Renderer {
         framebuffer_name: &str,
         framebuffers: &'a HashMap<String, FramebufferDescriptor>,
         encoder: &'a mut wgpu::CommandEncoder,
+        force_no_clear: bool,
     ) -> wgpu::RenderPass<'a> {
         let framebuffer_desc = framebuffers
             .get(&String::from(framebuffer_name))
@@ -397,7 +403,11 @@ impl Renderer {
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: if let Some(color) = framebuffer_desc.clear_color {
-                        wgpu::LoadOp::Clear(color)
+                        if force_no_clear {
+                            wgpu::LoadOp::Load
+                        } else {
+                            wgpu::LoadOp::Clear(color)
+                        }
                     } else {
                         wgpu::LoadOp::Load
                     },
@@ -487,13 +497,13 @@ impl Renderer {
 
         // kind of sketch to re-set this every frame
         {
-            let view = frame
+            let surface_view = frame
                 .texture
                 .create_view(&wgpu::TextureViewDescriptor::default());
             self.framebuffers.insert(
                 String::from("surface"),
                 FramebufferDescriptor {
-                    color_attachments: vec![view],
+                    color_attachments: vec![surface_view],
                     depth_stencil_attachment: Some(
                         self.depth_texture
                             .create_view(&wgpu::TextureViewDescriptor::default()),
@@ -502,12 +512,26 @@ impl Renderer {
                     clear_depth: true,
                 },
             );
+
+            let surface_nodepth_view = frame
+                .texture
+                .create_view(&wgpu::TextureViewDescriptor::default());
+            self.framebuffers.insert(
+                String::from("surface_nodepth"),
+                FramebufferDescriptor {
+                    color_attachments: vec![surface_nodepth_view],
+                    depth_stencil_attachment: None,
+                    clear_color: Some(wgpu::Color::BLACK),
+                    clear_depth: false,
+                },
+            );
         }
 
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
+        let mut cleared_framebuffers = HashSet::<&str>::new();
         let mut job_iter = render_job.iter_bfs().peekable();
         while job_iter.peek().is_some() {
             let (pass_name, items) = job_iter.next().unwrap();
@@ -522,8 +546,13 @@ impl Renderer {
                     render_pipeline: _,
                 } => {
                     let fb_name = render_item_framebuffer_name(&items[0]).unwrap();
-                    let mut wgpu_rpass =
-                        Renderer::new_wgpu_render_pass(fb_name, &self.framebuffers, &mut encoder);
+                    let force_no_clear = cleared_framebuffers.contains(fb_name);
+                    let mut wgpu_rpass = Renderer::new_wgpu_render_pass(
+                        fb_name,
+                        &self.framebuffers,
+                        &mut encoder,
+                        force_no_clear,
+                    );
                     Renderer::encode_graphics_pass(&mut wgpu_rpass, pass_name, &self.passes, items);
                     while Renderer::is_same_framebuffer(job_iter.peek(), fb_name) {
                         let (pass_name, items) = job_iter.next().unwrap();
@@ -534,6 +563,8 @@ impl Renderer {
                             items,
                         );
                     }
+
+                    cleared_framebuffers.insert(fb_name);
                 }
                 _ => (),
             }

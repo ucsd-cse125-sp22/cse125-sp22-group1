@@ -3,7 +3,6 @@ use chariot_core::GLOBAL_CONFIG;
 mod chairs;
 mod checkpoints;
 mod game;
-mod map;
 mod physics;
 mod progress;
 
