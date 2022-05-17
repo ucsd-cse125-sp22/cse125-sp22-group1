@@ -282,12 +282,14 @@ impl GameServer {
                                 ));
                             }
 
+                            let decision_end_time = now + Duration::new(30, 0);
+
                             match decision.action {
                                 chariot_core::questions::AudienceAction::NoLeft => {
                                     self.game_state.players.iter_mut().for_each(|playa| {
                                         playa.physics_changes.push(PhysicsChange {
                                             change_type: PhysicsChangeType::NoTurningLeft,
-                                            expiration_time: now + Duration::new(30, 0),
+                                            expiration_time: decision_end_time,
                                         });
                                     });
                                 }
@@ -295,16 +297,27 @@ impl GameServer {
                                     self.game_state.players.iter_mut().for_each(|playa| {
                                         playa.physics_changes.push(PhysicsChange {
                                             change_type: PhysicsChangeType::NoTurningRight,
-                                            expiration_time: now + Duration::new(30, 0),
+                                            expiration_time: decision_end_time,
                                         });
                                     });
                                 }
                             }
 
-                            *voting_game_state = VotingState::VoteResultActive(decision.clone());
+                            *voting_game_state = VotingState::VoteResultActive {
+                                decision,
+                                decision_end_time,
+                            };
                         }
                     }
-                    VotingState::VoteResultActive(decision) => {}
+                    VotingState::VoteResultActive {
+                        decision_end_time, ..
+                    } => {
+                        if *decision_end_time < now {
+                            // the vote has been in effect enough, lets go to the cooldown
+                            *voting_game_state =
+                                VotingState::VoteCooldown(now + Duration::new(10, 0))
+                        }
+                    }
                     VotingState::VoteCooldown(cooldown) => {
                         if *cooldown < now {
                             let time_until_voting_enabled = Duration::new(30, 0);
