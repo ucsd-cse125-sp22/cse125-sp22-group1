@@ -226,6 +226,28 @@ impl GraphicsManager {
         }
     }
 
+    pub fn update_minimap(&mut self) {
+        // Only update if we actually have entities to map
+        if !self.player_entities.iter().all(Option::is_some) {
+            return;
+        }
+
+        let player_locations: Vec<(f32, f32)> = self
+            .player_entities
+            .iter()
+            .map(|player_num| {
+                let location = self
+                    .world
+                    .get::<Transform>(player_num.unwrap())
+                    .unwrap()
+                    .translation;
+                (location.x, location.z)
+            })
+            .collect();
+
+        let minimap = create_minimap_image(player_locations, &mut self.resources);
+    }
+
     pub fn render(&mut self) {
         //let world_bounds = self.world.root().calc_bounds();
         let world_root = self.world.root();
@@ -347,28 +369,5 @@ impl GraphicsManager {
         render_job.merge_graph_after("postprocess", ui_graph);
 
         self.renderer.render(&render_job);
-
-        // temp code just to see what a minimap looks like
-        if rand::random::<f64>() > 0.99 {
-            println!("saving map image");
-            let player_locations: Vec<(f32, f32)> = self
-                .player_entities
-                .iter()
-                .map(|player_num| {
-                    let location = self
-                        .world
-                        .get::<Transform>(player_num.unwrap())
-                        .unwrap()
-                        .translation;
-                    (location.x, location.z)
-                })
-                .collect();
-
-            let minimap =
-                create_minimap_image("track_transparent.png".to_string(), player_locations);
-            minimap
-                .save("minimap_output.png")
-                .expect("couldn't save image?");
-        }
     }
 }
