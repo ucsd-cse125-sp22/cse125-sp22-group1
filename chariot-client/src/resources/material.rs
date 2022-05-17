@@ -44,12 +44,12 @@ impl<'a> MaterialBuilder<'a> {
         }
     }
 
-    pub fn buffer_resource<'b>(
-        &'b mut self,
+    pub fn buffer_resource(
+        &mut self,
         group: u32,
         binding: u32,
         buffer: wgpu::Buffer,
-    ) -> &'b mut Self {
+    ) -> &mut Self {
         self.buffers.push(buffer);
 
         self.bind_group_resources
@@ -59,12 +59,12 @@ impl<'a> MaterialBuilder<'a> {
         self
     }
 
-    pub fn texture_resource<'b>(
-        &'b mut self,
+    pub fn texture_resource(
+        &mut self,
         group: u32,
         binding: u32,
         texture: wgpu::TextureView,
-    ) -> &'b mut Self {
+    ) -> &mut Self {
         self.textures.push(texture);
 
         self.bind_group_resources
@@ -74,12 +74,12 @@ impl<'a> MaterialBuilder<'a> {
         self
     }
 
-    pub fn sampler_resource<'b>(
-        &'b mut self,
+    pub fn sampler_resource(
+        &mut self,
         group: u32,
         binding: u32,
         sampler: wgpu::Sampler,
-    ) -> &'b mut Self {
+    ) -> &mut Self {
         self.samplers.push(sampler);
 
         self.bind_group_resources

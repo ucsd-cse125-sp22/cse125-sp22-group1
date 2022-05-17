@@ -85,7 +85,7 @@ impl Renderer {
         let surface_format = context
             .surface
             .get_preferred_format(&context.adapter)
-            .unwrap();
+            .expect("unable to get preferred surface format initializing renderer");
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -126,11 +126,13 @@ impl Renderer {
         }
     }
 
+    // request the operating system redraw the window contents via winit
+    // this triggers the RedrawRequested event which then calls this render() again
     pub fn request_redraw(&self) {
-        self.context.window.request_redraw()
+        self.context.window.request_redraw();
     }
 
-    pub fn register_framebuffer<'a>(
+    pub fn register_framebuffer(
         &mut self,
         name: &str,
         framebuffer_desc: FramebufferDescriptor,
@@ -199,7 +201,7 @@ impl Renderer {
                         .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                             label: None,
                             bind_group_layouts: &bind_group_layouts,
-                            push_constant_ranges: push_constant_ranges,
+                            push_constant_ranges,
                         });
 
                 let surface_color_state = wgpu::ColorTargetState {

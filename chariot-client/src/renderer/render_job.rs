@@ -40,7 +40,7 @@ pub enum RenderPass {
     },
 }
 
-pub fn pass_render_pipeline<'a>(pass: &'a RenderPass) -> Option<&'a wgpu::RenderPipeline> {
+pub fn pass_render_pipeline(pass: &RenderPass) -> Option<&wgpu::RenderPipeline> {
     match pass {
         RenderPass::Graphics {
             render_pipeline, ..
