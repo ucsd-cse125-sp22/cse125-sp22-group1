@@ -282,12 +282,14 @@ impl GameServer {
                                 ));
                             }
 
+                            let decision_end_time = now + Duration::new(30, 0);
+
                             match decision.action {
                                 chariot_core::questions::AudienceAction::NoLeft => {
                                     self.game_state.players.iter_mut().for_each(|playa| {
                                         playa.physics_changes.push(PhysicsChange {
                                             change_type: PhysicsChangeType::NoTurningLeft,
-                                            expiration_time: now + Duration::new(30, 0),
+                                            expiration_time: decision_end_time,
                                         });
                                     });
                                 }
@@ -295,13 +297,16 @@ impl GameServer {
                                     self.game_state.players.iter_mut().for_each(|playa| {
                                         playa.physics_changes.push(PhysicsChange {
                                             change_type: PhysicsChangeType::NoTurningRight,
-                                            expiration_time: now + Duration::new(30, 0),
+                                            expiration_time: decision_end_time,
                                         });
                                     });
                                 }
                             }
 
-                            *voting_game_state = VotingState::VoteResultActive(decision.clone());
+                            *voting_game_state = VotingState::VoteResultActive {
+                                decision,
+                                decision_end_time,
+                            };
                         }
                     }
                     VotingState::VoteResultActive {
