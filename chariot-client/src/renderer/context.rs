@@ -40,7 +40,7 @@ impl Context {
     }
 
     // this does a lot for playability
-    pub fn capture_cursor(&self) {
+    pub fn _capture_cursor(&self) {
         self.window.set_cursor_visible(false);
         let _ = self.window.set_cursor_grab(true);
     }

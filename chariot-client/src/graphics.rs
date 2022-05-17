@@ -48,7 +48,7 @@ fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer) -> Worl
             .import_gltf(renderer, format!("models/{}.glb", GLOBAL_CONFIG.map_name))
             .expect("Unable to load racetrack");
 
-        let track = world
+        let _track = world
             .builder()
             .attach(world_root)
             .with(Transform::default())
@@ -59,7 +59,7 @@ fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer) -> Worl
 
     {
         let scene_bounds = world.calc_bounds(world.root());
-        let light = world
+        let _light = world
             .builder()
             .attach(world_root)
             .with(Light::new_directional(

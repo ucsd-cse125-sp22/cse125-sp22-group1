@@ -1,6 +1,5 @@
 use std::any::{Any, TypeId};
 use std::boxed::Box;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::mem::MaybeUninit;
 
@@ -95,7 +94,7 @@ pub struct Builder<'a> {
 
 impl<'a> Builder<'a> {
     pub fn with<T: Component>(&'a mut self, component: T) -> &'a mut Self {
-        let type_id = TypeId::of::<T>();
+        let _type_id = TypeId::of::<T>();
         let comp_storage: &mut T::Storage = self
             .world
             .storage_mut::<T>()
@@ -157,12 +156,13 @@ impl<T: Any> Resource for T {
 
 impl dyn Resource {
     #[inline]
+    #[allow(dead_code)]
     pub fn is<T: Resource>(&self) -> bool {
         TypeId::of::<T>() == Resource::__get_type_id(self)
     }
 
     #[inline]
-    pub fn downcast_ref<T: Resource>(&self) -> Option<&T> {
+    pub fn _downcast_ref<T: Resource>(&self) -> Option<&T> {
         if self.is::<T>() {
             unsafe { Option::Some(self.downcast_ref_unchecked()) }
         } else {
@@ -176,7 +176,7 @@ impl dyn Resource {
     }
 
     #[inline]
-    pub fn downcast_mut<T: Resource>(&mut self) -> Option<&mut T> {
+    pub fn _downcast_mut<T: Resource>(&mut self) -> Option<&mut T> {
         if self.is::<T>() {
             unsafe { Option::Some(self.downcast_mut_unchecked()) }
         } else {
@@ -266,7 +266,7 @@ impl World {
     }
 
     pub fn get_mut<T: Component>(&mut self, entity: Entity) -> Option<&mut T> {
-        let type_id = TypeId::of::<T>();
+        let _type_id = TypeId::of::<T>();
         let storage = self
             .storage_mut::<T>()
             .expect("Attempting to get unregistered component");
@@ -279,7 +279,7 @@ impl World {
     }
 
     pub fn insert<T: Component>(&mut self, entity: Entity, component: T) {
-        let type_id = TypeId::of::<T>();
+        let _type_id = TypeId::of::<T>();
         let storage = self
             .storage_mut::<T>()
             .expect("Attempting to get unregistered component");
@@ -318,7 +318,7 @@ impl World {
         }
     }
 
-    pub fn dfs_mut<F>(&mut self, root: Entity, mut func: F)
+    pub fn _dfs_mut<F>(&mut self, root: Entity, mut func: F)
     where
         F: FnMut(Entity, &mut World),
     {

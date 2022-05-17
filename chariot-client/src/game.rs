@@ -1,4 +1,4 @@
-use chariot_core::networking::{ClientBoundPacket, ServerBoundPacket, ServerConnection};
+use chariot_core::networking::{ServerBoundPacket, ServerConnection};
 use chariot_core::player_inputs::InputEvent;
 use std::net::TcpStream;
 
@@ -15,7 +15,7 @@ impl GameClient {
         }
     }
 
-    pub fn sync_outgoing(&mut self) {
+    pub fn _sync_outgoing(&mut self) {
         self.connection.sync_outgoing();
     }
 

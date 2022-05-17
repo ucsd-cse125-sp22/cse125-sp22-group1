@@ -140,8 +140,8 @@ impl Application {
     }
 
     pub fn on_left_mouse(&mut self, state: ElementState) {
-        let x = self.mouse_pos.x;
-        let y = self.mouse_pos.y;
+        let _x = self.mouse_pos.x;
+        let _y = self.mouse_pos.y;
 
         if let ElementState::Released = state {
             // println!("Mouse clicked @ ({}, {})!", x, y);
@@ -149,15 +149,15 @@ impl Application {
     }
 
     pub fn on_right_mouse(&mut self, state: ElementState) {
-        let x = self.mouse_pos.x;
-        let y = self.mouse_pos.y;
+        let _x = self.mouse_pos.x;
+        let _y = self.mouse_pos.y;
 
         if let ElementState::Released = state {
             // println!("Mouse right clicked @ ({}, {})!", x, y);
         }
     }
 
-    pub fn print_keys(&self) {
+    pub fn _print_keys(&self) {
         println!("Pressed keys: {:?}", self.pressed_keys)
     }
 }

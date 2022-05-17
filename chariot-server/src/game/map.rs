@@ -1,6 +1,5 @@
 use std::collections::VecDeque;
 
-use glam::dvec3;
 use serde_json::Value;
 
 use crate::{
@@ -70,9 +69,9 @@ impl Map {
             "loading {}, please give a sec I swear it's not lagging",
             filename
         );
-        let model_name = filename.split(".").next().expect("invalid filename format");
+        filename.split(".").next().expect("invalid filename format");
         let map_path = format!("{}/models/{}.glb", GLOBAL_CONFIG.resource_folder, filename);
-        let (document, buffers, images) = gltf::import(map_path)?;
+        let (document, buffers, _) = gltf::import(map_path)?;
         if document.scenes().count() != 1 {
             panic!(
                 "Document {} has {} scenes!",
@@ -81,7 +80,7 @@ impl Map {
             );
         }
 
-        let mut colliders: Vec<BoundingBox> = Vec::new();
+        let colliders: Vec<BoundingBox> = Vec::new();
 
         let mut checkpoints: Vec<Checkpoint> = Vec::new();
         let mut major_zones: Vec<Zone> = Vec::new();
@@ -125,7 +124,7 @@ impl Map {
                 if let Some(extras) = mesh.extras().as_ref() {
                     let mesh_data: Value = serde_json::from_str(extras.as_ref().get()).unwrap();
                     if let Some(Value::String(purpose)) = mesh_data.get("purpose") {
-                        for (prim_idx, primitive) in mesh.primitives().enumerate() {
+                        for (_, primitive) in mesh.primitives().enumerate() {
                             let mesh_bounds = import_mesh(&buffers, &primitive, transform);
 
                             if purpose == "trigger" {

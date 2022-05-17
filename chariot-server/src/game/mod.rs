@@ -18,9 +18,7 @@ use chariot_core::questions::{QuestionData, QUESTIONS};
 use chariot_core::GLOBAL_CONFIG;
 
 use crate::chairs::get_player_start_physics_properties;
-use crate::checkpoints::{Checkpoint, FinishLine, Zone};
 use crate::physics::player_entity::PlayerEntity;
-use crate::physics::trigger_entity::TriggerEntity;
 use crate::progress::get_player_placement_array;
 
 use self::map::Map;
@@ -170,8 +168,6 @@ impl GameServer {
             con.push_outgoing_message(message.clone());
         });
     }
-
-    fn simulate_checkpoints(&mut self) {}
 
     // update game state
     fn simulate_game(&mut self) {
