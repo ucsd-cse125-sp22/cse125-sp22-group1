@@ -48,7 +48,7 @@ impl Application {
                 ClientBoundPacket::EntityUpdate(locations) => {
                     locations.iter().enumerate().for_each(|(i, update)| {
                         self.graphics
-                            .update_player_location(&update.0, &update.1, i as u8)
+                            .update_player_location(&update.0, &update.1, i)
                     });
                 }
                 ClientBoundPacket::PlacementUpdate(position) => {
@@ -140,8 +140,8 @@ impl Application {
     }
 
     pub fn on_left_mouse(&mut self, state: ElementState) {
-        let x = self.mouse_pos.x;
-        let y = self.mouse_pos.y;
+        let _x = self.mouse_pos.x;
+        let _y = self.mouse_pos.y;
 
         if let ElementState::Released = state {
             // println!("Mouse clicked @ ({}, {})!", x, y);
@@ -149,15 +149,15 @@ impl Application {
     }
 
     pub fn on_right_mouse(&mut self, state: ElementState) {
-        let x = self.mouse_pos.x;
-        let y = self.mouse_pos.y;
+        let _x = self.mouse_pos.x;
+        let _y = self.mouse_pos.y;
 
         if let ElementState::Released = state {
             // println!("Mouse right clicked @ ({}, {})!", x, y);
         }
     }
 
-    pub fn print_keys(&self) {
+    pub fn _print_keys(&self) {
         println!("Pressed keys: {:?}", self.pressed_keys)
     }
 }

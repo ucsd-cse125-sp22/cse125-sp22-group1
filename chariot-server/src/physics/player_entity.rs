@@ -5,7 +5,7 @@ use chariot_core::lap_info::LapInformation;
 use chariot_core::physics_changes::{PhysicsChange, PhysicsChangeType};
 use chariot_core::player_inputs::{EngineStatus, PlayerInputs, RotationStatus};
 use chariot_core::GLOBAL_CONFIG;
-use glam::{dvec3, DVec3};
+use glam::DVec3;
 
 use crate::physics::trigger_entity::TriggerEntity;
 

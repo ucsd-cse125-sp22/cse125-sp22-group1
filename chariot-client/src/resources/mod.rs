@@ -1,7 +1,6 @@
 use std::{
     cmp::Eq,
     collections::{HashMap, VecDeque},
-    default,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -135,7 +134,7 @@ impl ResourceManager {
             "loading {}, please give a sec I swear it's not lagging",
             filename
         );
-        let model_name = filename.split(".").next().expect("invalid filename format");
+        let _model_name = filename.split(".").next().expect("invalid filename format");
         let resource_path = format!("{}/{}", GLOBAL_CONFIG.resource_folder, filename);
         let (document, buffers, images) = gltf::import(resource_path)?;
         if document.scenes().count() != 1 {
@@ -280,7 +279,7 @@ impl ResourceManager {
         primitive: &gltf::Primitive,
         transform: glam::Mat4,
     ) -> (StaticMeshHandle, Bounds) {
-        let f32_low = f32::MIN;
+        let _f32_low = f32::MIN;
 
         let mut bounds = new_bounds();
 
@@ -417,7 +416,7 @@ impl ResourceManager {
         let texture_iter = images.iter().map(texture_upload);
 
         let handles = (0..images.len())
-            .map(|idx| TextureHandle::unique())
+            .map(|_idx| TextureHandle::unique())
             .collect::<Vec<TextureHandle>>();
         self.textures
             .extend(handles.clone().into_iter().zip(texture_iter));
@@ -438,7 +437,7 @@ impl ResourceManager {
             .map(|info| info.texture().source().index())
             .unwrap_or(0); //"No base color tex for material");
         let base_color_handle = images[base_color_index];
-        let base_color_view = if let Some(tex_info) = pbr_metallic_roughness.base_color_texture() {
+        let base_color_view = if let Some(_tex_info) = pbr_metallic_roughness.base_color_texture() {
             self.textures
                 .get(&base_color_handle)
                 .expect("Couldn't find base texture")
@@ -521,7 +520,7 @@ impl ResourceManager {
             .collect();
 
         let color_handles: Vec<TextureHandle> = (0..color_textures.len())
-            .map(|idx| TextureHandle::unique())
+            .map(|_idx| TextureHandle::unique())
             .collect();
 
         let depth_texture = renderer.create_texture2D(

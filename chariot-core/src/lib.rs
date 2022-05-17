@@ -7,3 +7,5 @@ pub mod questions;
 mod settings;
 
 pub use settings::GLOBAL_CONFIG;
+
+pub type PlayerID = usize;

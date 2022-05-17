@@ -3,6 +3,7 @@ use chariot_core::{
     entity_location::EntityLocation,
     lap_info::LapInformation,
     player_inputs::{EngineStatus, PlayerInputs, RotationStatus},
+    PlayerID,
 };
 use glam::DVec3;
 
@@ -26,12 +27,15 @@ fn get_size_from_chair_name(chair_name: &String) -> DVec3 {
 }
 
 // These numbers are completely random guesses btw
-fn get_starting_position_from_player_number(player_number: u8) -> DVec3 {
+fn get_starting_position_from_player_number(player_number: PlayerID) -> DVec3 {
     return DVec3::new(0.0, 1.0, 20.0 * (1.5 - player_number as f64));
 }
 
 // Get the initial physics properties of a player (i.e. at the race start, before anyone starts going)
-pub fn get_player_start_physics_properties(chair_name: &String, player_number: u8) -> PlayerEntity {
+pub fn get_player_start_physics_properties(
+    chair_name: &String,
+    player_number: PlayerID,
+) -> PlayerEntity {
     return PlayerEntity {
         velocity: DVec3::ZERO,
         angular_velocity: 0.0,

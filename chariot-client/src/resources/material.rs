@@ -6,6 +6,7 @@ use crate::renderer::Renderer;
  * A material encapsulates the render pass it should be a part of and the resources it should bind.
  */
 #[derive(Default)]
+#[allow(dead_code)] // Some instance vars of the material are currently unused, but may be in the future
 pub struct Material {
     pub pass_name: String,
     pub bind_groups: HashMap<u32, wgpu::BindGroup>,

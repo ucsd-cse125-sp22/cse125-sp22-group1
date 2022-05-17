@@ -2,7 +2,7 @@ use crate::{
     checkpoints::Checkpoint,
     physics::{player_entity::PlayerEntity, trigger_entity::TriggerEntity},
 };
-use chariot_core::lap_info::*;
+use chariot_core::{lap_info::*, PlayerID};
 
 impl PlayerEntity {
     // Values returned aren't intended to be interpreted directly, only compared
@@ -47,7 +47,7 @@ pub fn get_player_placement_array(
     players: &[PlayerEntity; 4],
     checkpoints: &Vec<Checkpoint>,
 ) -> [(usize, LapInformation); 4] {
-    let mut player_nums_with_scores: Vec<(u8, (LapNumber, ZoneID, CheckpointID, f64))> =
+    let mut player_nums_with_scores: Vec<(PlayerID, (LapNumber, ZoneID, CheckpointID, f64))> =
         [0, 1, 2, 3]
             .into_iter()
             .zip(players.iter().map(|p| p.get_progress_score(checkpoints)))
@@ -71,12 +71,12 @@ pub fn get_player_placement_array(
     return [0, 1, 2, 3].map(|i| {
         let data = player_nums_with_scores.get(i).unwrap();
         (
-            data.0 as usize,
+            data.0,
             LapInformation {
                 lap: data.1 .0,
                 zone: data.1 .1,
                 last_checkpoint: data.1 .2,
-                placement: 4 - i as u8,
+                placement: 4 - i as Placement,
             },
         )
     });

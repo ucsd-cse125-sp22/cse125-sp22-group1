@@ -61,7 +61,7 @@ impl<'a> MeshBuilder<'a> {
         self
     }
 
-    pub fn vertex_buffer_raw<'b>(&'b mut self, data: &[u8], stride: usize) -> &'b mut Self {
+    pub fn _vertex_buffer_raw<'b>(&'b mut self, data: &[u8], _stride: usize) -> &'b mut Self {
         let vertex_buffer =
             self.renderer
                 .device
@@ -90,10 +90,10 @@ impl<'a> MeshBuilder<'a> {
         self
     }
 
-    pub fn index_buffer_raw<'b>(
+    pub fn _index_buffer_raw<'b>(
         &'b mut self,
         data: &[u8],
-        stride: usize,
+        _stride: usize,
         format: wgpu::IndexFormat,
     ) -> &'b mut Self {
         self.index_format = format;
@@ -107,7 +107,7 @@ impl<'a> MeshBuilder<'a> {
         self
     }
 
-    pub fn submesh<'b>(
+    pub fn _submesh<'b>(
         &'b mut self,
         vertex_ranges: &[IndexRange],
         num_elements: u32,
