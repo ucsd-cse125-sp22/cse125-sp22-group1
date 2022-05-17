@@ -35,7 +35,7 @@ use super::voting::{AnswerID, QuestionID};
 
 pub enum GamePhase {
     // Choosing the chair/map
-    ChoosingSettingsAndConnecting {
+    ConnectingAndChoosingSettings {
         players_ready: [bool; 4],
         new_players_joined: Vec<(String, PlayerID)>,
     },

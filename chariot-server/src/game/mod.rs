@@ -62,7 +62,7 @@ impl GameServer {
             ws_connections: HashMap::new(),
             game_state: ServerGameState {
                 // notable: we don't allow more than 4 players
-                phase: GamePhase::WaitingForPlayerReady {
+                phase: GamePhase::ConnectingAndChoosingSettings {
                     players_ready: [false, false, false, false],
                     new_players_joined: Vec::new(),
                 },
@@ -139,7 +139,7 @@ impl GameServer {
             while let Some(packet) = connection.pop_incoming() {
                 match packet {
                     ServerBoundPacket::ChairSelectAndReady(chair_name) => {
-                        if let GamePhase::WaitingForPlayerReady {
+                        if let GamePhase::ConnectingAndChoosingSettings {
                             new_players_joined, ..
                         } = &mut self.game_state.phase
                         {
@@ -173,7 +173,7 @@ impl GameServer {
     fn simulate_game(&mut self) {
         let now = Instant::now();
         match &mut self.game_state.phase {
-            GamePhase::WaitingForPlayerReady {
+            GamePhase::ConnectingAndChoosingSettings {
                 players_ready,
                 new_players_joined,
             } => {
