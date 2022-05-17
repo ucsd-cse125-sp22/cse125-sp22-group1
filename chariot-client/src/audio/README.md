@@ -21,6 +21,9 @@ Usage: `SourceOptions::new();`
 * skip_duration: `Duration`,
 * take_duration: `Duration`,
 * pitch: `f32`,
+* emitter_pos: `[f32; 3]`,
+* left_ear: `[f32; 3]`,
+* right_ear: `[f32; 3]`,
 
 ## Audio Thread
 A multipurpose class that is designed to wrap the main Audio Sink (thread that plays audio in Rodio) and provide additional control over playback.
@@ -45,9 +48,6 @@ Usage: `AudioSource::new(Path);`
 * threads: `Vec<AudioThread>`,
 * volume: `f32`,
 * pitch: `f32`,
-* emitter_pos: `[f32; 3]`,
-* left_ear: `[f32; 3]`,
-* right_ear: `[f32; 3]`,
 
 ## Instructions
 1. Begin with the relevant imports
