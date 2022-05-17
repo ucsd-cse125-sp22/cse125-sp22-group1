@@ -235,7 +235,7 @@ impl GraphicsManager {
             .expect("Root doesn't have transform component")
             .to_mat4();
 
-        // Right now, we're iterating over the scene graph and evaluating all the global transforms once
+        // Right now, we're iterating over the scene graph and evaluating all the global transforms twice
         // which is kind of annoying. First to find the camera and get the view matrix and again to actually
         // render everything. Ideally maybe in the future this could be simplified
 
