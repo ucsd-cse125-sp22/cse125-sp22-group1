@@ -8,7 +8,7 @@ import styles from '../styles/Index.module.scss';
 
 const Home: NextPage = () => {
 	const context = useContext(GlobalContext);
-	const [ip, setIp] = useState("127.0.0.1:2334");
+	const [ip, setIp] = useState("128.54.70.27:2334");
 
 	const connectToWebSocket = () => {
 		const sock = new WebSocket(`ws://${ip}`);

@@ -51,5 +51,8 @@ pub enum VotingState {
         current_question: QuestionData,
         vote_close_time: Instant,
     },
-    VoteResultActive(QuestionOption),
+    VoteResultActive {
+        decision: QuestionOption,
+        decision_end_time: Instant,
+    },
 }

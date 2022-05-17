@@ -304,7 +304,15 @@ impl GameServer {
                             *voting_game_state = VotingState::VoteResultActive(decision.clone());
                         }
                     }
-                    VotingState::VoteResultActive(decision) => {}
+                    VotingState::VoteResultActive {
+                        decision_end_time, ..
+                    } => {
+                        if *decision_end_time < now {
+                            // the vote has been in effect enough, lets go to the cooldown
+                            *voting_game_state =
+                                VotingState::VoteCooldown(now + Duration::new(10, 0))
+                        }
+                    }
                     VotingState::VoteCooldown(cooldown) => {
                         if *cooldown < now {
                             let time_until_voting_enabled = Duration::new(30, 0);

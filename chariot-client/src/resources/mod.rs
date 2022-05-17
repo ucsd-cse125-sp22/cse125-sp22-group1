@@ -583,7 +583,8 @@ impl ResourceManager {
     pub fn import_texture(&mut self, renderer: &Renderer, filename: &str) -> TextureHandle {
         let tex_name = filename.split(".").next().expect("invalid filename format");
         let resource_path = format!("{}/{}", GLOBAL_CONFIG.resource_folder, filename);
-        let img = image::open(resource_path).unwrap();
+        let img = image::open(resource_path.clone())
+            .expect(format!("didn't find {}", resource_path.clone()).as_str());
         let img_rgba8 = img.into_rgba8();
 
         let texture = renderer.create_texture2D_init(
