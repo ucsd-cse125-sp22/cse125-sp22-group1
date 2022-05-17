@@ -30,7 +30,7 @@ use render_job::*;
  *				bind uniform set 1.1	| bind_group[0]		| mvp buffer			|
  *				bind uniform set 1.2	| bind_group[1]		| material data buffer	|
  *					draw()
- * These next two are skipped becase they are the same as the above
+ * These next two are skipped because they are the same as the above
  * bind framebuffer	(SKIPPED)			| framebuffer_name	| "surface"				|
  *		bind pipeline (SKIPPED)			| pass_name			| "shade_pbr"	 		|   Draw Item 2
  * 			bind index bufffer 2		| index_buffer		| inds for model 1		|
