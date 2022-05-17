@@ -23,16 +23,40 @@ impl AudioSource {
     let threads = Vec::new();
     let mut tracks = Vec::new();
 
-    let paths = fs::read_dir(format!("./{}", path)).unwrap();
+    let paths = fs::read_dir(format!("./{}", path)).unwrap_or_else(|err| {
+      panic!("Problem reading the directory: {}", err);
+    });
 
     for path in paths {
-      let path_buf = path.unwrap().path();
+      let path_buf = match path {
+        Ok(p) => p.path(),
+        Err(err) => {
+          println!("Problem obtaining the path: {}", err);
+          continue;
+        }
+      };
+
       let path_str_dsp = path_buf.display().to_string();
 
-      let file = fs::File::open(path_buf).unwrap();
+      let file = fs::File::open(path_buf);
+      let file = match file {
+        Ok(f) => f,
+        Err(err) => {
+          println!("Problem opening the file: {}", err);
+          continue;
+        }
+      };
 
       let buf = BufReader::new(file);
-      let source = Decoder::new(buf).unwrap().buffered();
+      let source = Decoder::new(buf);
+      let source = match source {
+        Ok(s) => s.buffered(),
+        Err(err) => {
+          println!("Problem decoding the file: {}", err);
+          continue;
+        }
+      };
+
 
       tracks.push(source);
       println!("Loaded Track {}: [{}]", tracks.len(), path_str_dsp);
@@ -50,12 +74,20 @@ impl AudioSource {
   pub fn clean(&mut self) {
     let mut i = 0;
     while i < self.threads.len() {
-      let thread = self.threads.get_mut(i).unwrap();
-      if thread.is_empty() {
-        self.threads.remove(i);
-      } else {
-        i += 1;
-      }
+      let thread = self.threads.get_mut(i);
+      match thread {
+        Some(t) => {
+          if t.is_empty() {
+            self.threads.remove(i);
+          } else {
+            i += 1;
+          }
+        },
+        None => {
+          println!("Problem closing the thread: {}", i);
+          i += 1;
+        }
+      };
     }
   }
 
@@ -64,7 +96,15 @@ impl AudioSource {
     // Clean Up All Stopped Threads
     self.clean();
 
-    let source = self.tracks.get(track_id).unwrap().clone();
+    let source = self.tracks.get(track_id);
+    let source = match source {
+      Some(s) => s.clone(),
+      None => {
+        println!("Problem loading the source: {}", track_id);
+        return;
+      }
+    };
+
     let mut thread = AudioThread::new(ctx, source, opt);
     thread.set_volume(self.volume);
     thread.set_pitch(self.pitch);
@@ -74,14 +114,22 @@ impl AudioSource {
   }
 
   // Play audio, & return a thread for self management
-  pub fn play_alone(&mut self, track_id: usize, ctx: &AudioCtx, opt: SourceOptions) -> AudioThread {
-    let source = self.tracks.get(track_id).unwrap().clone();
+  pub fn play_alone(&mut self, track_id: usize, ctx: &AudioCtx, opt: SourceOptions) -> Option<AudioThread> {
+    let source = self.tracks.get(track_id);
+    let source = match source {
+      Some(s) => s.clone(),
+      None => {
+        println!("Problem loading the source: {}", track_id);
+        return None;
+      }
+    };
+
     let mut thread = AudioThread::new(ctx, source, opt);
     thread.set_volume(self.volume);
     thread.set_pitch(self.pitch);
 
     thread.play();
-    return thread;
+    return Some(thread);
   }
 
   // Play an Audio such that it will crossfade with all currently playing tracks
@@ -94,7 +142,15 @@ impl AudioSource {
       opt.set_fade_in(duration);
     }
 
-    let source = self.tracks.get(track_id).unwrap().clone();
+    let source = self.tracks.get(track_id);
+    let source = match source {
+      Some(s) => s.clone(),
+      None => {
+        println!("Problem loading the source: {}", track_id);
+        return;
+      }
+    };
+
     let mut thread = AudioThread::new(ctx, source, opt);
     thread.set_volume(self.volume);
     thread.set_pitch(self.pitch);
@@ -109,8 +165,13 @@ impl AudioSource {
   pub fn fade_all_threads(&mut self, duration: Duration) {
     // Fade Out All Currently Active Threads
     while self.threads.len() > 0 {
-      let active_thread = self.threads.pop().unwrap();
-      active_thread.fade_out(duration);
+      let active_thread = self.threads.pop();
+      match active_thread {
+        Some(t) => t.fade_out(duration),
+        None => {
+          println!("There was an issue fading out the thread");
+        }
+      }
     }
   }
 
@@ -118,7 +179,13 @@ impl AudioSource {
   pub fn pause(&mut self) {
     let mut i = 0;
     while i < self.threads.len() {
-      self.threads.get_mut(i).unwrap().pause();
+      let thread = self.threads.get_mut(i);
+      match thread {
+        Some(t) => t.pause(),
+        None => {
+          println!("There was an issue pausing the thread: {}", i);
+        }
+      };
       i += 1;
     }
   }
@@ -127,7 +194,13 @@ impl AudioSource {
   pub fn resume(&mut self) {
     let mut i = 0;
     while i < self.threads.len() {
-      self.threads.get_mut(i).unwrap().resume();
+      let thread = self.threads.get_mut(i);
+      match thread {
+        Some(t) => t.resume(),
+        None => {
+          println!("There was an issue resuming the thread: {}", i);
+        }
+      };
       i += 1;
     }
   }
@@ -136,7 +209,13 @@ impl AudioSource {
   pub fn stop(&mut self) {
     let mut i = 0;
     while i < self.threads.len() {
-      self.threads.get_mut(i).unwrap().stop();
+      let thread = self.threads.get_mut(i);
+      match thread {
+        Some(t) => t.stop(),
+        None => {
+          println!("There was an issue stopping the thread: {}", i);
+        }
+      };
       i += 1;
     }
   }
@@ -146,7 +225,13 @@ impl AudioSource {
     self.volume = vol;
     let mut i = 0;
     while i < self.threads.len() {
-      self.threads.get_mut(i).unwrap().set_volume(vol);
+      let thread = self.threads.get_mut(i);
+      match thread {
+        Some(t) => t.set_volume(vol),
+        None => {
+          println!("There was an issue with setting the volume of thread: {}", i);
+        }
+      };
       i += 1;
     }
   }
@@ -156,7 +241,13 @@ impl AudioSource {
     self.pitch = pitch;
     let mut i = 0;
     while i < self.threads.len() {
-      self.threads.get_mut(i).unwrap().set_pitch(pitch);
+      let thread = self.threads.get_mut(i);
+      match thread {
+        Some(t) => t.set_pitch(pitch),
+        None => {
+          println!("There was an issue with setting the pitch of thread: {}", i);
+        }
+      };
       i += 1;
     }
   }

@@ -34,8 +34,15 @@ impl AudioThread {
       src_opt.left_ear != [0.0; 3] || 
       src_opt.right_ear != [0.0; 3] {
       // Spatial Sink
-      let sink = AudioSinkType::Spatial(SpatialSink::try_new(&ctx.stream_handle, 
-        src_opt.emitter_pos, src_opt.left_ear, src_opt.right_ear).unwrap());
+      let spatial_sink = SpatialSink::try_new(&ctx.stream_handle, 
+        src_opt.emitter_pos, src_opt.left_ear, src_opt.right_ear);
+      let sink = match spatial_sink {
+        Ok(s) => AudioSinkType::Spatial(s),
+        Err(err) => {
+          println!("There was an error in creating the spatial sink instance: {}", err);
+          AudioSinkType::Standard(Sink::new_idle().0)
+        }
+      };
 
       return Self {
         time_start: SystemTime::now(),
@@ -47,7 +54,14 @@ impl AudioThread {
       }
     } else {
       // Standard Sink
-      let sink = AudioSinkType::Standard(Sink::try_new(&ctx.stream_handle).unwrap());
+      let sink = Sink::try_new(&ctx.stream_handle);
+      let sink = match sink {
+        Ok(s) => AudioSinkType::Standard(s),
+        Err(err) => {
+          println!("There was an error in creating the sink instance: {}", err);
+          AudioSinkType::Standard(Sink::new_idle().0)
+        }
+      };
 
       return Self {
         time_start: SystemTime::now(),
@@ -60,13 +74,20 @@ impl AudioThread {
     }
   }
 
-  pub fn time_alive(&mut self) -> Duration {
-    return self.time_start.elapsed().unwrap();
+  pub fn time_alive(&mut self) -> Option<Duration> {
+    let time_elapsed = self.time_start.elapsed();
+    match time_elapsed {
+      Ok(t) => return Some(t),
+      Err(err) => {
+        println!("There was an error at retrieving thread lifetime, {}", err);
+        return None;
+      }
+    }
   }
 
   pub fn play(&mut self) {
     let source = self.source.clone();
-    
+
     // Apply Skip Duration
     let skp_src = source.skip_duration(self.src_opt.skip_duration);
 
@@ -108,7 +129,15 @@ impl AudioThread {
     let alias = x.clone();
 
     thread::spawn(move || {
-      let mutref = alias.lock().unwrap(); 
+      let mutref = alias.lock();
+      let mutref = match mutref {
+        Ok(m) => m,
+        Err(err) => {
+          println!("There was an error while creating the mutref: {}", err);
+          return;
+        }
+      };
+      
       for n in 1..steps {
         let volume = (mutref.volume / steps as f32) * (steps - n) as f32;
 
