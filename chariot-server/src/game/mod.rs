@@ -138,14 +138,12 @@ impl GameServer {
         for (i, connection) in self.connections.iter_mut().enumerate() {
             while let Some(packet) = connection.pop_incoming() {
                 match packet {
-                    ServerBoundPacket::ChairSelectAndReady(chair_name) => {
-                        if let GamePhase::ConnectingAndChoosingSettings {
-                            new_players_joined, ..
-                        } = &mut self.game_state.phase
-                        {
-                            new_players_joined.push((chair_name, i));
-                        }
-                    }
+                    ServerBoundPacket::ChairSelect(_) => todo!(),
+                    ServerBoundPacket::MapSelect(_) => todo!(),
+                    ServerBoundPacket::SetReadyStatus(_) => todo!(),
+
+                    ServerBoundPacket::NotifyLoaded => todo!(),
+
                     ServerBoundPacket::InputToggle(event) => match event {
                         InputEvent::Engine(status) => {
                             self.game_state.players[i].player_inputs.engine_status = status;

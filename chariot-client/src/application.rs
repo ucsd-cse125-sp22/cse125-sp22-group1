@@ -22,7 +22,7 @@ impl Application {
         let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
         let mut game = game::GameClient::new(ip_addr);
 
-        game.send_ready_packet("standard".to_string());
+        // game.send_ready_packet("standard".to_string());
 
         Self {
             graphics: graphics_manager,
@@ -43,8 +43,14 @@ impl Application {
         while let Some(packet) = self.game.connection.pop_incoming() {
             match packet {
                 ClientBoundPacket::PlayerNumber(player_number) => {
-                    self.graphics.add_player(player_number, true)
+                    println!("I am now player #{}!", player_number);
+                    // self.graphics.add_player(player_number, true)
                 }
+
+                ClientBoundPacket::PlayerChairChoice(_, _) => todo!(),
+                ClientBoundPacket::PlayerMapChoice(_, _) => todo!(),
+                ClientBoundPacket::PlayerReadyStatus(_, _) => todo!(),
+
                 ClientBoundPacket::EntityUpdate(locations) => {
                     locations.iter().enumerate().for_each(|(i, update)| {
                         self.graphics

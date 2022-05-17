@@ -17,7 +17,10 @@ use crate::PlayerID;
 #[derive(Serialize, Deserialize)]
 pub enum ServerBoundPacket {
     // Before game
-    ChairSelectAndReady(String), // name of chair being selected
+    ChairSelect(String),
+    MapSelect(String),
+    SetReadyStatus(bool),
+    NotifyLoaded,
 
     // During game
     InputToggle(InputEvent),
@@ -27,7 +30,10 @@ pub enum ServerBoundPacket {
 pub enum ClientBoundPacket {
     // Before game
     PlayerNumber(PlayerID),
-    GameStart(Duration), // How long until the game starts?
+    GameStart(Duration),                 // How long until the game starts?
+    PlayerChairChoice(PlayerID, String), // Another player has hovered a chair
+    PlayerMapChoice(PlayerID, String),   // Another player has hovered a map
+    PlayerReadyStatus(PlayerID, bool),   // Another player has readied or unreaded
 
     // During game
     EntityUpdate(Vec<(EntityLocation, DVec3)>), // Clients will need to know the location and velocity of every player
