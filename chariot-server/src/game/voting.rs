@@ -9,7 +9,6 @@ use super::phase::GamePhase;
 
 pub type QuestionID = usize;
 pub type AnswerID = usize;
-pub type AnswerCount = u64;
 
 impl GameServer {
     // handle socket data

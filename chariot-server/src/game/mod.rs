@@ -3,7 +3,7 @@ use std::net::TcpListener;
 use std::thread::{self};
 use std::time::{Duration, Instant};
 
-use chariot_core::lap_info::{LapInformation, LapNumber};
+use chariot_core::lap_info::LapInformation;
 use glam::DVec3;
 
 use chariot_core::entity_location::EntityLocation;

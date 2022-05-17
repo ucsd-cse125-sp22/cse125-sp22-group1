@@ -6,7 +6,7 @@ use chariot_core::networking::Uuid;
 use chariot_core::questions::{QuestionData, QuestionOption};
 use chariot_core::PlayerID;
 
-use super::voting::{AnswerCount, AnswerID, QuestionID};
+use super::voting::{AnswerID, QuestionID};
 
 /*
  * Phases of the game are as follows:
