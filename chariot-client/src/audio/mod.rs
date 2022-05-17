@@ -28,9 +28,7 @@ impl AudioSource {
     let mut tracks = HashMap::new();
     let threads = HashMap::new();
 
-    let paths = fs::read_dir(format!("./{}", path)).unwrap_or_else(|err| {
-      panic!("Problem reading the directory: {}", err);
-    });
+    let paths = fs::read_dir(format!("./{}", path)).expect("Problem reading the directory: ");
 
     // Obtains buffers for each audio file in the provided paths
     for path in paths {

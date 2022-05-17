@@ -9,13 +9,8 @@ pub struct AudioCtx {
 impl AudioCtx {
   pub fn new() -> Self {
     // Get a output stream handle to the default physical sound device
-    let output_stream = OutputStream::try_default();
-    let (_stream, stream_handle) = match output_stream {
-      Ok(s) => s,
-      Err(err) => {
-        panic!("There was an error in setting up the audio context: {}", err);
-      }
-    };
+    let (_stream, stream_handle) = OutputStream::try_default()
+      .expect("There was an error in setting up the audio context: ");
 
     Self {
       _stream,
