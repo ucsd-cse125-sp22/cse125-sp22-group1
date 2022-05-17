@@ -51,6 +51,9 @@ impl GameServer {
         // start the TCP listening service
         let listener =
             TcpListener::bind(&ip_addr).expect("could not bind to configured server address");
+        listener
+            .set_nonblocking(true)
+            .expect("Couldn't set the listener to be non-blocking!");
         println!("game server now listening on {}", ip_addr);
         let ws_server = TcpListener::bind(GLOBAL_CONFIG.ws_server_port.clone())
             .expect("could not bind to ws server");
@@ -82,7 +85,7 @@ impl GameServer {
         );
 
         loop {
-            self.block_until_minimum_connections();
+            // self.block_until_minimum_connections();
             self.acquire_any_audience_connections();
 
             let start_time = Instant::now();
