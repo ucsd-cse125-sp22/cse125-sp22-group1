@@ -6,7 +6,7 @@ use crate::{
     checkpoints::*,
     physics::{bounding_box::BoundingBox, trigger_entity::TriggerEntity},
 };
-use chariot_core::GLOBAL_CONFIG;
+use chariot_core::{lap_info::ZoneID, GLOBAL_CONFIG};
 
 use super::powerup::pickups::ItemBox;
 
@@ -84,7 +84,7 @@ impl Map {
 
         let mut checkpoints: Vec<Checkpoint> = Vec::new();
         let mut major_zones: Vec<Zone> = Vec::new();
-        let mut last_zone = 0;
+        let mut last_zone: ZoneID = 0;
 
         let mut finish_line: Option<FinishLine> = None;
         let mut world_bounds = BoundingBox::extremes();

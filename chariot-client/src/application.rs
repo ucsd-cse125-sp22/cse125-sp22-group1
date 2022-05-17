@@ -48,7 +48,7 @@ impl Application {
                 ClientBoundPacket::EntityUpdate(locations) => {
                     locations.iter().enumerate().for_each(|(i, update)| {
                         self.graphics
-                            .update_player_location(&update.0, &update.1, i as u8)
+                            .update_player_location(&update.0, &update.1, i)
                     });
                 }
                 ClientBoundPacket::PlacementUpdate(position) => {

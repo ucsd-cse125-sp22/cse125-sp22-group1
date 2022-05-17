@@ -9,8 +9,10 @@ use serde::{Deserialize, Serialize};
 pub use uuid::Uuid;
 
 use crate::entity_location::EntityLocation;
+use crate::lap_info::{LapNumber, Placement};
 use crate::player_inputs::InputEvent;
 use crate::questions::{QuestionData, QuestionOption};
+use crate::PlayerID;
 
 #[derive(Serialize, Deserialize)]
 pub enum ServerBoundPacket {
@@ -24,7 +26,7 @@ pub enum ServerBoundPacket {
 #[derive(Serialize, Deserialize)]
 pub enum ClientBoundPacket {
     // Before game
-    PlayerNumber(u8),
+    PlayerNumber(PlayerID),
     GameStart(Duration), // How long until the game starts?
 
     // During game
@@ -32,8 +34,8 @@ pub enum ClientBoundPacket {
     PowerupPickup,                              // Add a payload here when appropriate
     VotingStarted(QuestionData),                // Sent when the audience begins voting (suspense!)
     InteractionActivate(QuestionData, QuestionOption), // Sent when the audience has voted on something
-    LapUpdate(u8),                                     // What lap are you now on?
-    PlacementUpdate(u8),                               // What place in the race are you now at?
+    LapUpdate(LapNumber),                              // What lap are you now on?
+    PlacementUpdate(Placement),                        // What place in the race are you now at?
 
     // After game
     AllDone,

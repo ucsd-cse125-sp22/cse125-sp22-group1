@@ -3,7 +3,7 @@ use std::net::TcpListener;
 use std::thread::{self};
 use std::time::{Duration, Instant};
 
-use chariot_core::lap_info::LapInformation;
+use chariot_core::lap_info::{LapInformation, LapNumber};
 use glam::DVec3;
 
 use chariot_core::entity_location::EntityLocation;
@@ -15,7 +15,7 @@ use chariot_core::networking::{
 use chariot_core::physics_changes::{PhysicsChange, PhysicsChangeType};
 use chariot_core::player_inputs::InputEvent;
 use chariot_core::questions::{QuestionData, QUESTIONS};
-use chariot_core::GLOBAL_CONFIG;
+use chariot_core::{PlayerID, GLOBAL_CONFIG};
 
 use crate::chairs::get_player_start_physics_properties;
 use crate::physics::player_entity::PlayerEntity;
@@ -181,9 +181,8 @@ impl GameServer {
                 while let Some((chair_name, index)) = new_players_joined.pop() {
                     players_ready[index] = true;
                     self.game_state.players[index] =
-                        get_player_start_physics_properties(&chair_name, index as u8);
-                    self.connections[index]
-                        .push_outgoing(ClientBoundPacket::PlayerNumber(index as u8));
+                        get_player_start_physics_properties(&chair_name, index);
+                    self.connections[index].push_outgoing(ClientBoundPacket::PlayerNumber(index));
                 }
 
                 // start game countdown if we're ready to go
@@ -262,7 +261,7 @@ impl GameServer {
                                 .iter()
                                 .max_by(|a, b| a.1.cmp(&b.1))
                                 .map(|(vote, _c)| vote)
-                                .unwrap_or(&&mut (0 as usize));
+                                .unwrap_or(&&mut (0));
 
                             GameServer::broadcast_ws(
                                 &mut self.ws_connections,
@@ -366,7 +365,7 @@ impl GameServer {
                 player_placement, ..
             } = &mut self.game_state.phase
             {
-                let new_placement_array =
+                let new_placement_array: [(PlayerID, LapInformation); 4] =
                     get_player_placement_array(&self.game_state.players, &map.checkpoints);
 
                 for &(player_num, lap_information @ LapInformation { lap, placement, .. }) in

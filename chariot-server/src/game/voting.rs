@@ -7,6 +7,10 @@ use crate::game::GameServer;
 
 use super::phase::GamePhase;
 
+pub type QuestionID = usize;
+pub type AnswerID = usize;
+pub type AnswerCount = u64;
+
 impl GameServer {
     // handle socket data
     pub fn process_ws_packets(&mut self) {

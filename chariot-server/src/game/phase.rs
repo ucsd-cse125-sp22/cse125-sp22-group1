@@ -4,6 +4,9 @@ use std::time::Instant;
 use chariot_core::lap_info::LapInformation;
 use chariot_core::networking::Uuid;
 use chariot_core::questions::{QuestionData, QuestionOption};
+use chariot_core::PlayerID;
+
+use super::voting::{AnswerCount, AnswerID, QuestionID};
 
 /*
  * Phases of the game are as follows:
@@ -33,13 +36,13 @@ use chariot_core::questions::{QuestionData, QuestionOption};
 pub enum GamePhase {
     WaitingForPlayerReady {
         players_ready: [bool; 4],
-        new_players_joined: Vec<(String, usize)>,
+        new_players_joined: Vec<(String, PlayerID)>,
     },
     CountingDownToGameStart(Instant),
     PlayingGame {
         voting_game_state: VotingState,
         player_placement: [LapInformation; 4],
-        question_idx: usize, // to keep track of which question we have asked
+        question_idx: QuestionID, // to keep track of which question we have asked
     },
     #[allow(dead_code)]
     AllPlayersDone,
@@ -48,7 +51,7 @@ pub enum GamePhase {
 pub enum VotingState {
     VoteCooldown(Instant), // Instant corresponds to the time we will start waitingforvotes again
     WaitingForVotes {
-        audience_votes: HashMap<Uuid, usize>,
+        audience_votes: HashMap<Uuid, AnswerID>,
         current_question: QuestionData,
         vote_close_time: Instant,
     },

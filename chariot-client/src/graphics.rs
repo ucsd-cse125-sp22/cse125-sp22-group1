@@ -1,4 +1,5 @@
 use chariot_core::entity_location::EntityLocation;
+use chariot_core::PlayerID;
 use chariot_core::GLOBAL_CONFIG;
 use glam::{DVec3, Vec2};
 use std::f64::consts::PI;
@@ -144,7 +145,7 @@ impl GraphicsManager {
         }
     }
 
-    pub fn add_player(&mut self, player_num: u8, is_self: bool) {
+    pub fn add_player(&mut self, player_num: PlayerID, is_self: bool) {
         println!("Adding new player: {}, self? {}", player_num, is_self);
 
         let chair_import = self
@@ -186,7 +187,7 @@ impl GraphicsManager {
         &mut self,
         location: &EntityLocation,
         velocity: &DVec3,
-        player_num: u8,
+        player_num: PlayerID,
     ) {
         if self.player_entities[player_num as usize].is_none() {
             self.add_player(player_num, false);
