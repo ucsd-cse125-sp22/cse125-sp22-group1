@@ -1,11 +1,11 @@
-use image::{ImageBuffer, Rgb};
+use image::{ImageBuffer, Rgb, Rgba};
 
 use super::ResourceManager;
 
 pub fn create_minimap_image(
     player_locations: Vec<(f32, f32)>,
     resources: &mut ResourceManager,
-) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
+) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
     let mut base_map = resources.get_minimap_image("track_transparent.png");
     let map_width = base_map.width();
     let map_height = base_map.height();
@@ -26,6 +26,14 @@ pub fn create_minimap_image(
         let map_location_x = map_width as i32 - map_z as i32;
         let map_location_z = map_x as i32;
 
+        let player_dot_color: Rgba<u8> = match player_index {
+            0 => Rgba::from([230, 50, 30, 255]),  // reddish
+            1 => Rgba::from([230, 210, 10, 255]), // yellowish
+            2 => Rgba::from([20, 160, 50, 255]),  // greenish
+            3 => Rgba::from([50, 130, 220, 255]), // blueish
+            _ => Rgba::from([69, 69, 69, 69]),    // nice
+        };
+        /*
         let player_dot_color: Rgb<u8> = match player_index {
             0 => Rgb::from([230, 50, 30]),  // reddish
             1 => Rgb::from([230, 210, 10]), // yellowish
@@ -33,6 +41,7 @@ pub fn create_minimap_image(
             3 => Rgb::from([50, 130, 220]), // blueish
             _ => Rgb::from([69, 69, 69]),   // nice
         };
+        */
 
         // draw a lil square around the location
         for pixel_x in (map_location_x - 5)..=(map_location_x + 5) {

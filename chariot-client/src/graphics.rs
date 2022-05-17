@@ -246,6 +246,29 @@ impl GraphicsManager {
             .collect();
 
         let minimap = create_minimap_image(player_locations, &mut self.resources);
+
+        let texture = self.renderer.create_texture2D_init(
+            "minimap",
+            winit::dpi::PhysicalSize::<u32> {
+                width: minimap.width(),
+                height: minimap.height(),
+            },
+            wgpu::TextureFormat::Rgba8Unorm,
+            wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::STORAGE_BINDING,
+            &minimap.into_raw(),
+        );
+
+        let ui = UIDrawable {
+            layers: vec![technique::UILayerTechnique::new(
+                &self.renderer,
+                glam::vec2(0.0, 0.0),
+                glam::vec2(0.2, 0.2),
+                glam::vec2(0.0, 0.0),
+                glam::vec2(1.0, 1.0),
+                &texture,
+            )],
+        };
+        self.test_ui = ui;
     }
 
     pub fn render(&mut self) {
