@@ -188,7 +188,15 @@ impl GameServer {
                 // start game countdown if we're ready to go
                 if players_ready.iter().all(|&x| x) || GLOBAL_CONFIG.bypass_multiplayer_requirement
                 {
-                    let time_until_start = Duration::new(10, 0);
+                    self.game_state.phase = GamePhase::WaitingForPlayerLoad {
+                        players_loaded: [false; 4],
+                    };
+                }
+            }
+
+            GamePhase::WaitingForPlayerLoad { players_loaded } => {
+                if players_loaded.iter().all(|&x| x) {
+                    let time_until_start = Duration::new(3, 0);
                     self.game_state.phase =
                         GamePhase::CountingDownToGameStart(now + time_until_start);
 
@@ -347,12 +355,12 @@ impl GameServer {
     // queue up sending updated game state
     fn sync_state(&mut self) {
         match self.game_state.phase {
-            GamePhase::WaitingForPlayerReady { .. } => {}
             // These two phases have visible players
             GamePhase::CountingDownToGameStart(_) | GamePhase::PlayingGame { .. } => {
                 self.sync_player_state()
             }
             GamePhase::AllPlayersDone => todo!(),
+            _ => (),
         }
 
         self.update_and_sync_placement_state();

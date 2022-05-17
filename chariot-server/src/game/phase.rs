@@ -11,7 +11,7 @@ use super::voting::{AnswerID, QuestionID};
 /*
  * Phases of the game are as follows:
 *
- * 1. GamePhase::WaitingForPlayerReady
+ * 1. GamePhase::ChoosingSettingsAndConnecting
  *  During this phase, players are in selection screens choosing their chair
  *  and marking ready; they'll be waiting in UI for all of this phase. The
  *  transition from Phase 1 to 2 occurs when the server sends all clients an
@@ -34,16 +34,24 @@ use super::voting::{AnswerID, QuestionID};
  */
 
 pub enum GamePhase {
-    WaitingForPlayerReady {
+    // Choosing the chair/map
+    ChoosingSettingsAndConnecting {
         players_ready: [bool; 4],
         new_players_joined: Vec<(String, PlayerID)>,
     },
+    // Players notified about map/chairs, loading in
+    WaitingForPlayerLoad {
+        players_loaded: [bool; 4],
+    },
+    // All players loaded, race counting down
     CountingDownToGameStart(Instant),
+    // Game is playing
     PlayingGame {
         voting_game_state: VotingState,
         player_placement: [LapInformation; 4],
         question_idx: QuestionID, // to keep track of which question we have asked
     },
+    // Everyone has finished racing
     #[allow(dead_code)] // Currently unused state for when all players have finished a race
     AllPlayersDone,
 }
