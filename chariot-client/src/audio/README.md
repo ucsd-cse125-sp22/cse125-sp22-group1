@@ -21,9 +21,6 @@ Usage: `SourceOptions::new();`
 * skip_duration: `Duration`,
 * take_duration: `Duration`,
 * pitch: `f32`,
-* emitter_pos: `[f32; 3]`,
-* left_ear: `[f32; 3]`,
-* right_ear: `[f32; 3]`,
 
 ## Audio Thread
 A multipurpose class that is designed to wrap the main Audio Sink (thread that plays audio in Rodio) and provide additional control over playback.
@@ -44,10 +41,13 @@ A class designed to maintain and control all Audio Threads.
 Usage: `AudioSource::new(Path);`
 
 ### Struct
-* tracks: `Vec<PathBuf>`,
+* tracks: `HashMap<String, Buffered<Decoder<BufReader<File>>>>`,
 * threads: `Vec<AudioThread>`,
 * volume: `f32`,
 * pitch: `f32`,
+* emitter_pos: `[f32; 3]`,
+* left_ear: `[f32; 3]`,
+* right_ear: `[f32; 3]`,
 
 ## Instructions
 1. Begin with the relevant imports
@@ -75,11 +75,11 @@ let mut sfx_manager = AudioSource::new("audio/sfx");
 4. Define a sound source options and play sounds
 
 Normal playback, will play alongside all other current sounds. Good for SFX.
-`track_id` is the usize index of the track to play in the source directory.
+`track_name` is the `&str` filename (with extension) of the track to play in the source directory.
 
 ```
 let src_opt = SourceOptions::new();
-sfx_manager.play(track_id, &audio_ctx, src_opt);
+sfx_manager.play(track_name, &audio_ctx, src_opt);
 ```
 
 Crossfade playback, will play a new sound fading in with all other current sounds fading out. Good for Music & Ambient where only 1 thing should be playing at a time.
@@ -87,7 +87,7 @@ Crossfade playback, will play a new sound fading in with all other current sound
 ```
 // 1000 ms fade in & fade out
 let src_opt = SourceOptions::new();
-music_manager.play_cf(track_id, &audio_ctx, src_opt, Duration::from_millis(1000));
+music_manager.play_cf(track_name, &audio_ctx, src_opt, Duration::from_millis(1000));
 ```
 
 Use additional control settings if necessary:
@@ -111,9 +111,17 @@ use audio::thread::options::SourceOptions;
 pub mod audio;
 
 fn main() {
+  // Set up our default audio context
   let audio_ctx = AudioCtx::new();
+
+  // Initialize the music manager
+  let mut music_manager = AudioSource::new("audio/music");
+
+  // Set up source options
   let mut opt = SourceOptions::new();
   opt.set_repeat(true);
-  music_manager.play(1, &audio_ctx, opt);
+
+  // Play our song
+  music_manager.play("Charioteering_OST_-_Track_06_(Turboboosting_All_the_Way_Home_).wav", &audio_ctx, opt);
 }
 ```

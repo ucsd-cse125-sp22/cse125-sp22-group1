@@ -20,6 +20,7 @@ enum AudioSinkType {
 }
 
 pub struct AudioThread {
+  thread_id: u64,
   time_start: SystemTime,
   volume: f32,
   pitch: f32,
@@ -29,7 +30,8 @@ pub struct AudioThread {
 }
 
 impl AudioThread {
-  pub fn new(ctx: &AudioCtx, source: Buffered<Decoder<BufReader<File>>>, src_opt: SourceOptions) -> Self {
+  pub fn new(thread_id: u64, ctx: &AudioCtx, source: Buffered<Decoder<BufReader<File>>>, 
+    src_opt: SourceOptions) -> Self {
     if src_opt.emitter_pos != [0.0; 3] || 
       src_opt.left_ear != [0.0; 3] || 
       src_opt.right_ear != [0.0; 3] {
@@ -45,6 +47,7 @@ impl AudioThread {
       };
 
       return Self {
+        thread_id: thread_id,
         time_start: SystemTime::now(),
         volume: 1.0,
         pitch: 1.0,
@@ -64,6 +67,7 @@ impl AudioThread {
       };
 
       return Self {
+        thread_id: thread_id,
         time_start: SystemTime::now(),
         volume: 1.0,
         pitch: 1.0,
@@ -72,6 +76,10 @@ impl AudioThread {
         src_opt: src_opt
       }
     }
+  }
+
+  pub fn getId(&mut self) -> u64 {
+    return self.thread_id;
   }
 
   pub fn time_alive(&mut self) -> Option<Duration> {
@@ -137,7 +145,7 @@ impl AudioThread {
           return;
         }
       };
-      
+
       for n in 1..steps {
         let volume = (mutref.volume / steps as f32) * (steps - n) as f32;
 
