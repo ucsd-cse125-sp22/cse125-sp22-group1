@@ -5,6 +5,8 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
+use image::DynamicImage;
+use image::{io::Reader as ImageReader, ImageBuffer, Rgb};
 use serde_json::Value;
 pub mod material;
 pub mod minimap;
@@ -110,6 +112,7 @@ pub struct ResourceManager {
     pub textures: HashMap<TextureHandle, wgpu::Texture>,
     pub materials: HashMap<MaterialHandle, Material>,
     pub meshes: HashMap<StaticMeshHandle, StaticMesh>,
+    minimap_image: Option<ImageBuffer<Rgb<u8>, Vec<u8>>>,
 }
 
 impl ResourceManager {
@@ -119,6 +122,7 @@ impl ResourceManager {
             textures: HashMap::new(),
             materials: HashMap::new(),
             meshes: HashMap::new(),
+            minimap_image: None,
         }
     }
 
@@ -601,5 +605,19 @@ impl ResourceManager {
         let handle = TextureHandle::unique();
         self.textures.insert(handle, texture);
         return handle;
+    }
+
+    pub fn get_minimap_image(&mut self, filename: &str) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
+        if self.minimap_image.is_none() {
+            let resource_path = format!("{}/{}", GLOBAL_CONFIG.resource_folder, filename);
+            println!("{}", resource_path);
+            let img = ImageReader::open(resource_path)
+                .unwrap()
+                .decode()
+                .unwrap()
+                .into_rgb8();
+            self.minimap_image = Some(img);
+        }
+        return self.minimap_image.clone().unwrap();
     }
 }
