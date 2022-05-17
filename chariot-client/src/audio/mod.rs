@@ -32,7 +32,7 @@ impl AudioSource {
       panic!("Problem reading the directory: {}", err);
     });
 
-    // obtains buffers for each audio file in the provided paths
+    // Obtains buffers for each audio file in the provided paths
     for path in paths {
       let path_buf = match path {
         Ok(p) => p.path(),
@@ -60,6 +60,7 @@ impl AudioSource {
         }
       };
 
+      // Try to open the file
       let file = fs::File::open(path_buf);
       let file = match file {
         Ok(f) => f,
@@ -69,6 +70,7 @@ impl AudioSource {
         }
       };
 
+      // Generate our buffered audio source
       let buf = BufReader::new(file);
       let source = Decoder::new(buf);
       let source = match source {
@@ -79,7 +81,7 @@ impl AudioSource {
         }
       };
 
-
+      // Store the audio sources into our HashMap
       tracks.insert(file_name, source);
       println!("Loaded Track [{}] from: {}", tracks.len(), file_path);
     }
@@ -130,25 +132,47 @@ impl AudioSource {
     return thread;
   }
 
+  // Get a specific audio thread from an ID
+  pub fn getThread(&mut self, id: u64) -> Option<&AudioThread> {
+    match self.threads.get(&id) {
+      Some(t) => return Some(t),
+      None => return None
+    }
+  }
+
+  // Get a specific audio thread from an ID
+  pub fn getMutThread(&mut self, id: u64) -> Option<&mut AudioThread> {
+    match self.threads.get_mut(&id) {
+      Some(t) => return Some(t),
+      None => return None
+    }
+  }
+
   // Play Audio
-  pub fn play(&mut self, track_name: &str, ctx: &AudioCtx, opt: SourceOptions) {
+  pub fn play(&mut self, track_name: &str, ctx: &AudioCtx, 
+    opt: SourceOptions) -> Option<u64> {
     // Clean Up All Stopped Threads
     self.clean();
 
     let source = match self.getTrack(track_name) {
       Some(s) => s,
       None => {
-        return;
+        return None;
       }
     };
 
     let mut thread = self.spawnThread(ctx, source, opt);
+    let thread_id = thread.getId();
+
     thread.play();
-    self.threads.insert(thread.getId(), thread);
+    self.threads.insert(thread_id, thread);
+
+    return Some(thread_id);
   }
 
   // Play an Audio and crossfade out all currently playing tracks
-  pub fn play_cf(&mut self, track_name: &str, ctx: &AudioCtx, mut opt: SourceOptions, duration: Duration) {
+  pub fn play_cf(&mut self, track_name: &str, ctx: &AudioCtx, 
+    mut opt: SourceOptions, duration: Duration) -> Option<u64> {
     // Clean Up All Stopped Threads
     self.clean();
 
@@ -160,15 +184,19 @@ impl AudioSource {
     let source = match self.getTrack(track_name) {
       Some(s) => s,
       None => {
-        return;
+        return None;
       }
     };
 
     let mut thread = self.spawnThread(ctx, source, opt);
+    let thread_id = thread.getId();
+
     self.fade_all_threads(duration);
 
     thread.play();
-    self.threads.insert(thread.getId(), thread);
+    self.threads.insert(thread_id, thread);
+
+    return Some(thread_id);
   }
 
   // Do a fade-out on all currently playing threads in this manager
