@@ -97,7 +97,7 @@ impl Technique for GeometryDrawTechnique {
             .zip(static_mesh.submeshes[self.submesh_idx].vertex_ranges.iter());
 
         let mut bind_group_refs = vec![&self.mvp_xform.bind_group];
-        bind_group_refs.extend(material.bind_groups.values());
+        bind_group_refs.extend(material.bind_groups(context.iteration));
         render_job::RenderItem::Graphics {
             pass_name: material.pass_name.as_str(),
             framebuffer_name: context.framebuffer_name("geometry_out"),
@@ -173,7 +173,7 @@ impl Technique for SurfelGeometryDrawTechnique {
         .collect::<Vec<wgpu::BufferSlice>>();
 
         let mut bind_group_refs = vec![&self.mvp_xform.bind_group];
-        bind_group_refs.extend(material.bind_groups.values());
+        bind_group_refs.extend(material.bind_groups(context.iteration));
         render_job::RenderItem::Graphics {
             pass_name: Self::PASS_NAME,
             framebuffer_name: context.framebuffer_name(Self::FRAMEBUFFER_NAME),
@@ -246,22 +246,6 @@ impl Technique for ShadowDrawTechnique {
     }
 }
 
-fn load_tex(resources: &ResourceManager, name: &str, idx: usize) -> wgpu::TextureView {
-    // I don't like the idea of making new views all the time but it's too built into the design now; maybe later I'll fix it
-    resources
-        .framebuffer_tex(name, idx, false)
-        .expect(format!("Technique requires {} framebuffer to be registered", name).as_str())
-        .create_view(&wgpu::TextureViewDescriptor::default())
-}
-
-fn load_alt_tex(resources: &ResourceManager, name: &str, idx: usize) -> wgpu::TextureView {
-    // I don't like the idea of making new views all the time but it's too built into the design now; maybe later I'll fix it
-    resources
-        .framebuffer_tex(name, idx, true)
-        .expect(format!("Technique requires {} framebuffer to be registered", name).as_str())
-        .create_view(&wgpu::TextureViewDescriptor::default())
-}
-
 pub struct ShadeTechnique {
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
@@ -291,13 +275,6 @@ impl ShadeTechnique {
                 usage: wgpu::BufferUsages::INDEX,
             });
 
-        let color_tex_view = load_tex(resources, "geometry_out", 0);
-        let normal_tex_view = load_tex(resources, "geometry_out", 1);
-        let depth_tex_view = load_tex(resources, "geometry_out", 2);
-        let shadow_tex_view = load_tex(resources, "shadow_out1", 0);
-        let probes_color_tex_view = load_tex(resources, "probes_out", 0);
-        let probes_depth_tex_view = load_tex(resources, "probes_out", 1);
-
         let probe_sampler = renderer.device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("probe_sampler"),
             address_mode_u: wgpu::AddressMode::ClampToEdge,
@@ -312,13 +289,13 @@ impl ShadeTechnique {
         let view_xform = TransformUniform::<2>::new(renderer, "shade", 1);
         let light_xform = TransformUniform::<1>::new(renderer, "shade", 2);
 
-        let material = material::MaterialBuilder::new(renderer, pass_name)
-            .texture_resource(0, 0, color_tex_view)
-            .texture_resource(0, 1, normal_tex_view)
-            .texture_resource(0, 2, depth_tex_view)
-            .texture_resource(0, 3, shadow_tex_view)
-            .texture_resource(0, 4, probes_color_tex_view)
-            .texture_resource(0, 5, probes_depth_tex_view)
+        let material = material::MaterialBuilder::new(renderer, resources, pass_name)
+            .framebuffer_texture_resource(0, 0, "geometry_out", 0, false)
+            .framebuffer_texture_resource(0, 1, "geometry_out", 1, false)
+            .framebuffer_texture_resource(0, 2, "geometry_out", 2, false)
+            .framebuffer_texture_resource(0, 3, "shadow_out1", 0, false)
+            .framebuffer_texture_resource(0, 4, "probes_out", 0, false)
+            .framebuffer_texture_resource(0, 5, "probes_out", 1, false)
             .sampler_resource(0, 6, probe_sampler)
             .produce();
 
@@ -344,11 +321,11 @@ impl ShadeTechnique {
 }
 
 impl Technique for ShadeTechnique {
-    fn render_item<'a>(&'a self, _: &RenderContext<'a>) -> render_job::RenderItem<'a> {
+    fn render_item<'a>(&'a self, context: &RenderContext<'a>) -> render_job::RenderItem<'a> {
         let bind_groups = self
             .material
-            .bind_groups
-            .values()
+            .bind_groups(context.iteration)
+            .into_iter()
             .chain(std::slice::from_ref(&self.view_xform.bind_group).iter())
             .chain(std::slice::from_ref(&self.light_xform.bind_group).iter())
             .collect();
@@ -380,16 +357,11 @@ impl InitProbesTechnique {
         resources: &ResourceManager,
         static_mesh: StaticMeshHandle,
     ) -> Self {
-        let color_tex_view = load_tex(resources, "geometry_out", 0);
-        let normal_tex_view = load_tex(resources, "geometry_out", 1);
-        let depth_tex_view = load_tex(resources, "geometry_out", 2);
-        let shadow_tex_view = load_tex(resources, "shadow_out1", 0);
-
-        let material = material::MaterialBuilder::new(renderer, Self::PASS_NAME)
-            .texture_resource(0, 0, color_tex_view)
-            .texture_resource(0, 1, normal_tex_view)
-            .texture_resource(0, 2, depth_tex_view)
-            .texture_resource(0, 3, shadow_tex_view)
+        let material = material::MaterialBuilder::new(renderer, resources, Self::PASS_NAME)
+            .framebuffer_texture_resource(0, 0, "geometry_out", 0, false)
+            .framebuffer_texture_resource(0, 1, "geometry_out", 1, false)
+            .framebuffer_texture_resource(0, 2, "geometry_out", 2, false)
+            .framebuffer_texture_resource(0, 3, "shadow_out1", 0, false)
             .produce();
 
         Self {
@@ -413,9 +385,9 @@ impl Technique for InitProbesTechnique {
         const BYTES_PER_VERT: u32 = std::mem::size_of::<glam::Vec3>() as u32;
         let (group_range, num_elems) = if static_mesh.num_surfels > 0 {
             let group_idx = context.iteration % ((static_mesh.num_surfels / SURFELS_PER_DRAW) + 1);
-            let low_bound = group_idx * SURFELS_PER_DRAW;
-            let high_bound =
-                std::cmp::min((group_idx + 1) * SURFELS_PER_DRAW, static_mesh.num_surfels);
+            let low_bound =
+                (group_idx * SURFELS_PER_DRAW + context.iteration) % static_mesh.num_surfels;
+            let high_bound = std::cmp::min(low_bound + SURFELS_PER_DRAW, static_mesh.num_surfels);
             (
                 (
                     Bound::Included((low_bound * BYTES_PER_VERT) as BufferAddress),
@@ -438,8 +410,8 @@ impl Technique for InitProbesTechnique {
 
         let bind_groups = self
             .material
-            .bind_groups
-            .values()
+            .bind_groups(context.iteration)
+            .into_iter()
             .chain(std::slice::from_ref(&self.mvp_xform.bind_group).iter())
             .chain(std::slice::from_ref(&self.light_xform.bind_group).iter())
             .collect();
@@ -459,13 +431,12 @@ impl Technique for InitProbesTechnique {
 pub struct TemporalAccProbesTechnique {
     num_elems: u32,
     material: material::Material,
-    alt_material: material::Material,
     pub(super) view_xform: TransformUniform<4>,
 }
 
 impl TemporalAccProbesTechnique {
     const PASS_NAME: &'static str = "temporal_acc_probes";
-    const FRAMEBUFFER_NAME: &'static str = "probes_acc_out";
+    const FRAMEBUFFER_NAME: &'static str = "probes_out";
     fn probe_sampler(renderer: &Renderer) -> wgpu::Sampler {
         renderer.device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("probe_sampler"),
@@ -480,37 +451,13 @@ impl TemporalAccProbesTechnique {
     }
 
     pub fn new(renderer: &Renderer, resources: &ResourceManager) -> Self {
-        let material = {
-            let depth_tex_view = load_tex(resources, "geometry_out", 2);
-            let alt_depth_tex_view = load_alt_tex(resources, "geometry_out", 2);
-
-            let alt_probes_color_tex_view = load_alt_tex(resources, "probes_out", 0);
-            let alt_probes_depth_tex_view = load_alt_tex(resources, "probes_out", 1);
-
-            material::MaterialBuilder::new(renderer, Self::PASS_NAME)
-                .texture_resource(0, 0, depth_tex_view)
-                .texture_resource(0, 1, alt_depth_tex_view)
-                .texture_resource(0, 2, alt_probes_color_tex_view)
-                .texture_resource(0, 3, alt_probes_depth_tex_view)
-                .sampler_resource(0, 4, TemporalAccProbesTechnique::probe_sampler(renderer))
-                .produce()
-        };
-
-        let alt_material = {
-            let depth_tex_view = load_tex(resources, "geometry_out", 2);
-            let alt_depth_tex_view = load_alt_tex(resources, "geometry_out", 2);
-
-            let probes_color_tex_view = load_tex(resources, "probes_out", 0);
-            let probes_depth_tex_view = load_tex(resources, "probes_out", 1);
-
-            material::MaterialBuilder::new(renderer, Self::PASS_NAME)
-                .texture_resource(0, 0, alt_depth_tex_view)
-                .texture_resource(0, 1, depth_tex_view)
-                .texture_resource(0, 2, probes_color_tex_view)
-                .texture_resource(0, 3, probes_depth_tex_view)
-                .sampler_resource(0, 4, TemporalAccProbesTechnique::probe_sampler(renderer))
-                .produce()
-        };
+        let material = material::MaterialBuilder::new(renderer, resources, Self::PASS_NAME)
+            .framebuffer_texture_resource(0, 0, "geometry_out", 2, false)
+            .framebuffer_texture_resource(0, 1, "geometry_out", 2, true)
+            .framebuffer_texture_resource(0, 2, "probes_out", 0, true)
+            .framebuffer_texture_resource(0, 3, "probes_out", 1, true)
+            .sampler_resource(0, 4, TemporalAccProbesTechnique::probe_sampler(renderer))
+            .produce();
 
         let surface_size = renderer.surface_size();
         let num_elems = surface_size.width * surface_size.height;
@@ -518,23 +465,35 @@ impl TemporalAccProbesTechnique {
         Self {
             num_elems,
             material,
-            alt_material,
             view_xform: TransformUniform::<4>::new(renderer, Self::PASS_NAME, 1),
         }
+    }
+
+    pub fn update_view_data(
+        &self,
+        renderer: &Renderer,
+        view: glam::Mat4,
+        proj: glam::Mat4,
+        prev_view: glam::Mat4,
+        prev_proj: glam::Mat4,
+    ) {
+        let inv_view = view.inverse();
+        let inv_proj = proj.inverse();
+        let prev_inv_view = prev_view.inverse();
+        let prev_inv_proj = prev_proj.inverse();
+        self.view_xform.update(
+            renderer,
+            &[inv_view, inv_proj, prev_inv_view, prev_inv_proj],
+        );
     }
 }
 
 impl Technique for TemporalAccProbesTechnique {
     fn render_item<'a>(&'a self, context: &RenderContext<'a>) -> render_job::RenderItem<'a> {
-        let material = if context.iteration % 2 == 0 {
-            &self.material
-        } else {
-            &self.alt_material
-        };
-
-        let bind_groups = material
-            .bind_groups
-            .values()
+        let bind_groups = self
+            .material
+            .bind_groups(context.iteration)
+            .into_iter()
             .chain(std::slice::from_ref(&self.view_xform.bind_group).iter())
             .collect();
 

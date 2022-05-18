@@ -31,6 +31,6 @@ struct FramebufferData {
 fn fs_main(in: VertexOutput) -> FramebufferData {
     var data : FramebufferData;
 	data.color = vec4<f32>(in.color, 1.0);
-	data.normal = vec4<f32>(in.normal, 0.0);
+	data.normal = vec4<f32>(in.normal, 0.0) * 0.5 + 0.5;
 	return data;
 }

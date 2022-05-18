@@ -669,7 +669,7 @@ impl ResourceManager {
             });
 
         let pass_name = "geometry";
-        let material = MaterialBuilder::new(renderer, pass_name)
+        let material = MaterialBuilder::new(renderer, self, pass_name)
             .texture_resource(1, 0, base_color_view)
             .sampler_resource(1, 1, sampler)
             .buffer_resource(1, 2, mat_id_buf)
@@ -686,6 +686,7 @@ impl ResourceManager {
         size: winit::dpi::PhysicalSize<u32>,
         formats: &[wgpu::TextureFormat],
         clear_color: Option<wgpu::Color>,
+        clear_depth: bool,
         is_alt: bool,
     ) -> (TextureHandle, Vec<TextureHandle>) {
         let depth_texture = renderer.create_texture2D(
@@ -725,7 +726,7 @@ impl ResourceManager {
                 depth_texture.create_view(&wgpu::TextureViewDescriptor::default()),
             ),
             clear_color: clear_color,
-            clear_depth: true,
+            clear_depth: clear_depth,
         };
 
         let register_name = format!("{}.{}", name, if is_alt { 1 } else { 0 });
@@ -753,10 +754,18 @@ impl ResourceManager {
         size: winit::dpi::PhysicalSize<u32>,
         formats: &[wgpu::TextureFormat],
         clear_color: Option<wgpu::Color>,
+        clear_depth: bool,
         save_prev: bool,
     ) {
-        let (depth_handle, color_handles) =
-            self.create_framebuffer_textures(name, renderer, size, formats, clear_color, false);
+        let (depth_handle, color_handles) = self.create_framebuffer_textures(
+            name,
+            renderer,
+            size,
+            formats,
+            clear_color,
+            clear_depth,
+            false,
+        );
 
         self.framebuffers
             .entry(name.to_string())
@@ -764,13 +773,20 @@ impl ResourceManager {
             .extend(color_handles.iter().chain([depth_handle].iter()));
 
         if save_prev {
-            let (alt_depth_texture, alt_color_textures) =
-                self.create_framebuffer_textures(name, renderer, size, formats, clear_color, true);
+            let (alt_depth_handle, alt_color_handles) = self.create_framebuffer_textures(
+                name,
+                renderer,
+                size,
+                formats,
+                clear_color,
+                clear_depth,
+                true,
+            );
 
             self.alt_framebuffers
                 .entry(name.to_string())
                 .or_default()
-                .extend(color_handles.iter().chain([depth_handle].iter()));
+                .extend(alt_color_handles.iter().chain([alt_depth_handle].iter()));
         }
     }
 
@@ -780,6 +796,7 @@ impl ResourceManager {
         renderer: &mut Renderer,
         formats: &[wgpu::TextureFormat],
         clear_color: Option<wgpu::Color>,
+        clear_depth: bool,
         save_prev: bool,
     ) {
         let surface_size = renderer.surface_size();
@@ -789,6 +806,7 @@ impl ResourceManager {
             surface_size,
             formats,
             clear_color,
+            clear_depth,
             save_prev,
         )
     }

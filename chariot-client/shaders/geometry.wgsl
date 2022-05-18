@@ -1,7 +1,7 @@
 struct ModelData {
     model: mat4x4<f32>;
 	proj_view: mat4x4<f32>;
-	normal_to_local: mat4x4<f32>;
+	normal_to_global: mat4x4<f32>;
 };
 
 [[group(0), binding(0)]]
@@ -17,7 +17,7 @@ struct VertexOutput {
 fn vs_main([[location(0)]] position: vec3<f32>, [[location(1)]] normal: vec3<f32>, [[location(2)]] tex_coords: vec2<f32>) -> VertexOutput {
 	var out : VertexOutput;
 	out.position =  mvp.proj_view * mvp.model * vec4<f32>(position, 1.0);
-	out.normal = normal; //normalize((mvp.normal_to_local * vec4<f32>(normal, 0.0)).xyz);
+	out.normal = normalize((mvp.normal_to_global * vec4<f32>(normal, 0.0)).xyz);
 	out.tex_coords = tex_coords;
     return out;
 }
@@ -65,6 +65,6 @@ fn fs_main(in: VertexOutput) -> FramebufferData {
 
 	var data : FramebufferData;
 	data.color = srgb_color;
-	data.normal = vec4<f32>(in.normal, f32(material.id) * 5.0);
+	data.normal = vec4<f32>(in.normal * 0.5 + 0.5, f32(material.id) * 5.0);
 	return data;
 }

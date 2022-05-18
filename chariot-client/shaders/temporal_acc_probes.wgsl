@@ -1,8 +1,8 @@
 struct ViewInfo {
-	prev_inv_view: mat4x4<f32>;
-	prev_inv_proj: mat4x4<f32>;
 	inv_view: mat4x4<f32>;
 	inv_proj: mat4x4<f32>;
+	prev_inv_view: mat4x4<f32>;
+	prev_inv_proj: mat4x4<f32>;
 };
 
 [[group(0), binding(0)]]
@@ -54,7 +54,18 @@ fn oct_decode(f: vec2<f32>) -> vec3<f32> {
 
 fn oct_wrap(v: vec2<f32>) -> vec2<f32>
 {
-    return (1.0 - abs(v.yx)) * sign(v.xy);
+	var res: vec2<f32> = (1.0 - abs(v.yx));
+
+	if (v.x < 0.0) {
+		res.x = res.x * -1.0;
+	}
+
+	if (v.y < 0.0) {
+		res.y = res.y * -1.0;
+	}
+
+	return res;
+    //return (1.0 - abs(v.yx)) * sign(v.xy);
 }
 
 // outputs in (-1, 1)
@@ -81,8 +92,9 @@ fn vs_main([[builtin(vertex_index)]] vertex_index: u32) -> VertexOutput{
 	let surface_sizef = vec2<f32>(surface_size);
 
 	let tc = vec2<i32>(i32(vertex_index) % surface_size.x, i32(vertex_index) / surface_size.x);
+	let tcn = vec2<f32>(tc) / surface_sizef;
 
-	let probe_size = 8;
+	let probe_size = 32;
 	let probe_center = probe_size / 2;
 	let probe_centerf = f32(probe_center);
 	let probe_2d_idx = tc / probe_size;
@@ -95,25 +107,32 @@ fn vs_main([[builtin(vertex_index)]] vertex_index: u32) -> VertexOutput{
 	let cur_probe_world_pos = world_pos_from_depth(probe_tcn, cur_probe_depth, view.inv_view, view.inv_proj);
 
 	let max_depth = 100.0;
-	let prev_oct_coords = tc - (probe_2d_idx * probe_size);
+	let prev_oct_coords = tc - probe_tc;
 	let prev_oct_coords_n = vec2<f32>(prev_oct_coords) / probe_centerf;
-	let prev_sample_dir = oct_decode(prev_oct_coords_n);
+	let prev_sample_dir = oct_decode(prev_oct_coords_n).xzy;
 	let prev_sample_depth = textureLoad(t_prev_probes_depth, tc, 0).r * max_depth;
 	let prev_sample_color = textureLoad(t_prev_probes_color, tc, 0).rgb;
 	let sample_world_pos = prev_probe_world_pos + prev_sample_dir * prev_sample_depth;
 
 	let cur_sample_dir = normalize(sample_world_pos - cur_probe_world_pos);
 	let cur_sample_depth = length(sample_world_pos - cur_probe_world_pos);
-	let cur_oct_coords_n = oct_encode(cur_sample_dir);
+	let cur_oct_coords_n = oct_encode(cur_sample_dir.xzy) * 1.01; //1.00001; magic number here to counteract rounding error
 	let cur_oct_coords = vec2<i32>(cur_oct_coords_n * probe_centerf);
 	let reproject_tc = probe_tc + cur_oct_coords;
 	let reproject_tcn = vec2<f32>(reproject_tc) / surface_sizef;
 	let reproject_ndc = vec2<f32>(reproject_tcn.x, 1.0 - reproject_tcn.y) * 2.0 - 1.0;
 
 	let depth_out = min(cur_sample_depth / max_depth, 1.0);
+	//let depth_out = textureLoad(t_depth, tc, 0).r;
+	//let depth_out = textureLoad(t_prev_probes_depth, tc, 0).r;
+
+	let tc_out = reproject_tc + vec2<i32>(1,1);
+	let tcn_out = vec2<f32>(tc_out) / surface_sizef;
+	let ndc_out = vec2<f32>(tcn_out.x, 1.0 - tcn_out.y) * 2.0 - 1.0;
+	//let ndc = vec2<f32>(tcn.x, 1.0 - tcn.y) * 2.0 - 1.0;
 
 	var out: VertexOutput;
-	out.position = vec4<f32>(reproject_ndc, depth_out, 1.0);
+	out.position = vec4<f32>(ndc_out, depth_out, 1.0);
 	out.color = prev_sample_color;
 	return out;
 }

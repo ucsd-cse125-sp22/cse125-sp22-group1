@@ -81,7 +81,7 @@ impl StaticMeshDrawable {
         let inv_proj = proj.inverse();
         self.geometry_draw
             .mvp_xform
-            .update(renderer, &[model, view_proj, normal_to_local]);
+            .update(renderer, &[model, view_proj, normal_to_global]);
         self.init_probes
             .mvp_xform
             .update(renderer, &[model, normal_to_global, inv_view, inv_proj]);

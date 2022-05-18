@@ -66,6 +66,14 @@ fn world_pos_from_depth(tex_coord: vec2<f32>, depth: f32) -> vec3<f32> {
 	return world_space_pos.xyz;
 }
 
+
+fn view_pos_from_depth(tex_coord: vec2<f32>, depth: f32) -> vec3<f32> {
+	let clip_space_pos = vec4<f32>(tex_coord.x * 2.0 - 1.0, (1.0 - tex_coord.y) * 2.0 - 1.0, depth, 1.0);
+	let view_space_pos_h = view.inv_proj * clip_space_pos;
+	let view_space_pos = vec4<f32>(view_space_pos_h.xyz / view_space_pos_h.w, 1.0);
+	return view_space_pos.xyz;
+}
+
 fn world_pos_to_light_pos(world_pos: vec3<f32>) -> vec3<f32> {
 	let light_pos_h = light.view_proj * vec4<f32>(world_pos, 1.0);
 	let light_pos_ndc = light_pos_h.xyz / light_pos_h.w;
@@ -278,7 +286,18 @@ fn frame_to_world(v: vec3<f32>, frame: TangentFrame) -> vec3<f32> {
 
 fn oct_wrap(v: vec2<f32>) -> vec2<f32>
 {
-    return (1.0 - abs(v.yx)) * sign(v.xy);
+	var res: vec2<f32> = (1.0 - abs(v.yx));
+
+	if (v.x < 0.0) {
+		res.x = res.x * -1.0;
+	}
+
+	if (v.y < 0.0) {
+		res.y = res.y * -1.0;
+	}
+
+	return res;
+    //return (1.0 - abs(v.yx)) * sign(v.xy);
 }
 
 // outputs in (-1, 1)
@@ -292,6 +311,14 @@ fn oct_encode(n: vec3<f32>) -> vec2<f32> {
 	}
 
 	return nn.xy;
+}
+
+fn gauss(x: f32, x0: f32, sx: f32) -> f32 {
+	let two_pi = 2.0 * 3.1415;
+    let arg = x - x0;
+    let arg = -0.5 * arg * arg / sx;
+    let a = 1.0 / pow(two_pi * sx, 0.5);
+    return a * exp(arg);
 }
 
 [[stage(fragment)]]
@@ -315,7 +342,7 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 	let edge_shade = pow(variance, 0.7);
 
 	let light_dir = vec3<f32>(-0.5, -1.0, 0.5);
-	let world_normal = textureLoad(t_normal, tc, 0).xyz;
+	let world_normal = textureLoad(t_normal, tc, 0).xyz * 2.0 - 1.0;
 
 	//let world_normal = normalize((view.normal_to_world * vec4<f32>(local_normal, 0.0)).xyz);
 	let color = linear_to_srgb_color(textureLoad(t_forward, tc, 0)).rgb;
@@ -336,10 +363,11 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 		shadow = vec3<f32>(0.0); 
 	}
 
-	let probe_size = 8;
+	let probe_size = 32;
 	let probe_center = probe_size / 2;
+	let probe_sizef = f32(probe_size);
 	let probe_centerf = f32(probe_center);
-	let probe_2d_idx = (tc + probe_center) / probe_size;
+	let probe_2d_idx = (tc - probe_center) / probe_size;
 
 	let irradiance_samples = 10;
 	var irradiance = vec3<f32>(0.0);
@@ -349,31 +377,51 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 		let sample_local_dir = cosine_sample_hemisphere(vec2<f32>(pcg_next_f32(), pcg_next_f32()));
 		let sample_world_dir = frame_to_world(sample_local_dir, sample_frame);
 
-		let oct_coords_n = oct_encode(sample_world_dir);
+		let oct_coords_n = oct_encode(sample_world_dir.xzy);
 		let oct_coords = vec2<i32>(oct_coords_n * vec2<f32>(probe_centerf, probe_centerf));
 
-		for(var probe_offset_idx: i32 = 0; probe_offset_idx < 4; probe_offset_idx = probe_offset_idx + 1) {
+		var total_weight: f32 = 0.0;
+		var avg_irradiance: vec3<f32> = vec3<f32>(0.0, 0.0, 0.0);
+		for(var probe_offset_idx: i32 = 0; probe_offset_idx < 4; probe_offset_idx = probe_offset_idx + 1) 
+		{
+			//let probe_offset_idx = 0;
 			let probe_offset = vec2<i32>(probe_offset_idx % 2, probe_offset_idx / 2);
 			let cur_probe_idx = probe_2d_idx + probe_offset; 
 			let cur_probe_tc = cur_probe_idx * probe_size + probe_center;
 			let cur_probe_tcn = vec2<f32>(cur_probe_tc) / surface_sizef;
 
+			let probe_depth_n = textureSample(t_depth, s_probes, cur_probe_tcn).r;
+			let probe_depth = length(view_pos_from_depth(cur_probe_tcn, probe_depth_n));
+			let diff_tc_2d = vec2<f32>(tc - cur_probe_tc) / probe_sizef;
+			let diff_tc = length(diff_tc_2d);
+			let diff_depth = depth - probe_depth;
+			let tc_weight = gauss(diff_tc * diff_tc, 0.0, 0.4);
+			let depth_weight = gauss(diff_depth * diff_depth, 0.0, 1000000.0);
+			let weight = tc_weight;// * depth_weight;
+			total_weight = total_weight + weight;
+
 			let sample_tcn = vec2<f32>(cur_probe_tc + oct_coords) / surface_sizef;
 			let sample_radiance = textureSample(t_probes_color, s_probes, sample_tcn).rgb;
 			
+			let brdf = max(0.0, sample_local_dir.z);
 			let sample_pdf = cosine_hemisphere_pdf(sample_local_dir);
-			irradiance = irradiance + sample_radiance / sample_pdf;
+			avg_irradiance = avg_irradiance + sample_radiance * brdf * weight / sample_pdf;
+			//irradiance = irradiance + sample_radiance * brdf / sample_pdf;
 		}
+
+		avg_irradiance = avg_irradiance / total_weight;
+		irradiance = irradiance + avg_irradiance;
 	}
-	irradiance = irradiance * 0.1 / f32(irradiance_samples);
+	irradiance = irradiance / f32(irradiance_samples);
 
 	let ambient = vec3<f32>(0.06);
-	let shaded = ((shadow * diffuse) + irradiance + ambient) * color * (1.0 - edge_shade) + edge_shade * edge_col;
+	let shaded = ((shadow * diffuse) + irradiance) * color * (1.0 - edge_shade) + edge_shade * edge_col;
 
-	//let s_col = textureLoad(t_probes_color, tc, 0);
-	//return vec4<f32>(irradiance * color, 1.0);
-	//return s_col;
+	//t s_col = textureLoad(t_probes_color, tc, 0);
+	let s_col = textureLoad(t_probes_color, tc, 0);
+	//return vec4<f32>(world_normal * 0.5 + 0.5, 1.0);
+	//return vec4<f32>(irradiance * 0.5, 1.0);
+	return s_col;
 	//return vec4<f32>(color, 1.0);
-	return vec4<f32>(aces_film(shaded), 1.0);
-	//return vec4<f32>((world_normal+1.0)*0.5, 1.0);
+	//return vec4<f32>(aces_film(shaded), 1.0);
 }

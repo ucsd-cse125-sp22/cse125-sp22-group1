@@ -99,8 +99,11 @@ pub struct GraphicsManager {
     pub renderer: Renderer,
     pub resources: ResourceManager,
 
+    prev_view: glam::Mat4,
+    prev_proj: glam::Mat4,
     iteration: u32,
     shade: technique::ShadeTechnique,
+    temporal_acc_probes: technique::TemporalAccProbesTechnique,
     player_entities: [Option<Entity>; 4],
     camera_entity: Entity,
 }
@@ -118,49 +121,47 @@ impl GraphicsManager {
             a: 1.0,
         };
 
-        {
-            resources.register_depth_surface_framebuffer(
-                "geometry_out",
-                &mut renderer,
-                &[
-                    wgpu::TextureFormat::Rgba16Float,
-                    wgpu::TextureFormat::Rgba8Unorm,
-                ],
-                Some(sky_color),
-                true,
-            );
-        }
-        {
-            let shadow_map_res = winit::dpi::PhysicalSize::<u32>::new(2048, 2048);
-            resources.register_depth_framebuffer(
-                "shadow_out1",
-                &mut renderer,
-                shadow_map_res,
-                &[],
-                None,
-                false,
-            );
-        }
-        {
-            resources.register_depth_surface_framebuffer(
-                "probes_out",
-                &mut renderer,
-                &[wgpu::TextureFormat::Rgba16Float],
-                Some(wgpu::Color::BLACK),
-                false,
-            );
-        }
-        {
-            resources.register_depth_surface_framebuffer(
-                "probes_acc_out",
-                &mut renderer,
-                &[wgpu::TextureFormat::Rgba16Float],
-                Some(wgpu::Color::BLACK),
-                true,
-            );
-        }
+        resources.register_depth_surface_framebuffer(
+            "geometry_out",
+            &mut renderer,
+            &[
+                wgpu::TextureFormat::Rgba16Float,
+                wgpu::TextureFormat::Rgba8Unorm,
+            ],
+            Some(sky_color),
+            true,
+            true,
+        );
+
+        let shadow_map_res = winit::dpi::PhysicalSize::<u32>::new(2048, 2048);
+        resources.register_depth_framebuffer(
+            "shadow_out1",
+            &mut renderer,
+            shadow_map_res,
+            &[],
+            None,
+            true,
+            false,
+        );
+        resources.register_depth_surface_framebuffer(
+            "probes_out",
+            &mut renderer,
+            &[wgpu::TextureFormat::Rgba16Float],
+            Some(wgpu::Color::BLACK),
+            true,
+            true,
+        );
+
+        /*resources.register_depth_surface_framebuffer(
+            "probes_acc_out",
+            &mut renderer,
+            &[wgpu::TextureFormat::Rgba16Float],
+            Some(wgpu::Color::BLACK),
+            true,
+        );*/
 
         let shade = technique::ShadeTechnique::new(&renderer, &resources, "shade");
+        let temporal_acc_probes = technique::TemporalAccProbesTechnique::new(&renderer, &resources);
 
         let world = setup_world(&mut resources, &mut renderer);
 
@@ -168,8 +169,11 @@ impl GraphicsManager {
             world: world,
             renderer: renderer,
             resources: resources,
+            prev_view: glam::Mat4::IDENTITY,
+            prev_proj: glam::Mat4::IDENTITY,
             iteration: 0,
             shade: shade,
+            temporal_acc_probes: temporal_acc_probes,
             player_entities: [None, None, None, None],
             camera_entity: NULL_ENTITY,
         }
@@ -264,6 +268,7 @@ impl GraphicsManager {
             .expect("Root doesn't have transform component")
             .to_mat4();
 
+        // TODO: iterate down to root
         // Right now, we're iterating over the scene graph and evaluating all the global transforms once
         // which is kind of annoying. First to find the camera and get the view matrix and again to actually
         // render everything. Ideally maybe in the future this could be simplified
@@ -366,6 +371,24 @@ impl GraphicsManager {
             acc_model
         });
 
+        self.temporal_acc_probes.update_view_data(
+            &self.renderer,
+            view,
+            proj,
+            self.prev_view,
+            self.prev_proj,
+        );
+
+        let mut shade_after_pass = "init_probes";
+        if self.iteration > 0 {
+            let acc_graph = self
+                .temporal_acc_probes
+                .render_item(&render_context)
+                .to_graph();
+            render_job.merge_graph_after("init_probes", acc_graph);
+            shade_after_pass = "temporal_acc_probes";
+        }
+
         self.shade.update_view_data(&self.renderer, view, proj);
         self.shade.update_light_data(
             &self.renderer,
@@ -373,9 +396,12 @@ impl GraphicsManager {
             lights.first().unwrap().1,
         );
         let shade_graph = self.shade.render_item(&render_context).to_graph();
-        render_job.merge_graph_after("geometry", shade_graph);
+        render_job.merge_graph_after(shade_after_pass, shade_graph);
 
         self.renderer.render(&render_job);
+
+        self.prev_view = view;
+        self.prev_proj = proj;
         self.iteration += 1;
     }
 }
