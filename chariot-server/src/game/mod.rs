@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::net::TcpListener;
+use std::sync::Arc;
 use std::thread::{self};
 use std::time::{Duration, Instant};
 
@@ -16,6 +17,7 @@ use chariot_core::physics_changes::{PhysicsChange, PhysicsChangeType};
 use chariot_core::player_inputs::InputEvent;
 use chariot_core::questions::{QuestionData, QUESTIONS};
 use chariot_core::{PlayerID, GLOBAL_CONFIG};
+use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod, SslStream};
 
 use crate::chairs::get_player_start_physics_properties;
 use crate::physics::player_entity::PlayerEntity;
@@ -32,6 +34,7 @@ mod voting;
 pub struct GameServer {
     listener: TcpListener,
     ws_server: TcpListener,
+    acceptor: Arc<SslAcceptor>,
     connections: Vec<ClientConnection>,
     ws_connections: HashMap<Uuid, WebSocketConnection>,
     game_state: ServerGameState,
@@ -48,14 +51,29 @@ pub struct ServerGameState {
 
 impl GameServer {
     pub fn new(ip_addr: String) -> GameServer {
+        // start SSL WS Server
+        let mut acceptor = SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
+        acceptor
+            .set_private_key_file(
+                "/Users/ronakshah/Developer/School/125/chairiot/chariot-server/key.pem",
+                SslFiletype::PEM,
+            )
+            .expect("should have had key.pem");
+        acceptor
+            .set_certificate_chain_file("certificate.pem")
+            .expect("should have had certs.pem");
+        acceptor.check_private_key().unwrap();
+        let acceptor = Arc::new(acceptor.build());
+
+        let ws_server = TcpListener::bind(GLOBAL_CONFIG.ws_server_port.clone()).unwrap();
+        println!("wss listening on {}", GLOBAL_CONFIG.ws_server_port.clone());
         // start the TCP listening service
         let listener =
             TcpListener::bind(&ip_addr).expect("could not bind to configured server address");
         println!("game server now listening on {}", ip_addr);
-        let ws_server = TcpListener::bind(GLOBAL_CONFIG.ws_server_port.clone())
-            .expect("could not bind to ws server");
 
         GameServer {
+            acceptor,
             listener,
             ws_server,
             connections: Vec::new(),

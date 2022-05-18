@@ -1,3 +1,4 @@
+use openssl::ssl::SslStream;
 use serde::{Deserialize, Serialize};
 use serde_json::Error;
 use std::collections::VecDeque;
@@ -22,19 +23,21 @@ pub enum WSServerBoundMessage {
 }
 
 pub struct WSConnection {
-    socket: WebSocket<TcpStream>,
+    socket: WebSocket<SslStream<TcpStream>>,
     incoming_packets: VecDeque<WSServerBoundMessage>,
     outgoing_packets: VecDeque<Message>,
 }
 
 impl WSConnection {
-    pub fn new(tcp_stream: TcpStream) -> WSConnection {
-        tcp_stream
+    pub fn new(tcp_stream: SslStream<TcpStream>) -> WSConnection {
+        let inner_stream = tcp_stream.get_ref();
+        inner_stream
             .set_nonblocking(false)
             .expect("expected to be able to set tcp nonblocking to false");
         match accept(tcp_stream) {
             Ok(socket) => {
                 socket
+                    .get_ref()
                     .get_ref()
                     .set_nonblocking(true)
                     .expect("expected to be able to set tcp nonblocking to true");

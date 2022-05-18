@@ -36,21 +36,54 @@ impl GameServer {
 
     // creates a websocket for any audience connections
     pub fn acquire_any_audience_connections(&mut self) {
+        let mut new_uuids: Vec<Uuid> = Vec::new();
+
+        for stream in self.ws_server.incoming() {
+            match stream {
+                Ok(stream) => {
+                    let acceptor = self.acceptor.clone();
+
+                    match acceptor.accept(stream) {
+                        Ok(stream) => {
+                            let id = Uuid::new_v4();
+                            let connection = WebSocketConnection::new(stream);
+                            self.ws_connections.insert(id, connection);
+                            new_uuids.push(id);
+                            println!("acquired an audience connection!");
+                        }
+                        Err(error) => {
+                            if let openssl::ssl::HandshakeError::WouldBlock(stream) = error {
+                                println!("{:?}", stream.error());
+                            } else {
+                                println!("fuck — {:?}", error);
+                            }
+                        }
+                    }
+                    println!("big we have a stream");
+                }
+                Err(e) => {
+                    println!("this shit too hard {:?}", e);
+                }
+            }
+        }
+
         self.ws_server
             .set_nonblocking(true)
             .expect("non blocking should be ok");
 
-        let mut new_uuids: Vec<Uuid> = Vec::new();
-
-        if let Some(stream_result) = self.ws_server.incoming().next() {
-            if let Ok(stream) = stream_result {
-                let id = Uuid::new_v4();
-                let connection = WebSocketConnection::new(stream);
-                self.ws_connections.insert(id, connection);
-                new_uuids.push(id);
-                println!("acquired an audience connection!");
-            }
-        }
+        // if let Some(stream_result) = self.ws_server.incoming().next() {
+        //     if let Ok(stream) = stream_result {
+        //         println!("we got a stream! {:?}", stream);
+        //         let acceptor = self.acceptor.clone();
+        //         if let Ok(stream) = acceptor.accept(stream) {
+        //             let id = Uuid::new_v4();
+        //             let connection = WebSocketConnection::new(stream);
+        //             self.ws_connections.insert(id, connection);
+        //             new_uuids.push(id);
+        //             println!("acquired an audience connection!");
+        //         }
+        //     }
+        // }
 
         self.ws_server
             .set_nonblocking(false)
