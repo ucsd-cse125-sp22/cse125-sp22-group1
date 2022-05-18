@@ -44,12 +44,7 @@ impl<'a> MaterialBuilder<'a> {
         }
     }
 
-    pub fn buffer_resource(
-        &mut self,
-        group: u32,
-        binding: u32,
-        buffer: wgpu::Buffer,
-    ) -> &mut Self {
+    pub fn buffer_resource(&mut self, group: u32, binding: u32, buffer: wgpu::Buffer) -> &mut Self {
         self.buffers.push(buffer);
 
         self.bind_group_resources

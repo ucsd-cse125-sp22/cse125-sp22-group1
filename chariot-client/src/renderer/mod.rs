@@ -132,11 +132,7 @@ impl Renderer {
         self.context.window.request_redraw();
     }
 
-    pub fn register_framebuffer(
-        &mut self,
-        name: &str,
-        framebuffer_desc: FramebufferDescriptor,
-    ) {
+    pub fn register_framebuffer(&mut self, name: &str, framebuffer_desc: FramebufferDescriptor) {
         self.framebuffers
             .insert(String::from(name), framebuffer_desc);
     }

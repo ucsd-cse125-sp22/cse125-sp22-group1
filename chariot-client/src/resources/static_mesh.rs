@@ -107,11 +107,7 @@ impl<'a> MeshBuilder<'a> {
         self
     }
 
-    pub fn _submesh(
-        &mut self,
-        vertex_ranges: &[IndexRange],
-        num_elements: u32,
-    ) -> &mut Self {
+    pub fn _submesh(&mut self, vertex_ranges: &[IndexRange], num_elements: u32) -> &mut Self {
         self.submeshes.push(SubMesh {
             vertex_ranges: Vec::from(vertex_ranges),
             index_range: None,
