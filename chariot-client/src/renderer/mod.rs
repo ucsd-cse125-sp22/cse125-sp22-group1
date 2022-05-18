@@ -323,8 +323,7 @@ impl Renderer {
         })
     }
 
-    #[allow(non_snake_case)]
-    pub fn create_texture2D_init(
+    pub fn create_texture2d_init(
         &self,
         name: &str,
         size: PhysicalSize<u32>,
@@ -352,8 +351,7 @@ impl Renderer {
         // TODO: mipmapping
     }
 
-    #[allow(non_snake_case)]
-    pub fn create_texture2D(
+    pub fn create_texture2d(
         &self,
         name: &str,
         size: PhysicalSize<u32>,

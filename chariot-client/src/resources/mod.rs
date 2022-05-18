@@ -402,7 +402,7 @@ impl ResourceManager {
             } else {
                 &img.pixels
             };
-            renderer.create_texture2D_init(
+            renderer.create_texture2d_init(
                 "tex name",
                 winit::dpi::PhysicalSize::<u32> {
                     width: img.width,
@@ -451,7 +451,7 @@ impl ResourceManager {
                 (255.0 * bc[3]) as u8,
             ];
             let mat_name = material.name().unwrap_or("unnamed");
-            let constant_color_tex = renderer.create_texture2D_init(
+            let constant_color_tex = renderer.create_texture2d_init(
                 mat_name,
                 winit::dpi::PhysicalSize::new(1, 1),
                 wgpu::TextureFormat::Rgba8Unorm,
@@ -508,7 +508,7 @@ impl ResourceManager {
             .iter()
             .enumerate()
             .map(|(idx, format)| {
-                renderer.create_texture2D(
+                renderer.create_texture2d(
                     format!("{}_tex_{}", name, idx).as_str(),
                     size,
                     *format,
@@ -523,7 +523,7 @@ impl ResourceManager {
             .map(|_idx| TextureHandle::unique())
             .collect();
 
-        let depth_texture = renderer.create_texture2D(
+        let depth_texture = renderer.create_texture2d(
             format!("{}_tex_depth", name).as_str(),
             size,
             Renderer::DEPTH_FORMAT,
@@ -586,7 +586,7 @@ impl ResourceManager {
             .expect(format!("didn't find {}", resource_path.clone()).as_str());
         let img_rgba8 = img.into_rgba8();
 
-        let texture = renderer.create_texture2D_init(
+        let texture = renderer.create_texture2d_init(
             tex_name,
             winit::dpi::PhysicalSize::<u32> {
                 width: img_rgba8.width(),
