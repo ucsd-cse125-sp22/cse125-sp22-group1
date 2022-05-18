@@ -10,7 +10,7 @@ use pathfinder_geometry::transform2d::Transform2F;
 struct Glyph {
     texture: wgpu::Texture,
     offset: Vec2,
-    size: Vec2
+    size: Vec2,
 }
 
 struct GlyphCache {
@@ -41,24 +41,30 @@ impl GlyphCache {
     // if the glyph hasn't been rasterized yet, that will happen now
     // the fact this works without lifetime nonsense is astonishing
     pub fn get_glyph(&self, character: char) -> &Glyph {
-        self.cache.get(&character).unwrap_or_else(|| { self.raster_glyph(character) })
+        self.cache
+            .get(&character)
+            .unwrap_or_else(|| self.raster_glyph(character))
     }
 
     fn raster_glyph(&self, character: char) -> &Glyph {
-
         // fetch the glyph_id for this character
         // rather than CRASH, we should render the "unrecognized character" glyph
-        let glyph_id = self.font.glyph_for_char(character)
+        let glyph_id = self
+            .font
+            .glyph_for_char(character)
             .expect("glyph for character unavailable");
 
         // fetch the bounds of the glyph raster
-        let bounds = self.font.raster_bounds(
-            glyph_id,
-            self.point_size,
-            Transform2F::default(),
-            self.hinting_options,
-            RasterizationOptions::GrayscaleAa,
-        ).expect("couldn't determine raster bounds for glyph");
+        let bounds = self
+            .font
+            .raster_bounds(
+                glyph_id,
+                self.point_size,
+                Transform2F::default(),
+                self.hinting_options,
+                RasterizationOptions::GrayscaleAa,
+            )
+            .expect("couldn't determine raster bounds for glyph");
 
         // render glyph to temp canvas
         let mut canvas = Canvas::new(bounds.size(), Format::A8);

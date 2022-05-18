@@ -6,12 +6,12 @@ use winit::{
 
 mod application;
 mod drawable;
+mod font;
 mod game;
 mod graphics;
 mod renderer;
 mod resources;
 mod scenegraph;
-mod font;
 
 fn main() {
     let event_loop = winit::event_loop::EventLoop::new();
