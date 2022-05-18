@@ -4,7 +4,6 @@ use std::time::Instant;
 use chariot_core::lap_info::LapInformation;
 use chariot_core::networking::Uuid;
 use chariot_core::questions::{QuestionData, QuestionOption};
-use chariot_core::PlayerID;
 
 use super::voting::{AnswerID, QuestionID};
 
@@ -36,8 +35,10 @@ use super::voting::{AnswerID, QuestionID};
 pub enum GamePhase {
     // Choosing the chair/map
     ConnectingAndChoosingSettings {
+        force_start: bool,
+        chair_selection: [String; 4],
+        map_selection: [String; 4],
         players_ready: [bool; 4],
-        new_players_joined: Vec<(String, PlayerID)>,
     },
     // Players notified about map/chairs, loading in
     WaitingForPlayerLoad {

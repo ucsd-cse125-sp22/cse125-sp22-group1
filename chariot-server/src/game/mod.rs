@@ -66,8 +66,10 @@ impl GameServer {
             game_state: ServerGameState {
                 // notable: we don't allow more than 4 players
                 phase: GamePhase::ConnectingAndChoosingSettings {
-                    players_ready: [false, false, false, false],
-                    new_players_joined: Vec::new(),
+                    force_start: false,
+                    chair_selection: Default::default(),
+                    map_selection: Default::default(),
+                    players_ready: [false; 4],
                 },
                 players: [0, 1, 2, 3]
                     .map(|num| get_player_start_physics_properties(&String::from("standard"), num)),
@@ -79,10 +81,6 @@ impl GameServer {
     // WARNING: this function never returns
     pub fn start_loop(&mut self) {
         let max_server_tick_duration = Duration::from_millis(GLOBAL_CONFIG.server_tick_ms);
-        self.game_state.map = Some(
-            Map::load(GLOBAL_CONFIG.map_name.clone())
-                .expect("Couldn't load the map on the server!"),
-        );
 
         loop {
             // self.block_until_minimum_connections();
@@ -123,36 +121,56 @@ impl GameServer {
         }
     }
 
-    // blocks the primary loop if we don't have the minimum players
-    fn block_until_minimum_connections(&mut self) {
-        while self.connections.len() < GLOBAL_CONFIG.player_amount {
-            match self.listener.accept() {
-                Ok((socket, addr)) => {
-                    println!("new connection from {}", addr.ip().to_string());
-                    self.connections.push(ClientConnection::new(socket));
-                }
-                Err(e) => println!("couldn't get connecting client info {:?}", e),
-            }
-        }
-    }
-
     // handle every packet in received order
     fn process_incoming_packets(&mut self) {
-        for (i, connection) in self.connections.iter_mut().enumerate() {
+        for (player_num, connection) in self.connections.iter_mut().enumerate() {
             while let Some(packet) = connection.pop_incoming() {
                 match packet {
-                    ServerBoundPacket::ChairSelect(_) => todo!(),
-                    ServerBoundPacket::MapSelect(_) => todo!(),
-                    ServerBoundPacket::SetReadyStatus(_) => todo!(),
+                    ServerBoundPacket::ChairSelect(chair) => match &mut self.game_state.phase {
+                        GamePhase::ConnectingAndChoosingSettings {
+                            chair_selection, ..
+                        } => {
+                            chair_selection[player_num] = chair;
+                        }
+                        _ => (),
+                    },
+                    ServerBoundPacket::MapSelect(map) => match &mut self.game_state.phase {
+                        GamePhase::ConnectingAndChoosingSettings { map_selection, .. } => {
+                            map_selection[player_num] = map;
+                        }
+                        _ => (),
+                    },
+                    ServerBoundPacket::SetReadyStatus(status) => match &mut self.game_state.phase {
+                        GamePhase::ConnectingAndChoosingSettings { players_ready, .. } => {
+                            players_ready[player_num] = status;
+                        }
+                        _ => (),
+                    },
+                    ServerBoundPacket::ForceStart => {
+                        if let GamePhase::ConnectingAndChoosingSettings { force_start, .. } =
+                            &mut self.game_state.phase
+                        {
+                            *force_start = true;
+                        }
+                    }
 
-                    ServerBoundPacket::NotifyLoaded => todo!(),
+                    ServerBoundPacket::NotifyLoaded => match &mut self.game_state.phase {
+                        GamePhase::WaitingForPlayerLoad { players_loaded } => {
+                            players_loaded[player_num] = true;
+                        }
+                        _ => (),
+                    },
 
                     ServerBoundPacket::InputToggle(event) => match event {
                         InputEvent::Engine(status) => {
-                            self.game_state.players[i].player_inputs.engine_status = status;
+                            self.game_state.players[player_num]
+                                .player_inputs
+                                .engine_status = status;
                         }
                         InputEvent::Rotation(status) => {
-                            self.game_state.players[i].player_inputs.rotation_status = status;
+                            self.game_state.players[player_num]
+                                .player_inputs
+                                .rotation_status = status;
                         }
                     },
                 }
@@ -175,23 +193,55 @@ impl GameServer {
         let now = Instant::now();
         match &mut self.game_state.phase {
             GamePhase::ConnectingAndChoosingSettings {
+                force_start,
+                chair_selection,
+                map_selection,
                 players_ready,
-                new_players_joined,
             } => {
-                // create new players and physics for each new join
-                while let Some((chair_name, index)) = new_players_joined.pop() {
-                    players_ready[index] = true;
-                    self.game_state.players[index] =
-                        get_player_start_physics_properties(&chair_name, index);
-                    self.connections[index].push_outgoing(ClientBoundPacket::PlayerNumber(index));
-                }
-
-                // start game countdown if we're ready to go
-                if players_ready.iter().all(|&x| x) || GLOBAL_CONFIG.bypass_multiplayer_requirement
+                if self.connections.len() < GLOBAL_CONFIG.player_amount
+                    && !(*force_start && self.connections.len() > 0)
                 {
-                    self.game_state.phase = GamePhase::WaitingForPlayerLoad {
-                        players_loaded: [false; 4],
-                    };
+                    match self.listener.accept() {
+                        Ok((socket, addr)) => {
+                            println!("new connection from {}", addr.ip().to_string());
+                            let idx = self.connections.len();
+                            self.connections.push(ClientConnection::new(socket));
+                            self.connections
+                                .last_mut()
+                                .unwrap()
+                                .push_outgoing(ClientBoundPacket::PlayerNumber(idx));
+                        }
+                        Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => (),
+                        Err(e) => println!("couldn't get connecting client info {:?}", e),
+                    }
+                } else {
+                    if players_ready
+                        .iter()
+                        .enumerate()
+                        .all(|(idx, &r)| r || idx >= self.connections.len())
+                    {
+                        let map_name = "default".to_string(); // TODO figure out real voted map
+                        for (player_num, conn) in self.connections.iter_mut().enumerate() {
+                            self.game_state.players[player_num] =
+                                get_player_start_physics_properties(
+                                    &chair_selection[player_num],
+                                    player_num,
+                                );
+                            conn.push_outgoing(ClientBoundPacket::LoadGame(
+                                map_name.clone(),
+                                chair_selection.clone(),
+                            ));
+                        }
+
+                        self.game_state.phase = GamePhase::WaitingForPlayerLoad {
+                            players_loaded: [false; 4],
+                        };
+
+                        self.game_state.map = Some(
+                            Map::load(GLOBAL_CONFIG.map_name.clone())
+                                .expect("Couldn't load the map on the server!"),
+                        );
+                    }
                 }
             }
 

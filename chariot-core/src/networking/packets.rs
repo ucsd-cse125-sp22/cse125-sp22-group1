@@ -20,6 +20,7 @@ pub enum ServerBoundPacket {
     ChairSelect(String),
     MapSelect(String),
     SetReadyStatus(bool),
+    ForceStart,
     NotifyLoaded,
 
     // During game
@@ -34,6 +35,9 @@ pub enum ClientBoundPacket {
     PlayerChairChoice(PlayerID, String), // Another player has hovered a chair
     PlayerMapChoice(PlayerID, String),   // Another player has hovered a map
     PlayerReadyStatus(PlayerID, bool),   // Another player has readied or unreaded
+
+    // Load into the game
+    LoadGame(String, [String; 4]), // Map name, each player's chair
 
     // During game
     EntityUpdate(Vec<(EntityLocation, DVec3)>), // Clients will need to know the location and velocity of every player

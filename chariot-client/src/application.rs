@@ -51,6 +51,8 @@ impl Application {
                 ClientBoundPacket::PlayerMapChoice(_, _) => todo!(),
                 ClientBoundPacket::PlayerReadyStatus(_, _) => todo!(),
 
+                ClientBoundPacket::LoadGame(_, _) => todo!(),
+
                 ClientBoundPacket::EntityUpdate(locations) => {
                     locations.iter().enumerate().for_each(|(i, update)| {
                         self.graphics
