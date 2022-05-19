@@ -3,7 +3,7 @@ use std::net::TcpListener;
 use std::thread::{self};
 use std::time::{Duration, Instant};
 
-use chariot_core::player::choices::PlayerChoices;
+use chariot_core::player::choices::{Chair, PlayerChoices, Track};
 use chariot_core::player::lap_info::Placement;
 use chariot_core::player::{
     lap_info::LapInformation,
@@ -75,7 +75,7 @@ impl GameServer {
                     player_choices: Default::default(),
                 },
                 players: [0, 1, 2, 3]
-                    .map(|num| get_player_start_physics_properties(&String::from("standard"), num)),
+                    .map(|num| get_player_start_physics_properties(&Chair::Standard, num)),
                 map: None,
             },
         }
@@ -280,7 +280,7 @@ impl GameServer {
                             || idx >= self.connections.len()
                     }) {
                         println!("Players ready! Loading...");
-                        let map_name = GLOBAL_CONFIG.default_map_vote.clone(); // TODO figure out real voted map
+                        let track = Track::Track; // TODO figure out real voted track
 
                         for (player_num, conn) in self.connections.iter_mut().enumerate() {
                             self.game_state.players[player_num] =
@@ -288,7 +288,7 @@ impl GameServer {
                                     &player_choices[player_num].as_ref().unwrap().chair,
                                     player_num,
                                 );
-                            conn.push_outgoing(ClientBoundPacket::LoadGame(map_name.clone()));
+                            conn.push_outgoing(ClientBoundPacket::LoadGame(track.clone()));
                         }
 
                         self.game_state.phase = GamePhase::WaitingForPlayerLoad {
@@ -301,7 +301,8 @@ impl GameServer {
                         };
 
                         self.game_state.map = Some(
-                            Map::load(map_name).expect("Couldn't load the map on the server!"),
+                            Map::load(track.to_string())
+                                .expect("Couldn't load the map on the server!"),
                         );
                     }
                 }

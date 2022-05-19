@@ -1,4 +1,5 @@
 use chariot_core::networking::{ServerBoundPacket, ServerConnection};
+use chariot_core::player::choices::{Chair, Track};
 use chariot_core::player::player_inputs::InputEvent;
 use std::net::TcpStream;
 
@@ -24,11 +25,11 @@ impl GameClient {
         self.connection.sync_outgoing();
     }
 
-    pub fn pick_chair(&mut self, chair: String) {
+    pub fn pick_chair(&mut self, chair: Chair) {
         self.send_packet(ServerBoundPacket::ChairSelect(chair));
     }
 
-    pub fn pick_map(&mut self, map: String) {
+    pub fn pick_map(&mut self, map: Track) {
         self.send_packet(ServerBoundPacket::MapSelect(map));
     }
 

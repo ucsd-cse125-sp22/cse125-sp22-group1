@@ -14,10 +14,6 @@ pub struct Settings {
     // Resources
     pub resource_folder: String,
 
-    // Defaults
-    pub default_chair: String,
-    pub default_map_vote: String,
-
     // Gameplay
     pub number_laps: u8,
     pub powerup_cooldown_time: u64,
@@ -51,9 +47,6 @@ impl Settings {
             .set_default("player_amount", 4)?
             // files_and_resources (client)
             .set_default("resource_folder", "../chariot-core/resources")?
-            // Defaults
-            .set_default("default_chair", "standard")?
-            .set_default("default_map_vote", "track")?
             // Gameplay
             .set_default("number_laps", 3)?
             .set_default("powerup_cooldown_time", 10)?

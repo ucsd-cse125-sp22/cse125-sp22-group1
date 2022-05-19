@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use chariot_core::player::choices::{Chair, Track};
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, VirtualKeyCode};
 
@@ -178,10 +179,10 @@ impl Application {
             register_passes(&mut self.graphics.renderer);
         } else if key == VirtualKeyCode::Return {
             println!("Picking chair");
-            self.game.pick_chair("standard".to_string());
+            self.game.pick_chair(Chair::Standard);
         } else if key == VirtualKeyCode::Apostrophe {
             println!("Picking map");
-            self.game.pick_map("track".to_string());
+            self.game.pick_map(Track::Track);
         } else if key == VirtualKeyCode::Semicolon {
             println!("Setting ready");
             self.game.signal_ready_status(true);

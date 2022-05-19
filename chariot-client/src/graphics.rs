@@ -1,5 +1,6 @@
 use chariot_core::entity_location::EntityLocation;
 use chariot_core::player::choices::PlayerChoices;
+use chariot_core::player::choices::Track;
 use chariot_core::player::PlayerID;
 use chariot_core::GLOBAL_CONFIG;
 use glam::{DVec3, Vec2};
@@ -61,7 +62,7 @@ fn setup_void(resource: &mut ResourceManager, renderer: &mut Renderer) -> World 
     world
 }
 
-fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer, map: String) -> World {
+fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer, map: Track) -> World {
     let mut world = World::new();
     world.register::<Camera>();
     world.register::<Vec<StaticMeshDrawable>>();
@@ -71,7 +72,7 @@ fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer, map: St
 
     {
         let track_import = resources
-            .import_gltf(renderer, format!("models/{}.glb", map))
+            .import_gltf(renderer, format!("models/{}.glb", map.to_string()))
             .expect("Unable to load racetrack");
 
         let _track = world
@@ -198,7 +199,7 @@ impl GraphicsManager {
             .build();
     }
 
-    pub fn load_map(&mut self, map: String) {
+    pub fn load_map(&mut self, map: Track) {
         self.world = setup_world(&mut self.resources, &mut self.renderer, map);
 
         [0, 1, 2, 3].map(|player_num| self.add_player(player_num));
