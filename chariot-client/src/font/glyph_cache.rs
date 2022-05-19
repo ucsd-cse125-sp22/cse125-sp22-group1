@@ -35,7 +35,6 @@ impl Glyph {
     // returns a UILayerTechnique-friendly 0.0 - 1.0 screen offset that represents
     // the horizontal and vertical offset of this glyph
     pub fn get_origin_surface_offset(&self, renderer: &Renderer) -> Vec2 {
-        println!("origin for this character: {}", self.origin);
         let screen_size = renderer.surface_size();
         self.origin / Vec2::new(screen_size.width as f32, screen_size.height as f32)
     }
@@ -43,7 +42,6 @@ impl Glyph {
     // returns a UILayerTechnique-friendly 0.0 - 1.0 screen offset that represents
     // the horizontal and vertical layout size of this glyph
     pub fn get_advance_surface_offset(&self, renderer: &Renderer) -> Vec2 {
-        println!("advance for this character: {}", self.advance);
         let screen_size = renderer.surface_size();
         self.advance / Vec2::new(screen_size.width as f32, screen_size.height as f32)
     }

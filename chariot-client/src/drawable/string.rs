@@ -37,14 +37,6 @@ impl StringDrawable {
                 // increment the screen position by the glyph advance
                 screen_pos += glyph.get_advance_surface_offset(renderer);
 
-                println!(
-                    "position {}, size {}, texpos {}, tc_size {}",
-                    render_position,
-                    glyph.get_bounds_surface_offset(renderer),
-                    glyph.texture_offset,
-                    glyph.texture_size
-                );
-
                 UILayerTechnique::new(
                     renderer,
                     render_position,
