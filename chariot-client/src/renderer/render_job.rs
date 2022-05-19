@@ -229,11 +229,8 @@ impl<'a> RenderJob<'a> {
         self.merge_graph_internal(None, graph);
     }
     pub fn merge_graph_after(&mut self, after: &str, graph: RenderGraph<'a>) {
-        let root_id = *self
-            .pass_to_id
-            .get(&after.to_string())
-            .expect("Invalid after constraint");
-        self.merge_graph_internal(Some(root_id), graph);
+        let root_id = self.pass_to_id.get(&after.to_string()).map(|r| *r);
+        self.merge_graph_internal(root_id, graph);
     }
 
     fn merge_graph_internal(&mut self, root_id: Option<RenderNodeId>, graph: RenderGraph<'a>) {

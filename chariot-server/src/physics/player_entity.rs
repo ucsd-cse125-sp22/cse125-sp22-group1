@@ -1,9 +1,11 @@
 use crate::game::powerup::PowerUp;
 use crate::physics::bounding_box::BoundingBox;
 use chariot_core::entity_location::EntityLocation;
-use chariot_core::lap_info::LapInformation;
-use chariot_core::physics_changes::{PhysicsChange, PhysicsChangeType};
-use chariot_core::player_inputs::{EngineStatus, PlayerInputs, RotationStatus};
+use chariot_core::player::{
+    lap_info::LapInformation,
+    physics_changes::{PhysicsChange, PhysicsChangeType},
+    player_inputs::{EngineStatus, PlayerInputs, RotationStatus},
+};
 use chariot_core::GLOBAL_CONFIG;
 use glam::DVec3;
 
