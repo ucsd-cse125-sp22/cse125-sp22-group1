@@ -78,6 +78,7 @@ impl Application {
                 ClientBoundPacket::LoadGame(map) => {
                     println!("Loading map {}!", map);
                     self.graphics.load_map(map);
+                    self.game.signal_loaded();
                 }
 
                 ClientBoundPacket::EntityUpdate(locations) => {

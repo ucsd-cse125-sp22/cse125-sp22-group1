@@ -23,12 +23,6 @@ impl GameClient {
         self.connection.fetch_incoming_packets();
     }
 
-    // pub fn send_ready_packet(&mut self, chair_name: String) {
-    //     self.connection
-    //         .push_outgoing(ServerBoundPacket::ChairSelectAndReady(chair_name));
-    //     self.connection.sync_outgoing();
-    // }
-
     pub fn pick_chair(&mut self, chair: String) {
         self.connection
             .push_outgoing(ServerBoundPacket::ChairSelect(chair));
@@ -49,6 +43,12 @@ impl GameClient {
 
     pub fn force_start(&mut self) {
         self.connection.push_outgoing(ServerBoundPacket::ForceStart);
+        self.connection.sync_outgoing();
+    }
+
+    pub fn signal_loaded(&mut self) {
+        self.connection
+            .push_outgoing(ServerBoundPacket::NotifyLoaded);
         self.connection.sync_outgoing();
     }
 
