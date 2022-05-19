@@ -57,4 +57,9 @@ impl GameClient {
             .push_outgoing(ServerBoundPacket::InputToggle(event));
         self.connection.sync_outgoing();
     }
+
+    pub fn next_game(&mut self) {
+        self.connection.push_outgoing(ServerBoundPacket::NextGame);
+        self.connection.sync_outgoing();
+    }
 }

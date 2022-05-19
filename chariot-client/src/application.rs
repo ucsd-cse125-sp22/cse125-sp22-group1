@@ -188,6 +188,9 @@ impl Application {
         } else if key == VirtualKeyCode::L {
             println!("Forcing a start!");
             self.game.force_start();
+        } else if key == VirtualKeyCode::P {
+            println!("Starting next game!");
+            self.game.next_game();
         }
     }
 
