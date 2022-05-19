@@ -161,7 +161,7 @@ impl Application {
             register_passes(&mut self.graphics.renderer);
         } else if key == VirtualKeyCode::Return {
             println!("Picking chair");
-            self.game.pick_chair("default".to_string());
+            self.game.pick_chair("standard".to_string());
         } else if key == VirtualKeyCode::Apostrophe {
             println!("Picking map");
             self.game.pick_map("track".to_string());
