@@ -134,19 +134,6 @@ impl GlyphCache {
             .expect("couldn't determine raster bounds for glyph");
         let glyph_size = UVec2::new(bounds.width() as u32, bounds.height() as u32);
 
-        // render glyph to temp canvas
-        let mut canvas = Canvas::new(bounds.size(), Format::Rgba32);
-        self.font
-            .rasterize_glyph(
-                &mut canvas,
-                glyph_id,
-                self.point_size,
-                Transform2F::from_translation(-bounds.origin().to_f32()),
-                self.hinting_options,
-                RasterizationOptions::SubpixelAa,
-            )
-            .expect("failed to raster glyph");
-
         // check if we're going to overflow the wgpu texture, first horizontally
         if self.current_offset.x + glyph_size.x > self.texture_size.x {
             // if so wrap to new line
@@ -206,6 +193,34 @@ impl GlyphCache {
             advance: advance_pixel,
         };
 
+        // render glyph to temp canvas
+        let mut canvas = Canvas::new(bounds.size(), Format::Rgba32);
+        self.font
+            .rasterize_glyph(
+                &mut canvas,
+                glyph_id,
+                self.point_size,
+                Transform2F::from_translation(-bounds.origin().to_f32()),
+                self.hinting_options,
+                RasterizationOptions::SubpixelAa,
+            )
+            .expect("failed to raster glyph");
+
+        // some platforms (cough Windows) do not give us transparency,
+        // so we gotta handle transparency the old fashioned way
+        let texture_data: Vec<u8> = canvas
+            .pixels
+            .iter()
+            .enumerate()
+            .map(|(i, pixel)| {
+                if (i + 1) % 4 == 0 {
+                    canvas.pixels[i - 1] | canvas.pixels[i - 2] | canvas.pixels[i - 3]
+                } else {
+                    *pixel
+                }
+            })
+            .collect();
+
         // copy glyph to wgpu texture
         let texture = resource_manager
             .textures
@@ -214,7 +229,7 @@ impl GlyphCache {
         renderer.write_texture2d(
             texture,
             self.current_offset,
-            canvas.pixels.as_slice(),
+            texture_data.as_slice(),
             glyph_size,
             4,
         );

@@ -399,7 +399,7 @@ impl Renderer {
                 aspect: wgpu::TextureAspect::All,
             },
             data,
-            wgpu::ImageDataLayout {
+            ImageDataLayout {
                 offset: 0,
                 bytes_per_row: std::num::NonZeroU32::new(bytes_per_block * data_dimensions.x),
                 rows_per_image: std::num::NonZeroU32::new(data_dimensions.y),
