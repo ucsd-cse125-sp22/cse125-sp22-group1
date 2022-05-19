@@ -185,6 +185,17 @@ impl GraphicsManager {
     pub fn load_pregame(&mut self) {
         println!("Loading pregame screen!");
         self.world = setup_void(&mut self.resources, &mut self.renderer);
+        let root = self.world.root();
+
+        let _camera = self
+            .world
+            .builder()
+            .attach(root)
+            .with(Camera {
+                orbit_angle: glam::Vec2::ZERO,
+                distance: 3.0,
+            })
+            .build();
     }
 
     pub fn load_map(&mut self, map: String) {
