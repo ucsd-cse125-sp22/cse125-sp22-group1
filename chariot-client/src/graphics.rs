@@ -1,5 +1,7 @@
 use chariot_core::entity_location::EntityLocation;
-use chariot_core::PlayerID;
+use chariot_core::player::choices::PlayerChoices;
+use chariot_core::player::choices::Track;
+use chariot_core::player::PlayerID;
 use chariot_core::GLOBAL_CONFIG;
 use glam::{DVec3, Vec2};
 use std::f64::consts::PI;
@@ -37,7 +39,31 @@ pub fn register_passes(renderer: &mut Renderer) {
     );
 }
 
-fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer) -> World {
+fn setup_void(resource: &mut ResourceManager, renderer: &mut Renderer) -> World {
+    let mut world = World::new();
+    world.register::<Camera>();
+    world.register::<Vec<StaticMeshDrawable>>();
+    world.register::<Bounds>();
+    world.register::<Light>();
+    let world_root = world.root();
+
+    {
+        let scene_bounds = world.calc_bounds(world.root());
+        let _light = world
+            .builder()
+            .attach(world_root)
+            .with(Light::new_directional(
+                glam::vec3(-0.5, -1.0, 0.5),
+                scene_bounds,
+            ))
+            .with(Transform::default())
+            .build();
+    }
+
+    world
+}
+
+fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer, map: Track) -> World {
     let mut world = World::new();
     world.register::<Camera>();
     world.register::<Vec<StaticMeshDrawable>>();
@@ -47,7 +73,7 @@ fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer) -> Worl
 
     {
         let track_import = resources
-            .import_gltf(renderer, format!("models/{}.glb", GLOBAL_CONFIG.map_name))
+            .import_gltf(renderer, format!("models/{}.glb", map.to_string()))
             .expect("Unable to load racetrack");
 
         let _track = world
@@ -81,6 +107,8 @@ pub struct GraphicsManager {
     pub resources: ResourceManager,
 
     test_string: StringDrawable,
+    pub player_num: PlayerID,
+    pub player_choices: [Option<PlayerChoices>; 4],
     postprocess: technique::FSQTechnique,
     player_entities: [Option<Entity>; 4],
     camera_entity: Entity,
@@ -128,25 +156,60 @@ impl GraphicsManager {
 
         let postprocess = technique::FSQTechnique::new(&renderer, &resources, "postprocess");
 
-        let world = setup_world(&mut resources, &mut renderer);
+        let world = setup_void(&mut resources, &mut renderer);
 
         Self {
-            world: world,
-            renderer: renderer,
-            resources: resources,
-            test_string: test_string,
-            postprocess: postprocess,
+            test_string,
+            postprocess,
+            world,
+            renderer,
+            resources,
+
+            player_choices: Default::default(),
             player_entities: [None, None, None, None],
+
+            player_num: 4,
             camera_entity: NULL_ENTITY,
         }
     }
 
-    pub fn add_player(&mut self, player_num: PlayerID, is_self: bool) {
+    pub fn load_menu(&mut self) {
+        println!("Loading main menu!");
+    }
+
+    pub fn load_pregame(&mut self) {
+        println!("Loading pregame screen!");
+        self.world = setup_void(&mut self.resources, &mut self.renderer);
+        let root = self.world.root();
+
+        let _camera = self
+            .world
+            .builder()
+            .attach(root)
+            .with(Camera {
+                orbit_angle: glam::Vec2::ZERO,
+                distance: 3.0,
+            })
+            .build();
+    }
+
+    pub fn load_map(&mut self, map: Track) {
+        self.world = setup_world(&mut self.resources, &mut self.renderer, map);
+
+        [0, 1, 2, 3].map(|player_num| self.add_player(player_num));
+    }
+
+    pub fn add_player(&mut self, player_num: PlayerID) {
+        let is_self = self.player_num == player_num;
+        let choices = self.player_choices[player_num].clone().unwrap_or_default();
         println!("Adding new player: {}, self? {}", player_num, is_self);
 
         let chair_import = self
             .resources
-            .import_gltf(&mut self.renderer, "models/defaultchair.glb".to_string())
+            .import_gltf(
+                &mut self.renderer,
+                format!("models/{}.glb", choices.chair).to_string(),
+            )
             .expect("Failed to import chair");
 
         let world_root = self.world.root();
@@ -186,7 +249,7 @@ impl GraphicsManager {
         player_num: PlayerID,
     ) {
         if self.player_entities[player_num as usize].is_none() {
-            self.add_player(player_num, false);
+            self.add_player(player_num);
         }
         let player_entity = self.player_entities[player_num as usize].unwrap();
 
