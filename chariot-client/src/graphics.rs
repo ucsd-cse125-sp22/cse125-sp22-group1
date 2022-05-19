@@ -4,6 +4,7 @@ use chariot_core::GLOBAL_CONFIG;
 use glam::{DVec3, Vec2};
 use std::f64::consts::PI;
 
+use crate::drawable::string::StringDrawable;
 use crate::drawable::technique::Technique;
 use crate::drawable::*;
 use crate::renderer::*;
@@ -80,6 +81,7 @@ pub struct GraphicsManager {
     pub resources: ResourceManager,
 
     test_ui: UIDrawable,
+    test_string: StringDrawable,
     postprocess: technique::FSQTechnique,
     player_entities: [Option<Entity>; 4],
     camera_entity: Entity,
@@ -130,6 +132,14 @@ impl GraphicsManager {
             )],
         };
 
+        let mut test_string = StringDrawable::new("ArialMT", 32.0);
+        test_string.set(
+            "This is a test",
+            Vec2::new(0.5, 0.5),
+            &renderer,
+            &mut resources,
+        );
+
         let postprocess = technique::FSQTechnique::new(&renderer, &resources, "postprocess");
 
         let world = setup_world(&mut resources, &mut renderer);
@@ -139,6 +149,7 @@ impl GraphicsManager {
             renderer: renderer,
             resources: resources,
             test_ui: test_ui,
+            test_string: test_string,
             postprocess: postprocess,
             player_entities: [None, None, None, None],
             camera_entity: NULL_ENTITY,
@@ -345,6 +356,9 @@ impl GraphicsManager {
 
         let ui_graph = self.test_ui.render_graph(&self.resources);
         render_job.merge_graph_after("postprocess", ui_graph);
+
+        let text_graph = self.test_string.render_graph(&self.resources);
+        render_job.merge_graph_after("postprocess", text_graph);
 
         self.renderer.render(&render_job);
     }
