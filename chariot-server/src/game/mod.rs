@@ -3,7 +3,14 @@ use std::net::TcpListener;
 use std::thread::{self};
 use std::time::{Duration, Instant};
 
-use chariot_core::lap_info::LapInformation;
+use chariot_core::player::choices::{Chair, PlayerChoices, Track};
+use chariot_core::player::lap_info::Placement;
+use chariot_core::player::{
+    lap_info::LapInformation,
+    physics_changes::{PhysicsChange, PhysicsChangeType},
+    player_inputs::InputEvent,
+    PlayerID,
+};
 use glam::DVec3;
 
 use chariot_core::entity_location::EntityLocation;
@@ -12,10 +19,8 @@ use chariot_core::networking::Uuid;
 use chariot_core::networking::{
     ClientBoundPacket, ClientConnection, ServerBoundPacket, WebSocketConnection,
 };
-use chariot_core::physics_changes::{PhysicsChange, PhysicsChangeType};
-use chariot_core::player_inputs::InputEvent;
 use chariot_core::questions::{QuestionData, QUESTIONS};
-use chariot_core::{PlayerID, GLOBAL_CONFIG};
+use chariot_core::GLOBAL_CONFIG;
 
 use crate::chairs::get_player_start_physics_properties;
 use crate::physics::player_entity::PlayerEntity;
@@ -51,6 +56,9 @@ impl GameServer {
         // start the TCP listening service
         let listener =
             TcpListener::bind(&ip_addr).expect("could not bind to configured server address");
+        listener
+            .set_nonblocking(true)
+            .expect("Couldn't set the listener to be non-blocking!");
         println!("game server now listening on {}", ip_addr);
         let ws_server = TcpListener::bind(GLOBAL_CONFIG.ws_server_port.clone())
             .expect("could not bind to ws server");
@@ -62,12 +70,12 @@ impl GameServer {
             ws_connections: HashMap::new(),
             game_state: ServerGameState {
                 // notable: we don't allow more than 4 players
-                phase: GamePhase::WaitingForPlayerReady {
-                    players_ready: [false, false, false, false],
-                    new_players_joined: Vec::new(),
+                phase: GamePhase::ConnectingAndChoosingSettings {
+                    force_start: false,
+                    player_choices: Default::default(),
                 },
                 players: [0, 1, 2, 3]
-                    .map(|num| get_player_start_physics_properties(&String::from("standard"), num)),
+                    .map(|num| get_player_start_physics_properties(&Chair::Standard, num)),
                 map: None,
             },
         }
@@ -76,13 +84,9 @@ impl GameServer {
     // WARNING: this function never returns
     pub fn start_loop(&mut self) {
         let max_server_tick_duration = Duration::from_millis(GLOBAL_CONFIG.server_tick_ms);
-        self.game_state.map = Some(
-            Map::load(GLOBAL_CONFIG.map_name.clone())
-                .expect("Couldn't load the map on the server!"),
-        );
 
         loop {
-            self.block_until_minimum_connections();
+            // self.block_until_minimum_connections();
             self.acquire_any_audience_connections();
 
             let start_time = Instant::now();
@@ -113,48 +117,125 @@ impl GameServer {
                 .for_each(|(_, con)| con.sync_outgoing());
 
             // wait until server tick time has elapsed
-            let remaining_tick_duration = max_server_tick_duration
-                .checked_sub(start_time.elapsed())
-                .expect("server tick took longer than configured length");
-            thread::sleep(remaining_tick_duration);
-        }
-    }
-
-    // blocks the primary loop if we don't have the minimum players
-    fn block_until_minimum_connections(&mut self) {
-        while self.connections.len() < GLOBAL_CONFIG.player_amount {
-            match self.listener.accept() {
-                Ok((socket, addr)) => {
-                    println!("new connection from {}", addr.ip().to_string());
-                    self.connections.push(ClientConnection::new(socket));
+            if let Some(remaining_tick_duration) =
+                max_server_tick_duration.checked_sub(start_time.elapsed())
+            {
+                thread::sleep(remaining_tick_duration);
+            } else {
+                match self.game_state.phase {
+                    GamePhase::ConnectingAndChoosingSettings { .. }
+                    | GamePhase::WaitingForPlayerLoad { .. } => println!("Tick took longer than configured length, but we don't care because we are still loading"),
+                    _ => panic!("server tick took longer than configured length"),
                 }
-                Err(e) => println!("couldn't get connecting client info {:?}", e),
             }
         }
     }
 
     // handle every packet in received order
     fn process_incoming_packets(&mut self) {
-        for (i, connection) in self.connections.iter_mut().enumerate() {
+        let mut need_to_broadcast: Vec<ClientBoundPacket> = vec![];
+        for (player_num, connection) in self.connections.iter_mut().enumerate() {
             while let Some(packet) = connection.pop_incoming() {
                 match packet {
-                    ServerBoundPacket::ChairSelectAndReady(chair_name) => {
-                        if let GamePhase::WaitingForPlayerReady {
-                            new_players_joined, ..
-                        } = &mut self.game_state.phase
-                        {
-                            new_players_joined.push((chair_name, i));
+                    ServerBoundPacket::ChairSelect(new_chair) => match &mut self.game_state.phase {
+                        GamePhase::ConnectingAndChoosingSettings { player_choices, .. } => {
+                            if let Some(PlayerChoices { chair, .. }) =
+                                &mut player_choices[player_num]
+                            {
+                                println!(
+                                    "Setting player #{}'s chair to {}!",
+                                    player_num,
+                                    new_chair.clone()
+                                );
+                                *chair = new_chair.clone();
+                                need_to_broadcast.push(ClientBoundPacket::PlayerChairChoice(
+                                    player_num, new_chair,
+                                ));
+                            }
+                        }
+                        _ => (),
+                    },
+                    ServerBoundPacket::MapSelect(new_map) => match &mut self.game_state.phase {
+                        GamePhase::ConnectingAndChoosingSettings { player_choices, .. } => {
+                            if let Some(PlayerChoices { map, .. }) = &mut player_choices[player_num]
+                            {
+                                println!(
+                                    "Setting player #{}'s map vote to {}!",
+                                    player_num,
+                                    new_map.clone()
+                                );
+                                *map = new_map.clone();
+                                need_to_broadcast
+                                    .push(ClientBoundPacket::PlayerMapChoice(player_num, new_map));
+                            }
+                        }
+                        _ => (),
+                    },
+                    ServerBoundPacket::SetReadyStatus(new_status) => {
+                        match &mut self.game_state.phase {
+                            GamePhase::ConnectingAndChoosingSettings { player_choices, .. } => {
+                                if let Some(PlayerChoices { ready, .. }) =
+                                    &mut player_choices[player_num]
+                                {
+                                    println!(
+                                        "Player {} is no{} ready!",
+                                        player_num,
+                                        if new_status { "w" } else { "t" }
+                                    );
+                                    *ready = new_status;
+                                    need_to_broadcast.push(ClientBoundPacket::PlayerReadyStatus(
+                                        player_num, new_status,
+                                    ));
+                                }
+                            }
+                            _ => (),
                         }
                     }
+                    ServerBoundPacket::ForceStart => {
+                        if let GamePhase::ConnectingAndChoosingSettings { force_start, .. } =
+                            &mut self.game_state.phase
+                        {
+                            *force_start = true;
+                        }
+                    }
+
+                    ServerBoundPacket::NotifyLoaded => match &mut self.game_state.phase {
+                        GamePhase::WaitingForPlayerLoad { players_loaded } => {
+                            players_loaded[player_num] = true;
+                        }
+                        _ => (),
+                    },
+
                     ServerBoundPacket::InputToggle(event) => match event {
                         InputEvent::Engine(status) => {
-                            self.game_state.players[i].player_inputs.engine_status = status;
+                            self.game_state.players[player_num]
+                                .player_inputs
+                                .engine_status = status;
                         }
                         InputEvent::Rotation(status) => {
-                            self.game_state.players[i].player_inputs.rotation_status = status;
+                            self.game_state.players[player_num]
+                                .player_inputs
+                                .rotation_status = status;
                         }
                     },
+                    ServerBoundPacket::NextGame => {
+                        if let GamePhase::AllPlayersDone(placements) = self.game_state.phase {
+                            println!("Starting next game!");
+                            self.game_state.phase = GamePhase::ConnectingAndChoosingSettings {
+                                force_start: false,
+                                player_choices: placements
+                                    .map(|opt| opt.map(|_| Default::default())), // TODO figure out previous settings?
+                            };
+                            self.game_state.map = None;
+                            need_to_broadcast.push(ClientBoundPacket::StartNextGame);
+                        }
+                    }
                 }
+            }
+        }
+        for packet in need_to_broadcast {
+            for conn in self.connections.iter_mut() {
+                conn.push_outgoing(packet.clone());
             }
         }
     }
@@ -173,22 +254,64 @@ impl GameServer {
     fn simulate_game(&mut self) {
         let now = Instant::now();
         match &mut self.game_state.phase {
-            GamePhase::WaitingForPlayerReady {
-                players_ready,
-                new_players_joined,
+            GamePhase::ConnectingAndChoosingSettings {
+                force_start,
+                player_choices,
             } => {
-                // create new players and physics for each new join
-                while let Some((chair_name, index)) = new_players_joined.pop() {
-                    players_ready[index] = true;
-                    self.game_state.players[index] =
-                        get_player_start_physics_properties(&chair_name, index);
-                    self.connections[index].push_outgoing(ClientBoundPacket::PlayerNumber(index));
-                }
-
-                // start game countdown if we're ready to go
-                if players_ready.iter().all(|&x| x) || GLOBAL_CONFIG.bypass_multiplayer_requirement
+                if self.connections.len() < GLOBAL_CONFIG.player_amount
+                    && !(*force_start && self.connections.len() > 0)
                 {
-                    let time_until_start = Duration::new(10, 0);
+                    match self.listener.accept() {
+                        Ok((socket, addr)) => {
+                            println!("new connection from {}", addr.ip().to_string());
+                            let idx = self.connections.len();
+                            self.connections.push(ClientConnection::new(socket));
+                            self.connections.last_mut().unwrap().push_outgoing(
+                                ClientBoundPacket::PlayerNumber(idx, player_choices.clone()),
+                            );
+                            player_choices[idx] = Some(Default::default());
+                        }
+                        Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => (),
+                        Err(e) => println!("couldn't get connecting client info {:?}", e),
+                    }
+                } else {
+                    if player_choices.iter().enumerate().all(|(idx, r)| {
+                        r.as_ref().map(|r| r.ready).unwrap_or(false)
+                            || idx >= self.connections.len()
+                    }) {
+                        println!("Players ready! Loading...");
+                        let track = Track::Track; // TODO figure out real voted track
+
+                        for (player_num, conn) in self.connections.iter_mut().enumerate() {
+                            self.game_state.players[player_num] =
+                                get_player_start_physics_properties(
+                                    &player_choices[player_num].as_ref().unwrap().chair,
+                                    player_num,
+                                );
+                            conn.push_outgoing(ClientBoundPacket::LoadGame(track.clone()));
+                        }
+
+                        self.game_state.phase = GamePhase::WaitingForPlayerLoad {
+                            players_loaded: player_choices
+                                .iter()
+                                .map(|x| if x.is_some() { false } else { true })
+                                .collect::<Vec<bool>>()
+                                .try_into()
+                                .unwrap(),
+                        };
+
+                        self.game_state.map = Some(
+                            Map::load(track.to_string())
+                                .expect("Couldn't load the map on the server!"),
+                        );
+                    }
+                }
+            }
+
+            GamePhase::WaitingForPlayerLoad { players_loaded } => {
+                if players_loaded.iter().all(|&x| x) {
+                    println!("Players loaded, getting ready...");
+                    let time_until_start = Duration::new(3, 0);
                     self.game_state.phase =
                         GamePhase::CountingDownToGameStart(now + time_until_start);
 
@@ -200,6 +323,7 @@ impl GameServer {
 
             GamePhase::CountingDownToGameStart(countdown_end_time) => {
                 if now > *countdown_end_time {
+                    println!("Go!!!");
                     // transition to playing game after countdown
                     self.game_state.phase = GamePhase::PlayingGame {
                         // start off with 10 seconds of vote free gameplay
@@ -338,21 +462,54 @@ impl GameServer {
                         }
                     }
                 }
+
+                if self
+                    .game_state
+                    .players
+                    .iter()
+                    .enumerate()
+                    .all(|(player_num, player)| {
+                        player.lap_info.finished || player_num >= self.connections.len()
+                    })
+                {
+                    let final_placements: [Placement; 4] = self
+                        .game_state
+                        .players
+                        .iter()
+                        .map(|player| player.lap_info.placement)
+                        .collect::<Vec<Placement>>()
+                        .try_into()
+                        .unwrap();
+
+                    for conn in &mut self.connections {
+                        conn.push_outgoing(ClientBoundPacket::AllDone(final_placements.clone()));
+                    }
+
+                    self.game_state.phase =
+                        GamePhase::AllPlayersDone([0, 1, 2, 3].map(|player_num| {
+                            if player_num < self.connections.len() {
+                                Some(final_placements[player_num])
+                            } else {
+                                None
+                            }
+                        }));
+                }
             }
 
-            GamePhase::AllPlayersDone => todo!(),
+            GamePhase::AllPlayersDone(_placements) => {
+                // Don't need anything?
+            }
         }
     }
 
     // queue up sending updated game state
     fn sync_state(&mut self) {
         match self.game_state.phase {
-            GamePhase::WaitingForPlayerReady { .. } => {}
             // These two phases have visible players
             GamePhase::CountingDownToGameStart(_) | GamePhase::PlayingGame { .. } => {
                 self.sync_player_state()
             }
-            GamePhase::AllPlayersDone => todo!(),
+            _ => (),
         }
 
         self.update_and_sync_placement_state();
@@ -376,9 +533,6 @@ impl GameServer {
                     };
 
                     if player_placement[player_num].lap != lap {
-                        if lap == GLOBAL_CONFIG.number_laps {
-                            println!("Handle win!");
-                        }
                         self.connections[player_num]
                             .push_outgoing(ClientBoundPacket::LapUpdate(lap));
                     } else if player_placement[player_num].placement != placement {
