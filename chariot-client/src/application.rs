@@ -21,9 +21,10 @@ pub struct Application {
 }
 
 impl Application {
-    pub fn new(graphics_manager: GraphicsManager) -> Self {
+    pub fn new(mut graphics_manager: GraphicsManager) -> Self {
         let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
         let game = game::GameClient::new(ip_addr);
+        graphics_manager.load_menu();
 
         Self {
             graphics: graphics_manager,
@@ -48,6 +49,7 @@ impl Application {
                     println!("I am now player #{}!", player_number);
                     self.graphics.player_choices = others_choices;
                     self.graphics.player_choices[player_number] = Some(Default::default());
+                    self.graphics.load_pregame();
                 }
                 ClientBoundPacket::PlayerJoined(player_number) => {
                     self.graphics.player_choices[player_number] = Some(Default::default());
@@ -101,9 +103,24 @@ impl Application {
                         question.prompt, decision.label
                     );
                 }
-                ClientBoundPacket::AllDone => println!("This game is over!"),
+                ClientBoundPacket::AllDone(final_placements) => {
+                    println!(
+                        "This game is over! Results:\n{}",
+                        final_placements
+                            .iter()
+                            .enumerate()
+                            .map(|(player_num, place)| format!(
+                                "\t(#{} came {})\n",
+                                player_num, place
+                            ))
+                            .collect::<String>()
+                    );
+                }
                 ClientBoundPacket::VotingStarted(question) => {
                     println!("The audience is now voting on {}", question.prompt)
+                }
+                ClientBoundPacket::StartNextGame => {
+                    self.graphics.load_pregame();
                 }
             }
         }

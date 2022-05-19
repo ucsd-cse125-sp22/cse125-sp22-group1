@@ -4,6 +4,7 @@ use std::thread::{self};
 use std::time::{Duration, Instant};
 
 use chariot_core::player::choices::PlayerChoices;
+use chariot_core::player::lap_info::Placement;
 use chariot_core::player::{
     lap_info::LapInformation,
     physics_changes::{PhysicsChange, PhysicsChangeType},
@@ -217,6 +218,17 @@ impl GameServer {
                                 .rotation_status = status;
                         }
                     },
+                    ServerBoundPacket::NextGame => {
+                        if let GamePhase::AllPlayersDone(_) = self.game_state.phase {
+                            println!("Starting next game!");
+                            self.game_state.phase = GamePhase::ConnectingAndChoosingSettings {
+                                force_start: false,
+                                player_choices: Default::default(), // TODO figure out previous settings?
+                            };
+                            need_to_broadcast.push(ClientBoundPacket::StartNextGame);
+                            todo!(); // TODO does this work without breaking everything lol
+                        }
+                    }
                 }
             }
         }
@@ -445,9 +457,36 @@ impl GameServer {
                         }
                     }
                 }
+
+                if self
+                    .game_state
+                    .players
+                    .iter()
+                    .enumerate()
+                    .all(|(player_num, player)| {
+                        player.lap_info.finished || player_num >= self.connections.len()
+                    })
+                {
+                    let final_placements: [Placement; 4] = self
+                        .game_state
+                        .players
+                        .iter()
+                        .map(|player| player.lap_info.placement)
+                        .collect::<Vec<Placement>>()
+                        .try_into()
+                        .unwrap();
+
+                    for conn in &mut self.connections {
+                        conn.push_outgoing(ClientBoundPacket::AllDone(final_placements.clone()));
+                    }
+
+                    self.game_state.phase = GamePhase::AllPlayersDone(final_placements);
+                }
             }
 
-            GamePhase::AllPlayersDone => todo!(),
+            GamePhase::AllPlayersDone(_placements) => {
+                // Don't need anything?
+            }
         }
     }
 
@@ -458,7 +497,6 @@ impl GameServer {
             GamePhase::CountingDownToGameStart(_) | GamePhase::PlayingGame { .. } => {
                 self.sync_player_state()
             }
-            GamePhase::AllPlayersDone => todo!(),
             _ => (),
         }
 

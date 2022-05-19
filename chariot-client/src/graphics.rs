@@ -177,6 +177,16 @@ impl GraphicsManager {
         }
     }
 
+    pub fn load_menu(&mut self) {
+        println!("Loading main menu!");
+        // todo!();
+    }
+
+    pub fn load_pregame(&mut self) {
+        println!("Loading pregame screen!");
+        self.world = setup_void(&mut self.resources, &mut self.renderer);
+    }
+
     pub fn load_map(&mut self, map: String) {
         self.world = setup_world(&mut self.resources, &mut self.renderer, map);
 

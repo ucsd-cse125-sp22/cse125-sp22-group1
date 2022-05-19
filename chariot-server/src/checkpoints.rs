@@ -1,6 +1,7 @@
 use crate::physics::bounding_box::BoundingBox;
 use crate::physics::{player_entity::PlayerEntity, trigger_entity::TriggerEntity};
 use chariot_core::player::lap_info::*;
+use chariot_core::GLOBAL_CONFIG;
 use glam::DVec3;
 
 #[derive(Clone, Copy)]
@@ -88,9 +89,14 @@ impl TriggerEntity for FinishLine {
     fn trigger(&mut self, player: &mut PlayerEntity) {
         // Player is only allowed to advance if they are on the track's last zone
         if player.lap_info.zone == self.last_zone {
-            player.lap_info.lap += 1;
-            player.lap_info.zone = 0;
-            println!("Player now on lap {}", player.lap_info.lap);
+            if player.lap_info.lap == GLOBAL_CONFIG.number_laps {
+                player.lap_info.finished = true;
+                println!("Player has finished {}!", player.lap_info.placement + 1);
+            } else {
+                player.lap_info.lap += 1;
+                player.lap_info.zone = 0;
+                println!("Player now on lap {}", player.lap_info.lap);
+            }
         }
     }
 }

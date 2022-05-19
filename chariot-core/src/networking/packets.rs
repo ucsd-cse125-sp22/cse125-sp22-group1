@@ -28,6 +28,9 @@ pub enum ServerBoundPacket {
 
     // During game
     InputToggle(InputEvent),
+
+    // After game
+    NextGame,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -54,7 +57,8 @@ pub enum ClientBoundPacket {
     PlacementUpdate(Placement),                        // What place in the race are you now at?
 
     // After game
-    AllDone,
+    AllDone([Placement; 4]), // All players' final placements
+    StartNextGame,
 }
 
 pub trait Packet: Serialize + DeserializeOwned {
