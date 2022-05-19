@@ -219,11 +219,12 @@ impl GameServer {
                         }
                     },
                     ServerBoundPacket::NextGame => {
-                        if let GamePhase::AllPlayersDone(_) = self.game_state.phase {
+                        if let GamePhase::AllPlayersDone(placements) = self.game_state.phase {
                             println!("Starting next game!");
                             self.game_state.phase = GamePhase::ConnectingAndChoosingSettings {
                                 force_start: false,
-                                player_choices: Default::default(), // TODO figure out previous settings?
+                                player_choices: placements
+                                    .map(|opt| opt.map(|_| Default::default())), // TODO figure out previous settings?
                             };
                             need_to_broadcast.push(ClientBoundPacket::StartNextGame);
                         }
@@ -277,6 +278,7 @@ impl GameServer {
                         r.as_ref().map(|r| r.ready).unwrap_or(false)
                             || idx >= self.connections.len()
                     }) {
+                        println!("Players ready! Loading...");
                         let map_name = GLOBAL_CONFIG.default_map_vote.clone(); // TODO figure out real voted map
 
                         for (player_num, conn) in self.connections.iter_mut().enumerate() {
@@ -306,6 +308,7 @@ impl GameServer {
 
             GamePhase::WaitingForPlayerLoad { players_loaded } => {
                 if players_loaded.iter().all(|&x| x) {
+                    println!("Players loaded, getting ready...");
                     let time_until_start = Duration::new(3, 0);
                     self.game_state.phase =
                         GamePhase::CountingDownToGameStart(now + time_until_start);
@@ -318,6 +321,7 @@ impl GameServer {
 
             GamePhase::CountingDownToGameStart(countdown_end_time) => {
                 if now > *countdown_end_time {
+                    println!("Go!!!");
                     // transition to playing game after countdown
                     self.game_state.phase = GamePhase::PlayingGame {
                         // start off with 10 seconds of vote free gameplay
@@ -479,7 +483,14 @@ impl GameServer {
                         conn.push_outgoing(ClientBoundPacket::AllDone(final_placements.clone()));
                     }
 
-                    self.game_state.phase = GamePhase::AllPlayersDone(final_placements);
+                    self.game_state.phase =
+                        GamePhase::AllPlayersDone([0, 1, 2, 3].map(|player_num| {
+                            if player_num < self.connections.len() {
+                                Some(final_placements[player_num])
+                            } else {
+                                None
+                            }
+                        }));
                 }
             }
 

@@ -52,7 +52,7 @@ pub enum GamePhase {
         question_idx: QuestionID, // to keep track of which question we have asked
     },
     // Everyone has finished racing
-    AllPlayersDone([Placement; 4]),
+    AllPlayersDone([Option<Placement>; 4]),
 }
 
 pub enum VotingState {
