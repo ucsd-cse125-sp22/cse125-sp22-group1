@@ -62,7 +62,7 @@ pub fn get_player_placement_array(
 
         if a_finished || b_finished {
             if a_finished && b_finished {
-                if players[a.0].lap_info.placement < players[a.0].lap_info.placement {
+                if players[a.0].lap_info.placement < players[b.0].lap_info.placement {
                     return std::cmp::Ordering::Less;
                 } else {
                     return std::cmp::Ordering::Greater;
