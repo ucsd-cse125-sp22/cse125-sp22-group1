@@ -80,7 +80,6 @@ pub struct GraphicsManager {
     pub renderer: Renderer,
     pub resources: ResourceManager,
 
-    test_ui: UIDrawable,
     test_string: StringDrawable,
     postprocess: technique::FSQTechnique,
     player_entities: [Option<Entity>; 4],
@@ -119,23 +118,10 @@ impl GraphicsManager {
             renderer.register_framebuffer("shadow_out1", fb_desc);
         }
 
-        let text_handle = resources.import_texture(&renderer, "text.png");
-        let text_tex = resources.textures.get(&text_handle).unwrap();
-        let test_ui = UIDrawable {
-            layers: vec![technique::UILayerTechnique::new(
-                &renderer,
-                glam::vec2(0.0, 0.0),
-                glam::vec2(0.2, 0.2),
-                glam::vec2(0.0, 0.0),
-                glam::vec2(1.0, 1.0),
-                &text_tex,
-            )],
-        };
-
         let mut test_string = StringDrawable::new("ArialMT", 32.0);
         test_string.set(
-            "This is a test",
-            Vec2::new(0.5, 0.5),
+            "Rendering this almost killed me :)",
+            Vec2::new(0.05, 0.05),
             &renderer,
             &mut resources,
         );
@@ -148,7 +134,6 @@ impl GraphicsManager {
             world: world,
             renderer: renderer,
             resources: resources,
-            test_ui: test_ui,
             test_string: test_string,
             postprocess: postprocess,
             player_entities: [None, None, None, None],
@@ -353,9 +338,6 @@ impl GraphicsManager {
         );
         let postprocess_graph = self.postprocess.render_item(&self.resources).to_graph();
         render_job.merge_graph_after("forward", postprocess_graph);
-
-        let ui_graph = self.test_ui.render_graph(&self.resources);
-        render_job.merge_graph_after("postprocess", ui_graph);
 
         let text_graph = self.test_string.render_graph(&self.resources);
         render_job.merge_graph_after("postprocess", text_graph);
