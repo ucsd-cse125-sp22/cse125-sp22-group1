@@ -1,5 +1,6 @@
 use chariot_core::networking::{ServerBoundPacket, ServerConnection};
-use chariot_core::player_inputs::InputEvent;
+use chariot_core::player::choices::{Chair, Track};
+use chariot_core::player::player_inputs::InputEvent;
 use std::net::TcpStream;
 
 pub struct GameClient {
@@ -15,23 +16,40 @@ impl GameClient {
         }
     }
 
-    pub fn _sync_outgoing(&mut self) {
-        self.connection.sync_outgoing();
-    }
-
     pub fn fetch_incoming_packets(&mut self) {
         self.connection.fetch_incoming_packets();
     }
 
-    pub fn send_ready_packet(&mut self, chair_name: String) {
-        self.connection
-            .push_outgoing(ServerBoundPacket::ChairSelectAndReady(chair_name));
+    fn send_packet(&mut self, packet: ServerBoundPacket) {
+        self.connection.push_outgoing(packet);
         self.connection.sync_outgoing();
     }
 
+    pub fn pick_chair(&mut self, chair: Chair) {
+        self.send_packet(ServerBoundPacket::ChairSelect(chair));
+    }
+
+    pub fn pick_map(&mut self, map: Track) {
+        self.send_packet(ServerBoundPacket::MapSelect(map));
+    }
+
+    pub fn signal_ready_status(&mut self, ready: bool) {
+        self.send_packet(ServerBoundPacket::SetReadyStatus(ready));
+    }
+
+    pub fn force_start(&mut self) {
+        self.send_packet(ServerBoundPacket::ForceStart);
+    }
+
+    pub fn signal_loaded(&mut self) {
+        self.send_packet(ServerBoundPacket::NotifyLoaded);
+    }
+
     pub fn send_input_event(&mut self, event: InputEvent) {
-        self.connection
-            .push_outgoing(ServerBoundPacket::InputToggle(event));
-        self.connection.sync_outgoing();
+        self.send_packet(ServerBoundPacket::InputToggle(event));
+    }
+
+    pub fn next_game(&mut self) {
+        self.send_packet(ServerBoundPacket::NextGame);
     }
 }
