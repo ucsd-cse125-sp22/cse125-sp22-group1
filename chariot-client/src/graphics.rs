@@ -180,7 +180,6 @@ impl GraphicsManager {
 
     pub fn load_menu(&mut self) {
         println!("Loading main menu!");
-        // todo!();
     }
 
     pub fn load_pregame(&mut self) {
