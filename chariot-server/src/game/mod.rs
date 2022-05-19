@@ -521,9 +521,6 @@ impl GameServer {
                     };
 
                     if player_placement[player_num].lap != lap {
-                        if lap == GLOBAL_CONFIG.number_laps {
-                            println!("Handle win!");
-                        }
                         self.connections[player_num]
                             .push_outgoing(ClientBoundPacket::LapUpdate(lap));
                     } else if player_placement[player_num].placement != placement {
