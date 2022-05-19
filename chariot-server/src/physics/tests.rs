@@ -35,7 +35,7 @@ fn test_accelerating() {
         current_powerup: None,
     };
 
-    props = props.do_physics_step(1.0, Vec::new(), std::iter::empty());
+    props = props.do_physics_step(1.0, Vec::new(), Vec::new(), std::iter::empty());
 
     // since we're accelerating, should have the following changes:
     // - should have moved forward by previous velocity times time step
@@ -80,7 +80,7 @@ fn test_non_accelerating() {
         current_powerup: None,
     };
 
-    props = props.do_physics_step(1.0, Vec::new(), std::iter::empty());
+    props = props.do_physics_step(1.0, Vec::new(), Vec::new(), std::iter::empty());
 
     // since we're not accelerating, should have the following changes:
     // - should have moved forward by previous velocity times time step
@@ -123,7 +123,7 @@ fn test_decelerating() {
         current_powerup: None,
     };
 
-    props = props.do_physics_step(1.0, Vec::new(), std::iter::empty());
+    props = props.do_physics_step(1.0, Vec::new(), Vec::new(), std::iter::empty());
 
     // since we're decelerating, should have the following changes:
     // - should have moved forward by previous velocity times time step
@@ -169,12 +169,12 @@ fn test_spinning() {
         current_powerup: None,
     };
 
-    props = props.do_physics_step(1.0, Vec::new(), std::iter::empty());
+    props = props.do_physics_step(1.0, Vec::new(), Vec::new(), std::iter::empty());
 
     assert_eq!(props.angular_velocity, GLOBAL_CONFIG.car_spin);
 
     props.player_inputs.rotation_status = RotationStatus::NotInSpin;
-    props = props.do_physics_step(1.0, Vec::new(), std::iter::empty());
+    props = props.do_physics_step(1.0, Vec::new(), Vec::new(), std::iter::empty());
 
     assert_eq!(
         props.angular_velocity,

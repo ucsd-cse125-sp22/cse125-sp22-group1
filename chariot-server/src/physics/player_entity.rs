@@ -1,3 +1,5 @@
+use std::ops::Bound;
+
 use crate::game::powerup::PowerUp;
 use crate::physics::bounding_box::BoundingBox;
 use chariot_core::entity_location::EntityLocation;
@@ -107,12 +109,40 @@ impl PlayerEntity {
         return DVec3::new(result.x, 0.0, result.z);
     }
 
+    // Returns the velocity change to self from colliding with other
+    pub fn delta_v_from_collision_with_terrain(&self, other: BoundingBox) -> DVec3 {
+        if !self.bounding_box.is_colliding(&other) {
+            return DVec3::new(0.0, 0.0, 0.0);
+        }
+
+        // Uses the angle-free equation from
+        // https://en.wikipedia.org/wiki/Elastic_collision#Two-dimensional
+        // Which applies symmetrically so it shouldn't be much of a performance
+        // hit to call this method once for each member of a colliding pair -
+        // and the formula should be fast anyways.
+
+        let v1 = self.velocity;
+        let v2 = DVec3::ZERO;
+        let m1 = self.mass;
+        let m2 = 1.0; // TODO determine mass
+        let x1 = self.entity_location.position;
+        let x2 = other.pos();
+
+        let term1 = (2.0 * m2) / (m1 + m2);
+        let term2 = (v1 - v2).dot(x1 - x2) / (x1 - x2).length_squared();
+        let term3 = x1 - x2;
+
+        let result = term1 * term2 * term3;
+        return DVec3::new(result.x, 0.0, result.z);
+    }
+
     /* Given a set of physical properties, compute and return what next tick's
      * physics properties will be for that object */
     pub fn do_physics_step<'a>(
         &self,
         time_step: f64,
         potential_colliders: Vec<&PlayerEntity>,
+        potential_terrain: Vec<BoundingBox>,
         potential_triggers: impl Iterator<Item = &'a mut dyn TriggerEntity>,
     ) -> PlayerEntity {
         let self_forces = self.sum_of_self_forces();
@@ -146,6 +176,10 @@ impl PlayerEntity {
 
         for collider in potential_colliders.iter() {
             delta_velocity += self.delta_v_from_collision_with_player(collider);
+        }
+
+        for &collider in potential_terrain.iter() {
+            delta_velocity += self.delta_v_from_collision_with_terrain(collider);
         }
 
         let mut new_velocity = self.velocity + delta_velocity;

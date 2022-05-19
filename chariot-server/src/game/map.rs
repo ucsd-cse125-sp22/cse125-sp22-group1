@@ -80,7 +80,7 @@ impl Map {
             );
         }
 
-        let colliders: Vec<BoundingBox> = Vec::new();
+        let mut colliders: Vec<BoundingBox> = Vec::new();
 
         let mut checkpoints: Vec<Checkpoint> = Vec::new();
         let mut major_zones: Vec<Zone> = Vec::new();
@@ -174,7 +174,7 @@ impl Map {
                                     "Loading mesh '{}' as a collider",
                                     mesh.name().unwrap_or("<unnamed>")
                                 );
-                                todo!();
+                                colliders.push(mesh_bounds);
                             } else {
                                 panic!(
                                     "Mesh '{}' has unknown purpose '{}'!",
