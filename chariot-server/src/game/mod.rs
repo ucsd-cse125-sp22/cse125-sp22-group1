@@ -278,7 +278,12 @@ impl GameServer {
                         }
 
                         self.game_state.phase = GamePhase::WaitingForPlayerLoad {
-                            players_loaded: [false; 4],
+                            players_loaded: player_choices
+                                .iter()
+                                .map(|x| if x.is_some() { false } else { true })
+                                .collect::<Vec<bool>>()
+                                .try_into()
+                                .unwrap(),
                         };
 
                         self.game_state.map = Some(
