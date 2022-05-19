@@ -226,6 +226,7 @@ impl GameServer {
                                 player_choices: placements
                                     .map(|opt| opt.map(|_| Default::default())), // TODO figure out previous settings?
                             };
+                            self.game_state.map = None;
                             need_to_broadcast.push(ClientBoundPacket::StartNextGame);
                         }
                     }
