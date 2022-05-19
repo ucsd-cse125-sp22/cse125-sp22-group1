@@ -11,6 +11,7 @@ pub struct LapInformation {
     pub zone: ZoneID,
     pub last_checkpoint: CheckpointID,
     pub placement: Placement,
+    pub finished: bool,
 }
 
 impl LapInformation {
@@ -20,6 +21,7 @@ impl LapInformation {
             zone: 0,
             last_checkpoint: 0,
             placement: 0,
+            finished: false,
         }
     }
 }
