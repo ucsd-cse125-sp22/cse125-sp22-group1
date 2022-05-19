@@ -15,51 +15,40 @@ impl GameClient {
         }
     }
 
-    pub fn _sync_outgoing(&mut self) {
-        self.connection.sync_outgoing();
-    }
-
     pub fn fetch_incoming_packets(&mut self) {
         self.connection.fetch_incoming_packets();
     }
 
-    pub fn pick_chair(&mut self, chair: String) {
-        self.connection
-            .push_outgoing(ServerBoundPacket::ChairSelect(chair));
+    fn send_packet(&mut self, packet: ServerBoundPacket) {
+        self.connection.push_outgoing(packet);
         self.connection.sync_outgoing();
+    }
+
+    pub fn pick_chair(&mut self, chair: String) {
+        self.send_packet(ServerBoundPacket::ChairSelect(chair));
     }
 
     pub fn pick_map(&mut self, map: String) {
-        self.connection
-            .push_outgoing(ServerBoundPacket::MapSelect(map));
-        self.connection.sync_outgoing();
+        self.send_packet(ServerBoundPacket::MapSelect(map));
     }
 
     pub fn signal_ready_status(&mut self, ready: bool) {
-        self.connection
-            .push_outgoing(ServerBoundPacket::SetReadyStatus(ready));
-        self.connection.sync_outgoing();
+        self.send_packet(ServerBoundPacket::SetReadyStatus(ready));
     }
 
     pub fn force_start(&mut self) {
-        self.connection.push_outgoing(ServerBoundPacket::ForceStart);
-        self.connection.sync_outgoing();
+        self.send_packet(ServerBoundPacket::ForceStart);
     }
 
     pub fn signal_loaded(&mut self) {
-        self.connection
-            .push_outgoing(ServerBoundPacket::NotifyLoaded);
-        self.connection.sync_outgoing();
+        self.send_packet(ServerBoundPacket::NotifyLoaded);
     }
 
     pub fn send_input_event(&mut self, event: InputEvent) {
-        self.connection
-            .push_outgoing(ServerBoundPacket::InputToggle(event));
-        self.connection.sync_outgoing();
+        self.send_packet(ServerBoundPacket::InputToggle(event));
     }
 
     pub fn next_game(&mut self) {
-        self.connection.push_outgoing(ServerBoundPacket::NextGame);
-        self.connection.sync_outgoing();
+        self.send_packet(ServerBoundPacket::NextGame);
     }
 }
