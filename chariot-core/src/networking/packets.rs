@@ -9,10 +9,13 @@ use serde::{Deserialize, Serialize};
 pub use uuid::Uuid;
 
 use crate::entity_location::EntityLocation;
-use crate::lap_info::{LapNumber, Placement};
-use crate::player_inputs::InputEvent;
+use crate::player::choices::PlayerChoices;
+use crate::player::{
+    lap_info::{LapNumber, Placement},
+    player_inputs::InputEvent,
+    PlayerID,
+};
 use crate::questions::{QuestionData, QuestionOption};
-use crate::PlayerID;
 
 #[derive(Serialize, Deserialize)]
 pub enum ServerBoundPacket {
@@ -27,17 +30,20 @@ pub enum ServerBoundPacket {
     InputToggle(InputEvent),
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub enum ClientBoundPacket {
     // Before game
-    PlayerNumber(PlayerID),
-    GameStart(Duration),                 // How long until the game starts?
+    PlayerNumber(PlayerID, [Option<PlayerChoices>; 4]),
     PlayerChairChoice(PlayerID, String), // Another player has hovered a chair
     PlayerMapChoice(PlayerID, String),   // Another player has hovered a map
     PlayerReadyStatus(PlayerID, bool),   // Another player has readied or unreaded
+    PlayerJoined(PlayerID),
 
     // Load into the game
-    LoadGame(String, [String; 4]), // Map name, each player's chair
+    LoadGame(String), // Map name, each player's chair
+
+    // Pre-game
+    GameStart(Duration), // How long until the game starts?
 
     // During game
     EntityUpdate(Vec<(EntityLocation, DVec3)>), // Clients will need to know the location and velocity of every player

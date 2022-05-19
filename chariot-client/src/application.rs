@@ -4,7 +4,10 @@ use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, VirtualKeyCode};
 
 use chariot_core::networking::ClientBoundPacket;
-use chariot_core::player_inputs::{EngineStatus, InputEvent, RotationStatus};
+use chariot_core::player::{
+    player_inputs::{EngineStatus, InputEvent, RotationStatus},
+    PlayerID,
+};
 use chariot_core::GLOBAL_CONFIG;
 
 use crate::game::{self, GameClient};
@@ -20,9 +23,7 @@ pub struct Application {
 impl Application {
     pub fn new(graphics_manager: GraphicsManager) -> Self {
         let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
-        let mut game = game::GameClient::new(ip_addr);
-
-        // game.send_ready_packet("standard".to_string());
+        let game = game::GameClient::new(ip_addr);
 
         Self {
             graphics: graphics_manager,
@@ -42,16 +43,42 @@ impl Application {
         // process current packets
         while let Some(packet) = self.game.connection.pop_incoming() {
             match packet {
-                ClientBoundPacket::PlayerNumber(player_number) => {
+                ClientBoundPacket::PlayerNumber(player_number, others_choices) => {
+                    self.graphics.player_num = player_number;
                     println!("I am now player #{}!", player_number);
-                    // self.graphics.add_player(player_number, true)
+                    self.graphics.player_choices = others_choices;
+                    self.graphics.player_choices[player_number] = Some(Default::default());
+                }
+                ClientBoundPacket::PlayerJoined(player_number) => {
+                    self.graphics.player_choices[player_number] = Some(Default::default());
                 }
 
-                ClientBoundPacket::PlayerChairChoice(_, _) => todo!(),
-                ClientBoundPacket::PlayerMapChoice(_, _) => todo!(),
-                ClientBoundPacket::PlayerReadyStatus(_, _) => todo!(),
+                ClientBoundPacket::PlayerChairChoice(player_num, chair) => {
+                    println!("Player #{} has chosen chair {}!", player_num, chair.clone());
+                    self.graphics.player_choices[player_num]
+                        .as_mut()
+                        .expect("Attempted to set chair on player we don't know about!")
+                        .chair = chair;
+                }
+                ClientBoundPacket::PlayerMapChoice(player_num, map) => {
+                    println!("Player #{} has voted for map {}!", player_num, map.clone());
+                    self.graphics.player_choices[player_num]
+                        .as_mut()
+                        .expect("Attempted to set chair on player we don't know about!")
+                        .map = map;
+                }
+                ClientBoundPacket::PlayerReadyStatus(player_num, status) => {
+                    println!(
+                        "Player #{} is no{} ready!",
+                        player_num,
+                        if status { "w" } else { "t" }
+                    );
+                }
 
-                ClientBoundPacket::LoadGame(_, _) => todo!(),
+                ClientBoundPacket::LoadGame(map) => {
+                    println!("Loading map {}!", map);
+                    self.graphics.load_map(map);
+                }
 
                 ClientBoundPacket::EntityUpdate(locations) => {
                     locations.iter().enumerate().for_each(|(i, update)| {
@@ -131,6 +158,18 @@ impl Application {
         if key == VirtualKeyCode::R {
             println!("Reloading shaders");
             register_passes(&mut self.graphics.renderer);
+        } else if key == VirtualKeyCode::Return {
+            println!("Picking chair");
+            self.game.pick_chair("default".to_string());
+        } else if key == VirtualKeyCode::Apostrophe {
+            println!("Picking map");
+            self.game.pick_map("track".to_string());
+        } else if key == VirtualKeyCode::Semicolon {
+            println!("Setting ready");
+            self.game.signal_ready_status(true);
+        } else if key == VirtualKeyCode::L {
+            println!("Forcing a start!");
+            self.game.force_start();
         }
     }
 

@@ -1,9 +1,11 @@
 use crate::physics::bounding_box::BoundingBox;
 use chariot_core::{
     entity_location::EntityLocation,
-    lap_info::LapInformation,
-    player_inputs::{EngineStatus, PlayerInputs, RotationStatus},
-    PlayerID,
+    player::{
+        lap_info::LapInformation,
+        player_inputs::{EngineStatus, PlayerInputs, RotationStatus},
+        PlayerID,
+    },
 };
 use glam::DVec3;
 

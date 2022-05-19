@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::time::Instant;
 
-use chariot_core::lap_info::LapInformation;
 use chariot_core::networking::Uuid;
+use chariot_core::player::choices::PlayerChoices;
+use chariot_core::player::lap_info::LapInformation;
 use chariot_core::questions::{QuestionData, QuestionOption};
 
 use super::voting::{AnswerID, QuestionID};
@@ -36,9 +37,7 @@ pub enum GamePhase {
     // Choosing the chair/map
     ConnectingAndChoosingSettings {
         force_start: bool,
-        chair_selection: [String; 4],
-        map_selection: [String; 4],
-        players_ready: [bool; 4],
+        player_choices: [Option<PlayerChoices>; 4],
     },
     // Players notified about map/chairs, loading in
     WaitingForPlayerLoad {

@@ -1,5 +1,5 @@
 use chariot_core::networking::{ServerBoundPacket, ServerConnection};
-use chariot_core::player_inputs::InputEvent;
+use chariot_core::player::player_inputs::InputEvent;
 use std::net::TcpStream;
 
 pub struct GameClient {
@@ -28,6 +28,29 @@ impl GameClient {
     //         .push_outgoing(ServerBoundPacket::ChairSelectAndReady(chair_name));
     //     self.connection.sync_outgoing();
     // }
+
+    pub fn pick_chair(&mut self, chair: String) {
+        self.connection
+            .push_outgoing(ServerBoundPacket::ChairSelect(chair));
+        self.connection.sync_outgoing();
+    }
+
+    pub fn pick_map(&mut self, map: String) {
+        self.connection
+            .push_outgoing(ServerBoundPacket::MapSelect(map));
+        self.connection.sync_outgoing();
+    }
+
+    pub fn signal_ready_status(&mut self, ready: bool) {
+        self.connection
+            .push_outgoing(ServerBoundPacket::SetReadyStatus(ready));
+        self.connection.sync_outgoing();
+    }
+
+    pub fn force_start(&mut self) {
+        self.connection.push_outgoing(ServerBoundPacket::ForceStart);
+        self.connection.sync_outgoing();
+    }
 
     pub fn send_input_event(&mut self, event: InputEvent) {
         self.connection

@@ -2,7 +2,7 @@ use crate::{
     checkpoints::Checkpoint,
     physics::{player_entity::PlayerEntity, trigger_entity::TriggerEntity},
 };
-use chariot_core::{lap_info::*, PlayerID};
+use chariot_core::player::{lap_info::*, PlayerID};
 
 impl PlayerEntity {
     // Values returned aren't intended to be interpreted directly, only compared

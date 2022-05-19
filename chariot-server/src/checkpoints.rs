@@ -1,6 +1,6 @@
 use crate::physics::bounding_box::BoundingBox;
 use crate::physics::{player_entity::PlayerEntity, trigger_entity::TriggerEntity};
-use chariot_core::lap_info::*;
+use chariot_core::player::lap_info::*;
 use glam::DVec3;
 
 #[derive(Clone, Copy)]

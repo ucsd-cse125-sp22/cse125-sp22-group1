@@ -3,7 +3,13 @@ use std::net::TcpListener;
 use std::thread::{self};
 use std::time::{Duration, Instant};
 
-use chariot_core::lap_info::LapInformation;
+use chariot_core::player::choices::PlayerChoices;
+use chariot_core::player::{
+    lap_info::LapInformation,
+    physics_changes::{PhysicsChange, PhysicsChangeType},
+    player_inputs::InputEvent,
+    PlayerID,
+};
 use glam::DVec3;
 
 use chariot_core::entity_location::EntityLocation;
@@ -12,10 +18,8 @@ use chariot_core::networking::Uuid;
 use chariot_core::networking::{
     ClientBoundPacket, ClientConnection, ServerBoundPacket, WebSocketConnection,
 };
-use chariot_core::physics_changes::{PhysicsChange, PhysicsChangeType};
-use chariot_core::player_inputs::InputEvent;
 use chariot_core::questions::{QuestionData, QUESTIONS};
-use chariot_core::{PlayerID, GLOBAL_CONFIG};
+use chariot_core::GLOBAL_CONFIG;
 
 use crate::chairs::get_player_start_physics_properties;
 use crate::physics::player_entity::PlayerEntity;
@@ -67,9 +71,7 @@ impl GameServer {
                 // notable: we don't allow more than 4 players
                 phase: GamePhase::ConnectingAndChoosingSettings {
                     force_start: false,
-                    chair_selection: Default::default(),
-                    map_selection: Default::default(),
-                    players_ready: [false; 4],
+                    player_choices: Default::default(),
                 },
                 players: [0, 1, 2, 3]
                     .map(|num| get_player_start_physics_properties(&String::from("standard"), num)),
@@ -114,38 +116,80 @@ impl GameServer {
                 .for_each(|(_, con)| con.sync_outgoing());
 
             // wait until server tick time has elapsed
-            let remaining_tick_duration = max_server_tick_duration
-                .checked_sub(start_time.elapsed())
-                .expect("server tick took longer than configured length");
-            thread::sleep(remaining_tick_duration);
+            if let Some(remaining_tick_duration) =
+                max_server_tick_duration.checked_sub(start_time.elapsed())
+            {
+                thread::sleep(remaining_tick_duration);
+            } else {
+                match self.game_state.phase {
+                    GamePhase::ConnectingAndChoosingSettings { .. }
+                    | GamePhase::WaitingForPlayerLoad { .. } => println!("Took took longer than configured length, but we don't care because we are still loading"),
+                    _ => panic!("server tick took longer than configured length"),
+                }
+            }
         }
     }
 
     // handle every packet in received order
     fn process_incoming_packets(&mut self) {
+        let mut need_to_broadcast: Vec<ClientBoundPacket> = vec![];
         for (player_num, connection) in self.connections.iter_mut().enumerate() {
             while let Some(packet) = connection.pop_incoming() {
                 match packet {
-                    ServerBoundPacket::ChairSelect(chair) => match &mut self.game_state.phase {
-                        GamePhase::ConnectingAndChoosingSettings {
-                            chair_selection, ..
-                        } => {
-                            chair_selection[player_num] = chair;
+                    ServerBoundPacket::ChairSelect(new_chair) => match &mut self.game_state.phase {
+                        GamePhase::ConnectingAndChoosingSettings { player_choices, .. } => {
+                            if let Some(PlayerChoices { chair, .. }) =
+                                &mut player_choices[player_num]
+                            {
+                                println!(
+                                    "Setting player #{}'s chair to {}!",
+                                    player_num,
+                                    new_chair.clone()
+                                );
+                                *chair = new_chair.clone();
+                                need_to_broadcast.push(ClientBoundPacket::PlayerChairChoice(
+                                    player_num, new_chair,
+                                ));
+                            }
                         }
                         _ => (),
                     },
-                    ServerBoundPacket::MapSelect(map) => match &mut self.game_state.phase {
-                        GamePhase::ConnectingAndChoosingSettings { map_selection, .. } => {
-                            map_selection[player_num] = map;
+                    ServerBoundPacket::MapSelect(new_map) => match &mut self.game_state.phase {
+                        GamePhase::ConnectingAndChoosingSettings { player_choices, .. } => {
+                            if let Some(PlayerChoices { map, .. }) = &mut player_choices[player_num]
+                            {
+                                println!(
+                                    "Setting player #{}'s map vote to {}!",
+                                    player_num,
+                                    new_map.clone()
+                                );
+                                *map = new_map.clone();
+                                need_to_broadcast
+                                    .push(ClientBoundPacket::PlayerMapChoice(player_num, new_map));
+                            }
                         }
                         _ => (),
                     },
-                    ServerBoundPacket::SetReadyStatus(status) => match &mut self.game_state.phase {
-                        GamePhase::ConnectingAndChoosingSettings { players_ready, .. } => {
-                            players_ready[player_num] = status;
+                    ServerBoundPacket::SetReadyStatus(new_status) => {
+                        match &mut self.game_state.phase {
+                            GamePhase::ConnectingAndChoosingSettings { player_choices, .. } => {
+                                if let Some(PlayerChoices { ready, .. }) =
+                                    &mut player_choices[player_num]
+                                {
+                                    println!(
+                                        "Player {} is no{} ready!",
+                                        player_num,
+                                        if new_status { "w" } else { "t" }
+                                    );
+                                    *ready = new_status;
+                                    need_to_broadcast.push(ClientBoundPacket::PlayerReadyStatus(
+                                        player_num, new_status,
+                                    ));
+                                }
+                            }
+                            _ => (),
                         }
-                        _ => (),
-                    },
+                    }
                     ServerBoundPacket::ForceStart => {
                         if let GamePhase::ConnectingAndChoosingSettings { force_start, .. } =
                             &mut self.game_state.phase
@@ -176,6 +220,11 @@ impl GameServer {
                 }
             }
         }
+        for packet in need_to_broadcast {
+            for conn in self.connections.iter_mut() {
+                conn.push_outgoing(packet.clone());
+            }
+        }
     }
 
     // sends a message to all connected web clients
@@ -194,9 +243,7 @@ impl GameServer {
         match &mut self.game_state.phase {
             GamePhase::ConnectingAndChoosingSettings {
                 force_start,
-                chair_selection,
-                map_selection,
-                players_ready,
+                player_choices,
             } => {
                 if self.connections.len() < GLOBAL_CONFIG.player_amount
                     && !(*force_start && self.connections.len() > 0)
@@ -206,31 +253,28 @@ impl GameServer {
                             println!("new connection from {}", addr.ip().to_string());
                             let idx = self.connections.len();
                             self.connections.push(ClientConnection::new(socket));
-                            self.connections
-                                .last_mut()
-                                .unwrap()
-                                .push_outgoing(ClientBoundPacket::PlayerNumber(idx));
+                            self.connections.last_mut().unwrap().push_outgoing(
+                                ClientBoundPacket::PlayerNumber(idx, player_choices.clone()),
+                            );
+                            player_choices[idx] = Some(Default::default());
                         }
                         Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => (),
                         Err(e) => println!("couldn't get connecting client info {:?}", e),
                     }
                 } else {
-                    if players_ready
-                        .iter()
-                        .enumerate()
-                        .all(|(idx, &r)| r || idx >= self.connections.len())
-                    {
-                        let map_name = "default".to_string(); // TODO figure out real voted map
+                    if player_choices.iter().enumerate().all(|(idx, r)| {
+                        r.as_ref().map(|r| r.ready).unwrap_or(false)
+                            || idx >= self.connections.len()
+                    }) {
+                        let map_name = GLOBAL_CONFIG.default_map_vote.clone(); // TODO figure out real voted map
+
                         for (player_num, conn) in self.connections.iter_mut().enumerate() {
                             self.game_state.players[player_num] =
                                 get_player_start_physics_properties(
-                                    &chair_selection[player_num],
+                                    &player_choices[player_num].as_ref().unwrap().chair,
                                     player_num,
                                 );
-                            conn.push_outgoing(ClientBoundPacket::LoadGame(
-                                map_name.clone(),
-                                chair_selection.clone(),
-                            ));
+                            conn.push_outgoing(ClientBoundPacket::LoadGame(map_name.clone()));
                         }
 
                         self.game_state.phase = GamePhase::WaitingForPlayerLoad {
@@ -238,8 +282,7 @@ impl GameServer {
                         };
 
                         self.game_state.map = Some(
-                            Map::load(GLOBAL_CONFIG.map_name.clone())
-                                .expect("Couldn't load the map on the server!"),
+                            Map::load(map_name).expect("Couldn't load the map on the server!"),
                         );
                     }
                 }

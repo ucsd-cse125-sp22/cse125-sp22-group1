@@ -14,7 +14,10 @@ pub struct Settings {
     pub bypass_multiplayer_requirement: bool,
     // Resources
     pub resource_folder: String,
-    pub map_name: String,
+
+    // Defaults
+    pub default_chair: String,
+    pub default_map_vote: String,
 
     // Gameplay
     pub number_laps: u8,
@@ -51,7 +54,10 @@ impl Settings {
             .set_default("bypass_multiplayer_requirement", false)?
             // files_and_resources (client)
             .set_default("resource_folder", "../chariot-core/resources")?
-            .set_default("map_name", "track")?
+            // Defaults
+            .set_default("default_chair", "standard")?
+            .set_default("default_map_vote", "track")?
+            // Gameplay
             .set_default("number_laps", 3)?
             .set_default("powerup_cooldown_time", 10)?
             // physics
