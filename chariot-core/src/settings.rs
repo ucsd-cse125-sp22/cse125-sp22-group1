@@ -11,7 +11,6 @@ pub struct Settings {
     pub player_amount: usize,
     pub ws_server_port: String,
 
-    pub bypass_multiplayer_requirement: bool,
     // Resources
     pub resource_folder: String,
 
@@ -50,8 +49,6 @@ impl Settings {
             .set_default("ws_server_port", "0.0.0.0:2334")?
             .set_default("server_tick_ms", 30)?
             .set_default("player_amount", 1)?
-            // for debugging purposes: don't require all players to join to get to see the graphical view
-            .set_default("bypass_multiplayer_requirement", false)?
             // files_and_resources (client)
             .set_default("resource_folder", "../chariot-core/resources")?
             // Defaults
