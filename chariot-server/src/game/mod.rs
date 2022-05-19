@@ -226,7 +226,6 @@ impl GameServer {
                                 player_choices: Default::default(), // TODO figure out previous settings?
                             };
                             need_to_broadcast.push(ClientBoundPacket::StartNextGame);
-                            todo!(); // TODO does this work without breaking everything lol
                         }
                     }
                 }
