@@ -5,6 +5,8 @@ use std::{
 };
 
 use serde_json::Value;
+use wgpu::Texture;
+
 pub mod material;
 pub mod static_mesh;
 
@@ -597,6 +599,11 @@ impl ResourceManager {
             &img_rgba8.into_raw(),
         );
 
+        self.register_texture(texture)
+    }
+
+    // shorthand for registering a texture
+    pub fn register_texture(&mut self, texture: Texture) -> TextureHandle {
         let handle = TextureHandle::unique();
         self.textures.insert(handle, texture);
         return handle;
