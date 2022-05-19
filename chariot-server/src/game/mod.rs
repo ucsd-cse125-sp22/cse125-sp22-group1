@@ -21,9 +21,9 @@ use chariot_core::networking::{
     ClientBoundPacket, ClientConnection, ServerBoundPacket, WebSocketConnection,
 };
 use chariot_core::questions::{QuestionData, QUESTIONS};
+use chariot_core::GLOBAL_CONFIG;
 use chariot_core::{PlayerID, GLOBAL_CONFIG};
 use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod, SslStream};
-use chariot_core::GLOBAL_CONFIG;
 
 use crate::chairs::get_player_start_physics_properties;
 use crate::physics::player_entity::PlayerEntity;
