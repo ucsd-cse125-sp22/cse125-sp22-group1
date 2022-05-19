@@ -123,7 +123,7 @@ impl GameServer {
             } else {
                 match self.game_state.phase {
                     GamePhase::ConnectingAndChoosingSettings { .. }
-                    | GamePhase::WaitingForPlayerLoad { .. } => println!("Took took longer than configured length, but we don't care because we are still loading"),
+                    | GamePhase::WaitingForPlayerLoad { .. } => println!("Tick took longer than configured length, but we don't care because we are still loading"),
                     _ => panic!("server tick took longer than configured length"),
                 }
             }
