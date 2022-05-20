@@ -28,6 +28,7 @@ impl StringDrawable {
     }
 
     // create a new UIDrawable based on the requested content and position
+    // screen_pos needs to be floats from 0.0 -> 1.0 because thats what the Renderer expects
     pub fn set(
         &mut self,
         content: &str,

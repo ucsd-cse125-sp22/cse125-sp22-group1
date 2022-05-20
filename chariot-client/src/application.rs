@@ -9,27 +9,37 @@ use chariot_core::networking::ClientBoundPacket;
 use chariot_core::player::player_inputs::{EngineStatus, InputEvent, RotationStatus};
 use chariot_core::GLOBAL_CONFIG;
 
-use crate::game::{self, GameClient};
+use crate::game::GameClient;
 use crate::graphics::{register_passes, GraphicsManager};
+use crate::ui::ui_region::UIRegion;
 
 pub struct Application {
     pub graphics: GraphicsManager,
     pub game: GameClient,
     pub pressed_keys: HashSet<VirtualKeyCode>,
     mouse_pos: PhysicalPosition<f64>,
+    ui_regions: Vec<UIRegion>,
 }
 
 impl Application {
     pub fn new(mut graphics_manager: GraphicsManager) -> Self {
         let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
-        let game = game::GameClient::new(ip_addr);
+        let game = GameClient::new(ip_addr);
         graphics_manager.load_menu();
+
+        // demonstration region about encompassing the corner text
+        let mut test_ui_region = UIRegion::new(5.0, 7.0, 150.0, 26.0);
+        test_ui_region.on_enter(|| println!("region entered"));
+        test_ui_region.on_exit(|| println!("region exited"));
+        test_ui_region.on_click(|| println!("region clicked"));
+        test_ui_region.on_release(|| println!("region released"));
 
         Self {
             graphics: graphics_manager,
             game,
             pressed_keys: HashSet::new(),
             mouse_pos: PhysicalPosition::<f64> { x: -1.0, y: -1.0 },
+            ui_regions: vec![test_ui_region],
         }
     }
 
@@ -231,14 +241,25 @@ impl Application {
     pub fn on_mouse_move(&mut self, x: f64, y: f64) {
         self.mouse_pos.x = x;
         self.mouse_pos.y = y;
+
+        self.ui_regions
+            .iter_mut()
+            .for_each(|reg| reg.set_hovering(x, y));
     }
 
     pub fn on_left_mouse(&mut self, state: ElementState) {
-        let _x = self.mouse_pos.x;
-        let _y = self.mouse_pos.y;
+        let x = self.mouse_pos.x;
+        let y = self.mouse_pos.y;
 
-        if let ElementState::Released = state {
-            // println!("Mouse clicked @ ({}, {})!", x, y);
+        match state {
+            ElementState::Pressed => self
+                .ui_regions
+                .iter_mut()
+                .for_each(|reg| reg.set_active(x, y)),
+            ElementState::Released => self
+                .ui_regions
+                .iter_mut()
+                .for_each(|reg| reg.set_inactive()),
         }
     }
 
