@@ -90,6 +90,7 @@ fn test_accelerating() {
 #[test]
 fn test_non_accelerating() {
     let mut props = get_starting_player_props();
+    props.player_inputs.engine_status = EngineStatus::Neutral;
     props = props.do_physics_step(1.0, Vec::new(), Vec::new(), std::iter::empty());
 
     // since we're not accelerating, should have the following changes:
@@ -111,6 +112,7 @@ fn test_non_accelerating() {
 #[test]
 fn test_decelerating() {
     let mut props = get_starting_player_props();
+    props.player_inputs.engine_status = EngineStatus::Braking;
     props = props.do_physics_step(1.0, Vec::new(), Vec::new(), std::iter::empty());
 
     // since we're decelerating, should have the following changes:
@@ -136,6 +138,7 @@ fn test_decelerating() {
 fn test_spinning() {
     let mut props = get_starting_player_props();
     props.velocity = DVec3::ZERO;
+    props.player_inputs.rotation_status = RotationStatus::InSpinClockwise;
     props = props.do_physics_step(1.0, Vec::new(), Vec::new(), std::iter::empty());
 
     assert_eq!(props.angular_velocity, GLOBAL_CONFIG.car_spin);
