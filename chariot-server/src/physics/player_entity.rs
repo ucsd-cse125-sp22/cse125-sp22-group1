@@ -144,11 +144,6 @@ impl PlayerEntity {
             -1.0 * angular_velocity as f32,
         );
 
-        let new_steer_direction = rotation_matrix
-            .mul_vec3(self.entity_location.unit_steer_direction.as_vec3())
-            .normalize()
-            .as_dvec3();
-
         let mut delta_velocity = acceleration * time_step;
 
         for collider in potential_colliders.iter() {
@@ -163,7 +158,6 @@ impl PlayerEntity {
         // colliding with them (otherwise, it's super easy to get stuck inside
         // an object)
         if collision_terrain_is_new {
-            println!("{:?}", terrain_with_collisions);
             for terrain in &terrain_with_collisions {
                 // We want to "reflect" off of objects: this means negating the
                 // x component of velocity if hitting a face parallel to the
@@ -184,6 +178,17 @@ impl PlayerEntity {
         } else if new_velocity.length() < 0.05 {
             new_velocity = DVec3::ZERO;
         }
+
+        let new_steer_direction =
+		// we want to instantly snap to the new direction if bouncing off an object (otherwise is confusing)
+		if collision_terrain_is_new {
+			new_velocity.normalize()
+		} else {
+			rotation_matrix
+				.mul_vec3(self.entity_location.unit_steer_direction.as_vec3())
+				.normalize()
+				.as_dvec3()
+		};
 
         let mut new_player = PlayerEntity {
             player_inputs: PlayerInputs {
