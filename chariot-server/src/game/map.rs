@@ -6,7 +6,7 @@ use crate::{
     checkpoints::*,
     physics::{bounding_box::BoundingBox, trigger_entity::TriggerEntity},
 };
-use chariot_core::{lap_info::ZoneID, GLOBAL_CONFIG};
+use chariot_core::{player::lap_info::ZoneID, GLOBAL_CONFIG};
 
 use super::powerup::pickups::ItemBox;
 

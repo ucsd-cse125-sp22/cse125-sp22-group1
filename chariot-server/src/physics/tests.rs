@@ -2,10 +2,10 @@ use glam::DVec3;
 
 use crate::physics::bounding_box::BoundingBox;
 use chariot_core::entity_location::EntityLocation;
-use chariot_core::lap_info::LapInformation;
-use chariot_core::player_inputs::EngineStatus;
-use chariot_core::player_inputs::PlayerInputs;
-use chariot_core::player_inputs::RotationStatus;
+use chariot_core::player::{
+    lap_info::LapInformation,
+    player_inputs::{EngineStatus, PlayerInputs, RotationStatus},
+};
 use chariot_core::GLOBAL_CONFIG;
 
 use crate::physics::player_entity::PlayerEntity;
