@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use chariot_core::player::choices::{Chair, Track};
+use glam::Vec2;
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, VirtualKeyCode};
 
@@ -172,22 +173,46 @@ impl Application {
         };
 
         if key == VirtualKeyCode::R {
-            println!("Reloading shaders");
+            self.graphics.loading_text.set(
+                "Reloading shaders",
+                &self.graphics.renderer,
+                &mut self.graphics.resources,
+            );
             register_passes(&mut self.graphics.renderer);
         } else if key == VirtualKeyCode::Return {
-            println!("Picking chair");
+            self.graphics.loading_text.set(
+                "Picking chair",
+                &self.graphics.renderer,
+                &mut self.graphics.resources,
+            );
             self.game.pick_chair(Chair::Standard);
         } else if key == VirtualKeyCode::Apostrophe {
-            println!("Picking map");
+            self.graphics.loading_text.set(
+                "Picking map",
+                &self.graphics.renderer,
+                &mut self.graphics.resources,
+            );
             self.game.pick_map(Track::Track);
         } else if key == VirtualKeyCode::Semicolon {
-            println!("Setting ready");
+            self.graphics.loading_text.set(
+                "Setting ready",
+                &self.graphics.renderer,
+                &mut self.graphics.resources,
+            );
             self.game.signal_ready_status(true);
         } else if key == VirtualKeyCode::L {
-            println!("Forcing a start!");
+            self.graphics.loading_text.set(
+                "Forcing a start!",
+                &self.graphics.renderer,
+                &mut self.graphics.resources,
+            );
             self.game.force_start();
         } else if key == VirtualKeyCode::P {
-            println!("Starting next game!");
+            self.graphics.loading_text.set(
+                "Starting next game!",
+                &self.graphics.renderer,
+                &mut self.graphics.resources,
+            );
             self.game.next_game();
         }
     }

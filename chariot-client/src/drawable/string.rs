@@ -8,13 +8,17 @@ use glam::Vec2;
 pub struct StringDrawable {
     ui_drawable: UIDrawable,
     glyph_cache: GlyphCache,
+    pub should_draw: bool,
+    pub screen_position: Vec2,
 }
 
 impl StringDrawable {
-    pub fn new(font_name: &str, point_size: f32) -> StringDrawable {
+    pub fn new(font_name: &str, point_size: f32, screen_position: Vec2) -> StringDrawable {
         StringDrawable {
             ui_drawable: UIDrawable { layers: vec![] },
             glyph_cache: GlyphCache::new(font_name, point_size),
+            should_draw: true,
+            screen_position,
         }
     }
 
@@ -22,10 +26,10 @@ impl StringDrawable {
     pub fn set(
         &mut self,
         content: &str,
-        mut screen_pos: Vec2,
         renderer: &Renderer,
         resource_manager: &mut ResourceManager,
     ) {
+        let mut screen_pos = self.screen_position.clone();
         // get UILayerTechniques for each glyph
         let layers: Vec<UILayerTechnique> = content
             .chars()
@@ -54,6 +58,11 @@ impl StringDrawable {
 
 impl Drawable for StringDrawable {
     fn render_graph<'a>(&'a self, resources: &'a ResourceManager) -> render_job::RenderGraph<'a> {
-        self.ui_drawable.render_graph(resources)
+        if self.should_draw {
+            self.ui_drawable.render_graph(resources)
+        } else {
+            let mut builder = render_job::RenderGraphBuilder::new();
+            builder.build()
+        }
     }
 }

@@ -104,8 +104,7 @@ pub struct GraphicsManager {
     pub world: World,
     pub renderer: Renderer,
     pub resources: ResourceManager,
-
-    test_string: StringDrawable,
+    pub loading_text: StringDrawable,
     pub player_num: PlayerID,
     pub player_choices: [Option<PlayerChoices>; 4],
     postprocess: technique::FSQTechnique,
@@ -145,20 +144,15 @@ impl GraphicsManager {
             renderer.register_framebuffer("shadow_out1", fb_desc);
         }
 
-        let mut test_string = StringDrawable::new("ArialMT", 18.0);
-        test_string.set(
-            "chariot - 0.6.9",
-            Vec2::new(0.005, 0.027),
-            &renderer,
-            &mut resources,
-        );
+        let mut test_string = StringDrawable::new("ArialMT", 18.0, Vec2::new(0.005, 0.027));
+        test_string.set("chariot - 0.6.9", &renderer, &mut resources);
 
         let postprocess = technique::FSQTechnique::new(&renderer, &resources, "postprocess");
 
         let world = setup_void();
 
         Self {
-            test_string,
+            loading_text: test_string,
             postprocess,
             world,
             renderer,
@@ -401,7 +395,7 @@ impl GraphicsManager {
         let postprocess_graph = self.postprocess.render_item(&self.resources).to_graph();
         render_job.merge_graph_after("forward", postprocess_graph);
 
-        let text_graph = self.test_string.render_graph(&self.resources);
+        let text_graph = self.loading_text.render_graph(&self.resources);
         render_job.merge_graph_after("postprocess", text_graph);
 
         self.renderer.render(&render_job);
