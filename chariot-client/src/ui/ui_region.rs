@@ -12,6 +12,7 @@ pub struct UIRegion {
 }
 
 impl UIRegion {
+    // since winit uses pixels this region must be defined in pixels as well
     pub fn new(x: f64, y: f64, width: f64, height: f64) -> UIRegion {
         UIRegion {
             x0: x,
