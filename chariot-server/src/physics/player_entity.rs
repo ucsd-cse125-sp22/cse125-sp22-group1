@@ -1,5 +1,3 @@
-use std::ops::Bound;
-
 use crate::game::powerup::PowerUp;
 use crate::physics::bounding_box::BoundingBox;
 use chariot_core::entity_location::EntityLocation;
@@ -198,11 +196,7 @@ impl PlayerEntity {
 
             entity_location: EntityLocation {
                 position: self.entity_location.position + self.velocity * time_step,
-                unit_steer_direction: if collision_terrain_is_new {
-                    new_velocity.normalize()
-                } else {
-                    new_steer_direction
-                },
+                unit_steer_direction: new_steer_direction,
                 unit_upward_direction: self.entity_location.unit_upward_direction,
             },
 
