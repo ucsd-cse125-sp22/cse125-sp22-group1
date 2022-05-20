@@ -2,10 +2,10 @@ use chariot_core::entity_location::EntityLocation;
 use chariot_core::player::choices::PlayerChoices;
 use chariot_core::player::choices::Track;
 use chariot_core::player::PlayerID;
-use chariot_core::GLOBAL_CONFIG;
 use glam::{DVec3, Vec2};
 use std::f64::consts::PI;
 
+use crate::drawable::string::StringDrawable;
 use crate::drawable::technique::Technique;
 use crate::drawable::*;
 use crate::renderer::*;
@@ -38,7 +38,7 @@ pub fn register_passes(renderer: &mut Renderer) {
     );
 }
 
-fn setup_void(resource: &mut ResourceManager, renderer: &mut Renderer) -> World {
+fn setup_void() -> World {
     let mut world = World::new();
     world.register::<Camera>();
     world.register::<Vec<StaticMeshDrawable>>();
@@ -105,10 +105,9 @@ pub struct GraphicsManager {
     pub renderer: Renderer,
     pub resources: ResourceManager,
 
+    test_string: StringDrawable,
     pub player_num: PlayerID,
     pub player_choices: [Option<PlayerChoices>; 4],
-
-    test_ui: UIDrawable,
     postprocess: technique::FSQTechnique,
     player_entities: [Option<Entity>; 4],
     camera_entity: Entity,
@@ -146,24 +145,21 @@ impl GraphicsManager {
             renderer.register_framebuffer("shadow_out1", fb_desc);
         }
 
-        let text_handle = resources.import_texture(&renderer, "text.png");
-        let text_tex = resources.textures.get(&text_handle).unwrap();
-        let test_ui = UIDrawable {
-            layers: vec![technique::UILayerTechnique::new(
-                &renderer,
-                glam::vec2(0.0, 0.0),
-                glam::vec2(0.2, 0.2),
-                glam::vec2(0.0, 0.0),
-                glam::vec2(1.0, 1.0),
-                &text_tex,
-            )],
-        };
+        let mut test_string = StringDrawable::new("ArialMT", 18.0);
+        test_string.set(
+            "chariot - 0.6.9",
+            Vec2::new(0.005, 0.027),
+            &renderer,
+            &mut resources,
+        );
 
         let postprocess = technique::FSQTechnique::new(&renderer, &resources, "postprocess");
 
-        let world = setup_void(&mut resources, &mut renderer);
+        let world = setup_void();
 
         Self {
+            test_string,
+            postprocess,
             world,
             renderer,
             resources,
@@ -171,8 +167,6 @@ impl GraphicsManager {
             player_choices: Default::default(),
             player_entities: [None, None, None, None],
 
-            test_ui,
-            postprocess,
             player_num: 4,
             camera_entity: NULL_ENTITY,
         }
@@ -184,7 +178,7 @@ impl GraphicsManager {
 
     pub fn load_pregame(&mut self) {
         println!("Loading pregame screen!");
-        self.world = setup_void(&mut self.resources, &mut self.renderer);
+        self.world = setup_void();
         let root = self.world.root();
 
         let _camera = self
@@ -297,7 +291,7 @@ impl GraphicsManager {
             .expect("Root doesn't have transform component")
             .to_mat4();
 
-        // Right now, we're iterating over the scene graph and evaluating all the global transforms once
+        // Right now, we're iterating over the scene graph and evaluating all the global transforms twice
         // which is kind of annoying. First to find the camera and get the view matrix and again to actually
         // render everything. Ideally maybe in the future this could be simplified
 
@@ -416,8 +410,8 @@ impl GraphicsManager {
         let postprocess_graph = self.postprocess.render_item(&self.resources).to_graph();
         render_job.merge_graph_after("forward", postprocess_graph);
 
-        let ui_graph = self.test_ui.render_graph(&self.resources);
-        render_job.merge_graph_after("postprocess", ui_graph);
+        let text_graph = self.test_string.render_graph(&self.resources);
+        render_job.merge_graph_after("postprocess", text_graph);
 
         self.renderer.render(&render_job);
     }

@@ -4,8 +4,6 @@ use std::{collections::HashMap, fmt};
 
 use serde::{Deserialize, Serialize};
 
-use crate::GLOBAL_CONFIG;
-
 #[derive(Clone, Serialize, Deserialize)]
 pub struct PlayerChoices {
     pub chair: Chair,

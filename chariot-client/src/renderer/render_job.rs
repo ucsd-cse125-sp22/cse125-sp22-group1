@@ -40,7 +40,7 @@ pub enum RenderPass {
     },
 }
 
-pub fn pass_render_pipeline<'a>(pass: &'a RenderPass) -> Option<&'a wgpu::RenderPipeline> {
+pub fn pass_render_pipeline(pass: &RenderPass) -> Option<&wgpu::RenderPipeline> {
     match pass {
         RenderPass::Graphics {
             render_pipeline, ..
@@ -192,8 +192,9 @@ impl<'a> RenderGraphBuilder<'a> {
 
         if deps.is_empty() {
             self.render_graph.roots.push(res_id);
-            self.render_graph.nodes.insert(res_id, vec![]);
         }
+
+        self.render_graph.nodes.insert(res_id, vec![]);
 
         res_id
     }

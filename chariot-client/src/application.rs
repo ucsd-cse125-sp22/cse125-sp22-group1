@@ -5,10 +5,7 @@ use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, VirtualKeyCode};
 
 use chariot_core::networking::ClientBoundPacket;
-use chariot_core::player::{
-    player_inputs::{EngineStatus, InputEvent, RotationStatus},
-    PlayerID,
-};
+use chariot_core::player::player_inputs::{EngineStatus, InputEvent, RotationStatus};
 use chariot_core::GLOBAL_CONFIG;
 
 use crate::game::{self, GameClient};
