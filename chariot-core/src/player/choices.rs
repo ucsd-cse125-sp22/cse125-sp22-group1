@@ -16,7 +16,7 @@ pub struct PlayerChoices {
 impl Default for PlayerChoices {
     fn default() -> Self {
         Self {
-            chair: Chair::Recliner,
+            chair: Chair::Swivel,
             map: Track::Track,
             ready: false,
         }
