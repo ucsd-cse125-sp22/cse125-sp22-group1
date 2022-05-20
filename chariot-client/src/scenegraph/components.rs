@@ -66,6 +66,11 @@ impl Default for Transform {
 }
 
 #[derive(Default, Clone, Copy)]
+pub struct Modifiers {
+    pub absolute_angle: bool,
+}
+
+#[derive(Default, Clone, Copy)]
 pub struct Camera {
     pub orbit_angle: glam::Vec2,
     pub distance: f32,

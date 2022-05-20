@@ -71,15 +71,15 @@ impl Settings {
             // the rotational analogue of friction: each time step in free
             // rotation, what proportion of angular velocity should be
             // conserved?
-            .set_default("rotation_reduction_coefficient", 0.80)?
+            .set_default("rotation_reduction_coefficient", 0.40)?
             // Coefficient to control how forceful player-controlled acceleration is
             .set_default("car_accelerator", 0.8)?
             // Coefficient to control how forceful player-controlled braking is
             .set_default("car_brake", 0.05)?
             // Coefficient to control how fast the player can spin
-            .set_default("car_spin", 0.025)?
-            .set_default("max_car_speed", 1.0)?
-            .set_default("max_car_spin", 0.25)?
+            .set_default("car_spin", 0.03)?
+            .set_default("max_car_speed", 0.65)?
+            .set_default("max_car_spin", 0.1)?
             .set_default("audience_vote_time_ms", 30000)?
             .add_source(File::with_name("config.yaml").required(false))
             .build()?;

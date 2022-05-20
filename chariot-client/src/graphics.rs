@@ -274,8 +274,7 @@ impl GraphicsManager {
                     DVec3::new(velocity.x, 0.0, velocity.z).angle_between(DVec3::X);
 
                 // there's actually some magic trig cancellations happening here that simplify this calculation
-                let mut orbit_yaw = velocity.z.signum() * velocity_angle
-                    - location.unit_steer_direction.z.signum() * rotation_angle;
+                let mut orbit_yaw = PI + location.unit_steer_direction.z.signum() * rotation_angle;
 
                 // if the yaw change would be bigger than PI, wrap back around
                 let yaw_difference = orbit_yaw - camera.orbit_angle.x as f64;
@@ -284,8 +283,7 @@ impl GraphicsManager {
                 }
 
                 // set the new orbit angle complete with magic pitch for now
-                camera.orbit_angle =
-                    Vec2::new(orbit_yaw as f32, -0.3).lerp(camera.orbit_angle, 0.5);
+                camera.orbit_angle = Vec2::new(0.0, -0.3).lerp(camera.orbit_angle, 0.5);
             }
         }
     }
@@ -376,17 +374,28 @@ impl GraphicsManager {
             .map(|l| l.calc_view_proj(&view_bounds))
             .collect();
 
+        let default_translation = Transform::default();
         let mut render_job = render_job::RenderJob::default();
         self.world.dfs_acc(self.world.root(), root_xform, |e, acc| {
-            let cur_model = self
+            let cur_transform = self
                 .world
                 .get::<Transform>(e)
-                .unwrap_or(&Transform::default())
-                .to_mat4();
+                .unwrap_or(&default_translation);
+            let cur_model = cur_transform.to_mat4();
             let acc_model = *acc * cur_model;
 
             if let Some(drawables) = self.world.get::<Vec<StaticMeshDrawable>>(e) {
                 for drawable in drawables.iter() {
+                    let mut acc_model = acc_model;
+                    if drawable.modifiers.absolute_angle {
+                        acc_model = *acc
+                            * Transform {
+                                translation: cur_transform.translation,
+                                rotation: glam::Quat::IDENTITY,
+                                scale: cur_transform.scale,
+                            }
+                            .to_mat4();
+                    }
                     drawable.update_xforms(&self.renderer, proj, view, acc_model);
                     drawable.update_lights(&self.renderer, acc_model, &lights);
                     let render_graph = drawable.render_graph(&self.resources);
