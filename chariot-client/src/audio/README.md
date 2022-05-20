@@ -28,13 +28,13 @@ Usage: `SourceOptions::new();`
 ## Audio Thread
 A multipurpose class that is designed to wrap the main Audio Sink (thread that plays audio in Rodio) and provide additional control over playback.
 
-Usage: `AudioThread::new(&AudioCtx, Decoder<BufReader<File>>, SourceOptions);`
+Usage: `AudioThread::new(&AudioCtx, Buffered<Decoder<BufReader<File>>>>, SourceOptions);`
 
 ### Struct
 * time_start: `SystemTime`,
 * volume: `f32`,
 * pitch: `f32`,
-* source: `Decoder<BufReader<File>>`,
+* source: `Buffered<Decoder<BufReader<File>>>>`,
 * sink: `Sink`,
 * src_opt: `SourceOptions`
 
