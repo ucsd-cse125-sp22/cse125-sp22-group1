@@ -11,6 +11,7 @@ mod graphics;
 mod renderer;
 mod resources;
 mod scenegraph;
+mod ui;
 
 fn main() {
     let event_loop = winit::event_loop::EventLoop::new();
