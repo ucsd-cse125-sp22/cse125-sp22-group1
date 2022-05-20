@@ -10,32 +10,64 @@ use chariot_core::GLOBAL_CONFIG;
 
 use crate::physics::player_entity::PlayerEntity;
 
-#[test]
-fn test_accelerating() {
-    let mut props = PlayerEntity {
+fn get_starting_player_props() -> PlayerEntity {
+    PlayerEntity {
         player_inputs: PlayerInputs {
             engine_status: EngineStatus::Accelerating,
             rotation_status: RotationStatus::NotInSpin,
         },
 
         entity_location: EntityLocation {
-            position: DVec3::new(0.0, 0.0, 0.0),
+            position: DVec3::ZERO,
             unit_steer_direction: DVec3::new(0.6, 0.0, 0.8),
-            unit_upward_direction: DVec3::new(0.0, 1.0, 0.0),
+            unit_upward_direction: DVec3::Y,
         },
 
         velocity: DVec3::new(2.0, 0.0, 1.0),
         angular_velocity: 0.0,
         mass: 10.0,
 
+        current_colliders: Vec::new(),
+
         size: DVec3::new(10.0, 10.0, 10.0),
         bounding_box: BoundingBox::new(-5.0, 5.0, -5.0, 5.0, -5.0, 5.0),
         physics_changes: Vec::new(),
         lap_info: LapInformation::new(),
         current_powerup: None,
-    };
+    }
+}
 
-    props = props.do_physics_step(1.0, Vec::new(), std::iter::empty());
+fn get_origin_cube() -> PlayerEntity {
+    PlayerEntity {
+        player_inputs: PlayerInputs {
+            engine_status: EngineStatus::Neutral,
+            rotation_status: RotationStatus::NotInSpin,
+        },
+
+        entity_location: EntityLocation {
+            position: DVec3::ZERO,
+            unit_steer_direction: DVec3::X,
+            unit_upward_direction: DVec3::Y,
+        },
+
+        velocity: DVec3::ZERO,
+        angular_velocity: 0.0,
+        mass: 10.0,
+
+        current_colliders: Vec::new(),
+
+        size: DVec3::new(10.0, 10.0, 10.0),
+        bounding_box: BoundingBox::new(-5.0, 5.0, -5.0, 5.0, -5.0, 5.0),
+        physics_changes: Vec::new(),
+        lap_info: LapInformation::new(),
+        current_powerup: None,
+    }
+}
+
+#[test]
+fn test_accelerating() {
+    let mut props = get_starting_player_props();
+    props = props.do_physics_step(1.0, Vec::new(), Vec::new(), std::iter::empty());
 
     // since we're accelerating, should have the following changes:
     // - should have moved forward by previous velocity times time step
@@ -57,30 +89,9 @@ fn test_accelerating() {
 
 #[test]
 fn test_non_accelerating() {
-    let mut props = PlayerEntity {
-        player_inputs: PlayerInputs {
-            engine_status: EngineStatus::Neutral,
-            rotation_status: RotationStatus::NotInSpin,
-        },
-
-        entity_location: EntityLocation {
-            position: DVec3::new(0.0, 0.0, 0.0),
-            unit_steer_direction: DVec3::new(0.6, 0.0, 0.8),
-            unit_upward_direction: DVec3::new(0.0, 1.0, 0.0),
-        },
-
-        velocity: DVec3::new(2.0, 0.0, 1.0),
-        angular_velocity: 0.0,
-        mass: 10.0,
-
-        size: DVec3::new(10.0, 10.0, 10.0),
-        bounding_box: BoundingBox::new(15.0, 25.0, 25.0, 35.0, 35.0, 45.0),
-        physics_changes: Vec::new(),
-        lap_info: LapInformation::new(),
-        current_powerup: None,
-    };
-
-    props = props.do_physics_step(1.0, Vec::new(), std::iter::empty());
+    let mut props = get_starting_player_props();
+    props.player_inputs.engine_status = EngineStatus::Neutral;
+    props = props.do_physics_step(1.0, Vec::new(), Vec::new(), std::iter::empty());
 
     // since we're not accelerating, should have the following changes:
     // - should have moved forward by previous velocity times time step
@@ -100,30 +111,9 @@ fn test_non_accelerating() {
 
 #[test]
 fn test_decelerating() {
-    let mut props = PlayerEntity {
-        player_inputs: PlayerInputs {
-            engine_status: EngineStatus::Braking,
-            rotation_status: RotationStatus::NotInSpin,
-        },
-
-        entity_location: EntityLocation {
-            position: DVec3::new(0.0, 0.0, 0.0),
-            unit_steer_direction: DVec3::new(0.6, 0.0, 0.8),
-            unit_upward_direction: DVec3::new(0.0, 1.0, 0.0),
-        },
-
-        velocity: DVec3::new(2.0, 0.0, 1.0),
-        angular_velocity: 0.0,
-        mass: 10.0,
-
-        size: DVec3::new(10.0, 10.0, 10.0),
-        bounding_box: BoundingBox::new(15.0, 25.0, 25.0, 35.0, 35.0, 45.0),
-        physics_changes: Vec::new(),
-        lap_info: LapInformation::new(),
-        current_powerup: None,
-    };
-
-    props = props.do_physics_step(1.0, Vec::new(), std::iter::empty());
+    let mut props = get_starting_player_props();
+    props.player_inputs.engine_status = EngineStatus::Braking;
+    props = props.do_physics_step(1.0, Vec::new(), Vec::new(), std::iter::empty());
 
     // since we're decelerating, should have the following changes:
     // - should have moved forward by previous velocity times time step
@@ -146,65 +136,20 @@ fn test_decelerating() {
 
 #[test]
 fn test_spinning() {
-    let mut props = PlayerEntity {
-        player_inputs: PlayerInputs {
-            engine_status: EngineStatus::Braking,
-            rotation_status: RotationStatus::InSpinClockwise,
-        },
-
-        entity_location: EntityLocation {
-            position: DVec3::new(0.0, 0.0, 0.0),
-            unit_steer_direction: DVec3::new(0.6, 0.0, 0.8),
-            unit_upward_direction: DVec3::new(0.0, 1.0, 0.0),
-        },
-
-        velocity: DVec3::new(0.0, 0.0, 0.0),
-        angular_velocity: 0.0,
-        mass: 10.0,
-
-        size: DVec3::new(10.0, 10.0, 10.0),
-        bounding_box: BoundingBox::new(15.0, 25.0, 25.0, 35.0, 35.0, 45.0),
-        physics_changes: Vec::new(),
-        lap_info: LapInformation::new(),
-        current_powerup: None,
-    };
-
-    props = props.do_physics_step(1.0, Vec::new(), std::iter::empty());
+    let mut props = get_starting_player_props();
+    props.velocity = DVec3::ZERO;
+    props.player_inputs.rotation_status = RotationStatus::InSpinClockwise;
+    props = props.do_physics_step(1.0, Vec::new(), Vec::new(), std::iter::empty());
 
     assert_eq!(props.angular_velocity, GLOBAL_CONFIG.car_spin);
 
     props.player_inputs.rotation_status = RotationStatus::NotInSpin;
-    props = props.do_physics_step(1.0, Vec::new(), std::iter::empty());
+    props = props.do_physics_step(1.0, Vec::new(), Vec::new(), std::iter::empty());
 
     assert_eq!(
         props.angular_velocity,
         GLOBAL_CONFIG.car_spin * GLOBAL_CONFIG.rotation_reduction_coefficient
     );
-}
-
-fn get_origin_cube() -> PlayerEntity {
-    return PlayerEntity {
-        player_inputs: PlayerInputs {
-            engine_status: EngineStatus::Neutral,
-            rotation_status: RotationStatus::NotInSpin,
-        },
-
-        entity_location: EntityLocation {
-            position: DVec3::new(0.0, 0.0, 0.0),
-            unit_steer_direction: DVec3::new(1.0, 0.0, 0.0),
-            unit_upward_direction: DVec3::new(0.0, 1.0, 0.0),
-        },
-
-        velocity: DVec3::new(0.0, 0.0, 0.0),
-        angular_velocity: 0.0,
-        mass: 10.0,
-
-        size: DVec3::new(10.0, 10.0, 10.0),
-        bounding_box: BoundingBox::new(-5.0, 5.0, -5.0, 5.0, -5.0, 5.0),
-        physics_changes: Vec::new(),
-        lap_info: LapInformation::new(),
-        current_powerup: None,
-    };
 }
 
 #[test]

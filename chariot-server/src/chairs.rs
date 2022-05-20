@@ -53,6 +53,7 @@ pub fn get_player_start_physics_properties(
             unit_upward_direction: DVec3::Y,
         },
         physics_changes: vec![],
+        current_colliders: vec![],
         lap_info: LapInformation::new(),
         current_powerup: None,
     };
