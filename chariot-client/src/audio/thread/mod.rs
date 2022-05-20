@@ -8,6 +8,9 @@ use std::io::BufReader;
 
 use std::time::{SystemTime, Duration};
 
+// Buffered Audio Source
+pub type AudioBuffer = Buffered<Decoder<BufReader<File>>>;
+
 pub mod context;
 pub mod options;
 
@@ -20,11 +23,11 @@ enum AudioSinkType {
 }
 
 pub struct AudioThread {
-  thread_id: u64,
+  pub thread_id: u64,
   time_start: SystemTime,
   volume: f32,
   pitch: f32,
-  source: Buffered<Decoder<BufReader<File>>>,
+  source: AudioBuffer,
   sink: AudioSinkType,
   src_opt: SourceOptions,
 }
@@ -78,10 +81,6 @@ impl AudioThread {
     }
   }
 
-  pub fn getId(&mut self) -> u64 {
-    return self.thread_id;
-  }
-
   pub fn time_alive(&mut self) -> Option<Duration> {
     let time_elapsed = self.time_start.elapsed();
     match time_elapsed {
@@ -115,13 +114,11 @@ impl AudioThread {
         AudioSinkType::Spatial(sink) => sink.append(rpt_src),
         AudioSinkType::Standard(sink) => sink.append(rpt_src),
       }
-      //self.sink.append(rpt_src);
     } else {
       match &self.sink {
         AudioSinkType::Spatial(sink) => sink.append(tk_src),
         AudioSinkType::Standard(sink) => sink.append(tk_src),
       }
-      // self.sink.append(tk_src);
     }
 
     self.time_start = SystemTime::now();
@@ -136,6 +133,7 @@ impl AudioThread {
     let x = Arc::new(Mutex::new(self));
     let alias = x.clone();
 
+    // Spawn a new thread to automate the fade out
     thread::spawn(move || {
       let mutref = alias.lock();
       let mutref = match mutref {
@@ -153,17 +151,14 @@ impl AudioThread {
           AudioSinkType::Spatial(sink) => sink.set_volume(volume),
           AudioSinkType::Standard(sink) => sink.set_volume(volume),
         }
-        //mutref.sink.set_volume(volume);
         
         thread::sleep(Duration::from_millis(delta_time as u64));
-        // println!("current volume is {}", volume);
       }
 
       match &mutref.sink {
         AudioSinkType::Spatial(sink) => sink.stop(),
         AudioSinkType::Standard(sink) => sink.stop(),
       }
-      // mutref.sink.stop();
     });
   }
 
@@ -173,7 +168,6 @@ impl AudioThread {
       AudioSinkType::Spatial(sink) => sink.pause(),
       AudioSinkType::Standard(sink) => sink.pause(),
     }
-    // self.sink.pause();
   }
 
   // Resume playback
@@ -182,7 +176,6 @@ impl AudioThread {
       AudioSinkType::Spatial(sink) => sink.play(),
       AudioSinkType::Standard(sink) => sink.play(),
     }
-    // self.sink.play();
   }
 
   // Stop all playback
@@ -191,7 +184,6 @@ impl AudioThread {
       AudioSinkType::Spatial(sink) => sink.stop(),
       AudioSinkType::Standard(sink) => sink.stop(),
     }
-    // self.sink.stop();
   }
 
   pub fn set_volume(&mut self, volume: f32) {
@@ -200,7 +192,6 @@ impl AudioThread {
       AudioSinkType::Spatial(sink) => sink.set_volume(volume),
       AudioSinkType::Standard(sink) => sink.set_volume(volume),
     }
-    // self.sink.set_volume(volume);
   }
 
   pub fn set_pitch(&mut self, pitch: f32) {
@@ -209,7 +200,6 @@ impl AudioThread {
       AudioSinkType::Spatial(sink) => sink.set_speed(pitch),
       AudioSinkType::Standard(sink) => sink.set_speed(pitch),
     }
-    // self.sink.set_speed(pitch);
   }
 
   pub fn is_empty(&mut self) -> bool {
@@ -217,6 +207,5 @@ impl AudioThread {
       AudioSinkType::Spatial(sink) => return sink.empty(),
       AudioSinkType::Standard(sink) => return sink.empty(),
     }
-    // return self.sink.empty();
   }
 }

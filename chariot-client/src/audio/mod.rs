@@ -8,15 +8,16 @@ use std::collections::HashMap;
 pub mod thread;
 
 use thread::AudioThread;
+use thread::AudioBuffer;
 use self::thread::context::AudioCtx;
 use self::thread::options::SourceOptions;
 
-// Buffered Audio Source
-type AudioBuffer = Buffered<Decoder<BufReader<fs::File>>>;
 
 // For Playing Track Audio (Music / Ambient / SFX)
 pub struct AudioSource {
-  thread_ct: u64,
+  pub name: String,
+  max_thread_id: u64,
+  available_threads: Vec<u64>,
   tracks: HashMap<String, AudioBuffer>,
   threads: HashMap<u64, AudioThread>,
   volume: f32,
@@ -25,6 +26,7 @@ pub struct AudioSource {
 
 impl AudioSource {
   pub fn new(path: &str) -> Self {
+    let available_threads = Vec::new();
     let mut tracks = HashMap::new();
     let threads = HashMap::new();
 
@@ -85,7 +87,9 @@ impl AudioSource {
     }
 
     Self {
-      thread_ct: 0,
+      name: path.to_owned(),
+      max_thread_id: 0,
+      available_threads: available_threads,
       threads: threads,
       tracks: tracks,
       volume: 1.0,
@@ -95,8 +99,17 @@ impl AudioSource {
 
   // Clean Up Sink w/o Audio
   pub fn clean(&mut self) {
-    self.threads.retain(|&_id, thread| !thread.is_empty());
-    println!("Threads alive: {}", self.threads.len());
+    self.threads.retain(|&_id, thread| {
+      if (!thread.is_empty()) {
+        true
+      } else {
+        self.available_threads.push(thread.thread_id);
+        false
+      }
+    });
+
+    println!("[{}] {} Threads alive: {:?}", self.name, self.threads.len(), self.threads.keys());
+    println!("[{}] Available Threads {:?}", self.name, self.available_threads);
   }
 
   // Finds a track in the tracklist (or returns None if it doesn't exist)
@@ -120,30 +133,43 @@ impl AudioSource {
 
   // Spawns a new thread with preapplied volume & pitch for use
   pub fn spawnThread(&mut self, ctx: &AudioCtx, source: AudioBuffer, opt: SourceOptions) -> AudioThread {
-    let mut thread = AudioThread::new(self.thread_ct, ctx, source, opt);
+    // Default to a new maximum
+    let mut thread_id = self.max_thread_id;
+
+    // If we have an accessible thread_id that has already been cleaned
+    if !self.available_threads.is_empty() {
+      thread_id = match self.available_threads.pop() {
+        Some(id) => id,
+        None => {
+          // Increment our maximum track id
+          self.max_thread_id = self.max_thread_id + 1;
+
+          thread_id
+        }
+      }
+    } else {
+      // Increment our maximum track id
+      self.max_thread_id = self.max_thread_id + 1;
+    }
+
+    println!("[{}] Spawned an audio thread with ID {}", self.name, thread_id);
+
+    // Create the new instance of an audio thread, and set the volume and pitch to the levels defined in source
+    let mut thread = AudioThread::new(thread_id, ctx, source.clone(), opt);
     thread.set_volume(self.volume);
     thread.set_pitch(self.pitch);
-
-    // Increment our track counter
-    self.thread_ct = self.thread_ct + 1;
 
     return thread;
   }
 
   // Get a specific audio thread from an ID
   pub fn getThread(&mut self, id: u64) -> Option<&AudioThread> {
-    match self.threads.get(&id) {
-      Some(t) => return Some(t),
-      None => return None
-    }
+    return self.threads.get(&id);
   }
 
   // Get a specific audio thread from an ID
   pub fn getMutThread(&mut self, id: u64) -> Option<&mut AudioThread> {
-    match self.threads.get_mut(&id) {
-      Some(t) => return Some(t),
-      None => return None
-    }
+    return self.threads.get_mut(&id);
   }
 
   // Play Audio
@@ -160,7 +186,7 @@ impl AudioSource {
     };
 
     let mut thread = self.spawnThread(ctx, source, opt);
-    let thread_id = thread.getId();
+    let thread_id = thread.thread_id;
 
     thread.play();
     self.threads.insert(thread_id, thread);
@@ -176,7 +202,7 @@ impl AudioSource {
 
     // Enable Fade-In on newest thread
     if self.threads.len() > 0 {
-      opt.set_fade_in(duration);
+      opt.fade_in = duration;
     }
 
     let source = match self.getTrack(track_name) {
@@ -187,7 +213,7 @@ impl AudioSource {
     };
 
     let mut thread = self.spawnThread(ctx, source, opt);
-    let thread_id = thread.getId();
+    let thread_id = thread.thread_id;
 
     self.fade_all_threads(duration);
 

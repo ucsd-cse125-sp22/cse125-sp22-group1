@@ -24,36 +24,4 @@ impl SourceOptions {
       right_ear: [0.0; 3]
     }
   }
-
-  pub fn set_fade_in(&mut self, duration: Duration) {
-    self.fade_in = duration;
-  }
-
-  pub fn set_repeat(&mut self, repeat: bool) {
-    self.repeat = repeat;
-  }
-
-  pub fn set_skip_dur(&mut self, duration: Duration) {
-    self.skip_duration = duration;
-  }
-
-  pub fn set_take_dur(&mut self, duration: Duration) {
-    self.take_duration = duration
-  }
-
-  pub fn set_pitch(&mut self, pitch: f32) {
-    self.pitch = pitch;
-  }
-
-  pub fn set_emitter_pos(&mut self, pos: [f32; 3]) {
-    self.emitter_pos = pos;
-  }
-
-  pub fn set_left_ear_pos(&mut self, pos: [f32; 3]) {
-    self.left_ear = pos;
-  }
-
-  pub fn set_right_ear_pos(&mut self, pos: [f32; 3]) {
-    self.right_ear = pos;
-  }
 }

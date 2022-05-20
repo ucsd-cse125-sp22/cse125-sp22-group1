@@ -21,17 +21,20 @@ Usage: `SourceOptions::new();`
 * skip_duration: `Duration`,
 * take_duration: `Duration`,
 * pitch: `f32`,
+* emitter_pos: `[f32; 3]`,
+* left_ear: `[f32; 3]`,
+* right_ear: `[f32; 3]`,
 
 ## Audio Thread
 A multipurpose class that is designed to wrap the main Audio Sink (thread that plays audio in Rodio) and provide additional control over playback.
 
-Usage: `AudioThread::new(&AudioCtx, Buffered<Decoder<BufReader<File>>>, SourceOptions);`
+Usage: `AudioThread::new(&AudioCtx, Decoder<BufReader<File>>, SourceOptions);`
 
 ### Struct
 * time_start: `SystemTime`,
 * volume: `f32`,
 * pitch: `f32`,
-* source: `Buffered<Decoder<BufReader<File>>>`,
+* source: `Decoder<BufReader<File>>`,
 * sink: `Sink`,
 * src_opt: `SourceOptions`
 
@@ -45,9 +48,6 @@ Usage: `AudioSource::new(Path);`
 * threads: `Vec<AudioThread>`,
 * volume: `f32`,
 * pitch: `f32`,
-* emitter_pos: `[f32; 3]`,
-* left_ear: `[f32; 3]`,
-* right_ear: `[f32; 3]`,
 
 ## Instructions
 1. Begin with the relevant imports
@@ -119,7 +119,7 @@ fn main() {
 
   // Set up source options
   let mut opt = SourceOptions::new();
-  opt.set_repeat(true);
+  opt.repeat = true;
 
   // Play our song
   music_manager.play("Charioteering_OST_-_Track_06_(Turboboosting_All_the_Way_Home_).wav", &audio_ctx, opt);
