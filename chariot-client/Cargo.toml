@@ -16,3 +16,6 @@ glam = "0.20.3"
 image = "0.24.2"
 gltf = { version = "1.0.0", features = ["extras"] }
 serde_json = "1.0"
+font-kit = "0.11.0"
+# sadly required by font-kit and not reexported by it :/
+pathfinder_geometry = "0.5.1"

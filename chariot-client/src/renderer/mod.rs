@@ -1,8 +1,10 @@
+use glam::UVec2;
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
     sync::atomic::{AtomicUsize, Ordering},
 };
+use wgpu::{Extent3d, ImageCopyTexture, ImageDataLayout};
 
 use wgpu::util::DeviceExt;
 use winit::dpi::PhysicalSize;
@@ -30,7 +32,7 @@ use render_job::*;
  *				bind uniform set 1.1	| bind_group[0]		| mvp buffer			|
  *				bind uniform set 1.2	| bind_group[1]		| material data buffer	|
  *					draw()
- * These next two are skipped becase they are the same as the above
+ * These next two are skipped because they are the same as the above
  * bind framebuffer	(SKIPPED)			| framebuffer_name	| "surface"				|
  *		bind pipeline (SKIPPED)			| pass_name			| "shade_pbr"	 		|   Draw Item 2
  * 			bind index bufffer 2		| index_buffer		| inds for model 1		|
@@ -85,7 +87,7 @@ impl Renderer {
         let surface_format = context
             .surface
             .get_preferred_format(&context.adapter)
-            .unwrap();
+            .expect("unable to get preferred surface format initializing renderer");
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -126,15 +128,13 @@ impl Renderer {
         }
     }
 
+    // request the operating system redraw the window contents via winit
+    // this triggers the RedrawRequested event which then calls this render() again
     pub fn request_redraw(&self) {
-        self.context.window.request_redraw()
+        self.context.window.request_redraw();
     }
 
-    pub fn register_framebuffer<'a>(
-        &mut self,
-        name: &str,
-        framebuffer_desc: FramebufferDescriptor,
-    ) {
+    pub fn register_framebuffer(&mut self, name: &str, framebuffer_desc: FramebufferDescriptor) {
         self.framebuffers
             .insert(String::from(name), framebuffer_desc);
     }
@@ -199,7 +199,7 @@ impl Renderer {
                         .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                             label: None,
                             bind_group_layouts: &bind_group_layouts,
-                            push_constant_ranges: push_constant_ranges,
+                            push_constant_ranges,
                         });
 
                 let surface_color_state = wgpu::ColorTargetState {
@@ -325,13 +325,12 @@ impl Renderer {
         })
     }
 
-    #[allow(non_snake_case)]
-    pub fn create_texture2D_init(
+    pub fn create_texture2d_init(
         &self,
         name: &str,
         size: PhysicalSize<u32>,
         format: wgpu::TextureFormat,
-        usages: wgpu::TextureUsages,
+        usage: wgpu::TextureUsages,
         data: &[u8],
     ) -> wgpu::Texture {
         self.device.create_texture_with_data(
@@ -346,25 +345,24 @@ impl Renderer {
                 mip_level_count: 1,
                 sample_count: 1,
                 dimension: wgpu::TextureDimension::D2,
-                format: format,
-                usage: usages,
+                format,
+                usage,
             },
             data,
         )
         // TODO: mipmapping
     }
 
-    #[allow(non_snake_case)]
-    pub fn create_texture2D(
+    pub fn create_texture2d(
         &self,
         name: &str,
         size: PhysicalSize<u32>,
         format: wgpu::TextureFormat,
-        usages: wgpu::TextureUsages,
+        usage: wgpu::TextureUsages,
     ) -> wgpu::Texture {
         self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some(name),
-            size: wgpu::Extent3d {
+            size: Extent3d {
                 width: size.width,
                 height: size.height,
                 depth_or_array_layers: 1,
@@ -372,9 +370,46 @@ impl Renderer {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: format,
-            usage: usages,
+            format,
+            usage,
         })
+    }
+
+    // write pixel data into an existing texture
+    pub fn write_texture2d(
+        &self,
+        texture: &wgpu::Texture,
+        texture_offset: UVec2,
+        data: &[u8],
+        // the width and height of the data in pixels
+        data_dimensions: UVec2,
+        // depends on the underlying texture format
+        bytes_per_block: u32,
+    ) {
+        self.queue.write_texture(
+            ImageCopyTexture {
+                texture,
+                mip_level: 0,
+                // offset into the texture by the requested amount
+                origin: wgpu::Origin3d {
+                    x: texture_offset.x,
+                    y: texture_offset.y,
+                    z: 0,
+                },
+                aspect: wgpu::TextureAspect::All,
+            },
+            data,
+            ImageDataLayout {
+                offset: 0,
+                bytes_per_row: std::num::NonZeroU32::new(bytes_per_block * data_dimensions.x),
+                rows_per_image: std::num::NonZeroU32::new(data_dimensions.y),
+            },
+            Extent3d {
+                width: data_dimensions.x,
+                height: data_dimensions.y,
+                depth_or_array_layers: 1,
+            },
+        );
     }
 
     pub fn write_buffer<T>(&self, buffer: &wgpu::Buffer, data: &[T]) {

@@ -20,8 +20,6 @@ macro_rules! direct_graphics_depth_pass {
     };
 }
 
-pub(crate) use direct_graphics_depth_pass;
-
 // For drawing to an arbitary framebuffer
 #[macro_export]
 macro_rules! indirect_graphics_depth_pass {

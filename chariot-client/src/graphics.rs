@@ -1,8 +1,11 @@
 use chariot_core::entity_location::EntityLocation;
-use chariot_core::GLOBAL_CONFIG;
+use chariot_core::player::choices::PlayerChoices;
+use chariot_core::player::choices::Track;
+use chariot_core::player::PlayerID;
 use glam::{DVec3, Vec2};
 use std::f64::consts::PI;
 
+use crate::drawable::string::StringDrawable;
 use crate::drawable::technique::Technique;
 use crate::drawable::*;
 use crate::renderer::*;
@@ -35,7 +38,31 @@ pub fn register_passes(renderer: &mut Renderer) {
     );
 }
 
-fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer) -> World {
+fn setup_void() -> World {
+    let mut world = World::new();
+    world.register::<Camera>();
+    world.register::<Vec<StaticMeshDrawable>>();
+    world.register::<Bounds>();
+    world.register::<Light>();
+    let world_root = world.root();
+
+    {
+        let scene_bounds = world.calc_bounds(world.root());
+        let _light = world
+            .builder()
+            .attach(world_root)
+            .with(Light::new_directional(
+                glam::vec3(-0.5, -1.0, 0.5),
+                scene_bounds,
+            ))
+            .with(Transform::default())
+            .build();
+    }
+
+    world
+}
+
+fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer, map: Track) -> World {
     let mut world = World::new();
     world.register::<Camera>();
     world.register::<Vec<StaticMeshDrawable>>();
@@ -45,10 +72,10 @@ fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer) -> Worl
 
     {
         let track_import = resources
-            .import_gltf(renderer, format!("models/{}.glb", GLOBAL_CONFIG.map_name))
+            .import_gltf(renderer, format!("models/{}.glb", map.to_string()))
             .expect("Unable to load racetrack");
 
-        let track = world
+        let _track = world
             .builder()
             .attach(world_root)
             .with(Transform::default())
@@ -59,7 +86,7 @@ fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer) -> Worl
 
     {
         let scene_bounds = world.calc_bounds(world.root());
-        let light = world
+        let _light = world
             .builder()
             .attach(world_root)
             .with(Light::new_directional(
@@ -78,7 +105,9 @@ pub struct GraphicsManager {
     pub renderer: Renderer,
     pub resources: ResourceManager,
 
-    test_ui: UIDrawable,
+    test_string: StringDrawable,
+    pub player_num: PlayerID,
+    pub player_choices: [Option<PlayerChoices>; 4],
     postprocess: technique::FSQTechnique,
     player_entities: [Option<Entity>; 4],
     camera_entity: Entity,
@@ -116,40 +145,70 @@ impl GraphicsManager {
             renderer.register_framebuffer("shadow_out1", fb_desc);
         }
 
-        let text_handle = resources.import_texture(&renderer, "text.png");
-        let text_tex = resources.textures.get(&text_handle).unwrap();
-        let test_ui = UIDrawable {
-            layers: vec![technique::UILayerTechnique::new(
-                &renderer,
-                glam::vec2(0.0, 0.0),
-                glam::vec2(0.2, 0.2),
-                glam::vec2(0.0, 0.0),
-                glam::vec2(1.0, 1.0),
-                &text_tex,
-            )],
-        };
+        let mut test_string = StringDrawable::new("ArialMT", 18.0);
+        test_string.set(
+            "chariot - 0.6.9",
+            Vec2::new(0.005, 0.027),
+            &renderer,
+            &mut resources,
+        );
 
         let postprocess = technique::FSQTechnique::new(&renderer, &resources, "postprocess");
 
-        let world = setup_world(&mut resources, &mut renderer);
+        let world = setup_void();
 
         Self {
-            world: world,
-            renderer: renderer,
-            resources: resources,
-            test_ui: test_ui,
-            postprocess: postprocess,
+            test_string,
+            postprocess,
+            world,
+            renderer,
+            resources,
+
+            player_choices: Default::default(),
             player_entities: [None, None, None, None],
+
+            player_num: 4,
             camera_entity: NULL_ENTITY,
         }
     }
 
-    pub fn add_player(&mut self, player_num: u8, is_self: bool) {
+    pub fn load_menu(&mut self) {
+        println!("Loading main menu!");
+    }
+
+    pub fn load_pregame(&mut self) {
+        println!("Loading pregame screen!");
+        self.world = setup_void();
+        let root = self.world.root();
+
+        let _camera = self
+            .world
+            .builder()
+            .attach(root)
+            .with(Camera {
+                orbit_angle: glam::Vec2::ZERO,
+                distance: 3.0,
+            })
+            .build();
+    }
+
+    pub fn load_map(&mut self, map: Track) {
+        self.world = setup_world(&mut self.resources, &mut self.renderer, map);
+
+        [0, 1, 2, 3].map(|player_num| self.add_player(player_num));
+    }
+
+    pub fn add_player(&mut self, player_num: PlayerID) {
+        let is_self = self.player_num == player_num;
+        let choices = self.player_choices[player_num].clone().unwrap_or_default();
         println!("Adding new player: {}, self? {}", player_num, is_self);
 
         let chair_import = self
             .resources
-            .import_gltf(&mut self.renderer, "models/defaultchair.glb".to_string())
+            .import_gltf(
+                &mut self.renderer,
+                format!("models/{}.glb", choices.chair).to_string(),
+            )
             .expect("Failed to import chair");
 
         let world_root = self.world.root();
@@ -186,10 +245,10 @@ impl GraphicsManager {
         &mut self,
         location: &EntityLocation,
         velocity: &DVec3,
-        player_num: u8,
+        player_num: PlayerID,
     ) {
         if self.player_entities[player_num as usize].is_none() {
-            self.add_player(player_num, false);
+            self.add_player(player_num);
         }
         let player_entity = self.player_entities[player_num as usize].unwrap();
 
@@ -234,7 +293,7 @@ impl GraphicsManager {
             .expect("Root doesn't have transform component")
             .to_mat4();
 
-        // Right now, we're iterating over the scene graph and evaluating all the global transforms once
+        // Right now, we're iterating over the scene graph and evaluating all the global transforms twice
         // which is kind of annoying. First to find the camera and get the view matrix and again to actually
         // render everything. Ideally maybe in the future this could be simplified
 
@@ -342,8 +401,8 @@ impl GraphicsManager {
         let postprocess_graph = self.postprocess.render_item(&self.resources).to_graph();
         render_job.merge_graph_after("forward", postprocess_graph);
 
-        let ui_graph = self.test_ui.render_graph(&self.resources);
-        render_job.merge_graph_after("postprocess", ui_graph);
+        let text_graph = self.test_string.render_graph(&self.resources);
+        render_job.merge_graph_after("postprocess", text_graph);
 
         self.renderer.render(&render_job);
     }

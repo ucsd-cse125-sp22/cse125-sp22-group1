@@ -48,7 +48,7 @@ impl<'a> MeshBuilder<'a> {
         }
     }
 
-    pub fn vertex_buffer<'b, T: bytemuck::Pod>(&'b mut self, data: &[T]) -> &'b mut Self {
+    pub fn vertex_buffer<T: bytemuck::Pod>(&mut self, data: &[T]) -> &mut Self {
         let vertex_buffer =
             self.renderer
                 .device
@@ -61,7 +61,7 @@ impl<'a> MeshBuilder<'a> {
         self
     }
 
-    pub fn vertex_buffer_raw<'b>(&'b mut self, data: &[u8], stride: usize) -> &'b mut Self {
+    pub fn _vertex_buffer_raw(&mut self, data: &[u8], _stride: usize) -> &mut Self {
         let vertex_buffer =
             self.renderer
                 .device
@@ -74,11 +74,11 @@ impl<'a> MeshBuilder<'a> {
         self
     }
 
-    pub fn index_buffer<'b, T: bytemuck::Pod>(
-        &'b mut self,
+    pub fn index_buffer<T: bytemuck::Pod>(
+        &mut self,
         data: &[T],
         format: wgpu::IndexFormat,
-    ) -> &'b mut Self {
+    ) -> &mut Self {
         self.index_format = format;
         self.index_buffer = Some(self.renderer.device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
@@ -90,12 +90,12 @@ impl<'a> MeshBuilder<'a> {
         self
     }
 
-    pub fn index_buffer_raw<'b>(
-        &'b mut self,
+    pub fn _index_buffer_raw(
+        &mut self,
         data: &[u8],
-        stride: usize,
+        _stride: usize,
         format: wgpu::IndexFormat,
-    ) -> &'b mut Self {
+    ) -> &mut Self {
         self.index_format = format;
         self.index_buffer = Some(self.renderer.device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
@@ -107,11 +107,7 @@ impl<'a> MeshBuilder<'a> {
         self
     }
 
-    pub fn submesh<'b>(
-        &'b mut self,
-        vertex_ranges: &[IndexRange],
-        num_elements: u32,
-    ) -> &'b mut Self {
+    pub fn _submesh(&mut self, vertex_ranges: &[IndexRange], num_elements: u32) -> &mut Self {
         self.submeshes.push(SubMesh {
             vertex_ranges: Vec::from(vertex_ranges),
             index_range: None,
@@ -120,12 +116,12 @@ impl<'a> MeshBuilder<'a> {
         self
     }
 
-    pub fn indexed_submesh<'b>(
-        &'b mut self,
+    pub fn indexed_submesh(
+        &mut self,
         vertex_ranges: &[IndexRange],
         index_range: IndexRange,
         num_elements: u32,
-    ) -> &'b mut Self {
+    ) -> &mut Self {
         self.submeshes.push(SubMesh {
             vertex_ranges: Vec::from(vertex_ranges),
             index_range: Some(index_range),

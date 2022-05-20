@@ -1,14 +1,17 @@
 use std::collections::HashMap;
 use std::time::Instant;
 
-use chariot_core::lap_info::{LapInformation, LapNumber};
 use chariot_core::networking::Uuid;
+use chariot_core::player::choices::PlayerChoices;
+use chariot_core::player::lap_info::{LapInformation, Placement};
 use chariot_core::questions::{QuestionData, QuestionOption};
+
+use super::voting::{AnswerID, QuestionID};
 
 /*
  * Phases of the game are as follows:
 *
- * 1. GamePhase::WaitingForPlayerReady
+ * 1. GamePhase::ChoosingSettingsAndConnecting
  *  During this phase, players are in selection screens choosing their chair
  *  and marking ready; they'll be waiting in UI for all of this phase. The
  *  transition from Phase 1 to 2 occurs when the server sends all clients an
@@ -31,25 +34,36 @@ use chariot_core::questions::{QuestionData, QuestionOption};
  */
 
 pub enum GamePhase {
-    WaitingForPlayerReady {
-        players_ready: [bool; 4],
-        new_players_joined: Vec<(String, usize)>,
+    // Choosing the chair/map
+    ConnectingAndChoosingSettings {
+        force_start: bool,
+        player_choices: [Option<PlayerChoices>; 4],
     },
+    // Players notified about map/chairs, loading in
+    WaitingForPlayerLoad {
+        players_loaded: [bool; 4],
+    },
+    // All players loaded, race counting down
     CountingDownToGameStart(Instant),
+    // Game is playing
     PlayingGame {
         voting_game_state: VotingState,
         player_placement: [LapInformation; 4],
-        question_idx: usize, // to keep track of which question we have asked
+        question_idx: QuestionID, // to keep track of which question we have asked
     },
-    AllPlayersDone,
+    // Everyone has finished racing
+    AllPlayersDone([Option<Placement>; 4]),
 }
 
 pub enum VotingState {
     VoteCooldown(Instant), // Instant corresponds to the time we will start waitingforvotes again
     WaitingForVotes {
-        audience_votes: HashMap<Uuid, usize>,
+        audience_votes: HashMap<Uuid, AnswerID>,
         current_question: QuestionData,
         vote_close_time: Instant,
     },
-    VoteResultActive(QuestionOption),
+    VoteResultActive {
+        decision: QuestionOption,
+        decision_end_time: Instant,
+    },
 }
