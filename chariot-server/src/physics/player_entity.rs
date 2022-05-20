@@ -26,6 +26,8 @@ pub struct PlayerEntity {
     pub player_inputs: PlayerInputs,
     pub entity_location: EntityLocation,
 
+    pub current_colliders: Vec<BoundingBox>,
+
     pub physics_changes: Vec<PhysicsChange>,
 
     pub lap_info: LapInformation,
@@ -109,33 +111,6 @@ impl PlayerEntity {
         return DVec3::new(result.x, 0.0, result.z);
     }
 
-    // Returns the velocity change to self from colliding with other
-    pub fn delta_v_from_collision_with_terrain(&self, other: BoundingBox) -> DVec3 {
-        if !self.bounding_box.is_colliding(&other) {
-            return DVec3::new(0.0, 0.0, 0.0);
-        }
-
-        // Uses the angle-free equation from
-        // https://en.wikipedia.org/wiki/Elastic_collision#Two-dimensional
-        // Which applies symmetrically so it shouldn't be much of a performance
-        // hit to call this method once for each member of a colliding pair -
-        // and the formula should be fast anyways.
-
-        let v1 = self.velocity;
-        let v2 = DVec3::ZERO;
-        let m1 = self.mass;
-        let m2 = 1.0; // TODO determine mass
-        let x1 = self.entity_location.position;
-        let x2 = other.pos();
-
-        let term1 = (2.0 * m2) / (m1 + m2);
-        let term2 = (v1 - v2).dot(x1 - x2) / (x1 - x2).length_squared();
-        let term3 = x1 - x2;
-
-        let result = term1 * term2 * term3;
-        return DVec3::new(result.x, 0.0, result.z);
-    }
-
     /* Given a set of physical properties, compute and return what next tick's
      * physics properties will be for that object */
     pub fn do_physics_step<'a>(
@@ -178,8 +153,27 @@ impl PlayerEntity {
             delta_velocity += self.delta_v_from_collision_with_player(collider);
         }
 
-        for &collider in potential_terrain.iter() {
-            delta_velocity += self.delta_v_from_collision_with_terrain(collider);
+        let mut terrain_with_collisions = potential_terrain.clone();
+        terrain_with_collisions.retain(|terrain| self.bounding_box.is_colliding(terrain));
+        let collision_terrain_is_new = terrain_with_collisions != self.current_colliders;
+
+        // We only react to colliding with a set of objects if we aren't already
+        // colliding with them (otherwise, it's super easy to get stuck inside
+        // an object)
+        if collision_terrain_is_new {
+            println!("{:?}", terrain_with_collisions);
+            for terrain in &terrain_with_collisions {
+                // We want to "reflect" off of objects: this means negating the
+                // x component of velocity if hitting a face parallel to the
+                // z-axis, and vice versa
+                if self.entity_location.position.x >= terrain.min_x
+                    && self.entity_location.position.x <= terrain.max_x
+                {
+                    delta_velocity.z += -2.0 * self.velocity.z;
+                } else {
+                    delta_velocity.x += -2.0 * self.velocity.x;
+                }
+            }
         }
 
         let mut new_velocity = self.velocity + delta_velocity;
@@ -197,9 +191,15 @@ impl PlayerEntity {
 
             entity_location: EntityLocation {
                 position: self.entity_location.position + self.velocity * time_step,
-                unit_steer_direction: new_steer_direction,
+                unit_steer_direction: if collision_terrain_is_new {
+                    new_velocity.normalize()
+                } else {
+                    new_steer_direction
+                },
                 unit_upward_direction: self.entity_location.unit_upward_direction,
             },
+
+            current_colliders: terrain_with_collisions,
 
             velocity: new_velocity,
             angular_velocity,
