@@ -105,6 +105,7 @@ pub struct GraphicsManager {
     pub renderer: Renderer,
     pub resources: ResourceManager,
     pub loading_text: StringDrawable,
+    pub place_position_text: StringDrawable,
     pub player_num: PlayerID,
     pub player_choices: [Option<PlayerChoices>; 4],
     postprocess: technique::FSQTechnique,
@@ -144,15 +145,18 @@ impl GraphicsManager {
             renderer.register_framebuffer("shadow_out1", fb_desc);
         }
 
-        let mut test_string = StringDrawable::new("ArialMT", 18.0, Vec2::new(0.005, 0.027));
-        test_string.set("chariot - 0.6.9", &renderer, &mut resources);
-
+        let mut loading_text = StringDrawable::new("ArialMT", 18.0, Vec2::new(0.005, 0.027), false);
+        loading_text.set("chariot - 0.6.9", &renderer, &mut resources);
+        let mut place_position_text =
+            StringDrawable::new("PressStart2P-Regular", 38.0, Vec2::new(0.905, 0.057), true);
+        place_position_text.set("1st", &renderer, &mut resources);
         let postprocess = technique::FSQTechnique::new(&renderer, &resources, "postprocess");
 
         let world = setup_void();
 
         Self {
-            loading_text: test_string,
+            loading_text,
+            place_position_text,
             postprocess,
             world,
             renderer,
@@ -395,8 +399,15 @@ impl GraphicsManager {
         let postprocess_graph = self.postprocess.render_item(&self.resources).to_graph();
         render_job.merge_graph_after("forward", postprocess_graph);
 
-        let text_graph = self.loading_text.render_graph(&self.resources);
-        render_job.merge_graph_after("postprocess", text_graph);
+        if self.loading_text.should_draw {
+            let text_graph = self.loading_text.render_graph(&self.resources);
+            render_job.merge_graph_after("postprocess", text_graph);
+        }
+
+        if self.place_position_text.should_draw {
+            let text_graph = self.place_position_text.render_graph(&self.resources);
+            render_job.merge_graph_after("postprocess", text_graph);
+        }
 
         self.renderer.render(&render_job);
     }

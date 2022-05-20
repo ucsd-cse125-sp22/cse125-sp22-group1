@@ -94,7 +94,10 @@ impl Application {
                 ClientBoundPacket::LapUpdate(lap_num) => {
                     println!("I am now on lap {}!", lap_num);
                 }
-                ClientBoundPacket::GameStart(_) => println!("The game has begun!"),
+                ClientBoundPacket::GameStart(_) => {
+                    self.graphics.loading_text.should_draw = false;
+                    println!("The game has begun!")
+                }
                 ClientBoundPacket::PowerupPickup => println!("we got a powerup!"),
                 ClientBoundPacket::InteractionActivate(question, decision) => {
                     println!(

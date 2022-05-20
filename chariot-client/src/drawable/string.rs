@@ -13,11 +13,16 @@ pub struct StringDrawable {
 }
 
 impl StringDrawable {
-    pub fn new(font_name: &str, point_size: f32, screen_position: Vec2) -> StringDrawable {
+    pub fn new(
+        font_name: &str,
+        point_size: f32,
+        screen_position: Vec2,
+        should_draw: bool,
+    ) -> StringDrawable {
         StringDrawable {
             ui_drawable: UIDrawable { layers: vec![] },
             glyph_cache: GlyphCache::new(font_name, point_size),
-            should_draw: true,
+            should_draw,
             screen_position,
         }
     }
@@ -58,11 +63,6 @@ impl StringDrawable {
 
 impl Drawable for StringDrawable {
     fn render_graph<'a>(&'a self, resources: &'a ResourceManager) -> render_job::RenderGraph<'a> {
-        if self.should_draw {
-            self.ui_drawable.render_graph(resources)
-        } else {
-            let mut builder = render_job::RenderGraphBuilder::new();
-            builder.build()
-        }
+        self.ui_drawable.render_graph(resources)
     }
 }
