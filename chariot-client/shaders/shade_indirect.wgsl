@@ -8,21 +8,17 @@ struct ViewInfo {
 	inv_proj: mat4x4<f32>;
 };
 
-struct LightInfo {
-	view_proj: mat4x4<f32>;
-};
-
 [[group(0), binding(0)]]
-var t_forward: texture_2d<f32>;
+var t_direct: texture_2d<f32>;
 
 [[group(0), binding(1)]]
-var t_normal: texture_2d<f32>;
+var t_color: texture_2d<f32>;
 
 [[group(0), binding(2)]]
-var t_depth: texture_2d<f32>;
+var t_normal: texture_2d<f32>;
 
 [[group(0), binding(3)]]
-var t_shadow: texture_2d<f32>;
+var t_depth: texture_2d<f32>;
 
 [[group(0), binding(4)]]
 var t_probes_color: texture_2d<f32>;
@@ -39,25 +35,6 @@ var<uniform> view: ViewInfo;
 [[group(2), binding(0)]]
 var<uniform> light: LightInfo;
 
-struct VarianceInfo {
-	count: i32;
-	mean: vec4<f32>;
-	m2: vec4<f32>;
-};
-
-fn acc_var(acc: VarianceInfo, new: vec4<f32>) -> VarianceInfo {
-	var res: VarianceInfo;
-	res.count = acc.count + 1;
-
-	let vcount = vec4<f32>(f32(res.count));
-	let delta = new - acc.mean;
-	res.mean = acc.mean + (delta / vcount);
-	let delta2 = new - res.mean;
-	res.m2 = acc.m2 + delta * delta2;
-
-	return res;
-}
-
 fn world_pos_from_depth(tex_coord: vec2<f32>, depth: f32) -> vec3<f32> {
 	let clip_space_pos = vec4<f32>(tex_coord.x * 2.0 - 1.0, (1.0 - tex_coord.y) * 2.0 - 1.0, depth, 1.0);
 	let view_space_pos_h = view.inv_proj * clip_space_pos;
@@ -65,7 +42,6 @@ fn world_pos_from_depth(tex_coord: vec2<f32>, depth: f32) -> vec3<f32> {
 	let world_space_pos = view.inv_view * view_space_pos;
 	return world_space_pos.xyz;
 }
-
 
 fn view_pos_from_depth(tex_coord: vec2<f32>, depth: f32) -> vec3<f32> {
 	let clip_space_pos = vec4<f32>(tex_coord.x * 2.0 - 1.0, (1.0 - tex_coord.y) * 2.0 - 1.0, depth, 1.0);
@@ -81,44 +57,6 @@ fn world_pos_to_light_pos(world_pos: vec3<f32>) -> vec3<f32> {
 	return light_pos;
 }
 
-fn srgb_to_linear(x: f32) -> f32{
-	if (x <= 0.0) {
-		return 0.0;
-	} else if (x >= 1.0) {
-		return 1.0;
-	} else if (x < 0.04045) {
-		return x / 12.92;
-	} else {
-		return pow((x + 0.055) / 1.055, 2.4);
-	}
-}
-
-fn srgb_to_linear_color(x: vec4<f32>) -> vec4<f32> {
-	return vec4<f32>(
-		srgb_to_linear(x.r), srgb_to_linear(x.g), 
-		srgb_to_linear(x.b), srgb_to_linear(x.a)
-	);
-}
-
-fn linear_to_srgb(x: f32) -> f32{
-	if (x <= 0.0) {
-		return 0.0;
-	} else if (x >= 1.0) {
-		return 1.0;
-	} else if (x < 0.0031308) {
-		return x * 12.92;
-	} else {
-		return pow(x, 1.0 / 2.4) * 1.055 - 0.055;
-	}
-}
-
-fn linear_to_srgb_color(x: vec4<f32>) -> vec4<f32> {
-	return vec4<f32>(
-		linear_to_srgb(x.r), linear_to_srgb(x.g), 
-		linear_to_srgb(x.b), linear_to_srgb(x.a)
-	);
-}
-
 fn aces_film(x: vec3<f32>) -> vec3<f32>
 {
     let a: f32 = 2.51;
@@ -127,71 +65,6 @@ fn aces_film(x: vec3<f32>) -> vec3<f32>
     let d: f32 = 0.59;
     let e: f32 = 0.14;
     return clamp((x*(a*x+b))/(x*(c*x+d)+e), vec3<f32>(0.0), vec3<f32>(1.0));
-}
-
-fn calc_normal_variance(tc: vec2<i32>) -> f32 {
-	var acc : VarianceInfo;
-	acc.count = 0;
-	acc.mean = vec4<f32>(0.0);
-	acc.m2 = vec4<f32>(0.0);
-
-	var tmp : vec4<f32>;
-	tmp = textureLoad(t_normal, tc + vec2<i32>(-2, -2), 0);
-	acc = acc_var(acc, tmp);
-	tmp = textureLoad(t_normal, tc + vec2<i32>(-1, -2), 0);
-	acc = acc_var(acc, tmp);
-	tmp = textureLoad(t_normal, tc + vec2<i32>(0,  -2), 0);
-	acc = acc_var(acc, tmp);
-	tmp = textureLoad(t_normal, tc + vec2<i32>(1,  -2), 0);
-	acc = acc_var(acc, tmp);
-	tmp = textureLoad(t_normal, tc + vec2<i32>(2, -2), 0);
-	acc = acc_var(acc, tmp);
-
-	tmp = textureLoad(t_normal, tc + vec2<i32>(-2, -1), 0);
-	acc = acc_var(acc, tmp);
-	tmp = textureLoad(t_normal, tc + vec2<i32>(-1, -1), 0);
-	acc = acc_var(acc, tmp);
-	tmp = textureLoad(t_normal, tc + vec2<i32>(0, -1), 0);
-	acc = acc_var(acc, tmp);
-	tmp = textureLoad(t_normal, tc + vec2<i32>(1, -1), 0);
-	acc = acc_var(acc, tmp);
-	tmp = textureLoad(t_normal, tc + vec2<i32>(2, -1), 0);
-	acc = acc_var(acc, tmp);
-
-	tmp = textureLoad(t_normal, tc + vec2<i32>(-2, 0), 0);
-	acc = acc_var(acc, tmp);
-	tmp = textureLoad(t_normal, tc + vec2<i32>(-1, 0), 0);
-	acc = acc_var(acc, tmp);
-	tmp = textureLoad(t_normal, tc + vec2<i32>(0,  0), 0);
-	acc = acc_var(acc, tmp);
-	tmp = textureLoad(t_normal, tc + vec2<i32>(1,  0), 0);
-	acc = acc_var(acc, tmp);
-	tmp = textureLoad(t_normal, tc + vec2<i32>(2, 0), 0);
-	acc = acc_var(acc, tmp);
-	
-	tmp = textureLoad(t_normal, tc + vec2<i32>(-2, 1), 0);
-	acc = acc_var(acc, tmp);
-	tmp = textureLoad(t_normal, tc + vec2<i32>(-1, 1), 0);
-	acc = acc_var(acc, tmp);
-	tmp = textureLoad(t_normal, tc + vec2<i32>(0,  1), 0);
-	acc = acc_var(acc, tmp);
-	tmp = textureLoad(t_normal, tc + vec2<i32>(1,  1), 0);
-	acc = acc_var(acc, tmp);
-	tmp = textureLoad(t_normal, tc + vec2<i32>(2, 1), 0);
-	acc = acc_var(acc, tmp);
-
-	tmp = textureLoad(t_normal, tc + vec2<i32>(-2, 2), 0);
-	acc = acc_var(acc, tmp);
-	tmp = textureLoad(t_normal, tc + vec2<i32>(-1, 2), 0);
-	acc = acc_var(acc, tmp);
-	tmp = textureLoad(t_normal, tc + vec2<i32>(0,  2), 0);
-	acc = acc_var(acc, tmp);
-	tmp = textureLoad(t_normal, tc + vec2<i32>(1,  2), 0);
-	acc = acc_var(acc, tmp);
-	tmp = textureLoad(t_normal, tc + vec2<i32>(2, 2), 0);
-	acc = acc_var(acc, tmp);
-
-	let variance = length(acc.m2 / vec4<f32>(f32(acc.count)));
 }
 
 var<private> rng_state: u32;
@@ -335,35 +208,18 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 	let hash_input = u32(tc.y * surface_size.x + tc.x);
 	rng_state = pcg_hash(hash_input);
 
-	let tc_shadow = vec2<i32>(tcn * shadow_sizef);
+	//let tc_shadow = vec2<i32>(tcn * shadow_sizef);
 
-	let variance = calc_normal_variance(tc);
-	let edge_col = vec3<f32>(0.29, 0.22, 0.06);
-	let edge_shade = pow(variance, 0.7);
-
-	let light_dir = vec3<f32>(-0.5, -1.0, 0.5);
 	let world_normal = textureLoad(t_normal, tc, 0).xyz * 2.0 - 1.0;
 
 	//let world_normal = normalize((view.normal_to_world * vec4<f32>(local_normal, 0.0)).xyz);
-	let color = linear_to_srgb_color(textureLoad(t_forward, tc, 0)).rgb;
-	//let color = textureLoad(t_forward, tc, 0).rgb;
-	let diffuse = max(dot(world_normal, -light_dir), 0.0);
-
+	let direct = textureLoad(t_direct, tc, 0).rgb;
+	let color = textureLoad(t_color, tc, 0).rgb;
+	//let color = textureLoad(t_direct, tc, 0).rgb;
+	
 	let depth = textureLoad(t_depth, tc, 0).r;
 	let view_pos = view_pos_from_depth(tcn, depth);
 	let world_pos = (view.inv_view * vec4<f32>(view_pos, 1.0)).xyz;
-	//let world_pos = world_pos_from_depth(tcn, depth);
-	let light_pos = world_pos_to_light_pos(world_pos);
-	
-	var light_depth: f32 = 100.0;
-	if (light_pos.x > 0.0 && light_pos.x < 1.0 && light_pos.y > 0.0 && light_pos.y < 1.0) {
-		light_depth = textureLoad(t_shadow, vec2<i32>(light_pos.xy * shadow_sizef), 0).r;
-	}
-	
-	var shadow = vec3<f32>(1.0); 
-	if (light_pos.z > light_depth - 0.00004) {
-		shadow = vec3<f32>(0.0); 
-	}
 
 	let probe_size = 16;
 	let probe_center = probe_size / 2;
@@ -418,13 +274,7 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 	irradiance = irradiance / f32(irradiance_samples);
 
 	let ambient = vec3<f32>(0.06);
-	let shaded = ((shadow * diffuse) + irradiance) * color * (1.0 - edge_shade) + edge_shade * edge_col;
+	let shaded = direct + irradiance * color;
 
-	//t s_col = textureLoad(t_probes_color, tc, 0);
-	let s_col = textureLoad(t_probes_color, tc, 0);
-	//return vec4<f32>(world_normala * 0.5 + 0.5, 1.0);
-	return vec4<f32>(irradiance * 0.1, 1.0);
-	//return s_col;
-	//return vec4<f32>(color, 1.0);
-	//return vec4<f32>(aces_film(shaded), 1.0);
+	return vec4<f32>(shaded, 1.0);
 }

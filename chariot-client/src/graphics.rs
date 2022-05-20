@@ -40,6 +40,14 @@ pub fn register_passes(renderer: &mut Renderer) {
     );
 
     renderer.register_pass(
+        "shade_direct",
+        &util::indirect_graphics_depth_pass!(
+            "shaders/shade_direct.wgsl",
+            [wgpu::TextureFormat::Rgba16Float]
+        ),
+    );
+
+    renderer.register_pass(
         "init_probes",
         &util::indirect_surfel_pass!(
             "shaders/init_probes.wgsl",
@@ -51,6 +59,14 @@ pub fn register_passes(renderer: &mut Renderer) {
         "temporal_acc_probes",
         &util::indirect_surfel_pass!(
             "shaders/temporal_acc_probes.wgsl",
+            [wgpu::TextureFormat::Rgba16Float]
+        ),
+    );
+
+    renderer.register_pass(
+        "geometry_acc_probes",
+        &util::indirect_surfel_pass!(
+            "shaders/geometry_acc_probes.wgsl",
             [wgpu::TextureFormat::Rgba16Float]
         ),
     );
@@ -103,7 +119,9 @@ pub struct GraphicsManager {
     prev_proj: glam::Mat4,
     iteration: u32,
     shade: technique::ShadeTechnique,
+    shade_direct: technique::ShadeDirectTechnique,
     temporal_acc_probes: technique::TemporalAccProbesTechnique,
+    geometry_acc_probes: technique::GeometryAccProbesTechnique,
     player_entities: [Option<Entity>; 4],
     camera_entity: Entity,
 }
@@ -143,13 +161,23 @@ impl GraphicsManager {
             true,
             false,
         );
+
         resources.register_depth_surface_framebuffer(
             "probes_out",
             &mut renderer,
             &[wgpu::TextureFormat::Rgba16Float],
+            Some(wgpu::Color::WHITE),
+            true,
+            true,
+        );
+
+        resources.register_depth_surface_framebuffer(
+            "shade_direct_out",
+            &mut renderer,
+            &[wgpu::TextureFormat::Rgba16Float],
             Some(wgpu::Color::BLACK),
             true,
-            true,
+            false,
         );
 
         /*resources.register_depth_surface_framebuffer(
@@ -161,7 +189,9 @@ impl GraphicsManager {
         );*/
 
         let shade = technique::ShadeTechnique::new(&renderer, &resources, "shade");
+        let shade_direct = technique::ShadeDirectTechnique::new(&renderer, &resources);
         let temporal_acc_probes = technique::TemporalAccProbesTechnique::new(&renderer, &resources);
+        let geometry_acc_probes = technique::GeometryAccProbesTechnique::new(&renderer, &resources);
 
         let world = setup_world(&mut resources, &mut renderer);
 
@@ -172,8 +202,10 @@ impl GraphicsManager {
             prev_view: glam::Mat4::IDENTITY,
             prev_proj: glam::Mat4::IDENTITY,
             iteration: 0,
-            shade: shade,
-            temporal_acc_probes: temporal_acc_probes,
+            shade,
+            shade_direct,
+            temporal_acc_probes,
+            geometry_acc_probes,
             player_entities: [None, None, None, None],
             camera_entity: NULL_ENTITY,
         }
@@ -371,6 +403,24 @@ impl GraphicsManager {
             acc_model
         });
 
+        self.shade_direct
+            .update_view_data(&self.renderer, view, proj);
+        self.shade_direct.update_light_data(
+            &self.renderer,
+            lights.first().unwrap().0,
+            lights.first().unwrap().1,
+        );
+        let shade_graph = self.shade.render_item(&render_context).to_graph();
+        render_job.merge_graph_after("init_probes", shade_graph);
+
+        self.geometry_acc_probes
+            .update_view_data(&self.renderer, view, proj);
+        let geom_acc_graph = self
+            .geometry_acc_probes
+            .render_item(&render_context)
+            .to_graph();
+        render_job.merge_graph_after("shade_direct", geom_acc_graph);
+
         self.temporal_acc_probes.update_view_data(
             &self.renderer,
             view,
@@ -379,24 +429,15 @@ impl GraphicsManager {
             self.prev_proj,
         );
 
-        let mut shade_after_pass = "init_probes";
+        let mut shade_after_pass = "geometry_acc_probes";
         if self.iteration > 0 {
             let acc_graph = self
                 .temporal_acc_probes
                 .render_item(&render_context)
                 .to_graph();
-            render_job.merge_graph_after("init_probes", acc_graph);
+            render_job.merge_graph_after("geometry_acc_probes", acc_graph);
             shade_after_pass = "temporal_acc_probes";
         }
-
-        self.shade.update_view_data(&self.renderer, view, proj);
-        self.shade.update_light_data(
-            &self.renderer,
-            lights.first().unwrap().0,
-            lights.first().unwrap().1,
-        );
-        let shade_graph = self.shade.render_item(&render_context).to_graph();
-        render_job.merge_graph_after(shade_after_pass, shade_graph);
 
         self.renderer.render(&render_job);
 

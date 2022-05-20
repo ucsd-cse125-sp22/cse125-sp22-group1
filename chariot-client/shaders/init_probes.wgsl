@@ -93,7 +93,7 @@ fn vs_main([[builtin(vertex_index)]] vertex_index: u32, [[location(0)]] position
 		shadow = vec3<f32>(0.0); 
 	}
 
-	let probe_size = 32;
+	let probe_size = 16;
 	let probe_center = probe_size / 2;
 	let probe_centerf = f32(probe_center);
 	let color_size = textureDimensions(t_color);
