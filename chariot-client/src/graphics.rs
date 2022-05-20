@@ -79,7 +79,7 @@ pub struct GraphicsManager {
     pub renderer: Renderer,
     pub resources: ResourceManager,
 
-    test_ui: UIDrawable,
+    minimap_ui: UIDrawable,
     postprocess: technique::FSQTechnique,
     player_entities: [Option<Entity>; 4],
     camera_entity: Entity,
@@ -117,16 +117,18 @@ impl GraphicsManager {
             renderer.register_framebuffer("shadow_out1", fb_desc);
         }
 
-        let text_handle = resources.import_texture(&renderer, "text.png");
-        let text_tex = resources.textures.get(&text_handle).unwrap();
-        let test_ui = UIDrawable {
+        // let minimap_base_map = resources.get_minimap_image("track_transparent.png");
+        let minimap_map_handle = resources.import_texture(&renderer, "track_transparent.png");
+        let minimap_map_texture = resources.textures[&minimap_map_handle];
+
+        let minimap_ui = UIDrawable {
             layers: vec![technique::UILayerTechnique::new(
                 &renderer,
                 glam::vec2(0.0, 0.0),
                 glam::vec2(0.2, 0.2),
                 glam::vec2(0.0, 0.0),
                 glam::vec2(1.0, 1.0),
-                &text_tex,
+                &minimap_map_texture,
             )],
         };
 
@@ -138,7 +140,7 @@ impl GraphicsManager {
             world: world,
             renderer: renderer,
             resources: resources,
-            test_ui: test_ui,
+            minimap_ui,
             postprocess: postprocess,
             player_entities: [None, None, None, None],
             camera_entity: NULL_ENTITY,
@@ -388,7 +390,7 @@ impl GraphicsManager {
         let postprocess_graph = self.postprocess.render_item(&self.resources).to_graph();
         render_job.merge_graph_after("forward", postprocess_graph);
 
-        let ui_graph = self.test_ui.render_graph(&self.resources);
+        let ui_graph = self.minimap_ui.render_graph(&self.resources);
         render_job.merge_graph_after("postprocess", ui_graph);
 
         self.renderer.render(&render_job);
