@@ -147,7 +147,7 @@ impl GraphicsManager {
 
         let mut test_string = StringDrawable::new("ArialMT", 18.0);
         test_string.set(
-            "chariot - 0.6.9",
+            "chariot - 0.6.11",
             Vec2::new(0.005, 0.027),
             &renderer,
             &mut resources,
