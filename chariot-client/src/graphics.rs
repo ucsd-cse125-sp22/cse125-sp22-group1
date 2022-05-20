@@ -145,10 +145,10 @@ impl GraphicsManager {
             renderer.register_framebuffer("shadow_out1", fb_desc);
         }
 
-        let mut test_string = StringDrawable::new("ArialMT", 32.0);
+        let mut test_string = StringDrawable::new("ArialMT", 18.0);
         test_string.set(
-            "Rendering this almost killed me :)",
-            Vec2::new(0.05, 0.05),
+            "chariot - 0.6.9",
+            Vec2::new(0.005, 0.027),
             &renderer,
             &mut resources,
         );
