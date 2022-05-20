@@ -2,7 +2,6 @@ use chariot_core::entity_location::EntityLocation;
 use chariot_core::player::choices::PlayerChoices;
 use chariot_core::player::choices::Track;
 use chariot_core::player::PlayerID;
-use chariot_core::GLOBAL_CONFIG;
 use glam::{DVec3, Vec2};
 use std::f64::consts::PI;
 
@@ -39,7 +38,7 @@ pub fn register_passes(renderer: &mut Renderer) {
     );
 }
 
-fn setup_void(resource: &mut ResourceManager, renderer: &mut Renderer) -> World {
+fn setup_void() -> World {
     let mut world = World::new();
     world.register::<Camera>();
     world.register::<Vec<StaticMeshDrawable>>();
@@ -156,7 +155,7 @@ impl GraphicsManager {
 
         let postprocess = technique::FSQTechnique::new(&renderer, &resources, "postprocess");
 
-        let world = setup_void(&mut resources, &mut renderer);
+        let world = setup_void();
 
         Self {
             test_string,
@@ -179,7 +178,7 @@ impl GraphicsManager {
 
     pub fn load_pregame(&mut self) {
         println!("Loading pregame screen!");
-        self.world = setup_void(&mut self.resources, &mut self.renderer);
+        self.world = setup_void();
         let root = self.world.root();
 
         let _camera = self

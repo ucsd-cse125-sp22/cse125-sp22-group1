@@ -7,6 +7,7 @@ use std::{
 use serde_json::Value;
 use wgpu::Texture;
 
+pub mod glyph_cache;
 pub mod material;
 pub mod static_mesh;
 
@@ -107,7 +108,7 @@ pub struct ImportData {
 
 pub struct ResourceManager {
     pub framebuffers: HashMap<String, Vec<TextureHandle>>,
-    pub textures: HashMap<TextureHandle, wgpu::Texture>,
+    pub textures: HashMap<TextureHandle, Texture>,
     pub materials: HashMap<MaterialHandle, Material>,
     pub meshes: HashMap<StaticMeshHandle, StaticMesh>,
 }
@@ -131,7 +132,7 @@ impl ResourceManager {
         &mut self,
         renderer: &mut Renderer,
         filename: String,
-    ) -> core::result::Result<ImportData, gltf::Error> {
+    ) -> Result<ImportData, gltf::Error> {
         println!(
             "loading {}, please give a sec I swear it's not lagging",
             filename
@@ -266,7 +267,7 @@ impl ResourceManager {
 
         println!("done!");
 
-        core::result::Result::Ok(ImportData {
+        Ok(ImportData {
             tex_handles,
             mesh_handles,
             drawables,
@@ -506,7 +507,7 @@ impl ResourceManager {
         formats: &[wgpu::TextureFormat],
         clear_color: Option<wgpu::Color>,
     ) -> FramebufferDescriptor {
-        let color_textures: Vec<wgpu::Texture> = formats
+        let color_textures: Vec<Texture> = formats
             .iter()
             .enumerate()
             .map(|(idx, format)| {
@@ -547,7 +548,7 @@ impl ResourceManager {
             depth_stencil_attachment: Some(
                 depth_texture.create_view(&wgpu::TextureViewDescriptor::default()),
             ),
-            clear_color: clear_color,
+            clear_color,
             clear_depth: true,
         };
 
@@ -576,11 +577,12 @@ impl ResourceManager {
         self.depth_framebuffer(name, renderer, surface_size, formats, clear_color)
     }
 
-    pub fn framebuffer_tex(&self, name: &str, index: usize) -> Option<&wgpu::Texture> {
+    pub fn framebuffer_tex(&self, name: &str, index: usize) -> Option<&Texture> {
         let handle = self.framebuffers.get(&name.to_string())?.get(index)?;
         self.textures.get(&handle)
     }
 
+    #[allow(dead_code)]
     pub fn import_texture(&mut self, renderer: &Renderer, filename: &str) -> TextureHandle {
         let tex_name = filename.split(".").next().expect("invalid filename format");
         let resource_path = format!("{}/{}", GLOBAL_CONFIG.resource_folder, filename);

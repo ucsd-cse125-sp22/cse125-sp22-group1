@@ -1,10 +1,9 @@
 use crate::drawable::technique::UILayerTechnique;
 use crate::drawable::{Drawable, UIDrawable};
-use crate::font::glyph_cache::{Glyph, GlyphCache};
 use crate::renderer::{render_job, Renderer};
+use crate::resources::glyph_cache::GlyphCache;
 use crate::resources::ResourceManager;
 use glam::Vec2;
-use std::ops::{Add, Div};
 
 pub struct StringDrawable {
     ui_drawable: UIDrawable,

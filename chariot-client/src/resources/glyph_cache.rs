@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use font_kit::canvas::{Canvas, Format, RasterizationOptions};
 use font_kit::font::Font;
 use font_kit::hinting::HintingOptions;
-use font_kit::metrics::Metrics;
 use font_kit::source::SystemSource;
 use glam::{UVec2, Vec2};
 use pathfinder_geometry::transform2d::Transform2F;

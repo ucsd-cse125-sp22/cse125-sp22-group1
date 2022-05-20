@@ -1,4 +1,4 @@
-use glam::{IVec2, UVec2, Vec2};
+use glam::UVec2;
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},

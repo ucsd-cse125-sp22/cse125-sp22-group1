@@ -6,7 +6,6 @@ use winit::{
 
 mod application;
 mod drawable;
-mod font;
 mod game;
 mod graphics;
 mod renderer;
