@@ -106,6 +106,8 @@ pub struct GraphicsManager {
     pub resources: ResourceManager,
     pub loading_text: StringDrawable,
     pub place_position_text: StringDrawable,
+    pub game_announcement_title: StringDrawable,
+    pub game_announcement_subtitle: StringDrawable,
     pub player_num: PlayerID,
     pub player_choices: [Option<PlayerChoices>; 4],
     postprocess: technique::FSQTechnique,
@@ -145,29 +147,46 @@ impl GraphicsManager {
             renderer.register_framebuffer("shadow_out1", fb_desc);
         }
 
-        let mut loading_text = StringDrawable::new("ArialMT", 18.0, Vec2::new(0.005, 0.027), false);
+        let mut loading_text = StringDrawable::new("ArialMT", 18.0, Vec2::new(0.005, 0.027), true);
         loading_text.set("chariot - 0.6.9", &renderer, &mut resources);
         let mut place_position_text =
-            StringDrawable::new("PressStart2P-Regular", 38.0, Vec2::new(0.905, 0.057), true);
-        place_position_text.set("1st", &renderer, &mut resources);
+            StringDrawable::new("PressStart2P-Regular", 38.0, Vec2::new(0.905, 0.057), false);
+        place_position_text.set("tbd", &renderer, &mut resources);
         let postprocess = technique::FSQTechnique::new(&renderer, &resources, "postprocess");
+
+        let mut game_announcement_title =
+            StringDrawable::new("ArialMT", 32.0, Vec2::new(0.40, 0.04), false);
+        game_announcement_title.set("NO MORE LEFT TURNS", &renderer, &mut resources);
+        let mut game_announcement_subtitle =
+            StringDrawable::new("ArialMT", 32.0, Vec2::new(0.40, 0.14), false);
+        game_announcement_subtitle.set("activating in 20 seconds", &renderer, &mut resources);
 
         let world = setup_void();
 
         Self {
             loading_text,
             place_position_text,
+            game_announcement_title,
+            game_announcement_subtitle,
             postprocess,
             world,
             renderer,
             resources,
-
             player_choices: Default::default(),
             player_entities: [None, None, None, None],
 
             player_num: 4,
             camera_entity: NULL_ENTITY,
         }
+    }
+
+    pub fn make_announcement(&mut self, title: &str, subtitle: &str) {
+        self.game_announcement_title
+            .set(title, &self.renderer, &mut self.resources);
+        self.game_announcement_subtitle
+            .set(subtitle, &self.renderer, &mut self.resources);
+        self.game_announcement_title.should_draw = true;
+        self.game_announcement_subtitle.should_draw = true;
     }
 
     pub fn load_menu(&mut self) {
@@ -403,9 +422,22 @@ impl GraphicsManager {
             let text_graph = self.loading_text.render_graph(&self.resources);
             render_job.merge_graph_after("postprocess", text_graph);
         }
-
         if self.place_position_text.should_draw {
             let text_graph = self.place_position_text.render_graph(&self.resources);
+            render_job.merge_graph_after("postprocess", text_graph);
+        }
+        if self.game_announcement_title.should_draw {
+            let text_graph = self.game_announcement_title.render_graph(&self.resources);
+            render_job.merge_graph_after("postprocess", text_graph);
+        }
+        if self.game_announcement_title.should_draw {
+            let text_graph = self.game_announcement_title.render_graph(&self.resources);
+            render_job.merge_graph_after("postprocess", text_graph);
+        }
+        if self.game_announcement_subtitle.should_draw {
+            let text_graph = self
+                .game_announcement_subtitle
+                .render_graph(&self.resources);
             render_job.merge_graph_after("postprocess", text_graph);
         }
 

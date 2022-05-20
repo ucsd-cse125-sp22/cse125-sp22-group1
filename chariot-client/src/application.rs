@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use chariot_core::player::choices::{Chair, Track};
-use glam::Vec2;
+use ordinal::Ordinal;
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, VirtualKeyCode};
 
@@ -100,16 +100,26 @@ impl Application {
                 }
                 ClientBoundPacket::PlacementUpdate(position) => {
                     println!("I am now placed {}!", position);
+                    self.graphics.place_position_text.set(
+                        Ordinal(position).to_string().as_str(),
+                        &self.graphics.renderer,
+                        &mut self.graphics.resources,
+                    );
                 }
                 ClientBoundPacket::LapUpdate(lap_num) => {
                     println!("I am now on lap {}!", lap_num);
                 }
                 ClientBoundPacket::GameStart(_) => {
                     self.graphics.loading_text.should_draw = false;
+                    self.graphics.place_position_text.should_draw = true;
                     println!("The game has begun!")
                 }
                 ClientBoundPacket::PowerupPickup => println!("we got a powerup!"),
                 ClientBoundPacket::InteractionActivate(question, decision) => {
+                    self.graphics.make_announcement(
+                        format!("Vote: {}", question.prompt).as_str(),
+                        "live in 20 seconds",
+                    );
                     println!(
                         "The Audience has voted on {}, and voted for option {}!",
                         question.prompt, decision.label
@@ -129,6 +139,10 @@ impl Application {
                     );
                 }
                 ClientBoundPacket::VotingStarted(question) => {
+                    self.graphics.make_announcement(
+                        "The Audience is now voting on",
+                        question.prompt.as_str(),
+                    );
                     println!("The audience is now voting on {}", question.prompt)
                 }
                 ClientBoundPacket::StartNextGame => {
