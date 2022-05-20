@@ -213,7 +213,7 @@ impl GraphicsManager {
             .resources
             .import_gltf(
                 &mut self.renderer,
-                format!("models/{}.glb", choices.chair).to_string(),
+                format!("models/{}.glb", choices.chair.file()).to_string(),
             )
             .expect("Failed to import chair");
 

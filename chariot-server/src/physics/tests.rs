@@ -1,3 +1,4 @@
+use chariot_core::player::choices::Chair;
 use glam::DVec3;
 
 use crate::physics::bounding_box::BoundingBox;
@@ -33,6 +34,7 @@ fn test_accelerating() {
         physics_changes: Vec::new(),
         lap_info: LapInformation::new(),
         current_powerup: None,
+        chair: Chair::Swivel,
     };
 
     props = props.do_physics_step(1.0, Vec::new(), std::iter::empty());
@@ -78,6 +80,7 @@ fn test_non_accelerating() {
         physics_changes: Vec::new(),
         lap_info: LapInformation::new(),
         current_powerup: None,
+        chair: Chair::Swivel,
     };
 
     props = props.do_physics_step(1.0, Vec::new(), std::iter::empty());
@@ -121,6 +124,7 @@ fn test_decelerating() {
         physics_changes: Vec::new(),
         lap_info: LapInformation::new(),
         current_powerup: None,
+        chair: Chair::Swivel,
     };
 
     props = props.do_physics_step(1.0, Vec::new(), std::iter::empty());
@@ -167,6 +171,7 @@ fn test_spinning() {
         physics_changes: Vec::new(),
         lap_info: LapInformation::new(),
         current_powerup: None,
+        chair: Chair::Swivel,
     };
 
     props = props.do_physics_step(1.0, Vec::new(), std::iter::empty());
@@ -204,6 +209,7 @@ fn get_origin_cube() -> PlayerEntity {
         physics_changes: Vec::new(),
         lap_info: LapInformation::new(),
         current_powerup: None,
+        chair: Chair::Swivel,
     };
 }
 

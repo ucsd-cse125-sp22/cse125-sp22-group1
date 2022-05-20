@@ -177,9 +177,6 @@ impl Application {
         if key == VirtualKeyCode::R {
             println!("Reloading shaders");
             register_passes(&mut self.graphics.renderer);
-        } else if key == VirtualKeyCode::Return {
-            println!("Picking chair");
-            self.game.pick_chair(Chair::Standard);
         } else if key == VirtualKeyCode::Apostrophe {
             println!("Picking map");
             self.game.pick_map(Track::Track);
@@ -192,6 +189,32 @@ impl Application {
         } else if key == VirtualKeyCode::P {
             println!("Starting next game!");
             self.game.next_game();
+        } else if key == VirtualKeyCode::Right {
+            let new_chair = match self.graphics.player_choices[self.graphics.player_num]
+                .as_ref()
+                .unwrap()
+                .chair
+            {
+                Chair::Swivel => Chair::Recliner,
+                Chair::Recliner => Chair::Ergonomic,
+                Chair::Ergonomic => Chair::Beanbag,
+                Chair::Beanbag => Chair::Folding,
+                Chair::Folding => Chair::Swivel,
+            };
+            self.game.pick_chair(new_chair);
+        } else if key == VirtualKeyCode::Left {
+            let new_chair = match self.graphics.player_choices[self.graphics.player_num]
+                .as_ref()
+                .unwrap()
+                .chair
+            {
+                Chair::Swivel => Chair::Folding,
+                Chair::Recliner => Chair::Swivel,
+                Chair::Ergonomic => Chair::Recliner,
+                Chair::Beanbag => Chair::Ergonomic,
+                Chair::Folding => Chair::Beanbag,
+            };
+            self.game.pick_chair(new_chair);
         }
     }
 

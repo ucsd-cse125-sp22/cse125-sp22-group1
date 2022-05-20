@@ -1,6 +1,7 @@
 use crate::game::powerup::PowerUp;
 use crate::physics::bounding_box::BoundingBox;
 use chariot_core::entity_location::EntityLocation;
+use chariot_core::player::choices::Chair;
 use chariot_core::player::{
     lap_info::LapInformation,
     physics_changes::{PhysicsChange, PhysicsChangeType},
@@ -31,6 +32,7 @@ pub struct PlayerEntity {
     pub lap_info: LapInformation,
 
     pub current_powerup: Option<PowerUp>,
+    pub chair: Chair,
 }
 
 impl PlayerEntity {
@@ -122,15 +124,15 @@ impl PlayerEntity {
 
         let angular_velocity: f64 = match self.player_inputs.rotation_status {
             RotationStatus::InSpinClockwise => f64::min(
-                GLOBAL_CONFIG.max_car_spin,
-                self.angular_velocity + GLOBAL_CONFIG.car_spin,
+                self.chair.stat("max_car_spin"),
+                self.angular_velocity + self.chair.stat("car_spin"),
             ),
             RotationStatus::InSpinCounterclockwise => f64::max(
-                -GLOBAL_CONFIG.max_car_spin,
-                self.angular_velocity - GLOBAL_CONFIG.car_spin,
+                -self.chair.stat("max_car_spin"),
+                self.angular_velocity - self.chair.stat("car_spin"),
             ),
             RotationStatus::NotInSpin => {
-                self.angular_velocity * GLOBAL_CONFIG.rotation_reduction_coefficient
+                self.angular_velocity * self.chair.stat("rotation_reduction_coefficient")
             }
         };
 
@@ -151,8 +153,8 @@ impl PlayerEntity {
         }
 
         let mut new_velocity = self.velocity + delta_velocity;
-        if new_velocity.length() > GLOBAL_CONFIG.max_car_speed {
-            new_velocity = new_velocity.normalize() * GLOBAL_CONFIG.max_car_speed;
+        if new_velocity.length() > self.chair.stat("max_car_speed") {
+            new_velocity = new_velocity.normalize() * self.chair.stat("max_car_speed");
         } else if new_velocity.length() < 0.05 {
             new_velocity = DVec3::ZERO;
         }
@@ -176,7 +178,8 @@ impl PlayerEntity {
             bounding_box: self.bounding_box,
             physics_changes: self.physics_changes.clone(),
             lap_info: self.lap_info,
-            current_powerup: None,
+            current_powerup: self.current_powerup,
+            chair: self.chair,
         };
 
         new_player.apply_physics_changes();
@@ -215,7 +218,7 @@ impl PlayerEntity {
     }
 
     fn gravitational_force_on_object(&self) -> DVec3 {
-        return DVec3::new(0.0, -1.0, 0.0) * self.mass * GLOBAL_CONFIG.gravity_coefficient;
+        return DVec3::new(0.0, -1.0, 0.0) * self.mass * self.chair.stat("gravity_coefficient");
     }
 
     fn normal_force_on_object(&self) -> DVec3 {
@@ -233,7 +236,7 @@ impl PlayerEntity {
             EngineStatus::Accelerating => {
                 return self.entity_location.unit_steer_direction
                     * self.mass
-                    * GLOBAL_CONFIG.car_accelerator;
+                    * self.chair.stat("car_accelerator");
             }
             // apply the force in the reverse direction of current velocity;
             // just do nothing if velocity is zero
@@ -241,7 +244,7 @@ impl PlayerEntity {
                 return self.velocity.normalize_or_zero()
                     * -1.0
                     * self.mass
-                    * GLOBAL_CONFIG.car_brake;
+                    * self.chair.stat("car_brake");
             }
             // And there is no player-applied force when not accelerating or braking
             EngineStatus::Neutral => return DVec3::new(0.0, 0.0, 0.0),
@@ -255,12 +258,15 @@ impl PlayerEntity {
         return self.velocity
             * self.mass
             * -1.0
-            * GLOBAL_CONFIG.drag_coefficient
+            * self.chair.stat("drag_coefficient")
             * self.velocity.length();
     }
 
     fn rolling_resistance_force_on_object(&self) -> DVec3 {
-        return self.velocity * self.mass * -1.0 * GLOBAL_CONFIG.rolling_resistance_coefficient;
+        return self.velocity
+            * self.mass
+            * -1.0
+            * self.chair.stat("rolling_resistance_coefficient");
     }
 
     fn apply_physics_changes(&mut self) {
@@ -276,7 +282,7 @@ impl PlayerEntity {
                         RotationStatus::InSpinClockwise
                     ) {
                         self.player_inputs.rotation_status = RotationStatus::NotInSpin;
-                        self.angular_velocity -= GLOBAL_CONFIG.car_spin;
+                        self.angular_velocity -= self.chair.stat("car_spin");
                     }
                 }
                 PhysicsChangeType::NoTurningLeft => {
@@ -285,22 +291,22 @@ impl PlayerEntity {
                         RotationStatus::InSpinCounterclockwise
                     ) {
                         self.player_inputs.rotation_status = RotationStatus::NotInSpin;
-                        self.angular_velocity += GLOBAL_CONFIG.car_spin;
+                        self.angular_velocity += self.chair.stat("car_spin");
                     }
                 }
                 PhysicsChangeType::ShoppingCart => {
-                    self.angular_velocity += GLOBAL_CONFIG.car_spin / 2.0;
+                    self.angular_velocity += self.chair.stat("car_spin") / 2.0;
                 }
                 PhysicsChangeType::InSpainButTheAIsSilent => {
                     match self.player_inputs.rotation_status {
                         RotationStatus::InSpinClockwise => {}
                         RotationStatus::NotInSpin => {
                             self.player_inputs.rotation_status = RotationStatus::InSpinClockwise;
-                            self.angular_velocity += GLOBAL_CONFIG.car_spin;
+                            self.angular_velocity += self.chair.stat("car_spin");
                         }
                         RotationStatus::InSpinCounterclockwise => {
                             self.player_inputs.rotation_status = RotationStatus::InSpinClockwise;
-                            self.angular_velocity += 2.0 * GLOBAL_CONFIG.car_spin;
+                            self.angular_velocity += 2.0 * self.chair.stat("car_spin");
                         }
                     }
                 }
