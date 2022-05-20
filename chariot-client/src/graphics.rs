@@ -62,44 +62,6 @@ fn setup_void() -> World {
     world
 }
 
-fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer, map: Track) -> World {
-    let mut world = World::new();
-    world.register::<Camera>();
-    world.register::<Vec<StaticMeshDrawable>>();
-    world.register::<Bounds>();
-    world.register::<Light>();
-    let world_root = world.root();
-
-    {
-        let track_import = resources
-            .import_gltf(renderer, format!("models/{}.glb", map.to_string()))
-            .expect("Unable to load racetrack");
-
-        let _track = world
-            .builder()
-            .attach(world_root)
-            .with(Transform::default())
-            .with(track_import.drawables)
-            .with(track_import.bounds)
-            .build();
-    }
-
-    {
-        let scene_bounds = world.calc_bounds(world.root());
-        let _light = world
-            .builder()
-            .attach(world_root)
-            .with(Light::new_directional(
-                glam::vec3(-0.5, -1.0, 0.5),
-                scene_bounds,
-            ))
-            .with(Transform::default())
-            .build();
-    }
-
-    world
-}
-
 pub struct GraphicsManager {
     pub world: World,
     pub renderer: Renderer,
@@ -147,8 +109,16 @@ impl GraphicsManager {
             renderer.register_framebuffer("shadow_out1", fb_desc);
         }
 
-        let mut loading_text = StringDrawable::new("ArialMT", 18.0, Vec2::new(0.005, 0.027), true);
-        loading_text.set("chariot - 0.6.9", &renderer, &mut resources);
+        let mut loading_text = StringDrawable::new("ArialMT", 28.0, Vec2::new(0.005, 0.047), true);
+        loading_text.set(
+            "Enter sets your chair to standard
+sets your map vote to track
+; sets your ready status to true
+L sets force_start to true
+P tells the server to start the next round",
+            &renderer,
+            &mut resources,
+        );
         let mut place_position_text =
             StringDrawable::new("PressStart2P-Regular", 38.0, Vec2::new(0.905, 0.057), false);
         place_position_text.set("tbd", &renderer, &mut resources);
@@ -209,8 +179,52 @@ impl GraphicsManager {
             .build();
     }
 
+    pub fn setup_world(&mut self, map: Track) -> World {
+        let mut world = World::new();
+        world.register::<Camera>();
+        world.register::<Vec<StaticMeshDrawable>>();
+        world.register::<Bounds>();
+        world.register::<Light>();
+        let world_root = world.root();
+
+        {
+            self.loading_text
+                .set("Loading racetrack...", &self.renderer, &mut self.resources);
+            let track_import = self
+                .resources
+                .import_gltf(
+                    &mut self.renderer,
+                    format!("models/{}.glb", map.to_string()),
+                )
+                .expect("Unable to load racetrack");
+
+            let _track = world
+                .builder()
+                .attach(world_root)
+                .with(Transform::default())
+                .with(track_import.drawables)
+                .with(track_import.bounds)
+                .build();
+        }
+
+        {
+            let scene_bounds = world.calc_bounds(world.root());
+            let _light = world
+                .builder()
+                .attach(world_root)
+                .with(Light::new_directional(
+                    glam::vec3(-0.5, -1.0, 0.5),
+                    scene_bounds,
+                ))
+                .with(Transform::default())
+                .build();
+        }
+
+        world
+    }
+
     pub fn load_map(&mut self, map: Track) {
-        self.world = setup_world(&mut self.resources, &mut self.renderer, map);
+        self.world = self.setup_world(map);
 
         [0, 1, 2, 3].map(|player_num| self.add_player(player_num));
     }
@@ -220,6 +234,8 @@ impl GraphicsManager {
         let choices = self.player_choices[player_num].clone().unwrap_or_default();
         println!("Adding new player: {}, self? {}", player_num, is_self);
 
+        self.loading_text
+            .set("Loading chair...", &self.renderer, &mut self.resources);
         let chair_import = self
             .resources
             .import_gltf(
