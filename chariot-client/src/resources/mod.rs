@@ -1,13 +1,15 @@
 use std::{
     cmp::Eq,
     collections::{HashMap, VecDeque},
-    default,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
 use image::DynamicImage;
 use image::{io::Reader as ImageReader, ImageBuffer, Rgba};
 use serde_json::Value;
+use wgpu::Texture;
+
+pub mod glyph_cache;
 pub mod material;
 pub mod minimap;
 pub mod static_mesh;
@@ -109,7 +111,7 @@ pub struct ImportData {
 
 pub struct ResourceManager {
     pub framebuffers: HashMap<String, Vec<TextureHandle>>,
-    pub textures: HashMap<TextureHandle, wgpu::Texture>,
+    pub textures: HashMap<TextureHandle, Texture>,
     pub materials: HashMap<MaterialHandle, Material>,
     pub meshes: HashMap<StaticMeshHandle, StaticMesh>,
     minimap_image: Option<ImageBuffer<Rgba<u8>, Vec<u8>>>,
@@ -135,12 +137,12 @@ impl ResourceManager {
         &mut self,
         renderer: &mut Renderer,
         filename: String,
-    ) -> core::result::Result<ImportData, gltf::Error> {
+    ) -> Result<ImportData, gltf::Error> {
         println!(
             "loading {}, please give a sec I swear it's not lagging",
             filename
         );
-        let model_name = filename.split(".").next().expect("invalid filename format");
+        let _model_name = filename.split(".").next().expect("invalid filename format");
         let resource_path = format!("{}/{}", GLOBAL_CONFIG.resource_folder, filename);
         let (document, buffers, images) = gltf::import(resource_path)?;
         if document.scenes().count() != 1 {
@@ -270,7 +272,7 @@ impl ResourceManager {
 
         println!("done!");
 
-        core::result::Result::Ok(ImportData {
+        Ok(ImportData {
             tex_handles,
             mesh_handles,
             drawables,
@@ -285,7 +287,7 @@ impl ResourceManager {
         primitive: &gltf::Primitive,
         transform: glam::Mat4,
     ) -> (StaticMeshHandle, Bounds) {
-        let f32_low = f32::MIN;
+        let _f32_low = f32::MIN;
 
         let mut bounds = new_bounds();
 
@@ -408,7 +410,7 @@ impl ResourceManager {
             } else {
                 &img.pixels
             };
-            renderer.create_texture2D_init(
+            renderer.create_texture2d_init(
                 "tex name",
                 winit::dpi::PhysicalSize::<u32> {
                     width: img.width,
@@ -422,7 +424,7 @@ impl ResourceManager {
         let texture_iter = images.iter().map(texture_upload);
 
         let handles = (0..images.len())
-            .map(|idx| TextureHandle::unique())
+            .map(|_idx| TextureHandle::unique())
             .collect::<Vec<TextureHandle>>();
         self.textures
             .extend(handles.clone().into_iter().zip(texture_iter));
@@ -443,7 +445,7 @@ impl ResourceManager {
             .map(|info| info.texture().source().index())
             .unwrap_or(0); //"No base color tex for material");
         let base_color_handle = images[base_color_index];
-        let base_color_view = if let Some(tex_info) = pbr_metallic_roughness.base_color_texture() {
+        let base_color_view = if let Some(_tex_info) = pbr_metallic_roughness.base_color_texture() {
             self.textures
                 .get(&base_color_handle)
                 .expect("Couldn't find base texture")
@@ -457,7 +459,7 @@ impl ResourceManager {
                 (255.0 * bc[3]) as u8,
             ];
             let mat_name = material.name().unwrap_or("unnamed");
-            let constant_color_tex = renderer.create_texture2D_init(
+            let constant_color_tex = renderer.create_texture2d_init(
                 mat_name,
                 winit::dpi::PhysicalSize::new(1, 1),
                 wgpu::TextureFormat::Rgba8Unorm,
@@ -510,11 +512,11 @@ impl ResourceManager {
         formats: &[wgpu::TextureFormat],
         clear_color: Option<wgpu::Color>,
     ) -> FramebufferDescriptor {
-        let color_textures: Vec<wgpu::Texture> = formats
+        let color_textures: Vec<Texture> = formats
             .iter()
             .enumerate()
             .map(|(idx, format)| {
-                renderer.create_texture2D(
+                renderer.create_texture2d(
                     format!("{}_tex_{}", name, idx).as_str(),
                     size,
                     *format,
@@ -526,10 +528,10 @@ impl ResourceManager {
             .collect();
 
         let color_handles: Vec<TextureHandle> = (0..color_textures.len())
-            .map(|idx| TextureHandle::unique())
+            .map(|_idx| TextureHandle::unique())
             .collect();
 
-        let depth_texture = renderer.create_texture2D(
+        let depth_texture = renderer.create_texture2d(
             format!("{}_tex_depth", name).as_str(),
             size,
             Renderer::DEPTH_FORMAT,
@@ -551,7 +553,7 @@ impl ResourceManager {
             depth_stencil_attachment: Some(
                 depth_texture.create_view(&wgpu::TextureViewDescriptor::default()),
             ),
-            clear_color: clear_color,
+            clear_color,
             clear_depth: true,
         };
 
@@ -580,18 +582,20 @@ impl ResourceManager {
         self.depth_framebuffer(name, renderer, surface_size, formats, clear_color)
     }
 
-    pub fn framebuffer_tex(&self, name: &str, index: usize) -> Option<&wgpu::Texture> {
+    pub fn framebuffer_tex(&self, name: &str, index: usize) -> Option<&Texture> {
         let handle = self.framebuffers.get(&name.to_string())?.get(index)?;
         self.textures.get(&handle)
     }
 
+    #[allow(dead_code)]
     pub fn import_texture(&mut self, renderer: &Renderer, filename: &str) -> TextureHandle {
         let tex_name = filename.split(".").next().expect("invalid filename format");
         let resource_path = format!("{}/{}", GLOBAL_CONFIG.resource_folder, filename);
-        let img = image::open(resource_path).unwrap();
+        let img = image::open(resource_path.clone())
+            .expect(format!("didn't find {}", resource_path.clone()).as_str());
         let img_rgba8 = img.into_rgba8();
 
-        let texture = renderer.create_texture2D_init(
+        let texture = renderer.create_texture2d_init(
             tex_name,
             winit::dpi::PhysicalSize::<u32> {
                 width: img_rgba8.width(),
@@ -602,6 +606,11 @@ impl ResourceManager {
             &img_rgba8.into_raw(),
         );
 
+        self.register_texture(texture)
+    }
+
+    // shorthand for registering a texture
+    pub fn register_texture(&mut self, texture: Texture) -> TextureHandle {
         let handle = TextureHandle::unique();
         self.textures.insert(handle, texture);
         return handle;

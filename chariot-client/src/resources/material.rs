@@ -6,6 +6,7 @@ use crate::renderer::Renderer;
  * A material encapsulates the render pass it should be a part of and the resources it should bind.
  */
 #[derive(Default)]
+#[allow(dead_code)] // Some instance vars of the material are currently unused, but may be in the future
 pub struct Material {
     pub pass_name: String,
     pub bind_groups: HashMap<u32, wgpu::BindGroup>,
@@ -43,12 +44,7 @@ impl<'a> MaterialBuilder<'a> {
         }
     }
 
-    pub fn buffer_resource<'b>(
-        &'b mut self,
-        group: u32,
-        binding: u32,
-        buffer: wgpu::Buffer,
-    ) -> &'b mut Self {
+    pub fn buffer_resource(&mut self, group: u32, binding: u32, buffer: wgpu::Buffer) -> &mut Self {
         self.buffers.push(buffer);
 
         self.bind_group_resources
@@ -58,12 +54,12 @@ impl<'a> MaterialBuilder<'a> {
         self
     }
 
-    pub fn texture_resource<'b>(
-        &'b mut self,
+    pub fn texture_resource(
+        &mut self,
         group: u32,
         binding: u32,
         texture: wgpu::TextureView,
-    ) -> &'b mut Self {
+    ) -> &mut Self {
         self.textures.push(texture);
 
         self.bind_group_resources
@@ -73,12 +69,12 @@ impl<'a> MaterialBuilder<'a> {
         self
     }
 
-    pub fn sampler_resource<'b>(
-        &'b mut self,
+    pub fn sampler_resource(
+        &mut self,
         group: u32,
         binding: u32,
         sampler: wgpu::Sampler,
-    ) -> &'b mut Self {
+    ) -> &mut Self {
         self.samplers.push(sampler);
 
         self.bind_group_resources

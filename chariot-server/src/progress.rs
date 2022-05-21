@@ -2,7 +2,7 @@ use crate::{
     checkpoints::Checkpoint,
     physics::{player_entity::PlayerEntity, trigger_entity::TriggerEntity},
 };
-use chariot_core::lap_info::*;
+use chariot_core::player::{lap_info::*, PlayerID};
 
 impl PlayerEntity {
     // Values returned aren't intended to be interpreted directly, only compared
@@ -47,7 +47,7 @@ pub fn get_player_placement_array(
     players: &[PlayerEntity; 4],
     checkpoints: &Vec<Checkpoint>,
 ) -> [(usize, LapInformation); 4] {
-    let mut player_nums_with_scores: Vec<(u8, (LapNumber, ZoneID, CheckpointID, f64))> =
+    let mut player_nums_with_scores: Vec<(PlayerID, (LapNumber, ZoneID, CheckpointID, f64))> =
         [0, 1, 2, 3]
             .into_iter()
             .zip(players.iter().map(|p| p.get_progress_score(checkpoints)))
@@ -56,13 +56,31 @@ pub fn get_player_placement_array(
     // Sort progress scores, priority given to most significant placement measures
     player_nums_with_scores.sort_by(|a, b| {
         let a_arr = [a.1 .0 as f64, a.1 .1 as f64, a.1 .2 as f64, a.1 .3];
+        let a_finished = players[a.0].lap_info.finished;
         let b_arr = [b.1 .0 as f64, b.1 .1 as f64, b.1 .2 as f64, b.1 .3];
+        let b_finished = players[b.0].lap_info.finished;
 
-        for index in 0..=3 {
-            if a_arr[index] < b_arr[index] {
-                return std::cmp::Ordering::Less;
-            } else if a_arr[index] > b_arr[index] {
-                return std::cmp::Ordering::Greater;
+        if a_finished || b_finished {
+            if a_finished && b_finished {
+                if players[a.0].lap_info.placement < players[b.0].lap_info.placement {
+                    return std::cmp::Ordering::Less;
+                } else {
+                    return std::cmp::Ordering::Greater;
+                }
+            } else {
+                if a_finished {
+                    return std::cmp::Ordering::Greater;
+                } else if b_finished {
+                    return std::cmp::Ordering::Less;
+                }
+            }
+        } else {
+            for index in 0..=3 {
+                if a_arr[index] < b_arr[index] {
+                    return std::cmp::Ordering::Less;
+                } else if a_arr[index] > b_arr[index] {
+                    return std::cmp::Ordering::Greater;
+                }
             }
         }
         std::cmp::Ordering::Equal
@@ -70,14 +88,19 @@ pub fn get_player_placement_array(
 
     return [0, 1, 2, 3].map(|i| {
         let data = player_nums_with_scores.get(i).unwrap();
-        (
-            data.0 as usize,
-            LapInformation {
-                lap: data.1 .0,
-                zone: data.1 .1,
-                last_checkpoint: data.1 .2,
-                placement: 4 - i as u8,
-            },
-        )
+        if players[data.0].lap_info.finished {
+            (data.0, players[data.0].lap_info)
+        } else {
+            (
+                data.0,
+                LapInformation {
+                    lap: data.1 .0,
+                    zone: data.1 .1,
+                    last_checkpoint: data.1 .2,
+                    placement: 4 - i as Placement,
+                    finished: false,
+                },
+            )
+        }
     });
 }

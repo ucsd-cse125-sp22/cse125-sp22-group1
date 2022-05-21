@@ -9,22 +9,43 @@ use serde::{Deserialize, Serialize};
 pub use uuid::Uuid;
 
 use crate::entity_location::EntityLocation;
-use crate::player_inputs::InputEvent;
+use crate::player::choices::{Chair, PlayerChoices, Track};
+use crate::player::{
+    lap_info::{LapNumber, Placement},
+    player_inputs::InputEvent,
+    PlayerID,
+};
 use crate::questions::{QuestionData, QuestionOption};
 
 #[derive(Serialize, Deserialize)]
 pub enum ServerBoundPacket {
     // Before game
-    ChairSelectAndReady(String), // name of chair being selected
+    ChairSelect(Chair),
+    MapSelect(Track),
+    SetReadyStatus(bool),
+    ForceStart,
+    NotifyLoaded,
 
     // During game
     InputToggle(InputEvent),
+
+    // After game
+    NextGame,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub enum ClientBoundPacket {
     // Before game
-    PlayerNumber(u8),
+    PlayerNumber(PlayerID, [Option<PlayerChoices>; 4]),
+    PlayerChairChoice(PlayerID, Chair), // Another player has hovered a chair
+    PlayerMapChoice(PlayerID, Track),   // Another player has hovered a map
+    PlayerReadyStatus(PlayerID, bool),  // Another player has readied or unreaded
+    PlayerJoined(PlayerID),
+
+    // Load into the game
+    LoadGame(Track), // Map name, each player's chair
+
+    // Pre-game
     GameStart(Duration), // How long until the game starts?
 
     // During game
@@ -32,11 +53,12 @@ pub enum ClientBoundPacket {
     PowerupPickup,                              // Add a payload here when appropriate
     VotingStarted(QuestionData),                // Sent when the audience begins voting (suspense!)
     InteractionActivate(QuestionData, QuestionOption), // Sent when the audience has voted on something
-    LapUpdate(u8),                                     // What lap are you now on?
-    PlacementUpdate(u8),                               // What place in the race are you now at?
+    LapUpdate(LapNumber),                              // What lap are you now on?
+    PlacementUpdate(Placement),                        // What place in the race are you now at?
 
     // After game
-    AllDone,
+    AllDone([Placement; 4]), // All players' final placements
+    StartNextGame,
 }
 
 pub trait Packet: Serialize + DeserializeOwned {

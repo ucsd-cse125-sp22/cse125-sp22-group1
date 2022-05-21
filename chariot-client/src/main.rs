@@ -69,13 +69,7 @@ fn main() {
 
             // Mouse input
             Event::WindowEvent {
-                event:
-                    WindowEvent::MouseInput {
-                        device_id,
-                        button,
-                        state,
-                        modifiers,
-                    },
+                event: WindowEvent::MouseInput { button, state, .. },
                 ..
             } => match button {
                 MouseButton::Left => application.on_left_mouse(state),
@@ -85,12 +79,7 @@ fn main() {
 
             // Mouse moved
             Event::WindowEvent {
-                event:
-                    WindowEvent::CursorMoved {
-                        device_id,
-                        position,
-                        modifiers,
-                    },
+                event: WindowEvent::CursorMoved { position, .. },
                 ..
             } => {
                 application.on_mouse_move(position.x, position.y);

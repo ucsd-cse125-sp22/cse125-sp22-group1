@@ -1,10 +1,11 @@
 use std::collections::HashSet;
 
+use chariot_core::player::choices::{Chair, Track};
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, VirtualKeyCode};
 
 use chariot_core::networking::ClientBoundPacket;
-use chariot_core::player_inputs::{EngineStatus, InputEvent, RotationStatus};
+use chariot_core::player::player_inputs::{EngineStatus, InputEvent, RotationStatus};
 use chariot_core::GLOBAL_CONFIG;
 
 use crate::game::{self, GameClient};
@@ -18,11 +19,10 @@ pub struct Application {
 }
 
 impl Application {
-    pub fn new(graphics_manager: GraphicsManager) -> Self {
+    pub fn new(mut graphics_manager: GraphicsManager) -> Self {
         let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
-        let mut game = game::GameClient::new(ip_addr);
-
-        game.send_ready_packet("standard".to_string());
+        let game = game::GameClient::new(ip_addr);
+        graphics_manager.load_menu();
 
         Self {
             graphics: graphics_manager,
@@ -42,13 +42,49 @@ impl Application {
         // process current packets
         while let Some(packet) = self.game.connection.pop_incoming() {
             match packet {
-                ClientBoundPacket::PlayerNumber(player_number) => {
-                    self.graphics.add_player(player_number, true)
+                ClientBoundPacket::PlayerNumber(player_number, others_choices) => {
+                    self.graphics.player_num = player_number;
+                    println!("I am now player #{}!", player_number);
+                    self.graphics.player_choices = others_choices;
+                    self.graphics.player_choices[player_number] = Some(Default::default());
+                    self.graphics.load_pregame();
                 }
+                ClientBoundPacket::PlayerJoined(player_number) => {
+                    self.graphics.player_choices[player_number] = Some(Default::default());
+                }
+
+                ClientBoundPacket::PlayerChairChoice(player_num, chair) => {
+                    println!("Player #{} has chosen chair {}!", player_num, chair.clone());
+                    self.graphics.player_choices[player_num]
+                        .as_mut()
+                        .expect("Attempted to set chair on player we don't know about!")
+                        .chair = chair;
+                }
+                ClientBoundPacket::PlayerMapChoice(player_num, map) => {
+                    println!("Player #{} has voted for map {}!", player_num, map.clone());
+                    self.graphics.player_choices[player_num]
+                        .as_mut()
+                        .expect("Attempted to set chair on player we don't know about!")
+                        .map = map;
+                }
+                ClientBoundPacket::PlayerReadyStatus(player_num, status) => {
+                    println!(
+                        "Player #{} is no{} ready!",
+                        player_num,
+                        if status { "w" } else { "t" }
+                    );
+                }
+
+                ClientBoundPacket::LoadGame(map) => {
+                    println!("Loading map {}!", map);
+                    self.graphics.load_map(map);
+                    self.game.signal_loaded();
+                }
+
                 ClientBoundPacket::EntityUpdate(locations) => {
                     locations.iter().enumerate().for_each(|(i, update)| {
                         self.graphics
-                            .update_player_location(&update.0, &update.1, i as u8)
+                            .update_player_location(&update.0, &update.1, i)
                     });
                 }
                 ClientBoundPacket::PlacementUpdate(position) => {
@@ -65,9 +101,24 @@ impl Application {
                         question.prompt, decision.label
                     );
                 }
-                ClientBoundPacket::AllDone => println!("This game is over!"),
+                ClientBoundPacket::AllDone(final_placements) => {
+                    println!(
+                        "This game is over! Results:\n{}",
+                        final_placements
+                            .iter()
+                            .enumerate()
+                            .map(|(player_num, place)| format!(
+                                "\t(#{} came {})\n",
+                                player_num, place
+                            ))
+                            .collect::<String>()
+                    );
+                }
                 ClientBoundPacket::VotingStarted(question) => {
                     println!("The audience is now voting on {}", question.prompt)
+                }
+                ClientBoundPacket::StartNextGame => {
+                    self.graphics.load_pregame();
                 }
             }
         }
@@ -124,6 +175,21 @@ impl Application {
         if key == VirtualKeyCode::R {
             println!("Reloading shaders");
             register_passes(&mut self.graphics.renderer);
+        } else if key == VirtualKeyCode::Return {
+            println!("Picking chair");
+            self.game.pick_chair(Chair::Standard);
+        } else if key == VirtualKeyCode::Apostrophe {
+            println!("Picking map");
+            self.game.pick_map(Track::Track);
+        } else if key == VirtualKeyCode::Semicolon {
+            println!("Setting ready");
+            self.game.signal_ready_status(true);
+        } else if key == VirtualKeyCode::L {
+            println!("Forcing a start!");
+            self.game.force_start();
+        } else if key == VirtualKeyCode::P {
+            println!("Starting next game!");
+            self.game.next_game();
         }
     }
 
@@ -141,8 +207,8 @@ impl Application {
     }
 
     pub fn on_left_mouse(&mut self, state: ElementState) {
-        let x = self.mouse_pos.x;
-        let y = self.mouse_pos.y;
+        let _x = self.mouse_pos.x;
+        let _y = self.mouse_pos.y;
 
         if let ElementState::Released = state {
             // println!("Mouse clicked @ ({}, {})!", x, y);
@@ -150,15 +216,15 @@ impl Application {
     }
 
     pub fn on_right_mouse(&mut self, state: ElementState) {
-        let x = self.mouse_pos.x;
-        let y = self.mouse_pos.y;
+        let _x = self.mouse_pos.x;
+        let _y = self.mouse_pos.y;
 
         if let ElementState::Released = state {
             // println!("Mouse right clicked @ ({}, {})!", x, y);
         }
     }
 
-    pub fn print_keys(&self) {
+    pub fn _print_keys(&self) {
         println!("Pressed keys: {:?}", self.pressed_keys)
     }
 }

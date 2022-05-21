@@ -93,7 +93,7 @@ pub struct Light {
 }
 
 impl Light {
-    pub fn new_directional(dir: glam::Vec3, bounds: Bounds) -> Self {
+    pub fn new_directional(dir: glam::Vec3, _bounds: Bounds) -> Self {
         Self {
             dir,
             framebuffer_name: "shadow_out1".to_string(),
