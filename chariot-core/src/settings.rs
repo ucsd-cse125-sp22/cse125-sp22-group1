@@ -73,12 +73,12 @@ impl Settings {
             // conserved?
             .set_default("rotation_reduction_coefficient", 0.40)?
             // Coefficient to control how forceful player-controlled acceleration is
-            .set_default("car_accelerator", 0.8)?
+            .set_default("car_accelerator", 0.8 / 15.0)?
             // Coefficient to control how forceful player-controlled braking is
             .set_default("car_brake", 0.005)?
             // Coefficient to control how fast the player can spin
             .set_default("car_spin", 0.03)?
-            .set_default("max_car_speed", 0.65)?
+            .set_default("max_car_speed", 0.5)?
             .set_default("max_car_spin", 0.1)?
             .set_default("audience_vote_time_ms", 30000)?
             .add_source(File::with_name("config.yaml").required(false))
