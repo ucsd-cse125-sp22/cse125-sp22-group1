@@ -140,7 +140,7 @@ impl Chair {
                 _ => unimplemented!(
                     "I don't have a lot of ideas for this one currently. May add later!"
                 ),
-                _ => *Chair::default_stats().get(stat_name).unwrap(),
+                //_ => *Chair::default_stats().get(stat_name).unwrap(),
             },
         }
     }
