@@ -194,7 +194,7 @@ impl GraphicsManager {
         let minimap_ui = UIDrawable { layers: layer_vec };
         let mut test_string = StringDrawable::new("ArialMT", 18.0);
         test_string.set(
-            "chariot - 0.6.9",
+            "chariot - 0.6.10",
             Vec2::new(0.005, 0.027),
             &renderer,
             &mut resources,

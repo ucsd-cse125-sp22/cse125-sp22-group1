@@ -128,3 +128,16 @@ impl BoundingBox {
         self.max_z = pos.z + z_dist;
     }
 }
+
+impl Eq for BoundingBox {}
+
+impl PartialEq for BoundingBox {
+    fn eq(&self, other: &Self) -> bool {
+        self.min_x == other.min_x
+            && self.max_x == other.max_x
+            && self.min_y == other.min_y
+            && self.max_y == other.max_y
+            && self.min_z == other.min_z
+            && self.max_z == other.max_z
+    }
+}
