@@ -124,8 +124,8 @@ impl Chair {
                 _ => *Chair::default_stats().get(stat_name).unwrap(),
             },
             Chair::Beanbag => match stat_name {
-                "max_car_speed" => GLOBAL_CONFIG.max_car_speed * 2.0,
-                "car_accelerator" => GLOBAL_CONFIG.car_accelerator * 0.5,
+                "max_car_speed" => GLOBAL_CONFIG.max_car_speed * 1.8,
+                "car_accelerator" => GLOBAL_CONFIG.car_accelerator * 0.33,
                 // A L L G A S N O B R A K E S
                 "car_brake" => 0.0,
                 // very light on our feet :^)
@@ -138,7 +138,7 @@ impl Chair {
             },
             Chair::Folding => match stat_name {
                 _ => unimplemented!(
-                    "I don't have a lot of ideas for this one curerntly. May add later!"
+                    "I don't have a lot of ideas for this one currently. May add later!"
                 ),
                 _ => *Chair::default_stats().get(stat_name).unwrap(),
             },
