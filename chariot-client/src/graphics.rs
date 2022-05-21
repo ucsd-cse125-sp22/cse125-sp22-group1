@@ -258,26 +258,43 @@ impl GraphicsManager {
             .expect("Trying to update player location when transform does not exist");
         *player_transform = Transform::from_entity_location(&location, player_transform.scale);
 
-        // if this player is the main player, update the camera too (based on velocity)
-        if player_entity == self.camera_entity && *velocity != DVec3::ZERO {
+        if player_entity == self.camera_entity {
             if let Some(camera) = self.world.get_mut::<Camera>(self.camera_entity) {
-                // first we have to compensate for the rotation of the chair model
-                let rotation_angle = location.unit_steer_direction.angle_between(DVec3::X);
-                // next, we add the angle of the direction of the velocity
-                let velocity_angle =
-                    DVec3::new(velocity.x, 0.0, velocity.z).angle_between(DVec3::X);
+                match self.player_choices[player_num]
+                    .as_ref()
+                    .unwrap()
+                    .clone()
+                    .chair
+                    .cam()
+                {
+                    chariot_core::player::choices::CameraType::FaceForwards => {
+                        camera.orbit_angle = Vec2::new(0.0, -0.3).lerp(camera.orbit_angle, 0.5);
+                    }
+                    chariot_core::player::choices::CameraType::FaceVelocity => {
+                        if *velocity != DVec3::ZERO {
+                            // first we have to compensate for the rotation of the chair model
+                            let rotation_angle =
+                                location.unit_steer_direction.angle_between(DVec3::X);
+                            // next, we add the angle of the direction of the velocity
+                            let velocity_angle =
+                                DVec3::new(velocity.x, 0.0, velocity.z).angle_between(DVec3::X);
 
-                // there's actually some magic trig cancellations happening here that simplify this calculation
-                let mut orbit_yaw = PI + location.unit_steer_direction.z.signum() * rotation_angle;
+                            // there's actually some magic trig cancellations happening here that simplify this calculation
+                            let mut orbit_yaw = velocity.z.signum() * velocity_angle
+                                - location.unit_steer_direction.z.signum() * rotation_angle;
 
-                // if the yaw change would be bigger than PI, wrap back around
-                let yaw_difference = orbit_yaw - camera.orbit_angle.x as f64;
-                if yaw_difference.abs() > PI {
-                    orbit_yaw += yaw_difference.signum() * 2.0 * PI;
-                }
+                            // if the yaw change would be bigger than PI, wrap back around
+                            let yaw_difference = orbit_yaw - camera.orbit_angle.x as f64;
+                            if yaw_difference.abs() > PI {
+                                orbit_yaw += yaw_difference.signum() * 2.0 * PI;
+                            }
 
-                // set the new orbit angle complete with magic pitch for now
-                camera.orbit_angle = Vec2::new(0.0, -0.3).lerp(camera.orbit_angle, 0.5);
+                            // set the new orbit angle complete with magic pitch for now
+                            camera.orbit_angle =
+                                Vec2::new(orbit_yaw as f32, -0.3).lerp(camera.orbit_angle, 0.5);
+                        }
+                    }
+                };
             }
         }
     }

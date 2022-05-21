@@ -101,6 +101,13 @@ impl Chair {
             },
         }
     }
+
+    pub fn cam(&self) -> CameraType {
+        match self {
+            Chair::Recliner => CameraType::FaceVelocity,
+            _ => CameraType::FaceForwards,
+        }
+    }
 }
 
 impl fmt::Display for Chair {
@@ -114,6 +121,12 @@ impl fmt::Display for Chair {
         };
         write!(f, "{}", printable)
     }
+}
+
+#[derive(Clone, Copy)]
+pub enum CameraType {
+    FaceForwards,
+    FaceVelocity,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
