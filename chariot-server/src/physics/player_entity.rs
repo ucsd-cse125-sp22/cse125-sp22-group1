@@ -174,7 +174,7 @@ impl PlayerEntity {
         let mut new_velocity = self.velocity + delta_velocity;
         if new_velocity.length() > self.chair.stat("max_car_speed") {
             new_velocity = new_velocity.normalize() * self.chair.stat("max_car_speed");
-        } else if new_velocity.length() < 0.05 {
+        } else if new_velocity.length() < 0.0005 {
             new_velocity = DVec3::ZERO;
         }
 
