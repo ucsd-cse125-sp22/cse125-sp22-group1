@@ -1,4 +1,5 @@
 use chariot_core::entity_location::EntityLocation;
+use chariot_core::player::choices::Chair;
 use chariot_core::player::choices::PlayerChoices;
 use chariot_core::player::choices::Track;
 use chariot_core::player::PlayerID;
@@ -256,7 +257,32 @@ impl GraphicsManager {
             .world
             .get_mut::<Transform>(player_entity)
             .expect("Trying to update player location when transform does not exist");
-        *player_transform = Transform::from_entity_location(&location, player_transform.scale);
+        let new_player_transform =
+            Transform::from_entity_location(&location, player_transform.scale);
+        *player_transform = new_player_transform;
+
+        if velocity.length() > 0.0 {
+            if let Some(Chair::Beanbag) = self.player_choices[player_num].as_ref().map(|c| c.chair)
+            {
+                for drawable in self
+                    .world
+                    .get_mut::<Vec<StaticMeshDrawable>>(player_entity)
+                    .unwrap()
+                    .iter_mut()
+                {
+                    let axis = velocity.as_vec3().cross(glam::Vec3::Y).normalize();
+                    drawable.modifiers.rotation = Some(
+                        glam::Quat::from_axis_angle(
+                            axis,
+                            -(axis.angle_between(-glam::Vec3::Y)).signum()
+                                * velocity.length() as f32,
+                        )
+                        .normalize()
+                        .mul_quat(drawable.modifiers.rotation.unwrap_or_default()),
+                    );
+                }
+            }
+        }
 
         if player_entity == self.camera_entity {
             if let Some(camera) = self.world.get_mut::<Camera>(self.camera_entity) {
@@ -398,6 +424,7 @@ impl GraphicsManager {
             if let Some(drawables) = self.world.get::<Vec<StaticMeshDrawable>>(e) {
                 for drawable in drawables.iter() {
                     let mut acc_model = acc_model;
+
                     if drawable.modifiers.absolute_angle {
                         acc_model = *acc
                             * Transform {
@@ -406,7 +433,18 @@ impl GraphicsManager {
                                 scale: cur_transform.scale,
                             }
                             .to_mat4();
+                    } else if let Some(rotation) = drawable.modifiers.rotation {
+                        // println!("d {}", rotation);
+                        //acc_model = acc_model * glam::Mat4::from_quat(rotation);
+                        acc_model = *acc
+                            * Transform {
+                                translation: cur_transform.translation,
+                                rotation: rotation,
+                                scale: cur_transform.scale,
+                            }
+                            .to_mat4();
                     }
+
                     drawable.update_xforms(&self.renderer, proj, view, acc_model);
                     drawable.update_lights(&self.renderer, acc_model, &lights);
                     let render_graph = drawable.render_graph(&self.resources);

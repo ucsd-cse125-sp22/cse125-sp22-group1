@@ -124,9 +124,22 @@ impl Chair {
                 _ => *Chair::default_stats().get(stat_name).unwrap(),
             },
             Chair::Beanbag => match stat_name {
+                "max_car_speed" => GLOBAL_CONFIG.max_car_speed * 2.0,
+                "car_accelerator" => GLOBAL_CONFIG.car_accelerator * 0.5,
+                // A L L G A S N O B R A K E S
+                "car_brake" => 0.0,
+                // very light on our feet :^)
+                "drag_coefficient" => GLOBAL_CONFIG.drag_coefficient * 0.001,
+                "rolling_resistance_coefficient" => {
+                    GLOBAL_CONFIG.rolling_resistance_coefficient * 0.1
+                }
+                "mass" => 1.0,
                 _ => *Chair::default_stats().get(stat_name).unwrap(),
             },
             Chair::Folding => match stat_name {
+                _ => unimplemented!(
+                    "I don't have a lot of ideas for this one curerntly. May add later!"
+                ),
                 _ => *Chair::default_stats().get(stat_name).unwrap(),
             },
         }

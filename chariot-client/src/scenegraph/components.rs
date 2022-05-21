@@ -68,6 +68,7 @@ impl Default for Transform {
 #[derive(Default, Clone, Copy)]
 pub struct Modifiers {
     pub absolute_angle: bool,
+    pub rotation: Option<glam::Quat>,
 }
 
 #[derive(Default, Clone, Copy)]
