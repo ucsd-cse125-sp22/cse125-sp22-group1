@@ -176,6 +176,11 @@ impl PlayerEntity {
             new_velocity = new_velocity.normalize() * self.chair.stat("max_car_speed");
         } else if new_velocity.length() < 0.0005 {
             new_velocity = DVec3::ZERO;
+        } else if new_velocity.dot(self.velocity) < 0.0 {
+            // If we are trying to reverse direction and are braking, we should just stop isntead
+            if let EngineStatus::Braking = self.player_inputs.engine_status {
+                new_velocity = DVec3::ZERO;
+            }
         }
 
         let new_steer_direction =
