@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::game::powerup::PowerUp;
 use crate::physics::bounding_box::BoundingBox;
 use chariot_core::entity_location::EntityLocation;
@@ -35,6 +37,7 @@ pub struct PlayerEntity {
 
     pub current_powerup: Option<PowerUp>,
     pub chair: Chair,
+    pub stat_modifiers: HashMap<String, f64>,
 }
 
 impl PlayerEntity {
@@ -113,6 +116,19 @@ impl PlayerEntity {
         return DVec3::new(result.x, 0.0, result.z);
     }
 
+    pub fn get_stat_modifier(&self, name: &str) -> f64 {
+        *self.stat_modifiers.get(&name.to_string()).unwrap_or(&1.0)
+    }
+
+    pub fn _mod_stat_modifier(&mut self, name: &str, value: f64) {
+        self.stat_modifiers
+            .insert(name.to_string(), self.get_stat_modifier(name) * value);
+    }
+
+    pub fn stat(&self, name: &str) -> f64 {
+        self.get_stat_modifier(name) * self.chair.stat(name)
+    }
+
     /* Given a set of physical properties, compute and return what next tick's
      * physics properties will be for that object */
     pub fn do_physics_step<'a>(
@@ -127,15 +143,15 @@ impl PlayerEntity {
 
         let angular_velocity: f64 = match self.player_inputs.rotation_status {
             RotationStatus::InSpinClockwise => f64::min(
-                self.chair.stat("max_car_spin"),
-                self.angular_velocity + self.chair.stat("car_spin"),
+                self.stat("max_car_spin"),
+                self.angular_velocity + self.stat("car_spin"),
             ),
             RotationStatus::InSpinCounterclockwise => f64::max(
-                -self.chair.stat("max_car_spin"),
-                self.angular_velocity - self.chair.stat("car_spin"),
+                -self.stat("max_car_spin"),
+                self.angular_velocity - self.stat("car_spin"),
             ),
             RotationStatus::NotInSpin => {
-                self.angular_velocity * self.chair.stat("rotation_reduction_coefficient")
+                self.angular_velocity * self.stat("rotation_reduction_coefficient")
             }
         };
 
@@ -156,8 +172,8 @@ impl PlayerEntity {
 
         // Make sure we aren't too fast/slow, but BEFORE we bounce off walls (which can be fast intentionally)
         let mut new_velocity = self.velocity + delta_velocity;
-        if new_velocity.length() > self.chair.stat("max_car_speed") {
-            new_velocity = new_velocity.normalize() * self.chair.stat("max_car_speed");
+        if new_velocity.length() > self.stat("max_car_speed") {
+            new_velocity = new_velocity.normalize() * self.stat("max_car_speed");
         } else if new_velocity.length() < 0.0005 {
             new_velocity = DVec3::ZERO;
         } else if new_velocity.dot(self.velocity) < 0.0 {
@@ -214,6 +230,7 @@ impl PlayerEntity {
             lap_info: self.lap_info,
             current_powerup: self.current_powerup,
             chair: self.chair,
+            stat_modifiers: self.stat_modifiers.to_owned(),
         };
 
         new_player.apply_physics_changes();
@@ -252,7 +269,7 @@ impl PlayerEntity {
     }
 
     fn gravitational_force_on_object(&self) -> DVec3 {
-        return DVec3::new(0.0, -1.0, 0.0) * self.mass * self.chair.stat("gravity_coefficient");
+        return DVec3::new(0.0, -1.0, 0.0) * self.mass * self.stat("gravity_coefficient");
     }
 
     fn normal_force_on_object(&self) -> DVec3 {
@@ -270,7 +287,7 @@ impl PlayerEntity {
             EngineStatus::Accelerating => {
                 return self.entity_location.unit_steer_direction
                     * self.mass
-                    * self.chair.stat("car_accelerator");
+                    * self.stat("car_accelerator");
             }
             // apply the force in the reverse direction of current velocity;
             // just do nothing if velocity is zero
@@ -278,7 +295,7 @@ impl PlayerEntity {
                 return self.velocity.normalize_or_zero()
                     * -1.0
                     * self.mass
-                    * self.chair.stat("car_brake");
+                    * self.stat("car_brake");
             }
             // And there is no player-applied force when not accelerating or braking
             EngineStatus::Neutral => return DVec3::new(0.0, 0.0, 0.0),
@@ -292,15 +309,12 @@ impl PlayerEntity {
         return self.velocity
             * self.mass
             * -1.0
-            * self.chair.stat("drag_coefficient")
+            * self.stat("drag_coefficient")
             * self.velocity.length();
     }
 
     fn rolling_resistance_force_on_object(&self) -> DVec3 {
-        return self.velocity
-            * self.mass
-            * -1.0
-            * self.chair.stat("rolling_resistance_coefficient");
+        return self.velocity * self.mass * -1.0 * self.stat("rolling_resistance_coefficient");
     }
 
     fn apply_physics_changes(&mut self) {
@@ -316,7 +330,7 @@ impl PlayerEntity {
                         RotationStatus::InSpinClockwise
                     ) {
                         self.player_inputs.rotation_status = RotationStatus::NotInSpin;
-                        self.angular_velocity -= self.chair.stat("car_spin");
+                        self.angular_velocity -= self.stat("car_spin");
                     }
                 }
                 PhysicsChangeType::NoTurningLeft => {
@@ -325,22 +339,22 @@ impl PlayerEntity {
                         RotationStatus::InSpinCounterclockwise
                     ) {
                         self.player_inputs.rotation_status = RotationStatus::NotInSpin;
-                        self.angular_velocity += self.chair.stat("car_spin");
+                        self.angular_velocity += self.stat("car_spin");
                     }
                 }
                 PhysicsChangeType::ShoppingCart => {
-                    self.angular_velocity += self.chair.stat("car_spin") / 2.0;
+                    self.angular_velocity += self.stat("car_spin") / 2.0;
                 }
                 PhysicsChangeType::InSpainButTheAIsSilent => {
                     match self.player_inputs.rotation_status {
                         RotationStatus::InSpinClockwise => {}
                         RotationStatus::NotInSpin => {
                             self.player_inputs.rotation_status = RotationStatus::InSpinClockwise;
-                            self.angular_velocity += self.chair.stat("car_spin");
+                            self.angular_velocity += self.stat("car_spin");
                         }
                         RotationStatus::InSpinCounterclockwise => {
                             self.player_inputs.rotation_status = RotationStatus::InSpinClockwise;
-                            self.angular_velocity += 2.0 * self.chair.stat("car_spin");
+                            self.angular_velocity += 2.0 * self.stat("car_spin");
                         }
                     }
                 }

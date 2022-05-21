@@ -42,5 +42,6 @@ pub fn get_player_start_physics_properties(chair: &Chair, player_number: PlayerI
         lap_info: LapInformation::new(),
         current_powerup: None,
         chair: *chair,
+        stat_modifiers: std::collections::HashMap::new(),
     };
 }
