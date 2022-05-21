@@ -61,7 +61,7 @@ impl Chair {
         match self {
             Chair::Swivel => "swivel",
             Chair::Recliner => "recliner",
-            Chair::Ergonomic => "eregonomic",
+            Chair::Ergonomic => "ergonomic",
             Chair::Beanbag => "beanbag",
             Chair::Folding => "folding",
         }
@@ -83,25 +83,24 @@ impl Chair {
             Chair::Swivel => match stat_name {
                 // Keep rolling for a bit
                 "rolling_resistance_coefficient" => {
-                    GLOBAL_CONFIG.rolling_resistance_coefficient / 2.0
+                    GLOBAL_CONFIG.rolling_resistance_coefficient * 0.5
                 }
-                "drag_coefficient" => GLOBAL_CONFIG.drag_coefficient / 50.0,
-                // We have free cam, so we can't just turn on a time we need to have a lower acceleration
-                "car_accelerator" => GLOBAL_CONFIG.car_accelerator / 15.0,
+
+                "drag_coefficient" => GLOBAL_CONFIG.drag_coefficient * 0.02,
                 _ => *Chair::default_stats().get(stat_name).unwrap(),
             },
             Chair::Recliner => match stat_name {
                 // Make our turn very hefty
-                "car_spin" => GLOBAL_CONFIG.car_spin / 15.0,
-                "max_car_spin" => GLOBAL_CONFIG.max_car_spin / 2.0,
+                "car_spin" => GLOBAL_CONFIG.car_spin * 0.06,
+                "max_car_spin" => GLOBAL_CONFIG.max_car_spin * 0.7,
                 // Can get going fast
-                "max_car_speed" => GLOBAL_CONFIG.max_car_spin * 9.0,
+                "max_car_speed" => GLOBAL_CONFIG.max_car_speed * 1.1,
                 // But takes a bit to get there
-                "car_accelerator" => GLOBAL_CONFIG.car_accelerator / 20.0,
+                "car_accelerator" => GLOBAL_CONFIG.car_accelerator * 0.75,
                 // However, it will NOT stop.
-                "drag_coeffecient" => GLOBAL_CONFIG.drag_coefficient / 50.0,
+                "drag_coeffecient" => GLOBAL_CONFIG.drag_coefficient * 0.02,
                 "rolling_resistance_coefficient" => {
-                    GLOBAL_CONFIG.rolling_resistance_coefficient / 5.0
+                    GLOBAL_CONFIG.rolling_resistance_coefficient * 0.2
                 }
                 // We have a bit of braking power, though
                 "car_brake" => GLOBAL_CONFIG.car_brake * 10.0,
@@ -109,6 +108,19 @@ impl Chair {
                 _ => *Chair::default_stats().get(stat_name).unwrap(),
             },
             Chair::Ergonomic => match stat_name {
+                // We can turn on a dime
+                "max_car_spin" => GLOBAL_CONFIG.max_car_spin * 1.9,
+                "rolling_resistance_coefficient" => {
+                    GLOBAL_CONFIG.rolling_resistance_coefficient * 3.0
+                }
+                // But are a bit slower
+                "max_car_speed" => GLOBAL_CONFIG.max_car_speed * 0.8,
+                // We have great control over our direction
+                "car_accelerator" => GLOBAL_CONFIG.car_accelerator * 2.0,
+                // And won't roll too when changing direction
+                "drag_coeffecient" => GLOBAL_CONFIG.drag_coefficient * 1.5,
+                // And we have a decent break
+                "car_brake" => GLOBAL_CONFIG.car_brake * 15.0,
                 _ => *Chair::default_stats().get(stat_name).unwrap(),
             },
             Chair::Beanbag => match stat_name {
@@ -122,8 +134,11 @@ impl Chair {
 
     pub fn cam(&self) -> CameraType {
         match self {
+            Chair::Swivel => CameraType::FaceForwards,
             Chair::Recliner => CameraType::FaceVelocity,
-            _ => CameraType::FaceForwards,
+            Chair::Ergonomic => CameraType::FaceForwards,
+            Chair::Beanbag => CameraType::FaceForwards,
+            Chair::Folding => CameraType::FaceVelocity,
         }
     }
 }
@@ -135,7 +150,7 @@ impl fmt::Display for Chair {
             Chair::Recliner => "Relax-a-tron!",
             Chair::Ergonomic => "Spine Saver",
             Chair::Beanbag => "Bag-O-Beans",
-            Chair::Folding => "HOW????",
+            Chair::Folding => "Plastic Penny Pincher",
         };
         write!(f, "{}", printable)
     }
