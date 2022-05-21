@@ -10,7 +10,6 @@ use crate::drawable::technique::Technique;
 use crate::drawable::technique::UILayerTechnique;
 use crate::drawable::*;
 use crate::renderer::*;
-use crate::resources::minimap::create_minimap_image;
 use crate::resources::minimap::get_minimap_player_location;
 use crate::resources::*;
 use crate::scenegraph::components::*;
