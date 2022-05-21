@@ -91,14 +91,20 @@ impl Chair {
                 _ => *Chair::default_stats().get(stat_name).unwrap(),
             },
             Chair::Recliner => match stat_name {
+                // Make our turn very hefty
                 "car_spin" => GLOBAL_CONFIG.car_spin / 15.0,
                 "max_car_spin" => GLOBAL_CONFIG.max_car_spin / 2.0,
-                "max_car_speed" => GLOBAL_CONFIG.max_car_spin * 5.0,
-                "car_accelerator" => GLOBAL_CONFIG.car_accelerator / 15.0,
+                // Can get going fast
+                "max_car_speed" => GLOBAL_CONFIG.max_car_spin * 9.0,
+                // But takes a bit to get there
+                "car_accelerator" => GLOBAL_CONFIG.car_accelerator / 20.0,
+                // However, it will NOT stop.
                 "drag_coeffecient" => GLOBAL_CONFIG.drag_coefficient / 50.0,
                 "rolling_resistance_coefficient" => {
                     GLOBAL_CONFIG.rolling_resistance_coefficient / 5.0
                 }
+                // We have a bit of braking power, though
+                "car_brake" => GLOBAL_CONFIG.car_brake * 10.0,
                 "mass" => 50.0,
                 _ => *Chair::default_stats().get(stat_name).unwrap(),
             },
