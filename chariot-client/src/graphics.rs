@@ -128,7 +128,7 @@ P tells the server to start the next round",
             StringDrawable::new("ArialMT", 32.0, Vec2::new(0.40, 0.04), false);
         game_announcement_title.set("NO MORE LEFT TURNS", &renderer, &mut resources);
         let mut game_announcement_subtitle =
-            StringDrawable::new("ArialMT", 32.0, Vec2::new(0.40, 0.14), false);
+            StringDrawable::new("ArialMT", 32.0, Vec2::new(0.30, 0.14), false);
         game_announcement_subtitle.set("activating in 20 seconds", &renderer, &mut resources);
 
         let world = setup_void();
