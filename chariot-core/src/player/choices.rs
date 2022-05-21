@@ -1,4 +1,5 @@
 use glam::DVec3;
+use lazy_static::lazy_static;
 use std::{collections::HashMap, fmt};
 
 use serde::{Deserialize, Serialize};
@@ -22,6 +23,30 @@ impl Default for PlayerChoices {
     }
 }
 
+lazy_static! {
+    static ref DEFAULT_CHAIR: HashMap<String, f64> = [
+        ("gravity_coefficient", GLOBAL_CONFIG.gravity_coefficient),
+        ("drag_coefficient", GLOBAL_CONFIG.drag_coefficient),
+        (
+            "rolling_resistance_coefficient",
+            GLOBAL_CONFIG.rolling_resistance_coefficient,
+        ),
+        (
+            "rotation_reduction_coefficient",
+            GLOBAL_CONFIG.rotation_reduction_coefficient,
+        ),
+        ("car_accelerator", GLOBAL_CONFIG.car_accelerator),
+        ("car_brake", GLOBAL_CONFIG.car_brake),
+        ("car_spin", GLOBAL_CONFIG.car_spin),
+        ("max_car_speed", GLOBAL_CONFIG.max_car_speed),
+        ("max_car_spin", GLOBAL_CONFIG.max_car_spin),
+        ("mass", 10.0),
+    ]
+    .iter()
+    .map(|(k, v)| (k.to_string(), *v))
+    .collect();
+}
+
 #[derive(Clone, Copy, Serialize, Deserialize)]
 pub enum Chair {
     Swivel,
@@ -43,28 +68,8 @@ impl Chair {
         .to_string()
     }
 
-    fn default_stats() -> HashMap<String, f64> {
-        [
-            ("gravity_coefficient", GLOBAL_CONFIG.gravity_coefficient),
-            ("drag_coefficient", GLOBAL_CONFIG.drag_coefficient),
-            (
-                "rolling_resistance_coefficient",
-                GLOBAL_CONFIG.rolling_resistance_coefficient,
-            ),
-            (
-                "rotation_reduction_coefficient",
-                GLOBAL_CONFIG.rotation_reduction_coefficient,
-            ),
-            ("car_accelerator", GLOBAL_CONFIG.car_accelerator),
-            ("car_brake", GLOBAL_CONFIG.car_brake),
-            ("car_spin", GLOBAL_CONFIG.car_spin),
-            ("max_car_speed", GLOBAL_CONFIG.max_car_speed),
-            ("max_car_spin", GLOBAL_CONFIG.max_car_spin),
-            ("mass", 10.0),
-        ]
-        .iter()
-        .map(|(k, v)| (k.to_string(), *v))
-        .collect()
+    fn default_stats() -> &'static HashMap<String, f64> {
+        &*DEFAULT_CHAIR
     }
 
     pub fn scale(&self) -> DVec3 {
@@ -76,6 +81,13 @@ impl Chair {
     pub fn stat(&self, stat_name: &str) -> f64 {
         match self {
             Chair::Swivel => match stat_name {
+                // Keep rolling for a bit
+                "rolling_resistance_coefficient" => {
+                    GLOBAL_CONFIG.rolling_resistance_coefficient / 2.0
+                }
+                "drag_coefficient" => GLOBAL_CONFIG.drag_coefficient / 50.0,
+                // We have free cam, so we can't just turn on a time we need to have a lower acceleration
+                "car_accelerator" => GLOBAL_CONFIG.car_accelerator / 15.0,
                 _ => *Chair::default_stats().get(stat_name).unwrap(),
             },
             Chair::Recliner => match stat_name {
