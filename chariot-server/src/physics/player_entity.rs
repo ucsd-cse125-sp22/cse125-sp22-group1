@@ -7,7 +7,6 @@ use chariot_core::player::{
     physics_changes::{PhysicsChange, PhysicsChangeType},
     player_inputs::{EngineStatus, PlayerInputs, RotationStatus},
 };
-use chariot_core::GLOBAL_CONFIG;
 use glam::DVec3;
 
 use crate::physics::trigger_entity::TriggerEntity;
