@@ -10,7 +10,6 @@ use crate::drawable::technique::Technique;
 use crate::drawable::technique::UILayerTechnique;
 use crate::drawable::*;
 use crate::renderer::*;
-use crate::resources::minimap::get_minimap_player_location;
 use crate::resources::*;
 use crate::scenegraph::components::*;
 use crate::scenegraph::*;
@@ -337,6 +336,20 @@ impl GraphicsManager {
             return;
         }
 
+        // Convert "map units" locations into proportions of minimap size
+        fn get_minimap_player_location(location: (f32, f32)) -> (f32, f32) {
+            // these values are guesses btw
+            const MIN_TRACK_X: f32 = -113.0;
+            const MAX_TRACK_X: f32 = 37.0;
+            const MIN_TRACK_Z: f32 = -39.0;
+            const MAX_TRACK_Z: f32 = 111.0;
+
+            (
+                (MAX_TRACK_Z - location.1) / (MAX_TRACK_Z - MIN_TRACK_Z),
+                (location.0 - MIN_TRACK_X) / (MAX_TRACK_X - MIN_TRACK_X),
+            )
+        }
+
         let player_locations = self
             .player_entities
             .iter()
@@ -357,13 +370,11 @@ impl GraphicsManager {
                 Vec2::new(0.2 * location.0, 0.2 * location.1),
                 Vec2::new(0.02, 0.02),
             );
-            // self.renderer.write_buffer(player_layer.vertex_buffer)
             player_layer.vertex_buffer = new_vertex_buffer;
         }
     }
 
     pub fn render(&mut self) {
-        //let world_bounds = self.world.root().calc_bounds();
         let world_root = self.world.root();
         let root_xform = self
             .world

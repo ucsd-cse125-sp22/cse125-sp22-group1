@@ -9,7 +9,6 @@ use wgpu::Texture;
 
 pub mod glyph_cache;
 pub mod material;
-pub mod minimap;
 pub mod static_mesh;
 
 use chariot_core::GLOBAL_CONFIG;
