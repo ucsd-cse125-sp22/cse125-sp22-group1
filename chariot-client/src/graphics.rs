@@ -152,10 +152,10 @@ impl GraphicsManager {
         let minimap_map_handle =
             resources.import_texture(&renderer, "UI/minimap/track_transparent.png");
         let player_location_handles: Vec<TextureHandle> = [
-            "UI/Map\\ Select/P1Btn.png",
-            "UI/Map\\ Select/P2Btn.png",
-            "UI/Map\\ Select/P3Btn.png",
-            "UI/Map\\ Select/P4Btn.png",
+            "UI/Map Select/P1Btn.png",
+            "UI/Map Select/P2Btn.png",
+            "UI/Map Select/P3Btn.png",
+            "UI/Map Select/P4Btn.png",
         ]
         .iter()
         .map(|filename| resources.import_texture(&renderer, filename))
