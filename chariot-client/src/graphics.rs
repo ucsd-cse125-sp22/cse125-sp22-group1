@@ -4,9 +4,11 @@ use glam::{DVec3, Vec2};
 use std::f64::consts::PI;
 
 use crate::drawable::technique::Technique;
+use crate::drawable::technique::UILayerTechnique;
 use crate::drawable::*;
 use crate::renderer::*;
 use crate::resources::minimap::create_minimap_image;
+use crate::resources::minimap::get_minimap_player_location;
 use crate::resources::*;
 use crate::scenegraph::components::*;
 use crate::scenegraph::*;
@@ -117,20 +119,49 @@ impl GraphicsManager {
             renderer.register_framebuffer("shadow_out1", fb_desc);
         }
 
-        // let minimap_base_map = resources.get_minimap_image("track_transparent.png");
-        let minimap_map_handle = resources.import_texture(&renderer, "track_transparent.png");
-        let minimap_map_texture = resources.textures[&minimap_map_handle];
+        let minimap_map_handle =
+            resources.import_texture(&renderer, "UI/minimap/track_transparent.png");
+        let player_location_handles: Vec<TextureHandle> = [
+            "UI/Map\\ Select/P1Btn.png",
+            "UI/Map\\ Select/P2Btn.png",
+            "UI/Map\\ Select/P3Btn.png",
+            "UI/Map\\ Select/P4Btn.png",
+        ]
+        .iter()
+        .map(|filename| resources.import_texture(&renderer, filename))
+        .collect();
 
-        let minimap_ui = UIDrawable {
-            layers: vec![technique::UILayerTechnique::new(
-                &renderer,
-                glam::vec2(0.0, 0.0),
-                glam::vec2(0.2, 0.2),
-                glam::vec2(0.0, 0.0),
-                glam::vec2(1.0, 1.0),
-                &minimap_map_texture,
-            )],
-        };
+        let minimap_map_texture = resources
+            .textures
+            .get(&minimap_map_handle)
+            .expect("minimap doesn't exist!");
+
+        let mut player_location_markers: Vec<technique::UILayerTechnique> = player_location_handles
+            .iter()
+            .map(|handle| resources.textures.get(&handle).unwrap())
+            .map(|texture| {
+                technique::UILayerTechnique::new(
+                    &renderer,
+                    glam::vec2(0.0, 0.0),
+                    glam::vec2(0.02, 0.02),
+                    glam::vec2(0.0, 0.0),
+                    glam::vec2(1.0, 1.0),
+                    &texture,
+                )
+            })
+            .collect();
+
+        let mut layer_vec = vec![technique::UILayerTechnique::new(
+            &renderer,
+            glam::vec2(0.0, 0.0),
+            glam::vec2(0.2, 0.2),
+            glam::vec2(0.0, 0.0),
+            glam::vec2(1.0, 1.0),
+            &minimap_map_texture,
+        )];
+        layer_vec.append(&mut player_location_markers);
+
+        let minimap_ui = UIDrawable { layers: layer_vec };
 
         let postprocess = technique::FSQTechnique::new(&renderer, &resources, "postprocess");
 
@@ -234,7 +265,7 @@ impl GraphicsManager {
             return;
         }
 
-        let player_locations: Vec<(f32, f32)> = self
+        let player_locations = self
             .player_entities
             .iter()
             .map(|player_num| {
@@ -245,32 +276,18 @@ impl GraphicsManager {
                     .translation;
                 (location.x, location.z)
             })
-            .collect();
+            .map(get_minimap_player_location);
 
-        let minimap = create_minimap_image(player_locations, &mut self.resources);
-
-        let texture = self.renderer.create_texture2D_init(
-            "minimap",
-            winit::dpi::PhysicalSize::<u32> {
-                width: minimap.width(),
-                height: minimap.height(),
-            },
-            wgpu::TextureFormat::Rgba8Unorm,
-            wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::STORAGE_BINDING,
-            &minimap.into_raw(),
-        );
-
-        let ui = UIDrawable {
-            layers: vec![technique::UILayerTechnique::new(
+        for (player_index, location) in player_locations.enumerate() {
+            let player_layer = self.minimap_ui.layers.get_mut(player_index + 1).unwrap();
+            let new_vertex_buffer = UILayerTechnique::create_vertex_buffer(
                 &self.renderer,
-                glam::vec2(0.0, 0.0),
-                glam::vec2(0.2, 0.2),
-                glam::vec2(0.0, 0.0),
-                glam::vec2(1.0, 1.0),
-                &texture,
-            )],
-        };
-        self.test_ui = ui;
+                Vec2::new(location.0, location.1),
+                Vec2::new(0.02, 0.02),
+            );
+            // self.renderer.write_buffer(player_layer.vertex_buffer)
+            player_layer.vertex_buffer = new_vertex_buffer;
+        }
     }
 
     pub fn render(&mut self) {

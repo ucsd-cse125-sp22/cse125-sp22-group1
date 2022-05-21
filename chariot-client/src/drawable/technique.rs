@@ -272,21 +272,18 @@ impl Technique for FSQTechnique {
 }
 
 pub struct UILayerTechnique {
-    vertex_buffer: wgpu::Buffer,
+    pub vertex_buffer: wgpu::Buffer,
     texcoord_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     material: material::Material,
 }
 
 impl UILayerTechnique {
-    pub fn new(
+    pub fn create_vertex_buffer(
         renderer: &Renderer,
         pos: glam::Vec2,
         size: glam::Vec2,
-        tc_pos: glam::Vec2,
-        tc_size: glam::Vec2,
-        texture: &wgpu::Texture,
-    ) -> Self {
+    ) -> wgpu::Buffer {
         let pos_ndc = glam::vec2(pos.x, 1.0 - pos.y) * 2.0 - 1.0;
         let size_ndc = glam::vec2(size.x, -size.y) * 2.0;
         let verts_data: [[f32; 2]; 4] = [
@@ -295,6 +292,25 @@ impl UILayerTechnique {
             [pos_ndc.x + size_ndc.x, pos_ndc.y + size_ndc.y],
             [pos_ndc.x, pos_ndc.y + size_ndc.y],
         ];
+
+        renderer
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("ui_verts"),
+                contents: bytemuck::cast_slice(&verts_data),
+                usage: wgpu::BufferUsages::VERTEX,
+            })
+    }
+
+    pub fn new(
+        renderer: &Renderer,
+        pos: glam::Vec2,
+        size: glam::Vec2,
+        tc_pos: glam::Vec2,
+        tc_size: glam::Vec2,
+        texture: &wgpu::Texture,
+    ) -> Self {
+        let vertex_buffer = UILayerTechnique::create_vertex_buffer(renderer, pos, size);
         let texcoord_data: [[f32; 2]; 4] = [
             [tc_pos.x, tc_pos.y],
             [tc_pos.x + tc_size.x, tc_pos.y],
@@ -302,14 +318,6 @@ impl UILayerTechnique {
             [tc_pos.x, tc_pos.y + tc_size.y],
         ];
         let inds_data: [u16; 6] = [0, 2, 1, 0, 3, 2];
-
-        let vertex_buffer = renderer
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("ui_verts"),
-                contents: bytemuck::cast_slice(&verts_data),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
 
         let texcoord_buffer =
             renderer

@@ -2,6 +2,19 @@ use image::{ImageBuffer, Rgb, Rgba};
 
 use super::ResourceManager;
 
+pub fn get_minimap_player_location(location: (f32, f32)) -> (f32, f32) {
+    // these values are guesses btw
+    const MIN_TRACK_X: f32 = -113.0;
+    const MAX_TRACK_X: f32 = 37.0;
+    const MIN_TRACK_Z: f32 = -39.0;
+    const MAX_TRACK_Z: f32 = 111.0;
+
+    (
+        (location.0 - MIN_TRACK_X) / (MAX_TRACK_X - MIN_TRACK_X),
+        (location.1 - MIN_TRACK_Z) / (MAX_TRACK_Z - MIN_TRACK_Z),
+    )
+}
+
 pub fn create_minimap_image(
     player_locations: Vec<(f32, f32)>,
     resources: &mut ResourceManager,
@@ -33,15 +46,6 @@ pub fn create_minimap_image(
             3 => Rgba::from([50, 130, 220, 255]), // blueish
             _ => Rgba::from([69, 69, 69, 69]),    // nice
         };
-        /*
-        let player_dot_color: Rgb<u8> = match player_index {
-            0 => Rgb::from([230, 50, 30]),  // reddish
-            1 => Rgb::from([230, 210, 10]), // yellowish
-            2 => Rgb::from([20, 160, 50]),  // greenish
-            3 => Rgb::from([50, 130, 220]), // blueish
-            _ => Rgb::from([69, 69, 69]),   // nice
-        };
-        */
 
         // draw a lil square around the location
         for pixel_x in (map_location_x - 5)..=(map_location_x + 5) {
