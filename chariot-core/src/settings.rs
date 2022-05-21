@@ -75,7 +75,7 @@ impl Settings {
             // Coefficient to control how forceful player-controlled acceleration is
             .set_default("car_accelerator", 0.8)?
             // Coefficient to control how forceful player-controlled braking is
-            .set_default("car_brake", 0.05)?
+            .set_default("car_brake", 0.005)?
             // Coefficient to control how fast the player can spin
             .set_default("car_spin", 0.03)?
             .set_default("max_car_speed", 0.65)?
