@@ -32,6 +32,8 @@ pub struct Settings {
     pub max_car_speed: f64,
     pub max_car_spin: f64,
 
+    pub wall_bounciness: f64,
+
     // Voting
     pub audience_vote_time_ms: u64,
 }
@@ -80,6 +82,8 @@ impl Settings {
             .set_default("car_spin", 0.03)?
             .set_default("max_car_speed", 0.5)?
             .set_default("max_car_spin", 0.1)?
+            // How hard we should bounce off the walls (1.0 = as fast as we were initially going)
+            .set_default("wall_bounciness", 3.0)?
             .set_default("audience_vote_time_ms", 30000)?
             .add_source(File::with_name("config.yaml").required(false))
             .build()?;

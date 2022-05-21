@@ -7,6 +7,7 @@ use chariot_core::player::{
     physics_changes::{PhysicsChange, PhysicsChangeType},
     player_inputs::{EngineStatus, PlayerInputs, RotationStatus},
 };
+use chariot_core::GLOBAL_CONFIG;
 use glam::DVec3;
 
 use crate::physics::trigger_entity::TriggerEntity;
@@ -153,24 +154,7 @@ impl PlayerEntity {
         terrain_with_collisions.retain(|terrain| self.bounding_box.is_colliding(terrain));
         let collision_terrain_is_new = terrain_with_collisions != self.current_colliders;
 
-        // We only react to colliding with a set of objects if we aren't already
-        // colliding with them (otherwise, it's super easy to get stuck inside
-        // an object)
-        if collision_terrain_is_new {
-            for terrain in &terrain_with_collisions {
-                // We want to "reflect" off of objects: this means negating the
-                // x component of velocity if hitting a face parallel to the
-                // z-axis, and vice versa
-                if self.entity_location.position.x >= terrain.min_x
-                    && self.entity_location.position.x <= terrain.max_x
-                {
-                    delta_velocity.z += -2.0 * self.velocity.z;
-                } else {
-                    delta_velocity.x += -2.0 * self.velocity.x;
-                }
-            }
-        }
-
+        // Make sure we aren't too fast/slow, but BEFORE we bounce off walls (which can be fast intentionally)
         let mut new_velocity = self.velocity + delta_velocity;
         if new_velocity.length() > self.chair.stat("max_car_speed") {
             new_velocity = new_velocity.normalize() * self.chair.stat("max_car_speed");
@@ -183,16 +167,29 @@ impl PlayerEntity {
             }
         }
 
-        let new_steer_direction =
-		// we want to instantly snap to the new direction if bouncing off an object (otherwise is confusing)
-		if collision_terrain_is_new {
-			new_velocity.normalize()
-		} else {
-			rotation_matrix
-				.mul_vec3(self.entity_location.unit_steer_direction.as_vec3())
-				.normalize()
-				.as_dvec3()
-		};
+        // We only react to colliding with a set of objects if we aren't already
+        // colliding with them (otherwise, it's super easy to get stuck inside
+        // an object)
+        if collision_terrain_is_new {
+            let multiplier = -(1.0 + GLOBAL_CONFIG.wall_bounciness);
+            for terrain in &terrain_with_collisions {
+                // We want to "reflect" off of objects: this means negating the
+                // x component of velocity if hitting a face parallel to the
+                // z-axis, and vice versa
+                if self.entity_location.position.x >= terrain.min_x
+                    && self.entity_location.position.x <= terrain.max_x
+                {
+                    new_velocity.z += multiplier * self.velocity.z;
+                } else {
+                    new_velocity.x += multiplier * self.velocity.x;
+                }
+            }
+        }
+
+        let new_steer_direction = rotation_matrix
+            .mul_vec3(self.entity_location.unit_steer_direction.as_vec3())
+            .normalize()
+            .as_dvec3();
 
         let mut new_player = PlayerEntity {
             player_inputs: PlayerInputs {
