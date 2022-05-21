@@ -355,7 +355,7 @@ impl GraphicsManager {
             let player_layer = self.minimap_ui.layers.get_mut(player_index + 1).unwrap();
             let new_vertex_buffer = UILayerTechnique::create_vertex_buffer(
                 &self.renderer,
-                Vec2::new(location.0, location.1),
+                Vec2::new(0.2 * location.0, 0.2 * location.1),
                 Vec2::new(0.02, 0.02),
             );
             // self.renderer.write_buffer(player_layer.vertex_buffer)

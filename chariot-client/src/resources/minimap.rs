@@ -10,8 +10,8 @@ pub fn get_minimap_player_location(location: (f32, f32)) -> (f32, f32) {
     const MAX_TRACK_Z: f32 = 111.0;
 
     (
+        (MAX_TRACK_Z - location.1) / (MAX_TRACK_Z - MIN_TRACK_Z),
         (location.0 - MIN_TRACK_X) / (MAX_TRACK_X - MIN_TRACK_X),
-        (location.1 - MIN_TRACK_Z) / (MAX_TRACK_Z - MIN_TRACK_Z),
     )
 }
 
