@@ -27,6 +27,8 @@ pub struct PlayerEntity {
     pub player_inputs: PlayerInputs,
     pub entity_location: EntityLocation,
 
+    pub current_colliders: Vec<BoundingBox>,
+
     pub physics_changes: Vec<PhysicsChange>,
 
     pub lap_info: LapInformation,
@@ -117,6 +119,7 @@ impl PlayerEntity {
         &self,
         time_step: f64,
         potential_colliders: Vec<&PlayerEntity>,
+        potential_terrain: Vec<BoundingBox>,
         potential_triggers: impl Iterator<Item = &'a mut dyn TriggerEntity>,
     ) -> PlayerEntity {
         let self_forces = self.sum_of_self_forces();
@@ -141,15 +144,32 @@ impl PlayerEntity {
             -1.0 * angular_velocity as f32,
         );
 
-        let new_steer_direction = rotation_matrix
-            .mul_vec3(self.entity_location.unit_steer_direction.as_vec3())
-            .normalize()
-            .as_dvec3();
-
         let mut delta_velocity = acceleration * time_step;
 
         for collider in potential_colliders.iter() {
             delta_velocity += self.delta_v_from_collision_with_player(collider);
+        }
+
+        let mut terrain_with_collisions = potential_terrain.clone();
+        terrain_with_collisions.retain(|terrain| self.bounding_box.is_colliding(terrain));
+        let collision_terrain_is_new = terrain_with_collisions != self.current_colliders;
+
+        // We only react to colliding with a set of objects if we aren't already
+        // colliding with them (otherwise, it's super easy to get stuck inside
+        // an object)
+        if collision_terrain_is_new {
+            for terrain in &terrain_with_collisions {
+                // We want to "reflect" off of objects: this means negating the
+                // x component of velocity if hitting a face parallel to the
+                // z-axis, and vice versa
+                if self.entity_location.position.x >= terrain.min_x
+                    && self.entity_location.position.x <= terrain.max_x
+                {
+                    delta_velocity.z += -2.0 * self.velocity.z;
+                } else {
+                    delta_velocity.x += -2.0 * self.velocity.x;
+                }
+            }
         }
 
         let mut new_velocity = self.velocity + delta_velocity;
@@ -158,6 +178,17 @@ impl PlayerEntity {
         } else if new_velocity.length() < 0.05 {
             new_velocity = DVec3::ZERO;
         }
+
+        let new_steer_direction =
+		// we want to instantly snap to the new direction if bouncing off an object (otherwise is confusing)
+		if collision_terrain_is_new {
+			new_velocity.normalize()
+		} else {
+			rotation_matrix
+				.mul_vec3(self.entity_location.unit_steer_direction.as_vec3())
+				.normalize()
+				.as_dvec3()
+		};
 
         let mut new_player = PlayerEntity {
             player_inputs: PlayerInputs {
@@ -170,6 +201,8 @@ impl PlayerEntity {
                 unit_steer_direction: new_steer_direction,
                 unit_upward_direction: self.entity_location.unit_upward_direction,
             },
+
+            current_colliders: terrain_with_collisions,
 
             velocity: new_velocity,
             angular_velocity,
