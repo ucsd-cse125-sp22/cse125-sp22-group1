@@ -7,6 +7,7 @@ use std::f64::consts::PI;
 
 use crate::drawable::string::StringDrawable;
 use crate::drawable::technique::Technique;
+use crate::drawable::technique::UILayerTechnique;
 use crate::drawable::*;
 use crate::renderer::*;
 use crate::resources::*;
@@ -105,6 +106,7 @@ pub struct GraphicsManager {
     pub renderer: Renderer,
     pub resources: ResourceManager,
 
+    minimap_ui: UIDrawable,
     test_string: StringDrawable,
     pub player_num: PlayerID,
     pub player_choices: [Option<PlayerChoices>; 4],
@@ -145,6 +147,49 @@ impl GraphicsManager {
             renderer.register_framebuffer("shadow_out1", fb_desc);
         }
 
+        let minimap_map_handle =
+            resources.import_texture(&renderer, "UI/minimap/track_transparent.png");
+        let player_location_handles: Vec<TextureHandle> = [
+            "UI/Map Select/P1Btn.png",
+            "UI/Map Select/P2Btn.png",
+            "UI/Map Select/P3Btn.png",
+            "UI/Map Select/P4Btn.png",
+        ]
+        .iter()
+        .map(|filename| resources.import_texture(&renderer, filename))
+        .collect();
+
+        let minimap_map_texture = resources
+            .textures
+            .get(&minimap_map_handle)
+            .expect("minimap doesn't exist!");
+
+        let mut player_location_markers: Vec<technique::UILayerTechnique> = player_location_handles
+            .iter()
+            .map(|handle| resources.textures.get(&handle).unwrap())
+            .map(|texture| {
+                technique::UILayerTechnique::new(
+                    &renderer,
+                    glam::vec2(0.0, 0.0),
+                    glam::vec2(0.02, 0.02),
+                    glam::vec2(0.0, 0.0),
+                    glam::vec2(1.0, 1.0),
+                    &texture,
+                )
+            })
+            .collect();
+
+        let mut layer_vec = vec![technique::UILayerTechnique::new(
+            &renderer,
+            glam::vec2(0.0, 0.0),
+            glam::vec2(0.2, 0.2),
+            glam::vec2(0.0, 0.0),
+            glam::vec2(1.0, 1.0),
+            &minimap_map_texture,
+        )];
+        layer_vec.append(&mut player_location_markers);
+
+        let minimap_ui = UIDrawable { layers: layer_vec };
         let mut test_string = StringDrawable::new("ArialMT", 18.0);
         test_string.set(
             "chariot - 0.6.10",
@@ -163,6 +208,7 @@ impl GraphicsManager {
             world,
             renderer,
             resources,
+            minimap_ui,
 
             player_choices: Default::default(),
             player_entities: [None, None, None, None],
@@ -284,8 +330,54 @@ impl GraphicsManager {
         }
     }
 
+    pub fn update_minimap(&mut self) {
+        // Only update if we actually have entities to map
+        if !self.player_entities.iter().all(Option::is_some) {
+            return;
+        }
+
+        // Convert "map units" locations into proportions of minimap size
+        fn get_minimap_player_location(location: (f32, f32)) -> (f32, f32) {
+            // these values are guesses btw
+            const MIN_TRACK_X: f32 = -119.0; // top
+            const MAX_TRACK_X: f32 = 44.0; // bottom
+            const MIN_TRACK_Z: f32 = -48.0; // right
+            const MAX_TRACK_Z: f32 = 119.0; // left
+
+            (
+                (MAX_TRACK_Z - location.1) / (MAX_TRACK_Z - MIN_TRACK_Z),
+                (location.0 - MIN_TRACK_X) / (MAX_TRACK_X - MIN_TRACK_X),
+            )
+        }
+
+        let player_locations = self
+            .player_entities
+            .iter()
+            .map(|player_num| {
+                let location = self
+                    .world
+                    .get::<Transform>(player_num.unwrap())
+                    .unwrap()
+                    .translation;
+                (location.x, location.z)
+            })
+            .map(get_minimap_player_location);
+
+        for (player_index, location) in player_locations.enumerate() {
+            let player_layer = self.minimap_ui.layers.get_mut(player_index + 1).unwrap();
+
+            let raw_verts_data = UILayerTechnique::create_verts_data(
+                Vec2::new(0.2 * location.0, 0.2 * location.1),
+                Vec2::new(0.02, 0.02),
+            );
+            let verts_data: &[u8] = bytemuck::cast_slice(&raw_verts_data);
+
+            self.renderer
+                .write_buffer(&player_layer.vertex_buffer, verts_data);
+        }
+    }
+
     pub fn render(&mut self) {
-        //let world_bounds = self.world.root().calc_bounds();
         let world_root = self.world.root();
         let root_xform = self
             .world
@@ -401,6 +493,8 @@ impl GraphicsManager {
         let postprocess_graph = self.postprocess.render_item(&self.resources).to_graph();
         render_job.merge_graph_after("forward", postprocess_graph);
 
+        let ui_graph = self.minimap_ui.render_graph(&self.resources);
+        render_job.merge_graph_after("postprocess", ui_graph);
         let text_graph = self.test_string.render_graph(&self.resources);
         render_job.merge_graph_after("postprocess", text_graph);
 
