@@ -461,8 +461,6 @@ P tells the server to start the next round",
                             }
                             .to_mat4();
                     } else if let Some(rotation) = drawable.modifiers.rotation {
-                        // println!("d {}", rotation);
-                        //acc_model = acc_model * glam::Mat4::from_quat(rotation);
                         acc_model = *acc
                             * Transform {
                                 translation: cur_transform.translation,
