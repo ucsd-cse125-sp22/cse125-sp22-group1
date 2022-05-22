@@ -76,10 +76,12 @@ pub struct MaterialHandle(usize);
 pub struct StaticMeshHandle(usize);
 
 pub trait Handle {
+    const INVALID: Self;
     fn unique() -> Self;
 }
 
 impl Handle for TextureHandle {
+    const INVALID: Self = TextureHandle(usize::MAX);
     fn unique() -> Self {
         static COUNTER: AtomicUsize = AtomicUsize::new(0);
         Self(COUNTER.fetch_add(1, Ordering::Relaxed))
@@ -87,6 +89,7 @@ impl Handle for TextureHandle {
 }
 
 impl Handle for MaterialHandle {
+    const INVALID: Self = MaterialHandle(usize::MAX);
     fn unique() -> Self {
         static COUNTER: AtomicUsize = AtomicUsize::new(0);
         Self(COUNTER.fetch_add(1, Ordering::Relaxed))
@@ -94,6 +97,7 @@ impl Handle for MaterialHandle {
 }
 
 impl Handle for StaticMeshHandle {
+    const INVALID: Self = StaticMeshHandle(usize::MAX);
     fn unique() -> Self {
         static COUNTER: AtomicUsize = AtomicUsize::new(0);
         Self(COUNTER.fetch_add(1, Ordering::Relaxed))

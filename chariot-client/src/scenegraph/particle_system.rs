@@ -1,23 +1,25 @@
 use std::ops::Bound;
 
-use super::{Transform, World};
+use super::{Entity, Transform, World};
 use crate::drawable::particle::ParticleDrawable;
 use crate::drawable::Drawable;
 use crate::renderer::render_job::RenderGraph;
 use crate::renderer::Renderer;
+use crate::resources::Handle;
 use crate::resources::{
     material::MaterialBuilder, MaterialHandle, ResourceManager, StaticMeshHandle, TextureHandle,
 };
+use crate::scenegraph::NULL_ENTITY;
 use crate::util::{Pcg32Rng, Rng};
 
-pub struct BillboardParticle {
+pub struct BillboardParticle<const ID: u32> {
     vel: glam::Vec3,
     pos: glam::Vec3,
     size: glam::Vec2,
     lifetime: f32,
 }
 
-impl Default for BillboardParticle {
+impl<const ID: u32> Default for BillboardParticle<ID> {
     fn default() -> Self {
         Self {
             vel: glam::Vec3::ZERO,
@@ -28,7 +30,7 @@ impl Default for BillboardParticle {
     }
 }
 
-pub struct RotatedParticle {
+pub struct RotatedParticle<const ID: u32> {
     vel: glam::Vec3,
     pos: glam::Vec3,
     size: glam::Vec2,
@@ -36,7 +38,7 @@ pub struct RotatedParticle {
     lifetime: f32,
 }
 
-impl Default for RotatedParticle {
+impl<const ID: u32> Default for RotatedParticle<ID> {
     fn default() -> Self {
         Self {
             vel: glam::Vec3::ZERO,
@@ -59,6 +61,8 @@ where
 pub enum ParticleRotation {
     Billboard,
     Random,
+    RandomAroundAxis(glam::Vec3),
+    Constant(glam::Quat),
 }
 
 pub struct ParticleSystemParams {
@@ -70,10 +74,26 @@ pub struct ParticleSystemParams {
     pub spawn_rate: f32,
     pub lifetime: f32,
     pub rotation: ParticleRotation,
-    pub has_gravity: bool,
+    pub gravity: f32,
 }
 
-pub struct ParticleSystem {
+impl Default for ParticleSystemParams {
+    fn default() -> Self {
+        Self {
+            texture_handle: TextureHandle::INVALID,
+            mesh_handle: StaticMeshHandle::INVALID,
+            pos_range: (glam::Vec3::ZERO, glam::Vec3::ZERO),
+            size_range: (glam::Vec2::ONE, glam::Vec2::ONE),
+            initial_vel: glam::Vec3::ZERO,
+            spawn_rate: 0.0,
+            lifetime: 0.0,
+            rotation: ParticleRotation::Billboard,
+            gravity: 0.0,
+        }
+    }
+}
+
+pub struct ParticleSystem<const ID: u32> {
     material_handle: MaterialHandle,
     mesh_handle: StaticMeshHandle,
     pos_range: (glam::Vec3, glam::Vec3),
@@ -82,11 +102,17 @@ pub struct ParticleSystem {
     spawn_rate: f32,
     lifetime: f32,
     rotation: ParticleRotation,
-    has_gravity: bool,
+    gravity: f32,
     rng: Pcg32Rng,
 }
 
-impl ParticleSystem {
+impl<const ID: u32> ParticleSystem<ID> {
+    pub fn register_components(world: &mut World) {
+        world.register::<Option<ParticleDrawable>>();
+        world.register::<BillboardParticle<ID>>();
+        world.register::<RotatedParticle<ID>>();
+    }
+
     pub fn new(
         renderer: &Renderer,
         resources: &mut ResourceManager,
@@ -111,7 +137,7 @@ impl ParticleSystem {
             spawn_rate: params.spawn_rate,
             lifetime: params.lifetime,
             rotation: params.rotation,
-            has_gravity: params.has_gravity,
+            gravity: params.gravity,
             rng: Pcg32Rng::default(),
         }
     }
@@ -121,13 +147,13 @@ impl ParticleSystem {
         renderer: &Renderer,
         world: &mut World,
         transform: &Transform,
+        attach: Entity,
         delta_time: f32,
     ) {
         let (pos_low, pos_high) = self.pos_range;
         let (size_low, size_high) = self.size_range;
 
         let u: f32 = self.rng.next();
-        let world_root = world.root();
         let spawn_count_f32 = self.spawn_rate * delta_time;
         let spawn_count = (self.spawn_rate * delta_time) as usize
             + if u < f32::fract(spawn_count_f32) {
@@ -136,7 +162,6 @@ impl ParticleSystem {
                 0
             };
 
-        println!("Spawning {} particles", spawn_count);
         for _ in 0..spawn_count {
             let vel = self.initial_vel;
             let pos = transform.translation + sample_bound(&mut self.rng, pos_low, pos_high);
@@ -148,8 +173,8 @@ impl ParticleSystem {
             match self.rotation {
                 ParticleRotation::Billboard => world
                     .builder()
-                    .attach(world_root)
-                    .with(BillboardParticle {
+                    .attach(attach)
+                    .with(BillboardParticle::<ID> {
                         vel,
                         pos,
                         size,
@@ -162,8 +187,8 @@ impl ParticleSystem {
                     let rot: glam::Quat = transform.rotation * rand_rot;
                     world
                         .builder()
-                        .attach(world_root)
-                        .with(RotatedParticle {
+                        .attach(attach)
+                        .with(RotatedParticle::<ID> {
                             vel,
                             pos,
                             size,
@@ -173,15 +198,45 @@ impl ParticleSystem {
                         .with(Some(drawable))
                         .build()
                 }
+                ParticleRotation::RandomAroundAxis(axis) => {
+                    let v: f32 = self.rng.next();
+                    let rand_angle = v * std::f32::consts::PI;
+                    let rot = glam::Quat::from_axis_angle(axis, rand_angle);
+                    world
+                        .builder()
+                        .attach(attach)
+                        .with(RotatedParticle::<ID> {
+                            vel,
+                            pos,
+                            size,
+                            rot,
+                            lifetime: self.lifetime,
+                        })
+                        .with(Some(drawable))
+                        .build()
+                }
+                ParticleRotation::Constant(rot) => world
+                    .builder()
+                    .attach(attach)
+                    .with(RotatedParticle::<ID> {
+                        vel,
+                        pos,
+                        size,
+                        rot,
+                        lifetime: self.lifetime,
+                    })
+                    .with(Some(drawable))
+                    .build(),
             };
         }
     }
 
-    pub fn update(world: &mut World, delta_time: f32) {
+    pub fn update(&self, world: &mut World, delta_time: f32) {
         let mut to_remove = vec![];
-        if let Some(particles) = world.storage_mut::<BillboardParticle>() {
+        if let Some(particles) = world.storage_mut::<BillboardParticle<ID>>() {
             for (entity, particle) in particles.iter_with_entity_mut() {
-                particle.pos += delta_time * particle.vel;
+                particle.vel += self.gravity * -glam::Vec3::Y * delta_time;
+                particle.pos += particle.vel * delta_time;
                 particle.lifetime -= delta_time;
                 if particle.lifetime < 0.0 {
                     to_remove.push(*entity);
@@ -190,13 +245,14 @@ impl ParticleSystem {
         }
 
         for entity in to_remove {
-            world.remove::<BillboardParticle>(entity);
+            world.remove::<BillboardParticle<ID>>(entity);
             world.remove::<Option<ParticleDrawable>>(entity);
         }
 
         to_remove = vec![];
-        if let Some(particles) = world.storage_mut::<RotatedParticle>() {
+        if let Some(particles) = world.storage_mut::<RotatedParticle<ID>>() {
             for (entity, particle) in particles.iter_with_entity_mut() {
+                particle.vel += self.gravity * -glam::Vec3::Y * delta_time;
                 particle.pos += delta_time * particle.vel;
                 particle.lifetime -= delta_time;
                 if particle.lifetime < 0.0 {
@@ -206,50 +262,33 @@ impl ParticleSystem {
         }
 
         for entity in to_remove {
-            world.remove::<RotatedParticle>(entity);
+            world.remove::<RotatedParticle<ID>>(entity);
             world.remove::<Option<ParticleDrawable>>(entity);
         }
     }
 
-    pub fn render_graphs<'a>(
-        world: &'a World,
-        renderer: &Renderer,
-        resources: &'a ResourceManager,
+    pub fn calc_particle_model(
+        &self,
+        world: &World,
+        entity: Entity,
         view: glam::Mat4,
-        proj: glam::Mat4,
-    ) -> Vec<RenderGraph<'a>> {
-        // TODO: not the fastest thing in the world
+    ) -> Option<glam::Mat4> {
         let (view_scale, view_rot, view_trans) = view.inverse().to_scale_rotation_translation();
 
-        let mut render_graphs = vec![];
-        if let Some(drawables) = world.storage::<Option<ParticleDrawable>>() {
-            for (entity, drawable) in drawables
-                .iter_with_entity()
-                .filter_map(|(e, d)| d.as_ref().map(|d| (e, d)))
-            {
-                let model = if let Some(particle) = world.get::<BillboardParticle>(*entity) {
-                    glam::Mat4::from_scale_rotation_translation(
-                        glam::Vec3::from((particle.size, 1.0)),
-                        view_rot,
-                        particle.pos,
-                    )
-                } else if let Some(particle) = world.get::<RotatedParticle>(*entity) {
-                    glam::Mat4::from_scale_rotation_translation(
-                        glam::Vec3::from((particle.size, 1.0)),
-                        particle.rot,
-                        particle.pos,
-                    )
-                } else {
-                    glam::Mat4::IDENTITY
-                };
-
-                drawable.update_mvp(renderer, model, view, proj);
-                let graph = drawable.render_graph(resources);
-                render_graphs.push(graph);
-            }
+        if let Some(particle) = world.get::<BillboardParticle<ID>>(entity) {
+            Some(glam::Mat4::from_scale_rotation_translation(
+                glam::Vec3::from((particle.size, 1.0)),
+                view_rot,
+                particle.pos,
+            ))
+        } else if let Some(particle) = world.get::<RotatedParticle<ID>>(entity) {
+            Some(glam::Mat4::from_scale_rotation_translation(
+                glam::Vec3::from((particle.size, 1.0)),
+                particle.rot,
+                particle.pos,
+            ))
+        } else {
+            None
         }
-
-        println!("Rendering {} particles", render_graphs.len());
-        render_graphs
     }
 }

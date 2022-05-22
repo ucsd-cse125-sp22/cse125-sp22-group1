@@ -44,6 +44,11 @@ impl Application {
         let delta_time = self.last_update.elapsed().unwrap().as_secs_f32();
         self.graphics.update(delta_time);
 
+        // TODO: do this for other players
+        if self.pressed_keys.contains(&VirtualKeyCode::W) {
+            self.graphics.add_fire_to_player(0, delta_time);
+        }
+
         self.last_update = SystemTime::now();
 
         self.game.fetch_incoming_packets();
