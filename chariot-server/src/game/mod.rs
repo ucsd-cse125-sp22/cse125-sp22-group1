@@ -402,22 +402,22 @@ impl GameServer {
                             );
 
                             let decision = current_question.options[winner].clone();
+                            let effect_end_time = now + Duration::new(30, 0);
 
                             for client in self.connections.iter_mut() {
-                                client.push_outgoing(ClientBoundPacket::InteractionActivate(
-                                    current_question.clone(),
-                                    decision.clone(),
-                                ));
+                                client.push_outgoing(ClientBoundPacket::InteractionActivate {
+                                    question: current_question.clone(),
+                                    decision: decision.clone(),
+                                    effect_end_time,
+                                });
                             }
-
-                            let decision_end_time = now + Duration::new(30, 0);
 
                             match decision.action {
                                 chariot_core::questions::AudienceAction::NoLeft => {
                                     self.game_state.players.iter_mut().for_each(|playa| {
                                         playa.physics_changes.push(PhysicsChange {
                                             change_type: PhysicsChangeType::NoTurningLeft,
-                                            expiration_time: decision_end_time,
+                                            expiration_time: effect_end_time,
                                         });
                                     });
                                 }
@@ -425,7 +425,7 @@ impl GameServer {
                                     self.game_state.players.iter_mut().for_each(|playa| {
                                         playa.physics_changes.push(PhysicsChange {
                                             change_type: PhysicsChangeType::NoTurningRight,
-                                            expiration_time: decision_end_time,
+                                            expiration_time: effect_end_time,
                                         });
                                     });
                                 }
@@ -433,7 +433,7 @@ impl GameServer {
 
                             *voting_game_state = VotingState::VoteResultActive {
                                 decision,
-                                decision_end_time,
+                                decision_end_time: effect_end_time,
                             };
                         }
                     }
@@ -448,20 +448,21 @@ impl GameServer {
                     }
                     VotingState::VoteCooldown(cooldown) => {
                         if *cooldown < now {
-                            let time_until_voting_enabled = Duration::new(30, 0);
+                            let vote_end_time = now + Duration::new(30, 0);
                             let question: QuestionData = QUESTIONS[*question_idx].clone();
                             *question_idx = (*question_idx + 1) % QUESTIONS.len();
 
                             *voting_game_state = VotingState::WaitingForVotes {
                                 audience_votes: HashMap::new(),
                                 current_question: question.clone(),
-                                vote_close_time: now + time_until_voting_enabled, // now + 30 seconds
+                                vote_close_time: vote_end_time,
                             };
 
                             for client in self.connections.iter_mut() {
-                                client.push_outgoing(ClientBoundPacket::VotingStarted(
-                                    question.clone(),
-                                ));
+                                client.push_outgoing(ClientBoundPacket::VotingStarted {
+                                    question: question.clone(),
+                                    vote_end_time,
+                                });
                             }
 
                             GameServer::broadcast_ws(

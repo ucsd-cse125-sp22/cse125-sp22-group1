@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::time::{Duration, Instant};
 
 use chariot_core::player::choices::{Chair, Track};
 use ordinal::Ordinal;
@@ -9,7 +10,7 @@ use chariot_core::networking::ClientBoundPacket;
 use chariot_core::player::player_inputs::{EngineStatus, InputEvent, RotationStatus};
 use chariot_core::GLOBAL_CONFIG;
 
-use crate::game::GameClient;
+use crate::game::{AnnouncementState, GameClient};
 use crate::graphics::{register_passes, GraphicsManager};
 use crate::ui::ui_region::UIRegion;
 
@@ -44,6 +45,41 @@ impl Application {
     }
 
     pub fn render(&mut self) {
+        match &mut self.game.announcement_state {
+            AnnouncementState::VotingInProgress {
+                prompt,
+                vote_end_time,
+            } => self.graphics.make_announcement(
+                "The audience is deciding your fate",
+                format!(
+                    "They decide in {} seconds",
+                    (*vote_end_time - Instant::now()).as_secs()
+                )
+                .as_str(),
+            ),
+            AnnouncementState::VoteActiveTime {
+                prompt,
+                decision,
+                effect_end_time,
+            } => {
+                let effect_end_time = *effect_end_time;
+                self.graphics.make_announcement(
+                    format!("{} was chosen!", decision).as_str(),
+                    format!(
+                        "Effects will last for another {} seconds",
+                        (effect_end_time - Instant::now()).as_secs()
+                    )
+                    .as_str(),
+                );
+                if effect_end_time < Instant::now() {
+                    self.game.announcement_state = AnnouncementState::None;
+                    self.graphics.make_announcement("", "");
+                }
+            }
+            AnnouncementState::GeneralAnnouncement { title, subtitle } => {}
+            AnnouncementState::None => {}
+        }
+
         self.graphics.render();
     }
 
@@ -115,15 +151,42 @@ impl Application {
                     println!("The game has begun!")
                 }
                 ClientBoundPacket::PowerupPickup => println!("we got a powerup!"),
-                ClientBoundPacket::InteractionActivate(question, decision) => {
+                ClientBoundPacket::VotingStarted {
+                    question,
+                    vote_end_time,
+                } => {
                     self.graphics.make_announcement(
-                        format!("Vote: {}", question.prompt).as_str(),
-                        "live in 20 seconds",
+                        "The audience is deciding your fate",
+                        format!(
+                            "They decide in {} seconds",
+                            (vote_end_time - Instant::now()).as_secs()
+                        )
+                        .as_str(),
                     );
-                    println!(
-                        "The Audience has voted on {}, and voted for option {}!",
-                        question.prompt, decision.label
+
+                    self.game.announcement_state = AnnouncementState::VotingInProgress {
+                        prompt: question.prompt,
+                        vote_end_time,
+                    }
+                }
+                ClientBoundPacket::InteractionActivate {
+                    question,
+                    decision,
+                    effect_end_time,
+                } => {
+                    self.graphics.make_announcement(
+                        format!("{} was chosen!", decision.label).as_str(),
+                        format!(
+                            "Effects will last for another {} seconds",
+                            (effect_end_time - Instant::now()).as_secs()
+                        )
+                        .as_str(),
                     );
+                    self.game.announcement_state = AnnouncementState::VoteActiveTime {
+                        prompt: question.prompt,
+                        decision: decision.label,
+                        effect_end_time,
+                    }
                 }
                 ClientBoundPacket::AllDone(final_placements) => {
                     println!(
@@ -137,13 +200,6 @@ impl Application {
                             ))
                             .collect::<String>()
                     );
-                }
-                ClientBoundPacket::VotingStarted(question) => {
-                    self.graphics.make_announcement(
-                        "The Audience is now voting on",
-                        question.prompt.as_str(),
-                    );
-                    println!("The audience is now voting on {}", question.prompt)
                 }
                 ClientBoundPacket::StartNextGame => {
                     self.graphics.load_pregame();
