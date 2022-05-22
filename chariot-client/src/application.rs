@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use chariot_core::player::choices::{Chair, Track};
 use ordinal::Ordinal;
@@ -51,7 +51,7 @@ impl Application {
         {
             match announcement_state {
                 AnnouncementState::VotingInProgress {
-                    prompt,
+                    prompt: _,
                     vote_end_time,
                 } => {
                     self.graphics.make_announcement(
@@ -64,7 +64,7 @@ impl Application {
                     );
                 }
                 AnnouncementState::VoteActiveTime {
-                    prompt,
+                    prompt: _,
                     decision,
                     effect_end_time,
                 } => {
@@ -78,16 +78,8 @@ impl Application {
                         .as_str(),
                     );
                 }
-                AnnouncementState::GeneralAnnouncement { title, subtitle } => {}
                 AnnouncementState::None => {}
             }
-        }
-
-        if let UIState::InGameHUD {
-            announcement_state, ..
-        } = &mut self.graphics.ui
-        {
-            *announcement_state = AnnouncementState::None;
         }
 
         self.graphics.render();
@@ -170,6 +162,8 @@ impl Application {
                     question,
                     time_until_vote_end,
                 } => {
+                    println!("The voting has started");
+                    // println!("{:?}", self.graphics.ui);
                     let vote_end_time = Instant::now() + time_until_vote_end;
                     self.graphics.make_announcement(
                         "The audience is deciding your fate",
@@ -284,46 +278,22 @@ impl Application {
         };
 
         if key == VirtualKeyCode::R {
-            self.graphics.loading_text.set(
-                "Reloading shaders",
-                &self.graphics.renderer,
-                &mut self.graphics.resources,
-            );
+            self.graphics.set_loading_text("Reloading shaders");
             register_passes(&mut self.graphics.renderer);
         } else if key == VirtualKeyCode::Return {
-            self.graphics.loading_text.set(
-                "Picking chair",
-                &self.graphics.renderer,
-                &mut self.graphics.resources,
-            );
+            self.graphics.set_loading_text("Picking chair");
             self.game.pick_chair(Chair::Standard);
         } else if key == VirtualKeyCode::Apostrophe {
-            self.graphics.loading_text.set(
-                "Picking map",
-                &self.graphics.renderer,
-                &mut self.graphics.resources,
-            );
+            self.graphics.set_loading_text("Picking map");
             self.game.pick_map(Track::Track);
         } else if key == VirtualKeyCode::Semicolon {
-            self.graphics.loading_text.set(
-                "Setting ready",
-                &self.graphics.renderer,
-                &mut self.graphics.resources,
-            );
+            self.graphics.set_loading_text("Setting ready");
             self.game.signal_ready_status(true);
         } else if key == VirtualKeyCode::L {
-            self.graphics.loading_text.set(
-                "Forcing a start!",
-                &self.graphics.renderer,
-                &mut self.graphics.resources,
-            );
+            self.graphics.set_loading_text("Forcing a start!");
             self.game.force_start();
         } else if key == VirtualKeyCode::P {
-            self.graphics.loading_text.set(
-                "Starting next game!",
-                &self.graphics.renderer,
-                &mut self.graphics.resources,
-            );
+            self.graphics.set_loading_text("Starting next game!");
             self.game.next_game();
         }
     }

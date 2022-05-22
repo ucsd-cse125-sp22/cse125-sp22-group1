@@ -4,6 +4,7 @@ use chariot_core::player::choices::Track;
 use chariot_core::player::PlayerID;
 use glam::{DVec3, Vec2};
 use std::f64::consts::PI;
+use std::fmt;
 use std::time::Instant;
 
 use crate::drawable::string::StringDrawable;
@@ -66,10 +67,6 @@ fn setup_void() -> World {
 
 pub enum AnnouncementState {
     None,
-    GeneralAnnouncement {
-        title: String,
-        subtitle: String,
-    },
     VotingInProgress {
         prompt: String,
         vote_end_time: Instant,
@@ -84,7 +81,6 @@ pub struct GraphicsManager {
     pub world: World,
     pub renderer: Renderer,
     pub resources: ResourceManager,
-    pub loading_text: StringDrawable,
 
     minimap_ui: UIDrawable,
     pub ui: UIState,
@@ -106,6 +102,21 @@ pub enum UIState {
         announcement_state: AnnouncementState,
         // minimap_ui: UIDrawable,
     },
+}
+impl fmt::Display for UIState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let printable = match self {
+            UIState::LoadingScreen { .. } => "loading text",
+            UIState::InGameHUD {
+                announcement_state, ..
+            } => match announcement_state {
+                AnnouncementState::None => "none",
+                AnnouncementState::VotingInProgress { .. } => "voting in progress",
+                AnnouncementState::VoteActiveTime { .. } => "vote active time",
+            },
+        };
+        write!(f, "{}", printable)
+    }
 }
 
 impl GraphicsManager {
@@ -199,7 +210,6 @@ P tells the server to start the next round",
         let world = setup_void();
 
         Self {
-            loading_text,
             postprocess,
             world,
             renderer,
@@ -210,6 +220,12 @@ P tells the server to start the next round",
             ui: UIState::LoadingScreen { loading_text },
             player_num: 4,
             camera_entity: NULL_ENTITY,
+        }
+    }
+
+    pub fn set_loading_text(&mut self, new_text: &str) {
+        if let UIState::LoadingScreen { loading_text } = &mut self.ui {
+            loading_text.set(new_text, &self.renderer, &mut self.resources);
         }
     }
 
@@ -258,8 +274,6 @@ P tells the server to start the next round",
         let world_root = world.root();
 
         {
-            self.loading_text
-                .set("Loading racetrack...", &self.renderer, &mut self.resources);
             let track_import = self
                 .resources
                 .import_gltf(
@@ -304,8 +318,6 @@ P tells the server to start the next round",
         let choices = self.player_choices[player_num].clone().unwrap_or_default();
         println!("Adding new player: {}, self? {}", player_num, is_self);
 
-        self.loading_text
-            .set("Loading chair...", &self.renderer, &mut self.resources);
         let chair_import = self
             .resources
             .import_gltf(
@@ -348,8 +360,6 @@ P tells the server to start the next round",
         let mut place_position_text =
             StringDrawable::new("PressStart2P-Regular", 38.0, Vec2::new(0.905, 0.057), false);
         place_position_text.set("tbd", &self.renderer, &mut self.resources);
-        let postprocess =
-            technique::FSQTechnique::new(&self.renderer, &self.resources, "postprocess");
 
         let mut game_announcement_title =
             StringDrawable::new("ArialMT", 32.0, Vec2::new(0.50, 0.04), false);
@@ -362,6 +372,7 @@ P tells the server to start the next round",
             &mut self.resources,
         );
 
+        println!("in game hud");
         self.ui = UIState::InGameHUD {
             place_position_text,
             game_announcement_title,
@@ -576,10 +587,10 @@ P tells the server to start the next round",
         let postprocess_graph = self.postprocess.render_item(&self.resources).to_graph();
         render_job.merge_graph_after("forward", postprocess_graph);
 
-        match self.ui {
+        match &self.ui {
             UIState::LoadingScreen { loading_text } => {
                 if loading_text.should_draw {
-                    let text_graph = self.loading_text.render_graph(&self.resources);
+                    let text_graph = loading_text.render_graph(&self.resources);
                     render_job.merge_graph_after("postprocess", text_graph);
                 }
             }

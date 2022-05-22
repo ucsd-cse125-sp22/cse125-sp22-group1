@@ -2,7 +2,6 @@ use chariot_core::networking::{ServerBoundPacket, ServerConnection};
 use chariot_core::player::choices::{Chair, Track};
 use chariot_core::player::player_inputs::InputEvent;
 use std::net::TcpStream;
-use std::time::Instant;
 
 pub struct GameClient {
     pub connection: ServerConnection,

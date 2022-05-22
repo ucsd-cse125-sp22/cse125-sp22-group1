@@ -40,18 +40,10 @@ impl StringDrawable {
         let mut screen_pos = self.screen_position.clone();
 
         if self.center_text {
-            println!("screen_pos_x {}", screen_pos[0]);
             // to center the screen position:
             let letter_width = 11.0 / 741.0;
-            let word_width: f32 = (content.len() as f32 * letter_width);
-            screen_pos[0] -= (word_width / 2.0);
-            println!(
-                "letter_width: {}, total letters: {}",
-                letter_width,
-                content.len()
-            );
-            println!("word_width: {}", word_width);
-            println!("screen pos now: {}", screen_pos[0]);
+            let word_width: f32 = content.len() as f32 * letter_width;
+            screen_pos[0] -= word_width / 2.0;
         }
 
         // get UILayerTechniques for each glyph

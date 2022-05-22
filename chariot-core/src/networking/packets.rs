@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use bincode::{DefaultOptions, Options, Result};
 use glam::DVec3;
