@@ -11,6 +11,8 @@ mod graphics;
 mod renderer;
 mod resources;
 mod scenegraph;
+mod ui;
+mod ui_state;
 mod util;
 
 fn main() {

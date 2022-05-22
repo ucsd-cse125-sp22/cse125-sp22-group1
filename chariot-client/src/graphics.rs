@@ -8,11 +8,14 @@ use std::f64::consts::PI;
 use crate::drawable::particle::ParticleDrawable;
 use crate::drawable::string::StringDrawable;
 use crate::drawable::technique::Technique;
+
 use crate::drawable::*;
 use crate::renderer::*;
 use crate::resources::*;
 use crate::scenegraph::components::*;
 use crate::scenegraph::*;
+use crate::ui_state::AnnouncementState;
+use crate::ui_state::UIState;
 
 pub fn register_passes(renderer: &mut Renderer) {
     renderer.register_pass(
@@ -72,60 +75,18 @@ fn setup_void() -> World {
     world
 }
 
-fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer, map: Track) -> World {
-    let mut world = World::new();
-    world.register::<Camera>();
-    world.register::<Vec<StaticMeshDrawable>>();
-    world.register::<Bounds>();
-    world.register::<Light>();
-
-    ParticleSystem::<0>::register_components(&mut world);
-    ParticleSystem::<1>::register_components(&mut world);
-
-    let world_root = world.root();
-
-    {
-        let track_import = resources
-            .import_gltf(renderer, format!("models/{}.glb", map.to_string()))
-            .expect("Unable to load racetrack");
-
-        let _track = world
-            .builder()
-            .attach(world_root)
-            .with(Transform::default())
-            .with(track_import.drawables)
-            .with(track_import.bounds)
-            .build();
-    }
-
-    {
-        let scene_bounds = world.calc_bounds(world.root());
-        let _light = world
-            .builder()
-            .attach(world_root)
-            .with(Light::new_directional(
-                glam::vec3(-0.5, -1.0, 0.5),
-                scene_bounds,
-            ))
-            .with(Transform::default())
-            .build();
-    }
-
-    world
-}
-
 pub struct GraphicsManager {
     pub world: World,
     pub renderer: Renderer,
     pub resources: ResourceManager,
+    pub ui: UIState,
 
-    fire_particle_system: ParticleSystem<0>,
-    smoke_particle_system: ParticleSystem<1>,
-    test_string: StringDrawable,
-    postprocess: technique::FSQTechnique,
     pub player_num: PlayerID,
     pub player_choices: [Option<PlayerChoices>; 4],
-    player_entities: [Option<Entity>; 4],
+    pub player_entities: [Option<Entity>; 4],
+    postprocess: technique::FSQTechnique,
+    fire_particle_system: ParticleSystem<0>,
+    smoke_particle_system: ParticleSystem<1>,
     camera_entity: Entity,
 }
 
@@ -160,8 +121,6 @@ impl GraphicsManager {
                 resources.depth_framebuffer("shadow_out1", &renderer, shadow_map_res, &[], None);
             renderer.register_framebuffer("shadow_out1", fb_desc);
         }
-
-        let world = setup_void();
 
         let quad_handle = resources.create_quad_mesh(&renderer);
         let fire_handle = resources.import_texture(&renderer, "sprites/fire.png");
@@ -205,31 +164,34 @@ impl GraphicsManager {
             },
         );
 
-        let mut test_string = StringDrawable::new("ArialMT", 18.0);
-        test_string.set(
-            "chariot - 0.6.9",
-            Vec2::new(0.005, 0.027),
+        let mut loading_text = StringDrawable::new("ArialMT", 28.0, Vec2::new(0.005, 0.047));
+        loading_text.set(
+            "Enter sets your chair to standard sets your map vote to track ; sets your ready status to true L sets force_start to true P tells the server to start the next round",
             &renderer,
             &mut resources,
         );
 
+        let world = setup_void();
         let postprocess = technique::FSQTechnique::new(&renderer, &resources, "postprocess");
 
         Self {
             world,
             renderer,
             resources,
-
+            ui: UIState::LoadingScreen { loading_text },
+            player_num: 4,
             player_choices: Default::default(),
             player_entities: [None, None, None, None],
-
+            postprocess,
             fire_particle_system,
             smoke_particle_system,
-            test_string,
-            postprocess,
-
-            player_num: 4,
             camera_entity: NULL_ENTITY,
+        }
+    }
+
+    pub fn set_loading_text(&mut self, new_text: &str) {
+        if let UIState::LoadingScreen { loading_text } = &mut self.ui {
+            loading_text.set(new_text, &self.renderer, &mut self.resources);
         }
     }
 
@@ -253,8 +215,54 @@ impl GraphicsManager {
             .build();
     }
 
+    pub fn setup_world(&mut self, map: Track) -> World {
+        let mut world = World::new();
+        world.register::<Camera>();
+        world.register::<Vec<StaticMeshDrawable>>();
+        world.register::<Bounds>();
+        world.register::<Light>();
+
+        ParticleSystem::<0>::register_components(&mut world);
+        ParticleSystem::<1>::register_components(&mut world);
+
+        let world_root = world.root();
+
+        {
+            let track_import = self
+                .resources
+                .import_gltf(
+                    &mut self.renderer,
+                    format!("models/{}.glb", map.to_string()),
+                )
+                .expect("Unable to load racetrack");
+
+            let _track = world
+                .builder()
+                .attach(world_root)
+                .with(Transform::default())
+                .with(track_import.drawables)
+                .with(track_import.bounds)
+                .build();
+        }
+
+        {
+            let scene_bounds = world.calc_bounds(world.root());
+            let _light = world
+                .builder()
+                .attach(world_root)
+                .with(Light::new_directional(
+                    glam::vec3(-0.5, -1.0, 0.5),
+                    scene_bounds,
+                ))
+                .with(Transform::default())
+                .build();
+        }
+
+        world
+    }
+
     pub fn load_map(&mut self, map: Track) {
-        self.world = setup_world(&mut self.resources, &mut self.renderer, map);
+        self.world = self.setup_world(map);
 
         [0, 1, 2, 3].map(|player_num| self.add_player(player_num));
     }
@@ -379,7 +387,8 @@ impl GraphicsManager {
     }
 
     pub fn render(&mut self) {
-        //let world_bounds = self.world.root().calc_bounds();
+        self.update_voting_announcements();
+
         let world_root = self.world.root();
         let root_xform = self
             .world
@@ -525,8 +534,33 @@ impl GraphicsManager {
             }
         }
 
-        let text_graph = self.test_string.render_graph(&self.resources);
-        render_job.merge_graph_after("postprocess", text_graph);
+        match &self.ui {
+            UIState::LoadingScreen { loading_text } => {
+                let text_graph = loading_text.render_graph(&self.resources);
+                render_job.merge_graph_after("postprocess", text_graph);
+            }
+            UIState::InGameHUD {
+                place_position_text,
+                game_announcement_title,
+                game_announcement_subtitle,
+                announcement_state,
+                minimap_ui,
+            } => {
+                let text_graph = place_position_text.render_graph(&self.resources);
+                render_job.merge_graph_after("postprocess", text_graph);
+
+                if let AnnouncementState::None = announcement_state {
+                } else {
+                    let text_graph = game_announcement_title.render_graph(&self.resources);
+                    render_job.merge_graph_after("postprocess", text_graph);
+
+                    let text_graph = game_announcement_subtitle.render_graph(&self.resources);
+                    render_job.merge_graph_after("postprocess", text_graph);
+                }
+                let ui_graph = minimap_ui.render_graph(&self.resources);
+                render_job.merge_graph_after("postprocess", ui_graph);
+            }
+        }
 
         self.renderer.render(&render_job);
     }
