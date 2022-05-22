@@ -28,21 +28,14 @@ impl Application {
     pub fn new(mut graphics_manager: GraphicsManager) -> Self {
         let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
         let game = GameClient::new(ip_addr);
-        graphics_manager.load_menu();
-
-        // demonstration region about encompassing the corner text
-        let mut test_ui_region = UIRegion::new(5.0, 7.0, 150.0, 26.0);
-        test_ui_region.on_enter(|| println!("region entered"));
-        test_ui_region.on_exit(|| println!("region exited"));
-        test_ui_region.on_click(|| println!("region clicked"));
-        test_ui_region.on_release(|| println!("region released"));
+        let ui_regions = graphics_manager.load_menu();
 
         Self {
             graphics: graphics_manager,
             game,
             pressed_keys: HashSet::new(),
             mouse_pos: PhysicalPosition::<f64> { x: -1.0, y: -1.0 },
-            ui_regions: vec![test_ui_region],
+            ui_regions,
         }
     }
 

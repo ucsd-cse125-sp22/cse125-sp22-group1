@@ -1,4 +1,4 @@
-use std::{fmt, time::Instant};
+use std::time::Instant;
 
 use glam::Vec2;
 use ordinal::Ordinal;
@@ -12,6 +12,7 @@ use crate::{
     graphics::GraphicsManager,
     resources::TextureHandle,
     scenegraph::components::Transform,
+    ui::ui_region::UIRegion,
 };
 
 pub enum AnnouncementState {
@@ -28,8 +29,13 @@ pub enum AnnouncementState {
 }
 
 pub enum UIState {
+    None,
+    MainMenu {
+        background: UIDrawable,
+    },
     LoadingScreen {
         loading_text: StringDrawable,
+        background: UIDrawable,
     },
     InGameHUD {
         place_position_text: StringDrawable,
@@ -38,21 +44,6 @@ pub enum UIState {
         announcement_state: AnnouncementState,
         minimap_ui: UIDrawable,
     },
-}
-impl fmt::Display for UIState {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let printable = match self {
-            UIState::LoadingScreen { .. } => "loading text",
-            UIState::InGameHUD {
-                announcement_state, ..
-            } => match announcement_state {
-                AnnouncementState::None => "none",
-                AnnouncementState::VotingInProgress { .. } => "voting in progress",
-                AnnouncementState::VoteActiveTime { .. } => "vote active time",
-            },
-        };
-        write!(f, "{}", printable)
-    }
 }
 
 impl GraphicsManager {
@@ -174,6 +165,78 @@ impl GraphicsManager {
                 &self.renderer,
                 &mut self.resources,
             );
+        }
+    }
+
+    pub fn load_menu(&mut self) -> Vec<UIRegion> {
+        let background_handle = self
+            .resources
+            .import_texture(&self.renderer, "UI/homebackground.png");
+
+        let background_texture = self
+            .resources
+            .textures
+            .get(&background_handle)
+            .expect("main menu background doesn't exist!");
+
+        let layer_vec = vec![technique::UILayerTechnique::new(
+            &self.renderer,
+            glam::vec2(0.0, 0.0),
+            glam::vec2(1.0, 1.0),
+            glam::vec2(0.0, 0.0),
+            glam::vec2(1.0, 1.0),
+            &background_texture,
+        )];
+
+        let background = UIDrawable { layers: layer_vec };
+
+        self.ui = UIState::MainMenu { background };
+        // join lobby button
+        let mut join_lobby_button = UIRegion::new(472.0, 452.0, 336.0, 87.0);
+        join_lobby_button.on_enter(|| println!("region entered"));
+        join_lobby_button.on_exit(|| println!("region exited"));
+        join_lobby_button.on_click(|| println!("region clicked"));
+        join_lobby_button.on_release(|| println!("region released"));
+
+        vec![join_lobby_button]
+    }
+
+    pub fn display_chairacter_select(&mut self) {
+        let background_handle = self
+            .resources
+            .import_texture(&self.renderer, "UI/chairselect/background.png");
+
+        let background_texture = self
+            .resources
+            .textures
+            .get(&background_handle)
+            .expect("background doesn't exist!");
+
+        let layer_vec = vec![technique::UILayerTechnique::new(
+            &self.renderer,
+            glam::vec2(0.0, 0.0),
+            glam::vec2(1.0, 1.0),
+            glam::vec2(0.0, 0.0),
+            glam::vec2(1.0, 1.0),
+            &background_texture,
+        )];
+
+        let background = UIDrawable { layers: layer_vec };
+
+        let mut loading_text = StringDrawable::new("ArialMT", 28.0, Vec2::new(0.005, 0.047));
+        loading_text.set(
+            "Enter sets your chair to standard
+sets your map vote to track
+; sets your ready status to true
+L sets force_start to true
+P tells the server to start the next round",
+            &self.renderer,
+            &mut self.resources,
+        );
+
+        self.ui = UIState::LoadingScreen {
+            loading_text,
+            background,
         }
     }
 

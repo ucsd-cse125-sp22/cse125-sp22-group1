@@ -5,7 +5,6 @@ use chariot_core::player::PlayerID;
 use glam::{DVec3, Vec2};
 use std::f64::consts::PI;
 
-use crate::drawable::string::StringDrawable;
 use crate::drawable::technique::Technique;
 
 use crate::drawable::*;
@@ -110,17 +109,6 @@ impl GraphicsManager {
             renderer.register_framebuffer("shadow_out1", fb_desc);
         }
 
-        let mut loading_text = StringDrawable::new("ArialMT", 28.0, Vec2::new(0.005, 0.047));
-        loading_text.set(
-            "Enter sets your chair to standard
-sets your map vote to track
-; sets your ready status to true
-L sets force_start to true
-P tells the server to start the next round",
-            &renderer,
-            &mut resources,
-        );
-
         let postprocess = technique::FSQTechnique::new(&renderer, &resources, "postprocess");
 
         let world = setup_void();
@@ -132,20 +120,16 @@ P tells the server to start the next round",
             resources,
             player_choices: Default::default(),
             player_entities: [None, None, None, None],
-            ui: UIState::LoadingScreen { loading_text },
+            ui: UIState::None,
             player_num: 4,
             camera_entity: NULL_ENTITY,
         }
     }
 
     pub fn set_loading_text(&mut self, new_text: &str) {
-        if let UIState::LoadingScreen { loading_text } = &mut self.ui {
+        if let UIState::LoadingScreen { loading_text, .. } = &mut self.ui {
             loading_text.set(new_text, &self.renderer, &mut self.resources);
         }
-    }
-
-    pub fn load_menu(&mut self) {
-        println!("Loading main menu!");
     }
 
     pub fn load_pregame(&mut self) {
@@ -417,9 +401,16 @@ P tells the server to start the next round",
         render_job.merge_graph_after("forward", postprocess_graph);
 
         match &self.ui {
-            UIState::LoadingScreen { loading_text } => {
+            UIState::None => {}
+            UIState::LoadingScreen {
+                loading_text,
+                background,
+            } => {
                 let text_graph = loading_text.render_graph(&self.resources);
                 render_job.merge_graph_after("postprocess", text_graph);
+
+                let background_graph = background.render_graph(&self.resources);
+                render_job.merge_graph_after("postprocess", background_graph);
             }
             UIState::InGameHUD {
                 place_position_text,
@@ -440,6 +431,10 @@ P tells the server to start the next round",
                     render_job.merge_graph_after("postprocess", text_graph);
                 }
                 let ui_graph = minimap_ui.render_graph(&self.resources);
+                render_job.merge_graph_after("postprocess", ui_graph);
+            }
+            UIState::MainMenu { background } => {
+                let ui_graph = background.render_graph(&self.resources);
                 render_job.merge_graph_after("postprocess", ui_graph);
             }
         }
