@@ -275,6 +275,7 @@ P tells the server to start the next round",
             Transform::from_entity_location(&location, player_transform.scale);
         *player_transform = new_player_transform;
 
+        // If we are moving, we might need to rotate the model
         if velocity.length() > 0.0 {
             if let Some(Chair::Beanbag) = self.player_choices[player_num].as_ref().map(|c| c.chair)
             {
@@ -284,10 +285,21 @@ P tells the server to start the next round",
                     .unwrap()
                     .iter_mut()
                 {
+                    // We need an axis and angle of orientation
+                    // Axis is what we spin on
+                    // Angle is how far we spin
+                    // If we are moving towards velocity, we want to spin "downward" towards it
+                    // Thus, the axis is the "right-left" of velocity
+                    // This is what we get here
                     let axis = velocity.as_vec3().cross(glam::Vec3::Y).normalize();
                     drawable.modifiers.rotation = Some(
                         glam::Quat::from_axis_angle(
                             axis,
+                            // For the angle, we want to move the velocity's length
+                            // But we could go either + or - that amount
+                            // We want to go "towards the ground"
+                            // So we figure out if the angle between velocity and the Y axis is + or -
+                            // And then go from there!
                             -(axis.angle_between(-glam::Vec3::Y)).signum()
                                 * velocity.length() as f32,
                         )
