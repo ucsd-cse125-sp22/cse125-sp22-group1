@@ -1,8 +1,10 @@
 use std::{fmt, time::Instant};
 
 use glam::Vec2;
+use ordinal::Ordinal;
 
 use crate::{
+    application::Application,
     drawable::{
         string::StringDrawable,
         technique::{self, UILayerTechnique},
@@ -104,6 +106,29 @@ impl GraphicsManager {
         }
     }
 
+    pub fn maybe_set_announcement_state(&mut self, new_announcement_state: AnnouncementState) {
+        if let UIState::InGameHUD {
+            announcement_state, ..
+        } = &mut self.ui
+        {
+            *announcement_state = new_announcement_state;
+        }
+    }
+
+    pub fn maybe_update_place(&mut self, position: u8) {
+        if let UIState::InGameHUD {
+            place_position_text,
+            ..
+        } = &mut self.ui
+        {
+            place_position_text.set(
+                Ordinal(position).to_string().as_str(),
+                &self.renderer,
+                &mut self.resources,
+            );
+        }
+    }
+
     pub fn display_hud(&mut self) {
         let mut place_position_text =
             StringDrawable::new("PressStart2P-Regular", 38.0, Vec2::new(0.905, 0.057), false);
@@ -174,5 +199,45 @@ impl GraphicsManager {
             announcement_state: AnnouncementState::None,
             minimap_ui,
         }
+    }
+}
+
+impl Application {
+    pub fn render(&mut self) {
+        if let UIState::InGameHUD {
+            announcement_state, ..
+        } = &self.graphics.ui
+        {
+            match announcement_state {
+                AnnouncementState::VotingInProgress { vote_end_time, .. } => {
+                    self.graphics.make_announcement(
+                        "The audience is deciding your fate",
+                        format!(
+                            "They decide in {} seconds",
+                            (*vote_end_time - Instant::now()).as_secs()
+                        )
+                        .as_str(),
+                    );
+                }
+                AnnouncementState::VoteActiveTime {
+                    prompt: _,
+                    decision,
+                    effect_end_time,
+                } => {
+                    let effect_end_time = effect_end_time;
+                    self.graphics.make_announcement(
+                        format!("{} was chosen!", decision).as_str(),
+                        format!(
+                            "Effects will last for another {} seconds",
+                            (*effect_end_time - Instant::now()).as_secs()
+                        )
+                        .as_str(),
+                    );
+                }
+                AnnouncementState::None => {}
+            }
+        }
+
+        self.graphics.render();
     }
 }

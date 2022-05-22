@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::time::Instant;
 
 use chariot_core::player::choices::{Chair, Track};
-use ordinal::Ordinal;
+
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, VirtualKeyCode};
 
@@ -14,7 +14,7 @@ use crate::game::GameClient;
 use crate::graphics::{register_passes, GraphicsManager};
 
 use crate::ui::ui_region::UIRegion;
-use crate::ui_state::{AnnouncementState, UIState};
+use crate::ui_state::AnnouncementState;
 
 pub struct Application {
     pub graphics: GraphicsManager,
@@ -44,47 +44,6 @@ impl Application {
             mouse_pos: PhysicalPosition::<f64> { x: -1.0, y: -1.0 },
             ui_regions: vec![test_ui_region],
         }
-    }
-
-    pub fn render(&mut self) {
-        if let UIState::InGameHUD {
-            announcement_state, ..
-        } = &self.graphics.ui
-        {
-            match announcement_state {
-                AnnouncementState::VotingInProgress {
-                    prompt: _,
-                    vote_end_time,
-                } => {
-                    self.graphics.make_announcement(
-                        "The audience is deciding your fate",
-                        format!(
-                            "They decide in {} seconds",
-                            (*vote_end_time - Instant::now()).as_secs()
-                        )
-                        .as_str(),
-                    );
-                }
-                AnnouncementState::VoteActiveTime {
-                    prompt: _,
-                    decision,
-                    effect_end_time,
-                } => {
-                    let effect_end_time = effect_end_time;
-                    self.graphics.make_announcement(
-                        format!("{} was chosen!", decision).as_str(),
-                        format!(
-                            "Effects will last for another {} seconds",
-                            (*effect_end_time - Instant::now()).as_secs()
-                        )
-                        .as_str(),
-                    );
-                }
-                AnnouncementState::None => {}
-            }
-        }
-
-        self.graphics.render();
     }
 
     pub fn update(&mut self) {
@@ -139,18 +98,7 @@ impl Application {
                     });
                 }
                 ClientBoundPacket::PlacementUpdate(position) => {
-                    println!("I am now placed {}!", position);
-                    if let UIState::InGameHUD {
-                        place_position_text,
-                        ..
-                    } = &mut self.graphics.ui
-                    {
-                        place_position_text.set(
-                            Ordinal(position).to_string().as_str(),
-                            &self.graphics.renderer,
-                            &mut self.graphics.resources,
-                        );
-                    }
+                    self.graphics.maybe_update_place(position);
                 }
                 ClientBoundPacket::LapUpdate(lap_num) => {
                     println!("I am now on lap {}!", lap_num);
@@ -174,15 +122,12 @@ impl Application {
                         .as_str(),
                     );
 
-                    if let UIState::InGameHUD {
-                        announcement_state, ..
-                    } = &mut self.graphics.ui
-                    {
-                        *announcement_state = AnnouncementState::VotingInProgress {
+                    self.graphics.maybe_set_announcement_state(
+                        AnnouncementState::VotingInProgress {
                             prompt: question.prompt,
                             vote_end_time,
-                        }
-                    }
+                        },
+                    );
                 }
                 ClientBoundPacket::InteractionActivate {
                     question,
@@ -198,16 +143,13 @@ impl Application {
                         )
                         .as_str(),
                     );
-                    if let UIState::InGameHUD {
-                        announcement_state, ..
-                    } = &mut self.graphics.ui
-                    {
-                        *announcement_state = AnnouncementState::VoteActiveTime {
+
+                    self.graphics
+                        .maybe_set_announcement_state(AnnouncementState::VoteActiveTime {
                             prompt: question.prompt,
                             decision: decision.label,
                             effect_end_time,
-                        }
-                    }
+                        });
                 }
                 ClientBoundPacket::AllDone(final_placements) => {
                     println!(
