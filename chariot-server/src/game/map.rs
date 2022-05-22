@@ -174,7 +174,7 @@ impl Map {
                                     "Loading mesh '{}' as a collider",
                                     mesh.name().unwrap_or("<unnamed>")
                                 );
-                                todo!();
+                                //todo!();
                             } else {
                                 panic!(
                                     "Mesh '{}' has unknown purpose '{}'!",

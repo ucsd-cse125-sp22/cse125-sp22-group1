@@ -1,6 +1,7 @@
 use std::{
     cmp::Eq,
     collections::{HashMap, VecDeque},
+    ops::Bound,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -74,7 +75,7 @@ pub struct MaterialHandle(usize);
 #[derive(PartialEq, Eq, Hash, Clone, Copy)]
 pub struct StaticMeshHandle(usize);
 
-trait Handle {
+pub trait Handle {
     fn unique() -> Self;
 }
 
@@ -609,5 +610,54 @@ impl ResourceManager {
         let handle = TextureHandle::unique();
         self.textures.insert(handle, texture);
         return handle;
+    }
+
+    pub fn register_material(&mut self, material: Material) -> MaterialHandle {
+        let handle = MaterialHandle::unique();
+        self.materials.insert(handle, material);
+        return handle;
+    }
+
+    pub fn create_quad_mesh(&mut self, renderer: &Renderer) -> StaticMeshHandle {
+        let verts_data: [[f32; 2]; 4] = [[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0]];
+        let texcoord_data: [[f32; 2]; 4] = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+        let inds_data: [u16; 6] = [0, 1, 2, 0, 2, 3];
+
+        let vertex_buffer = renderer
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("fsq_verts"),
+                contents: bytemuck::cast_slice(&verts_data),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+
+        let texcoord_buffer =
+            renderer
+                .device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("ui_texcoords"),
+                    contents: bytemuck::cast_slice(&texcoord_data),
+                    usage: wgpu::BufferUsages::VERTEX,
+                });
+
+        let index_buffer = renderer
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("fsq_inds"),
+                contents: bytemuck::cast_slice(&inds_data),
+                usage: wgpu::BufferUsages::INDEX,
+            });
+
+        let full_range = (Bound::<u64>::Unbounded, Bound::<u64>::Unbounded);
+
+        let mesh = MeshBuilder::new(renderer, Some("quad"))
+            .vertex_buffer(&verts_data)
+            .index_buffer(&inds_data, wgpu::IndexFormat::Uint16)
+            .indexed_submesh(&[full_range], full_range, 6)
+            .produce_static_mesh();
+
+        let mesh_handle = StaticMeshHandle::unique();
+        self.meshes.insert(mesh_handle, mesh);
+        mesh_handle
     }
 }

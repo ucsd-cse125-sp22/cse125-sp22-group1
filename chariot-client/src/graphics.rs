@@ -5,6 +5,7 @@ use chariot_core::player::PlayerID;
 use glam::{DVec3, Vec2};
 use std::f64::consts::PI;
 
+use crate::drawable::particle::ParticleDrawable;
 use crate::drawable::string::StringDrawable;
 use crate::drawable::technique::Technique;
 use crate::drawable::*;
@@ -36,6 +37,11 @@ pub fn register_passes(renderer: &mut Renderer) {
         "ui",
         &util::direct_graphics_nodepth_pass!("shaders/ui.wgsl"),
     );
+
+    renderer.register_pass(
+        "particle",
+        &util::direct_graphics_nodepth_pass!("shaders/particle.wgsl"),
+    );
 }
 
 fn setup_void() -> World {
@@ -44,6 +50,9 @@ fn setup_void() -> World {
     world.register::<Vec<StaticMeshDrawable>>();
     world.register::<Bounds>();
     world.register::<Light>();
+    world.register::<Option<ParticleDrawable>>();
+    world.register::<BillboardParticle>();
+    world.register::<RotatedParticle>();
     let world_root = world.root();
 
     {
@@ -68,6 +77,9 @@ fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer, map: Tr
     world.register::<Vec<StaticMeshDrawable>>();
     world.register::<Bounds>();
     world.register::<Light>();
+    world.register::<Option<ParticleDrawable>>();
+    world.register::<BillboardParticle>();
+    world.register::<RotatedParticle>();
     let world_root = world.root();
 
     {
@@ -105,6 +117,7 @@ pub struct GraphicsManager {
     pub renderer: Renderer,
     pub resources: ResourceManager,
 
+    test_particle_system: ParticleSystem,
     test_string: StringDrawable,
     pub player_num: PlayerID,
     pub player_choices: [Option<PlayerChoices>; 4],
@@ -145,6 +158,24 @@ impl GraphicsManager {
             renderer.register_framebuffer("shadow_out1", fb_desc);
         }
 
+        let fire_handle = resources.import_texture(&renderer, "sprites/fire.png");
+        let quad_handle = resources.create_quad_mesh(&renderer);
+        let test_particle_system = ParticleSystem::new(
+            &renderer,
+            &mut resources,
+            ParticleSystemParams {
+                texture_handle: fire_handle,
+                mesh_handle: quad_handle,
+                pos_range: (-glam::Vec3::ONE, glam::Vec3::ONE),
+                size_range: (glam::Vec2::ONE, glam::Vec2::ONE),
+                initial_vel: glam::Vec3::ZERO,
+                spawn_rate: 10.0,
+                lifetime: 10.0,
+                rotation: ParticleRotation::Billboard,
+                has_gravity: false,
+            },
+        );
+
         let mut test_string = StringDrawable::new("ArialMT", 18.0);
         test_string.set(
             "chariot - 0.6.9",
@@ -158,6 +189,7 @@ impl GraphicsManager {
         let world = setup_void();
 
         Self {
+            test_particle_system,
             test_string,
             postprocess,
             world,
@@ -239,6 +271,19 @@ impl GraphicsManager {
         }
 
         self.player_entities[player_num as usize] = Some(chair);
+    }
+
+    pub fn update(&mut self, delta_time: f32) {
+        let spawn_transform = *self.player_entities[0]
+            .map(|e| self.world.get::<Transform>(e).unwrap())
+            .unwrap_or(&Transform::default());
+        self.test_particle_system.spawn(
+            &self.renderer,
+            &mut self.world,
+            &spawn_transform,
+            delta_time,
+        );
+        ParticleSystem::update(&mut self.world, delta_time);
     }
 
     pub fn update_player_location(
@@ -400,6 +445,12 @@ impl GraphicsManager {
         );
         let postprocess_graph = self.postprocess.render_item(&self.resources).to_graph();
         render_job.merge_graph_after("forward", postprocess_graph);
+
+        let particle_graphs =
+            ParticleSystem::render_graphs(&self.world, &self.renderer, &self.resources, view, proj);
+        for graph in particle_graphs {
+            render_job.merge_graph_after("postprocess", graph);
+        }
 
         let text_graph = self.test_string.render_graph(&self.resources);
         render_job.merge_graph_after("postprocess", text_graph);

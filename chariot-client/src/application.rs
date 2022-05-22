@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 
+use std::time::{Duration, SystemTime};
+
 use chariot_core::player::choices::{Chair, Track};
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, VirtualKeyCode};
@@ -16,6 +18,7 @@ pub struct Application {
     pub game: GameClient,
     pub pressed_keys: HashSet<VirtualKeyCode>,
     mouse_pos: PhysicalPosition<f64>,
+    last_update: SystemTime,
 }
 
 impl Application {
@@ -29,6 +32,7 @@ impl Application {
             game,
             pressed_keys: HashSet::new(),
             mouse_pos: PhysicalPosition::<f64> { x: -1.0, y: -1.0 },
+            last_update: SystemTime::now(),
         }
     }
 
@@ -37,6 +41,11 @@ impl Application {
     }
 
     pub fn update(&mut self) {
+        let delta_time = self.last_update.elapsed().unwrap().as_secs_f32();
+        self.graphics.update(delta_time);
+
+        self.last_update = SystemTime::now();
+
         self.game.fetch_incoming_packets();
 
         // process current packets
