@@ -101,6 +101,7 @@ fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer, map: Tr
     world
 }
 
+// in UIState, we're going to render all the different chairs you can choose from
 pub struct GraphicsManager {
     pub world: World,
     pub renderer: Renderer,
