@@ -73,7 +73,8 @@ impl Application {
                 );
                 if effect_end_time < Instant::now() {
                     self.game.announcement_state = AnnouncementState::None;
-                    self.graphics.make_announcement("", "");
+                    self.graphics.game_announcement_title.should_draw = false;
+                    self.graphics.game_announcement_subtitle.should_draw = false;
                 }
             }
             AnnouncementState::GeneralAnnouncement { title, subtitle } => {}
@@ -153,8 +154,9 @@ impl Application {
                 ClientBoundPacket::PowerupPickup => println!("we got a powerup!"),
                 ClientBoundPacket::VotingStarted {
                     question,
-                    vote_end_time,
+                    time_until_vote_end,
                 } => {
+                    let vote_end_time = Instant::now() + time_until_vote_end;
                     self.graphics.make_announcement(
                         "The audience is deciding your fate",
                         format!(
@@ -172,8 +174,9 @@ impl Application {
                 ClientBoundPacket::InteractionActivate {
                     question,
                     decision,
-                    effect_end_time,
+                    time_effect_is_live,
                 } => {
+                    let effect_end_time = Instant::now() + time_effect_is_live;
                     self.graphics.make_announcement(
                         format!("{} was chosen!", decision.label).as_str(),
                         format!(

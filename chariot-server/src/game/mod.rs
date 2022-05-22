@@ -402,13 +402,14 @@ impl GameServer {
                             );
 
                             let decision = current_question.options[winner].clone();
-                            let effect_end_time = now + Duration::new(30, 0);
+                            let time_effect_is_live = Duration::new(30, 0);
+                            let effect_end_time = now + time_effect_is_live;
 
                             for client in self.connections.iter_mut() {
                                 client.push_outgoing(ClientBoundPacket::InteractionActivate {
                                     question: current_question.clone(),
                                     decision: decision.clone(),
-                                    effect_end_time,
+                                    time_effect_is_live,
                                 });
                             }
 
@@ -448,7 +449,8 @@ impl GameServer {
                     }
                     VotingState::VoteCooldown(cooldown) => {
                         if *cooldown < now {
-                            let vote_end_time = now + Duration::new(30, 0);
+                            let time_until_vote_end = Duration::new(30, 0);
+                            let vote_end_time = now + time_until_vote_end;
                             let question: QuestionData = QUESTIONS[*question_idx].clone();
                             *question_idx = (*question_idx + 1) % QUESTIONS.len();
 
@@ -461,7 +463,7 @@ impl GameServer {
                             for client in self.connections.iter_mut() {
                                 client.push_outgoing(ClientBoundPacket::VotingStarted {
                                     question: question.clone(),
-                                    vote_end_time,
+                                    time_until_vote_end,
                                 });
                             }
 

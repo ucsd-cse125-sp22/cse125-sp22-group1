@@ -54,14 +54,14 @@ pub enum ClientBoundPacket {
     VotingStarted {
         question: QuestionData,
         #[serde(with = "serde_millis")]
-        vote_end_time: Instant,
+        time_until_vote_end: Duration,
     }, // Sent when the audience begins voting (suspense!)
 
     InteractionActivate {
         question: QuestionData,
         decision: QuestionOption,
         #[serde(with = "serde_millis")]
-        effect_end_time: Instant,
+        time_effect_is_live: Duration,
     }, // Sent when the audience has voted on something
 
     LapUpdate(LapNumber),       // What lap are you now on?
