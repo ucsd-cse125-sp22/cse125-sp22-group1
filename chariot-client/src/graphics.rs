@@ -111,7 +111,7 @@ impl GraphicsManager {
             renderer.register_framebuffer("shadow_out1", fb_desc);
         }
 
-        let mut loading_text = StringDrawable::new("ArialMT", 28.0, Vec2::new(0.005, 0.047), true);
+        let mut loading_text = StringDrawable::new("ArialMT", 28.0, Vec2::new(0.005, 0.047));
         loading_text.set(
             "Enter sets your chair to standard
 sets your map vote to track
@@ -156,8 +156,6 @@ P tells the server to start the next round",
             game_announcement_subtitle.center_text = true;
             game_announcement_title.set(title, &self.renderer, &mut self.resources);
             game_announcement_subtitle.set(subtitle, &self.renderer, &mut self.resources);
-            game_announcement_title.should_draw = true;
-            game_announcement_subtitle.should_draw = true;
         }
     }
 
@@ -471,10 +469,8 @@ P tells the server to start the next round",
 
         match &self.ui {
             UIState::LoadingScreen { loading_text } => {
-                if loading_text.should_draw {
-                    let text_graph = loading_text.render_graph(&self.resources);
-                    render_job.merge_graph_after("postprocess", text_graph);
-                }
+                let text_graph = loading_text.render_graph(&self.resources);
+                render_job.merge_graph_after("postprocess", text_graph);
             }
             UIState::InGameHUD {
                 place_position_text,
@@ -483,20 +479,16 @@ P tells the server to start the next round",
                 announcement_state,
                 minimap_ui,
             } => {
-                if place_position_text.should_draw {
-                    let text_graph = place_position_text.render_graph(&self.resources);
-                    render_job.merge_graph_after("postprocess", text_graph);
-                }
+                let text_graph = place_position_text.render_graph(&self.resources);
+                render_job.merge_graph_after("postprocess", text_graph);
+
                 if let AnnouncementState::None = announcement_state {
                 } else {
-                    if game_announcement_title.should_draw {
-                        let text_graph = game_announcement_title.render_graph(&self.resources);
-                        render_job.merge_graph_after("postprocess", text_graph);
-                    }
-                    if game_announcement_subtitle.should_draw {
-                        let text_graph = game_announcement_subtitle.render_graph(&self.resources);
-                        render_job.merge_graph_after("postprocess", text_graph);
-                    }
+                    let text_graph = game_announcement_title.render_graph(&self.resources);
+                    render_job.merge_graph_after("postprocess", text_graph);
+
+                    let text_graph = game_announcement_subtitle.render_graph(&self.resources);
+                    render_job.merge_graph_after("postprocess", text_graph);
                 }
                 let ui_graph = minimap_ui.render_graph(&self.resources);
                 render_job.merge_graph_after("postprocess", ui_graph);

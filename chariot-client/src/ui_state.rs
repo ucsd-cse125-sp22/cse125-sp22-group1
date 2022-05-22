@@ -130,14 +130,14 @@ impl GraphicsManager {
 
     pub fn display_hud(&mut self) {
         let mut place_position_text =
-            StringDrawable::new("PressStart2P-Regular", 38.0, Vec2::new(0.905, 0.057), false);
+            StringDrawable::new("PressStart2P-Regular", 38.0, Vec2::new(0.905, 0.057));
         place_position_text.set("tbd", &self.renderer, &mut self.resources);
 
         let mut game_announcement_title =
-            StringDrawable::new("ArialMT", 32.0, Vec2::new(0.50, 0.04), false);
+            StringDrawable::new("ArialMT", 32.0, Vec2::new(0.50, 0.04));
         game_announcement_title.set("NO MORE LEFT TURNS", &self.renderer, &mut self.resources);
         let mut game_announcement_subtitle =
-            StringDrawable::new("ArialMT", 32.0, Vec2::new(0.50, 0.14), false);
+            StringDrawable::new("ArialMT", 32.0, Vec2::new(0.50, 0.14));
         game_announcement_subtitle.set(
             "activating in 20 seconds",
             &self.renderer,
