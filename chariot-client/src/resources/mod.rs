@@ -623,37 +623,13 @@ impl ResourceManager {
         let texcoord_data: [[f32; 2]; 4] = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
         let inds_data: [u16; 6] = [0, 1, 2, 0, 2, 3];
 
-        let vertex_buffer = renderer
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("fsq_verts"),
-                contents: bytemuck::cast_slice(&verts_data),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
-
-        let texcoord_buffer =
-            renderer
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("ui_texcoords"),
-                    contents: bytemuck::cast_slice(&texcoord_data),
-                    usage: wgpu::BufferUsages::VERTEX,
-                });
-
-        let index_buffer = renderer
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("fsq_inds"),
-                contents: bytemuck::cast_slice(&inds_data),
-                usage: wgpu::BufferUsages::INDEX,
-            });
-
         let full_range = (Bound::<u64>::Unbounded, Bound::<u64>::Unbounded);
 
         let mesh = MeshBuilder::new(renderer, Some("quad"))
             .vertex_buffer(&verts_data)
+            .vertex_buffer(&texcoord_data)
             .index_buffer(&inds_data, wgpu::IndexFormat::Uint16)
-            .indexed_submesh(&[full_range], full_range, 6)
+            .indexed_submesh(&[full_range, full_range], full_range, 6)
             .produce_static_mesh();
 
         let mesh_handle = StaticMeshHandle::unique();

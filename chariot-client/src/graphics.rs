@@ -166,12 +166,12 @@ impl GraphicsManager {
             ParticleSystemParams {
                 texture_handle: fire_handle,
                 mesh_handle: quad_handle,
-                pos_range: (-glam::Vec3::ONE, glam::Vec3::ONE),
+                pos_range: (-glam::Vec3::ONE * 0.1, glam::Vec3::ONE * 0.1),
                 size_range: (glam::Vec2::ONE, glam::Vec2::ONE),
                 initial_vel: glam::Vec3::ZERO,
-                spawn_rate: 10.0,
-                lifetime: 10.0,
-                rotation: ParticleRotation::Billboard,
+                spawn_rate: 50.0,
+                lifetime: 5.0,
+                rotation: ParticleRotation::Random,
                 has_gravity: false,
             },
         );

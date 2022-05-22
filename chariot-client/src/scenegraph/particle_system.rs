@@ -140,7 +140,8 @@ impl ParticleSystem {
         for _ in 0..spawn_count {
             let vel = self.initial_vel;
             let pos = transform.translation + sample_bound(&mut self.rng, pos_low, pos_high);
-            let size = sample_bound(&mut self.rng, size_low, size_high);
+            let size =
+                sample_bound(&mut self.rng, size_low, size_high) * transform.scale.truncate();
 
             let drawable = ParticleDrawable::new(renderer, self.mesh_handle, self.material_handle);
 
@@ -157,7 +158,8 @@ impl ParticleSystem {
                     .with(Some(drawable))
                     .build(),
                 ParticleRotation::Random => {
-                    let rot: glam::Quat = self.rng.next();
+                    let rand_rot: glam::Quat = self.rng.next();
+                    let rot: glam::Quat = transform.rotation * rand_rot;
                     world
                         .builder()
                         .attach(world_root)
@@ -216,9 +218,8 @@ impl ParticleSystem {
         view: glam::Mat4,
         proj: glam::Mat4,
     ) -> Vec<RenderGraph<'a>> {
-        let view_right = view.row(0);
-        let view_up = view.row(1);
-        let rot_to_view = glam::Mat4::from_cols(view_right, view_up, glam::Vec4::Z, glam::Vec4::W);
+        // TODO: not the fastest thing in the world
+        let (view_scale, view_rot, view_trans) = view.inverse().to_scale_rotation_translation();
 
         let mut render_graphs = vec![];
         if let Some(drawables) = world.storage::<Option<ParticleDrawable>>() {
@@ -229,9 +230,9 @@ impl ParticleSystem {
                 let model = if let Some(particle) = world.get::<BillboardParticle>(*entity) {
                     glam::Mat4::from_scale_rotation_translation(
                         glam::Vec3::from((particle.size, 1.0)),
-                        glam::Quat::IDENTITY,
+                        view_rot,
                         particle.pos,
-                    ) * rot_to_view
+                    )
                 } else if let Some(particle) = world.get::<RotatedParticle>(*entity) {
                     glam::Mat4::from_scale_rotation_translation(
                         glam::Vec3::from((particle.size, 1.0)),

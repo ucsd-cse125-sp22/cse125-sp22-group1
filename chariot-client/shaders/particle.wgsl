@@ -1,11 +1,10 @@
-struct ModelData {
+struct MVPData {
     model: mat4x4<f32>;
 	proj_view: mat4x4<f32>;
-	normal_to_local: mat4x4<f32>;
 };
 
 [[group(0), binding(0)]]
-var<uniform> mvp: ModelData;
+var<uniform> mvp: MVPData;
 
 struct VertexOutput {
 	[[builtin(position)]] position : vec4<f32>;

@@ -55,15 +55,17 @@ impl Drawable for ParticleDrawable {
             .iter()
             .zip(static_mesh.submeshes[0].vertex_ranges.iter());
 
+        let vertex_buffers = vertex_buffers_with_ranges
+            .map(|(buffer, range)| buffer.slice(*range))
+            .collect::<Vec<wgpu::BufferSlice>>();
+
         let mut bind_group_refs = vec![&self.mvp_xform.bind_group];
         bind_group_refs.extend(material.bind_groups.values());
         render_job::RenderItem::Graphics {
             pass_name: Self::PASS_NAME,
             framebuffer_name: Self::FRAMEBUFFER_NAME,
             num_elements: static_mesh.submeshes[0].num_elements,
-            vertex_buffers: vertex_buffers_with_ranges
-                .map(|(buffer, range)| buffer.slice(*range))
-                .collect::<Vec<wgpu::BufferSlice>>(),
+            vertex_buffers,
             index_buffer: match &static_mesh.index_buffer {
                 Some(buffer) => Some(buffer.slice(static_mesh.submeshes[0].index_range.unwrap())),
                 None => None,
