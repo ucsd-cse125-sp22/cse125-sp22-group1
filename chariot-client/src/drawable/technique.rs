@@ -279,27 +279,15 @@ pub struct UILayerTechnique {
 }
 
 impl UILayerTechnique {
-    pub fn create_vertex_buffer(
-        renderer: &Renderer,
-        pos: glam::Vec2,
-        size: glam::Vec2,
-    ) -> wgpu::Buffer {
+    pub fn create_verts_data(pos: glam::Vec2, size: glam::Vec2) -> [[f32; 2]; 4] {
         let pos_ndc = glam::vec2(pos.x, 1.0 - pos.y) * 2.0 - 1.0;
         let size_ndc = glam::vec2(size.x, -size.y) * 2.0;
-        let verts_data: [[f32; 2]; 4] = [
+        [
             [pos_ndc.x, pos_ndc.y],
             [pos_ndc.x + size_ndc.x, pos_ndc.y],
             [pos_ndc.x + size_ndc.x, pos_ndc.y + size_ndc.y],
             [pos_ndc.x, pos_ndc.y + size_ndc.y],
-        ];
-
-        renderer
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("ui_verts"),
-                contents: bytemuck::cast_slice(&verts_data),
-                usage: wgpu::BufferUsages::VERTEX,
-            })
+        ]
     }
 
     pub fn new(
@@ -310,7 +298,15 @@ impl UILayerTechnique {
         tc_size: glam::Vec2,
         texture: &wgpu::Texture,
     ) -> Self {
-        let vertex_buffer = UILayerTechnique::create_vertex_buffer(renderer, pos, size);
+        let raw_verts_data = UILayerTechnique::create_verts_data(pos, size);
+        let verts_data: &[u8] = bytemuck::cast_slice(&raw_verts_data);
+        let vertex_buffer = renderer
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("ui_verts"),
+                contents: bytemuck::cast_slice(&verts_data),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
         let texcoord_data: [[f32; 2]; 4] = [
             [tc_pos.x, tc_pos.y],
             [tc_pos.x + tc_size.x, tc_pos.y],
