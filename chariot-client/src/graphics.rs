@@ -4,6 +4,7 @@ use chariot_core::player::choices::Track;
 use chariot_core::player::PlayerID;
 use glam::{DVec3, Vec2};
 use std::f64::consts::PI;
+use std::time::Instant;
 
 use crate::drawable::string::StringDrawable;
 use crate::drawable::technique::Technique;
@@ -157,6 +158,42 @@ P tells the server to start the next round",
             game_announcement_subtitle.set(subtitle, &self.renderer, &mut self.resources);
             game_announcement_title.should_draw = true;
             game_announcement_subtitle.should_draw = true;
+        }
+    }
+
+    pub fn update_voting_announcements(&mut self) {
+        if let UIState::InGameHUD {
+            announcement_state, ..
+        } = &self.ui
+        {
+            match announcement_state {
+                AnnouncementState::VotingInProgress { vote_end_time, .. } => {
+                    self.make_announcement(
+                        "The audience is deciding your fate",
+                        format!(
+                            "They decide in {} seconds",
+                            (*vote_end_time - Instant::now()).as_secs()
+                        )
+                        .as_str(),
+                    );
+                }
+                AnnouncementState::VoteActiveTime {
+                    prompt: _,
+                    decision,
+                    effect_end_time,
+                } => {
+                    let effect_end_time = effect_end_time;
+                    self.make_announcement(
+                        format!("{} was chosen!", decision).as_str(),
+                        format!(
+                            "Effects will last for another {} seconds",
+                            (*effect_end_time - Instant::now()).as_secs()
+                        )
+                        .as_str(),
+                    );
+                }
+                AnnouncementState::None => {}
+            }
         }
     }
 
@@ -315,6 +352,8 @@ P tells the server to start the next round",
     }
 
     pub fn render(&mut self) {
+        self.update_voting_announcements();
+
         let world_root = self.world.root();
         let root_xform = self
             .world

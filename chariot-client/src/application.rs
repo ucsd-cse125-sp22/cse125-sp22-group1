@@ -46,6 +46,10 @@ impl Application {
         }
     }
 
+    pub fn render(&mut self) {
+        self.graphics.render();
+    }
+
     pub fn update(&mut self) {
         self.game.fetch_incoming_packets();
 
