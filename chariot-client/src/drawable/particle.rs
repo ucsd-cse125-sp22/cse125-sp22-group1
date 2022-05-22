@@ -4,6 +4,9 @@ use crate::renderer::render_job;
 use crate::renderer::Renderer;
 use crate::resources::{Handle, MaterialHandle, ResourceManager, StaticMeshHandle};
 
+// TODO: merge this with the forward pass and make this write depth. I got it to work but it was weird since on certain frames
+// the particles wouldn't show up and the outline effect was being applied to the quads
+
 pub struct ParticleDrawable {
     static_mesh_handle: StaticMeshHandle,
     material_handle: MaterialHandle,

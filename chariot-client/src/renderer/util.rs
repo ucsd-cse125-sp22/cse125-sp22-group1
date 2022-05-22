@@ -34,7 +34,10 @@ macro_rules! indirect_graphics_depth_pass {
                     .iter()
                     .map(|f| wgpu::ColorTargetState {
                         format: *f,
-                        blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                        blend: Some(wgpu::BlendState {
+                            alpha: wgpu::BlendComponent::REPLACE,
+                            color: wgpu::BlendComponent::REPLACE,
+                        }),
                         write_mask: wgpu::ColorWrites::ALL,
                     })
                     .collect::<Vec<wgpu::ColorTargetState>>(),

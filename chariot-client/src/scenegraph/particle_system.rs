@@ -12,6 +12,10 @@ use crate::resources::{
 use crate::scenegraph::NULL_ENTITY;
 use crate::util::{Pcg32Rng, Rng};
 
+// Two types of particles:
+// * Billboard particles always face the camera
+// * Rotated particles have their own rotation
+
 pub struct BillboardParticle<const ID: u32> {
     vel: glam::Vec3,
     pos: glam::Vec3,
@@ -93,6 +97,11 @@ impl Default for ParticleSystemParams {
     }
 }
 
+// Because I made the good/bad decision to incorporate particles into the scene graph,
+// Particle systems have an ID worked into the type so they can have their own component types.
+// Ex. ParticleSystem<0> would operate on all the BillboardParticle<0> components in a world.
+// The scenegraph provides a lot of benefits but also man idk
+
 pub struct ParticleSystem<const ID: u32> {
     material_handle: MaterialHandle,
     mesh_handle: StaticMeshHandle,
@@ -142,6 +151,7 @@ impl<const ID: u32> ParticleSystem<ID> {
         }
     }
 
+    // Spawn is called to spawn in new particles for a new frame based on the spawn rate
     pub fn spawn(
         &mut self,
         renderer: &Renderer,
@@ -231,6 +241,7 @@ impl<const ID: u32> ParticleSystem<ID> {
         }
     }
 
+    // Updates the positions of the particles
     pub fn update(&self, world: &mut World, delta_time: f32) {
         let mut to_remove = vec![];
         if let Some(particles) = world.storage_mut::<BillboardParticle<ID>>() {
@@ -267,12 +278,14 @@ impl<const ID: u32> ParticleSystem<ID> {
         }
     }
 
+    // Calculates the local transform for a particle
     pub fn calc_particle_model(
         &self,
         world: &World,
         entity: Entity,
         view: glam::Mat4,
     ) -> Option<glam::Mat4> {
+        // TODO (maybe): not the fastest thing in the world
         let (view_scale, view_rot, view_trans) = view.inverse().to_scale_rotation_translation();
 
         if let Some(particle) = world.get::<BillboardParticle<ID>>(entity) {
