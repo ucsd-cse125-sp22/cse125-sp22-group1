@@ -170,10 +170,12 @@ impl ResourceManager {
             .map(|n| (n, glam::Mat4::IDENTITY))
             .collect::<VecDeque<(gltf::Node, glam::Mat4)>>();
 
+        let mut n = 0;
         // Probably better to do this recursively but i didn't wanna change stuff like crazy, not that it really matters since this is just loading anyways
         while let Some((node, parent_transform)) = queue.pop_front() {
             println!("Processing node '{}'", node.name().unwrap_or("<unnamed>"));
-
+            println!("#{} out of #{}", n, queue.capacity());
+            n += 1;
             let transform = parent_transform
                 * (match node.transform() {
                     gltf::scene::Transform::Matrix { matrix } => {

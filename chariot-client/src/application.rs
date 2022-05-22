@@ -1,6 +1,8 @@
 use std::collections::HashSet;
+use std::time::Instant;
 
 use chariot_core::player::choices::{Chair, Track};
+
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, VirtualKeyCode};
 
@@ -10,7 +12,9 @@ use chariot_core::GLOBAL_CONFIG;
 
 use crate::game::GameClient;
 use crate::graphics::{register_passes, GraphicsManager};
+
 use crate::ui::ui_region::UIRegion;
+use crate::ui_state::AnnouncementState;
 
 pub struct Application {
     pub graphics: GraphicsManager,
@@ -98,18 +102,58 @@ impl Application {
                     });
                 }
                 ClientBoundPacket::PlacementUpdate(position) => {
-                    println!("I am now placed {}!", position);
+                    self.graphics.maybe_update_place(position);
                 }
                 ClientBoundPacket::LapUpdate(lap_num) => {
                     println!("I am now on lap {}!", lap_num);
                 }
-                ClientBoundPacket::GameStart(_) => println!("The game has begun!"),
+                ClientBoundPacket::GameStart(_) => {
+                    self.graphics.display_hud();
+                    println!("The game has begun!")
+                }
                 ClientBoundPacket::PowerupPickup => println!("we got a powerup!"),
-                ClientBoundPacket::InteractionActivate(question, decision) => {
-                    println!(
-                        "The Audience has voted on {}, and voted for option {}!",
-                        question.prompt, decision.label
+                ClientBoundPacket::VotingStarted {
+                    question,
+                    time_until_vote_end,
+                } => {
+                    let vote_end_time = Instant::now() + time_until_vote_end;
+                    self.graphics.make_announcement(
+                        "The audience is deciding your fate",
+                        format!(
+                            "They decide in {} seconds",
+                            (vote_end_time - Instant::now()).as_secs()
+                        )
+                        .as_str(),
                     );
+
+                    self.graphics.maybe_set_announcement_state(
+                        AnnouncementState::VotingInProgress {
+                            prompt: question.prompt,
+                            vote_end_time,
+                        },
+                    );
+                }
+                ClientBoundPacket::InteractionActivate {
+                    question,
+                    decision,
+                    time_effect_is_live,
+                } => {
+                    let effect_end_time = Instant::now() + time_effect_is_live;
+                    self.graphics.make_announcement(
+                        format!("{} was chosen!", decision.label).as_str(),
+                        format!(
+                            "Effects will last for another {} seconds",
+                            (effect_end_time - Instant::now()).as_secs()
+                        )
+                        .as_str(),
+                    );
+
+                    self.graphics
+                        .maybe_set_announcement_state(AnnouncementState::VoteActiveTime {
+                            prompt: question.prompt,
+                            decision: decision.label,
+                            effect_end_time,
+                        });
                 }
                 ClientBoundPacket::AllDone(final_placements) => {
                     println!(
@@ -124,14 +168,12 @@ impl Application {
                             .collect::<String>()
                     );
                 }
-                ClientBoundPacket::VotingStarted(question) => {
-                    println!("The audience is now voting on {}", question.prompt)
-                }
                 ClientBoundPacket::StartNextGame => {
                     self.graphics.load_pregame();
                 }
             }
         }
+        self.graphics.update_minimap();
     }
 
     // Input configuration
@@ -182,19 +224,19 @@ impl Application {
         };
 
         if key == VirtualKeyCode::R {
-            println!("Reloading shaders");
+            self.graphics.set_loading_text("Reloading shaders");
             register_passes(&mut self.graphics.renderer);
         } else if key == VirtualKeyCode::Apostrophe {
-            println!("Picking map");
+            self.graphics.set_loading_text("Picking map");
             self.game.pick_map(Track::Track);
         } else if key == VirtualKeyCode::Semicolon {
-            println!("Setting ready");
+            self.graphics.set_loading_text("Setting ready");
             self.game.signal_ready_status(true);
         } else if key == VirtualKeyCode::L {
-            println!("Forcing a start!");
+            self.graphics.set_loading_text("Forcing a start!");
             self.game.force_start();
         } else if key == VirtualKeyCode::P {
-            println!("Starting next game!");
+            self.graphics.set_loading_text("Starting next game!");
             self.game.next_game();
         } else if key == VirtualKeyCode::Right {
             let new_chair = match self.graphics.player_choices[self.graphics.player_num]
