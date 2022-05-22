@@ -11,8 +11,10 @@ use chariot_core::player::player_inputs::{EngineStatus, InputEvent, RotationStat
 use chariot_core::GLOBAL_CONFIG;
 
 use crate::game::GameClient;
-use crate::graphics::{register_passes, AnnouncementState, GraphicsManager, UIState};
+use crate::graphics::{register_passes, GraphicsManager};
+
 use crate::ui::ui_region::UIRegion;
+use crate::ui_state::{AnnouncementState, UIState};
 
 pub struct Application {
     pub graphics: GraphicsManager,
@@ -162,8 +164,6 @@ impl Application {
                     question,
                     time_until_vote_end,
                 } => {
-                    println!("The voting has started");
-                    // println!("{:?}", self.graphics.ui);
                     let vote_end_time = Instant::now() + time_until_vote_end;
                     self.graphics.make_announcement(
                         "The audience is deciding your fate",

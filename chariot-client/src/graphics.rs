@@ -4,17 +4,17 @@ use chariot_core::player::choices::Track;
 use chariot_core::player::PlayerID;
 use glam::{DVec3, Vec2};
 use std::f64::consts::PI;
-use std::fmt;
-use std::time::Instant;
 
 use crate::drawable::string::StringDrawable;
 use crate::drawable::technique::Technique;
-use crate::drawable::technique::UILayerTechnique;
+
 use crate::drawable::*;
 use crate::renderer::*;
 use crate::resources::*;
 use crate::scenegraph::components::*;
 use crate::scenegraph::*;
+use crate::ui_state::AnnouncementState;
+use crate::ui_state::UIState;
 
 pub fn register_passes(renderer: &mut Renderer) {
     renderer.register_pass(
@@ -65,18 +65,6 @@ fn setup_void() -> World {
     world
 }
 
-pub enum AnnouncementState {
-    None,
-    VotingInProgress {
-        prompt: String,
-        vote_end_time: Instant,
-    },
-    VoteActiveTime {
-        prompt: String,
-        decision: String,
-        effect_end_time: Instant,
-    },
-}
 pub struct GraphicsManager {
     pub world: World,
     pub renderer: Renderer,
@@ -86,35 +74,8 @@ pub struct GraphicsManager {
     pub player_num: PlayerID,
     pub player_choices: [Option<PlayerChoices>; 4],
     postprocess: technique::FSQTechnique,
-    player_entities: [Option<Entity>; 4],
+    pub player_entities: [Option<Entity>; 4],
     camera_entity: Entity,
-}
-pub enum UIState {
-    LoadingScreen {
-        loading_text: StringDrawable,
-    },
-    InGameHUD {
-        place_position_text: StringDrawable,
-        game_announcement_title: StringDrawable,
-        game_announcement_subtitle: StringDrawable,
-        announcement_state: AnnouncementState,
-        minimap_ui: UIDrawable,
-    },
-}
-impl fmt::Display for UIState {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let printable = match self {
-            UIState::LoadingScreen { .. } => "loading text",
-            UIState::InGameHUD {
-                announcement_state, ..
-            } => match announcement_state {
-                AnnouncementState::None => "none",
-                AnnouncementState::VotingInProgress { .. } => "voting in progress",
-                AnnouncementState::VoteActiveTime { .. } => "vote active time",
-            },
-        };
-        write!(f, "{}", printable)
-    }
 }
 
 impl GraphicsManager {
@@ -310,78 +271,6 @@ P tells the server to start the next round",
         self.player_entities[player_num as usize] = Some(chair);
     }
 
-    pub fn display_hud(&mut self) {
-        let mut place_position_text =
-            StringDrawable::new("PressStart2P-Regular", 38.0, Vec2::new(0.905, 0.057), false);
-        place_position_text.set("tbd", &self.renderer, &mut self.resources);
-
-        let mut game_announcement_title =
-            StringDrawable::new("ArialMT", 32.0, Vec2::new(0.50, 0.04), false);
-        game_announcement_title.set("NO MORE LEFT TURNS", &self.renderer, &mut self.resources);
-        let mut game_announcement_subtitle =
-            StringDrawable::new("ArialMT", 32.0, Vec2::new(0.50, 0.14), false);
-        game_announcement_subtitle.set(
-            "activating in 20 seconds",
-            &self.renderer,
-            &mut self.resources,
-        );
-
-        // minimap
-        let minimap_map_handle = self
-            .resources
-            .import_texture(&self.renderer, "UI/minimap/track_transparent.png");
-        let player_location_handles: Vec<TextureHandle> = [
-            "UI/Map Select/P1Btn.png",
-            "UI/Map Select/P2Btn.png",
-            "UI/Map Select/P3Btn.png",
-            "UI/Map Select/P4Btn.png",
-        ]
-        .iter()
-        .map(|filename| self.resources.import_texture(&self.renderer, filename))
-        .collect();
-
-        let minimap_map_texture = self
-            .resources
-            .textures
-            .get(&minimap_map_handle)
-            .expect("minimap doesn't exist!");
-
-        let mut player_location_markers: Vec<technique::UILayerTechnique> = player_location_handles
-            .iter()
-            .map(|handle| self.resources.textures.get(&handle).unwrap())
-            .map(|texture| {
-                technique::UILayerTechnique::new(
-                    &self.renderer,
-                    glam::vec2(0.0, 0.0),
-                    glam::vec2(0.02, 0.02),
-                    glam::vec2(0.0, 0.0),
-                    glam::vec2(1.0, 1.0),
-                    &texture,
-                )
-            })
-            .collect();
-
-        let mut layer_vec = vec![technique::UILayerTechnique::new(
-            &self.renderer,
-            glam::vec2(0.0, 0.0),
-            glam::vec2(0.2, 0.2),
-            glam::vec2(0.0, 0.0),
-            glam::vec2(1.0, 1.0),
-            &minimap_map_texture,
-        )];
-        layer_vec.append(&mut player_location_markers);
-
-        let minimap_ui = UIDrawable { layers: layer_vec };
-
-        self.ui = UIState::InGameHUD {
-            place_position_text,
-            game_announcement_title,
-            game_announcement_subtitle,
-            announcement_state: AnnouncementState::None,
-            minimap_ui,
-        }
-    }
-
     pub fn update_player_location(
         &mut self,
         location: &EntityLocation,
@@ -421,55 +310,6 @@ P tells the server to start the next round",
                 // set the new orbit angle complete with magic pitch for now
                 camera.orbit_angle =
                     Vec2::new(orbit_yaw as f32, -0.3).lerp(camera.orbit_angle, 0.5);
-            }
-        }
-    }
-
-    pub fn update_minimap(&mut self) {
-        if let UIState::InGameHUD { minimap_ui, .. } = &mut self.ui {
-            // Only update if we actually have entities to map
-            if !self.player_entities.iter().all(Option::is_some) {
-                return;
-            }
-
-            // Convert "map units" locations into proportions of minimap size
-            fn get_minimap_player_location(location: (f32, f32)) -> (f32, f32) {
-                // these values are guesses btw
-                const MIN_TRACK_X: f32 = -119.0; // top
-                const MAX_TRACK_X: f32 = 44.0; // bottom
-                const MIN_TRACK_Z: f32 = -48.0; // right
-                const MAX_TRACK_Z: f32 = 119.0; // left
-
-                (
-                    (MAX_TRACK_Z - location.1) / (MAX_TRACK_Z - MIN_TRACK_Z),
-                    (location.0 - MIN_TRACK_X) / (MAX_TRACK_X - MIN_TRACK_X),
-                )
-            }
-
-            let player_locations = self
-                .player_entities
-                .iter()
-                .map(|player_num| {
-                    let location = self
-                        .world
-                        .get::<Transform>(player_num.unwrap())
-                        .unwrap()
-                        .translation;
-                    (location.x, location.z)
-                })
-                .map(get_minimap_player_location);
-
-            for (player_index, location) in player_locations.enumerate() {
-                let player_layer = minimap_ui.layers.get_mut(player_index + 1).unwrap();
-
-                let raw_verts_data = UILayerTechnique::create_verts_data(
-                    Vec2::new(0.2 * location.0, 0.2 * location.1),
-                    Vec2::new(0.02, 0.02),
-                );
-                let verts_data: &[u8] = bytemuck::cast_slice(&raw_verts_data);
-
-                self.renderer
-                    .write_buffer(&player_layer.vertex_buffer, verts_data);
             }
         }
     }
