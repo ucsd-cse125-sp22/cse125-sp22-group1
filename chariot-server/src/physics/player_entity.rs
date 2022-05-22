@@ -11,6 +11,8 @@ use glam::DVec3;
 
 use crate::physics::trigger_entity::TriggerEntity;
 
+use super::ramp::Ramp;
+
 fn get_height_at_coordinates(_x: f64, _z: f64) -> f64 {
     return 0.0;
 }
@@ -118,6 +120,7 @@ impl PlayerEntity {
         time_step: f64,
         potential_colliders: Vec<&PlayerEntity>,
         potential_terrain: Vec<BoundingBox>,
+        potential_ramps: Vec<Ramp>,
         potential_triggers: impl Iterator<Item = &'a mut dyn TriggerEntity>,
     ) -> PlayerEntity {
         let self_forces = self.sum_of_self_forces();

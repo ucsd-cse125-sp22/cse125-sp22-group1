@@ -4,7 +4,7 @@ use serde_json::Value;
 
 use crate::{
     checkpoints::*,
-    physics::{bounding_box::BoundingBox, trigger_entity::TriggerEntity},
+    physics::{bounding_box::BoundingBox, ramp::Ramp, trigger_entity::TriggerEntity},
 };
 use chariot_core::{player::lap_info::ZoneID, GLOBAL_CONFIG};
 
@@ -13,6 +13,7 @@ use super::powerup::pickups::ItemBox;
 pub struct Map {
     // Something you cannot pass through/has collision
     pub colliders: Vec<BoundingBox>,
+    pub ramps: Vec<Ramp>,
 
     // Map's checkpoints, which track progress through the track
     pub checkpoints: Vec<Checkpoint>,
@@ -81,6 +82,7 @@ impl Map {
         }
 
         let mut colliders: Vec<BoundingBox> = Vec::new();
+        let mut ramps: Vec<Ramp> = Vec::new();
 
         let mut checkpoints: Vec<Checkpoint> = Vec::new();
         let mut major_zones: Vec<Zone> = Vec::new();
@@ -198,6 +200,7 @@ impl Map {
 
         core::result::Result::Ok(Self {
             colliders,
+            ramps,
             checkpoints,
             major_zones,
             finish_line: finish_line

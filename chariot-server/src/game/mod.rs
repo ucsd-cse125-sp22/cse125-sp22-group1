@@ -366,11 +366,20 @@ impl GameServer {
                     .colliders
                     .clone();
 
+                let ramps = &self
+                    .game_state
+                    .map
+                    .as_ref()
+                    .expect("No map loaded in game loop!")
+                    .ramps
+                    .clone();
+
                 self.game_state.players = [0, 1, 2, 3].map(|n| {
                     self.game_state.players[n].do_physics_step(
                         1.0,
                         others(n),
                         colliders.clone(),
+                        ramps.clone(),
                         self.game_state
                             .map
                             .as_mut()
