@@ -311,10 +311,6 @@ impl GraphicsManager {
     }
 
     pub fn update(&mut self, delta_time: f32) {
-        let spawn_transform = *self.player_entities[0]
-            .map(|e| self.world.get::<Transform>(e).unwrap())
-            .unwrap_or(&Transform::default());
-
         self.fire_particle_system
             .update(&mut self.world, delta_time);
         self.smoke_particle_system
