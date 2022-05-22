@@ -305,7 +305,7 @@ impl UILayerTechnique {
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("ui_verts"),
                 contents: bytemuck::cast_slice(&verts_data),
-                usage: wgpu::BufferUsages::VERTEX,
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             });
         let texcoord_data: [[f32; 2]; 4] = [
             [tc_pos.x, tc_pos.y],
