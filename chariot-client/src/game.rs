@@ -4,26 +4,8 @@ use chariot_core::player::player_inputs::InputEvent;
 use std::net::TcpStream;
 use std::time::Instant;
 
-pub enum AnnouncementState {
-    None,
-    GeneralAnnouncement {
-        title: String,
-        subtitle: String,
-    },
-    VotingInProgress {
-        prompt: String,
-        vote_end_time: Instant,
-    },
-    VoteActiveTime {
-        prompt: String,
-        decision: String,
-        effect_end_time: Instant,
-    },
-}
-
 pub struct GameClient {
     pub connection: ServerConnection,
-    pub announcement_state: AnnouncementState,
 }
 
 impl GameClient {
@@ -32,7 +14,6 @@ impl GameClient {
         println!("game client now listening on {}", ip_addr);
         GameClient {
             connection: ServerConnection::new(connection),
-            announcement_state: AnnouncementState::None,
         }
     }
 

@@ -4,6 +4,7 @@ use chariot_core::player::choices::Track;
 use chariot_core::player::PlayerID;
 use glam::{DVec3, Vec2};
 use std::f64::consts::PI;
+use std::time::Instant;
 
 use crate::drawable::string::StringDrawable;
 use crate::drawable::technique::Technique;
@@ -63,22 +64,48 @@ fn setup_void() -> World {
     world
 }
 
+pub enum AnnouncementState {
+    None,
+    GeneralAnnouncement {
+        title: String,
+        subtitle: String,
+    },
+    VotingInProgress {
+        prompt: String,
+        vote_end_time: Instant,
+    },
+    VoteActiveTime {
+        prompt: String,
+        decision: String,
+        effect_end_time: Instant,
+    },
+}
 pub struct GraphicsManager {
     pub world: World,
     pub renderer: Renderer,
     pub resources: ResourceManager,
     pub loading_text: StringDrawable,
-    pub place_position_text: StringDrawable,
-    pub game_announcement_title: StringDrawable,
-    pub game_announcement_subtitle: StringDrawable,
 
     minimap_ui: UIDrawable,
+    pub ui: UIState,
 
     pub player_num: PlayerID,
     pub player_choices: [Option<PlayerChoices>; 4],
     postprocess: technique::FSQTechnique,
     player_entities: [Option<Entity>; 4],
     camera_entity: Entity,
+}
+pub enum UIState {
+    LoadingScreen {
+        loading_text: StringDrawable,
+    },
+    InGameHUD {
+        place_position_text: StringDrawable,
+        game_announcement_title: StringDrawable,
+        game_announcement_subtitle: StringDrawable,
+        announcement_state: AnnouncementState,
+        // minimap_ui: UIDrawable,
+    },
 }
 
 impl GraphicsManager {
@@ -167,25 +194,12 @@ P tells the server to start the next round",
 
         let minimap_ui = UIDrawable { layers: layer_vec };
 
-        let mut place_position_text =
-            StringDrawable::new("PressStart2P-Regular", 38.0, Vec2::new(0.905, 0.057), false);
-        place_position_text.set("tbd", &renderer, &mut resources);
         let postprocess = technique::FSQTechnique::new(&renderer, &resources, "postprocess");
-
-        let mut game_announcement_title =
-            StringDrawable::new("ArialMT", 32.0, Vec2::new(0.50, 0.04), false);
-        game_announcement_title.set("NO MORE LEFT TURNS", &renderer, &mut resources);
-        let mut game_announcement_subtitle =
-            StringDrawable::new("ArialMT", 32.0, Vec2::new(0.50, 0.14), false);
-        game_announcement_subtitle.set("activating in 20 seconds", &renderer, &mut resources);
 
         let world = setup_void();
 
         Self {
             loading_text,
-            place_position_text,
-            game_announcement_title,
-            game_announcement_subtitle,
             postprocess,
             world,
             renderer,
@@ -193,21 +207,26 @@ P tells the server to start the next round",
             minimap_ui,
             player_choices: Default::default(),
             player_entities: [None, None, None, None],
-
+            ui: UIState::LoadingScreen { loading_text },
             player_num: 4,
             camera_entity: NULL_ENTITY,
         }
     }
 
     pub fn make_announcement(&mut self, title: &str, subtitle: &str) {
-        self.game_announcement_title.center_text = true;
-        self.game_announcement_subtitle.center_text = true;
-        self.game_announcement_title
-            .set(title, &self.renderer, &mut self.resources);
-        self.game_announcement_subtitle
-            .set(subtitle, &self.renderer, &mut self.resources);
-        self.game_announcement_title.should_draw = true;
-        self.game_announcement_subtitle.should_draw = true;
+        if let UIState::InGameHUD {
+            game_announcement_subtitle,
+            game_announcement_title,
+            ..
+        } = &mut self.ui
+        {
+            game_announcement_title.center_text = true;
+            game_announcement_subtitle.center_text = true;
+            game_announcement_title.set(title, &self.renderer, &mut self.resources);
+            game_announcement_subtitle.set(subtitle, &self.renderer, &mut self.resources);
+            game_announcement_title.should_draw = true;
+            game_announcement_subtitle.should_draw = true;
+        }
     }
 
     pub fn load_menu(&mut self) {
@@ -323,6 +342,32 @@ P tells the server to start the next round",
         }
 
         self.player_entities[player_num as usize] = Some(chair);
+    }
+
+    pub fn display_hud(&mut self) {
+        let mut place_position_text =
+            StringDrawable::new("PressStart2P-Regular", 38.0, Vec2::new(0.905, 0.057), false);
+        place_position_text.set("tbd", &self.renderer, &mut self.resources);
+        let postprocess =
+            technique::FSQTechnique::new(&self.renderer, &self.resources, "postprocess");
+
+        let mut game_announcement_title =
+            StringDrawable::new("ArialMT", 32.0, Vec2::new(0.50, 0.04), false);
+        game_announcement_title.set("NO MORE LEFT TURNS", &self.renderer, &mut self.resources);
+        let mut game_announcement_subtitle =
+            StringDrawable::new("ArialMT", 32.0, Vec2::new(0.50, 0.14), false);
+        game_announcement_subtitle.set(
+            "activating in 20 seconds",
+            &self.renderer,
+            &mut self.resources,
+        );
+
+        self.ui = UIState::InGameHUD {
+            place_position_text,
+            game_announcement_title,
+            game_announcement_subtitle,
+            announcement_state: AnnouncementState::None,
+        }
     }
 
     pub fn update_player_location(
@@ -531,30 +576,38 @@ P tells the server to start the next round",
         let postprocess_graph = self.postprocess.render_item(&self.resources).to_graph();
         render_job.merge_graph_after("forward", postprocess_graph);
 
-        if self.loading_text.should_draw {
-            let text_graph = self.loading_text.render_graph(&self.resources);
-            render_job.merge_graph_after("postprocess", text_graph);
+        match self.ui {
+            UIState::LoadingScreen { loading_text } => {
+                if loading_text.should_draw {
+                    let text_graph = self.loading_text.render_graph(&self.resources);
+                    render_job.merge_graph_after("postprocess", text_graph);
+                }
+            }
+            UIState::InGameHUD {
+                place_position_text,
+                game_announcement_title,
+                game_announcement_subtitle,
+                announcement_state,
+            } => {
+                if place_position_text.should_draw {
+                    let text_graph = place_position_text.render_graph(&self.resources);
+                    render_job.merge_graph_after("postprocess", text_graph);
+                }
+                if let AnnouncementState::None = announcement_state {
+                } else {
+                    if game_announcement_title.should_draw {
+                        let text_graph = game_announcement_title.render_graph(&self.resources);
+                        render_job.merge_graph_after("postprocess", text_graph);
+                    }
+                    if game_announcement_subtitle.should_draw {
+                        let text_graph = game_announcement_subtitle.render_graph(&self.resources);
+                        render_job.merge_graph_after("postprocess", text_graph);
+                    }
+                }
+                let ui_graph = self.minimap_ui.render_graph(&self.resources);
+                render_job.merge_graph_after("postprocess", ui_graph);
+            }
         }
-        if self.place_position_text.should_draw {
-            let text_graph = self.place_position_text.render_graph(&self.resources);
-            render_job.merge_graph_after("postprocess", text_graph);
-        }
-        if self.game_announcement_title.should_draw {
-            let text_graph = self.game_announcement_title.render_graph(&self.resources);
-            render_job.merge_graph_after("postprocess", text_graph);
-        }
-        if self.game_announcement_title.should_draw {
-            let text_graph = self.game_announcement_title.render_graph(&self.resources);
-            render_job.merge_graph_after("postprocess", text_graph);
-        }
-        if self.game_announcement_subtitle.should_draw {
-            let text_graph = self
-                .game_announcement_subtitle
-                .render_graph(&self.resources);
-            render_job.merge_graph_after("postprocess", text_graph);
-        }
-        let ui_graph = self.minimap_ui.render_graph(&self.resources);
-        render_job.merge_graph_after("postprocess", ui_graph);
 
         self.renderer.render(&render_job);
     }
