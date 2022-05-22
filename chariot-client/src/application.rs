@@ -45,13 +45,10 @@ impl Application {
     }
 
     pub fn render(&mut self) {
-        if matches!(
-            self.graphics.ui,
-            UIState::InGameHUD {
-                announcement_state,
-                ..
-            }
-        ) {
+        if let UIState::InGameHUD {
+            announcement_state, ..
+        } = &self.graphics.ui
+        {
             match announcement_state {
                 AnnouncementState::VotingInProgress {
                     prompt,
@@ -80,13 +77,17 @@ impl Application {
                         )
                         .as_str(),
                     );
-                    if *effect_end_time < Instant::now() {
-                        *announcement_state = AnnouncementState::None;
-                    }
                 }
                 AnnouncementState::GeneralAnnouncement { title, subtitle } => {}
                 AnnouncementState::None => {}
             }
+        }
+
+        if let UIState::InGameHUD {
+            announcement_state, ..
+        } = &mut self.graphics.ui
+        {
+            *announcement_state = AnnouncementState::None;
         }
 
         self.graphics.render();
