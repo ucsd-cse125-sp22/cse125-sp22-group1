@@ -8,22 +8,15 @@ use glam::Vec2;
 pub struct StringDrawable {
     ui_drawable: UIDrawable,
     glyph_cache: GlyphCache,
-    pub should_draw: bool,
     pub screen_position: Vec2,
     pub center_text: bool,
 }
 
 impl StringDrawable {
-    pub fn new(
-        font_name: &str,
-        point_size: f32,
-        screen_position: Vec2,
-        should_draw: bool,
-    ) -> StringDrawable {
+    pub fn new(font_name: &str, point_size: f32, screen_position: Vec2) -> StringDrawable {
         StringDrawable {
             ui_drawable: UIDrawable { layers: vec![] },
             glyph_cache: GlyphCache::new(font_name, point_size),
-            should_draw,
             screen_position,
             center_text: false,
         }
