@@ -56,6 +56,55 @@ impl fmt::Display for UIState {
 }
 
 impl GraphicsManager {
+    pub fn make_announcement(&mut self, title: &str, subtitle: &str) {
+        if let UIState::InGameHUD {
+            game_announcement_subtitle,
+            game_announcement_title,
+            ..
+        } = &mut self.ui
+        {
+            game_announcement_title.center_text = true;
+            game_announcement_subtitle.center_text = true;
+            game_announcement_title.set(title, &self.renderer, &mut self.resources);
+            game_announcement_subtitle.set(subtitle, &self.renderer, &mut self.resources);
+        }
+    }
+    pub fn update_voting_announcements(&mut self) {
+        if let UIState::InGameHUD {
+            announcement_state, ..
+        } = &self.ui
+        {
+            match announcement_state {
+                AnnouncementState::VotingInProgress { vote_end_time, .. } => {
+                    self.make_announcement(
+                        "The audience is deciding your fate",
+                        format!(
+                            "They decide in {} seconds",
+                            (*vote_end_time - Instant::now()).as_secs()
+                        )
+                        .as_str(),
+                    );
+                }
+                AnnouncementState::VoteActiveTime {
+                    prompt: _,
+                    decision,
+                    effect_end_time,
+                } => {
+                    let effect_end_time = effect_end_time;
+                    self.make_announcement(
+                        format!("{} was chosen!", decision).as_str(),
+                        format!(
+                            "Effects will last for another {} seconds",
+                            (*effect_end_time - Instant::now()).as_secs()
+                        )
+                        .as_str(),
+                    );
+                }
+                AnnouncementState::None => {}
+            }
+        }
+    }
+
     pub fn update_minimap(&mut self) {
         if let UIState::InGameHUD { minimap_ui, .. } = &mut self.ui {
             // Only update if we actually have entities to map

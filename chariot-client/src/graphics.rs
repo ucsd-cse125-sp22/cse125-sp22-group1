@@ -4,7 +4,6 @@ use chariot_core::player::choices::Track;
 use chariot_core::player::PlayerID;
 use glam::{DVec3, Vec2};
 use std::f64::consts::PI;
-use std::time::Instant;
 
 use crate::drawable::string::StringDrawable;
 use crate::drawable::technique::Technique;
@@ -142,56 +141,6 @@ P tells the server to start the next round",
     pub fn set_loading_text(&mut self, new_text: &str) {
         if let UIState::LoadingScreen { loading_text } = &mut self.ui {
             loading_text.set(new_text, &self.renderer, &mut self.resources);
-        }
-    }
-
-    pub fn make_announcement(&mut self, title: &str, subtitle: &str) {
-        if let UIState::InGameHUD {
-            game_announcement_subtitle,
-            game_announcement_title,
-            ..
-        } = &mut self.ui
-        {
-            game_announcement_title.center_text = true;
-            game_announcement_subtitle.center_text = true;
-            game_announcement_title.set(title, &self.renderer, &mut self.resources);
-            game_announcement_subtitle.set(subtitle, &self.renderer, &mut self.resources);
-        }
-    }
-
-    pub fn update_voting_announcements(&mut self) {
-        if let UIState::InGameHUD {
-            announcement_state, ..
-        } = &self.ui
-        {
-            match announcement_state {
-                AnnouncementState::VotingInProgress { vote_end_time, .. } => {
-                    self.make_announcement(
-                        "The audience is deciding your fate",
-                        format!(
-                            "They decide in {} seconds",
-                            (*vote_end_time - Instant::now()).as_secs()
-                        )
-                        .as_str(),
-                    );
-                }
-                AnnouncementState::VoteActiveTime {
-                    prompt: _,
-                    decision,
-                    effect_end_time,
-                } => {
-                    let effect_end_time = effect_end_time;
-                    self.make_announcement(
-                        format!("{} was chosen!", decision).as_str(),
-                        format!(
-                            "Effects will last for another {} seconds",
-                            (*effect_end_time - Instant::now()).as_secs()
-                        )
-                        .as_str(),
-                    );
-                }
-                AnnouncementState::None => {}
-            }
         }
     }
 
