@@ -7,12 +7,14 @@ use std::f64::consts::PI;
 
 use crate::drawable::string::StringDrawable;
 use crate::drawable::technique::Technique;
-use crate::drawable::technique::UILayerTechnique;
+
 use crate::drawable::*;
 use crate::renderer::*;
 use crate::resources::*;
 use crate::scenegraph::components::*;
 use crate::scenegraph::*;
+use crate::ui_state::AnnouncementState;
+use crate::ui_state::UIState;
 
 pub fn register_passes(renderer: &mut Renderer) {
     renderer.register_pass(
@@ -63,55 +65,16 @@ fn setup_void() -> World {
     world
 }
 
-fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer, map: Track) -> World {
-    let mut world = World::new();
-    world.register::<Camera>();
-    world.register::<Vec<StaticMeshDrawable>>();
-    world.register::<Bounds>();
-    world.register::<Light>();
-    let world_root = world.root();
-
-    {
-        let track_import = resources
-            .import_gltf(renderer, format!("models/{}.glb", map.to_string()))
-            .expect("Unable to load racetrack");
-
-        let _track = world
-            .builder()
-            .attach(world_root)
-            .with(Transform::default())
-            .with(track_import.drawables)
-            .with(track_import.bounds)
-            .build();
-    }
-
-    {
-        let scene_bounds = world.calc_bounds(world.root());
-        let _light = world
-            .builder()
-            .attach(world_root)
-            .with(Light::new_directional(
-                glam::vec3(-0.5, -1.0, 0.5),
-                scene_bounds,
-            ))
-            .with(Transform::default())
-            .build();
-    }
-
-    world
-}
-
 pub struct GraphicsManager {
     pub world: World,
     pub renderer: Renderer,
     pub resources: ResourceManager,
+    pub ui: UIState,
 
-    minimap_ui: UIDrawable,
-    test_string: StringDrawable,
     pub player_num: PlayerID,
     pub player_choices: [Option<PlayerChoices>; 4],
     postprocess: technique::FSQTechnique,
-    player_entities: [Option<Entity>; 4],
+    pub player_entities: [Option<Entity>; 4],
     camera_entity: Entity,
 }
 
@@ -147,53 +110,13 @@ impl GraphicsManager {
             renderer.register_framebuffer("shadow_out1", fb_desc);
         }
 
-        let minimap_map_handle =
-            resources.import_texture(&renderer, "UI/minimap/track_transparent.png");
-        let player_location_handles: Vec<TextureHandle> = [
-            "UI/Map Select/P1Btn.png",
-            "UI/Map Select/P2Btn.png",
-            "UI/Map Select/P3Btn.png",
-            "UI/Map Select/P4Btn.png",
-        ]
-        .iter()
-        .map(|filename| resources.import_texture(&renderer, filename))
-        .collect();
-
-        let minimap_map_texture = resources
-            .textures
-            .get(&minimap_map_handle)
-            .expect("minimap doesn't exist!");
-
-        let mut player_location_markers: Vec<technique::UILayerTechnique> = player_location_handles
-            .iter()
-            .map(|handle| resources.textures.get(&handle).unwrap())
-            .map(|texture| {
-                technique::UILayerTechnique::new(
-                    &renderer,
-                    glam::vec2(0.0, 0.0),
-                    glam::vec2(0.02, 0.02),
-                    glam::vec2(0.0, 0.0),
-                    glam::vec2(1.0, 1.0),
-                    &texture,
-                )
-            })
-            .collect();
-
-        let mut layer_vec = vec![technique::UILayerTechnique::new(
-            &renderer,
-            glam::vec2(0.0, 0.0),
-            glam::vec2(0.2, 0.2),
-            glam::vec2(0.0, 0.0),
-            glam::vec2(1.0, 1.0),
-            &minimap_map_texture,
-        )];
-        layer_vec.append(&mut player_location_markers);
-
-        let minimap_ui = UIDrawable { layers: layer_vec };
-        let mut test_string = StringDrawable::new("ArialMT", 18.0);
-        test_string.set(
-            "chariot - 0.6.10",
-            Vec2::new(0.005, 0.027),
+        let mut loading_text = StringDrawable::new("ArialMT", 28.0, Vec2::new(0.005, 0.047));
+        loading_text.set(
+            "Enter sets your chair to standard
+sets your map vote to track
+; sets your ready status to true
+L sets force_start to true
+P tells the server to start the next round",
             &renderer,
             &mut resources,
         );
@@ -203,18 +126,21 @@ impl GraphicsManager {
         let world = setup_void();
 
         Self {
-            test_string,
             postprocess,
             world,
             renderer,
             resources,
-            minimap_ui,
-
             player_choices: Default::default(),
             player_entities: [None, None, None, None],
-
+            ui: UIState::LoadingScreen { loading_text },
             player_num: 4,
             camera_entity: NULL_ENTITY,
+        }
+    }
+
+    pub fn set_loading_text(&mut self, new_text: &str) {
+        if let UIState::LoadingScreen { loading_text } = &mut self.ui {
+            loading_text.set(new_text, &self.renderer, &mut self.resources);
         }
     }
 
@@ -238,8 +164,50 @@ impl GraphicsManager {
             .build();
     }
 
+    pub fn setup_world(&mut self, map: Track) -> World {
+        let mut world = World::new();
+        world.register::<Camera>();
+        world.register::<Vec<StaticMeshDrawable>>();
+        world.register::<Bounds>();
+        world.register::<Light>();
+        let world_root = world.root();
+
+        {
+            let track_import = self
+                .resources
+                .import_gltf(
+                    &mut self.renderer,
+                    format!("models/{}.glb", map.to_string()),
+                )
+                .expect("Unable to load racetrack");
+
+            let _track = world
+                .builder()
+                .attach(world_root)
+                .with(Transform::default())
+                .with(track_import.drawables)
+                .with(track_import.bounds)
+                .build();
+        }
+
+        {
+            let scene_bounds = world.calc_bounds(world.root());
+            let _light = world
+                .builder()
+                .attach(world_root)
+                .with(Light::new_directional(
+                    glam::vec3(-0.5, -1.0, 0.5),
+                    scene_bounds,
+                ))
+                .with(Transform::default())
+                .build();
+        }
+
+        world
+    }
+
     pub fn load_map(&mut self, map: Track) {
-        self.world = setup_world(&mut self.resources, &mut self.renderer, map);
+        self.world = self.setup_world(map);
 
         [0, 1, 2, 3].map(|player_num| self.add_player(player_num));
     }
@@ -330,54 +298,9 @@ impl GraphicsManager {
         }
     }
 
-    pub fn update_minimap(&mut self) {
-        // Only update if we actually have entities to map
-        if !self.player_entities.iter().all(Option::is_some) {
-            return;
-        }
-
-        // Convert "map units" locations into proportions of minimap size
-        fn get_minimap_player_location(location: (f32, f32)) -> (f32, f32) {
-            // these values are guesses btw
-            const MIN_TRACK_X: f32 = -119.0; // top
-            const MAX_TRACK_X: f32 = 44.0; // bottom
-            const MIN_TRACK_Z: f32 = -48.0; // right
-            const MAX_TRACK_Z: f32 = 119.0; // left
-
-            (
-                (MAX_TRACK_Z - location.1) / (MAX_TRACK_Z - MIN_TRACK_Z),
-                (location.0 - MIN_TRACK_X) / (MAX_TRACK_X - MIN_TRACK_X),
-            )
-        }
-
-        let player_locations = self
-            .player_entities
-            .iter()
-            .map(|player_num| {
-                let location = self
-                    .world
-                    .get::<Transform>(player_num.unwrap())
-                    .unwrap()
-                    .translation;
-                (location.x, location.z)
-            })
-            .map(get_minimap_player_location);
-
-        for (player_index, location) in player_locations.enumerate() {
-            let player_layer = self.minimap_ui.layers.get_mut(player_index + 1).unwrap();
-
-            let raw_verts_data = UILayerTechnique::create_verts_data(
-                Vec2::new(0.2 * location.0, 0.2 * location.1),
-                Vec2::new(0.02, 0.02),
-            );
-            let verts_data: &[u8] = bytemuck::cast_slice(&raw_verts_data);
-
-            self.renderer
-                .write_buffer(&player_layer.vertex_buffer, verts_data);
-        }
-    }
-
     pub fn render(&mut self) {
+        self.update_voting_announcements();
+
         let world_root = self.world.root();
         let root_xform = self
             .world
@@ -493,10 +416,33 @@ impl GraphicsManager {
         let postprocess_graph = self.postprocess.render_item(&self.resources).to_graph();
         render_job.merge_graph_after("forward", postprocess_graph);
 
-        let ui_graph = self.minimap_ui.render_graph(&self.resources);
-        render_job.merge_graph_after("postprocess", ui_graph);
-        let text_graph = self.test_string.render_graph(&self.resources);
-        render_job.merge_graph_after("postprocess", text_graph);
+        match &self.ui {
+            UIState::LoadingScreen { loading_text } => {
+                let text_graph = loading_text.render_graph(&self.resources);
+                render_job.merge_graph_after("postprocess", text_graph);
+            }
+            UIState::InGameHUD {
+                place_position_text,
+                game_announcement_title,
+                game_announcement_subtitle,
+                announcement_state,
+                minimap_ui,
+            } => {
+                let text_graph = place_position_text.render_graph(&self.resources);
+                render_job.merge_graph_after("postprocess", text_graph);
+
+                if let AnnouncementState::None = announcement_state {
+                } else {
+                    let text_graph = game_announcement_title.render_graph(&self.resources);
+                    render_job.merge_graph_after("postprocess", text_graph);
+
+                    let text_graph = game_announcement_subtitle.render_graph(&self.resources);
+                    render_job.merge_graph_after("postprocess", text_graph);
+                }
+                let ui_graph = minimap_ui.render_graph(&self.resources);
+                render_job.merge_graph_after("postprocess", ui_graph);
+            }
+        }
 
         self.renderer.render(&render_job);
     }
