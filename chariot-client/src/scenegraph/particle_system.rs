@@ -211,7 +211,7 @@ impl<const ID: u32> ParticleSystem<ID> {
                 ParticleRotation::RandomAroundAxis(axis) => {
                     let v: f32 = self.rng.next();
                     let rand_angle = v * std::f32::consts::PI;
-                    let rot = glam::Quat::from_axis_angle(axis, rand_angle);
+                    let rot = transform.rotation * glam::Quat::from_axis_angle(axis, rand_angle);
                     world
                         .builder()
                         .attach(attach)
@@ -225,18 +225,21 @@ impl<const ID: u32> ParticleSystem<ID> {
                         .with(Some(drawable))
                         .build()
                 }
-                ParticleRotation::Constant(rot) => world
-                    .builder()
-                    .attach(attach)
-                    .with(RotatedParticle::<ID> {
-                        vel,
-                        pos,
-                        size,
-                        rot,
-                        lifetime: self.lifetime,
-                    })
-                    .with(Some(drawable))
-                    .build(),
+                ParticleRotation::Constant(local_rot) => {
+                    let rot = transform.rotation * local_rot;
+                    world
+                        .builder()
+                        .attach(attach)
+                        .with(RotatedParticle::<ID> {
+                            vel,
+                            pos,
+                            size,
+                            rot,
+                            lifetime: self.lifetime,
+                        })
+                        .with(Some(drawable))
+                        .build()
+                }
             };
         }
     }

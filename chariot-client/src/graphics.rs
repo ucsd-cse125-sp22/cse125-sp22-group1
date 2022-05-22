@@ -131,18 +131,12 @@ impl GraphicsManager {
             ParticleSystemParams {
                 texture_handle: fire_handle,
                 mesh_handle: quad_handle,
-                pos_range: (
-                    fire_offset - glam::Vec3::ONE * 0.2,
-                    fire_offset + glam::Vec3::ONE * 0.2,
-                ),
+                pos_range: (-glam::Vec3::ONE * 0.2, glam::Vec3::ONE * 0.2),
                 size_range: (glam::vec2(0.9, 1.9), glam::vec2(1.1, 2.1)),
                 initial_vel: glam::Vec3::ZERO,
                 spawn_rate: 50.0,
                 lifetime: 1.0,
-                rotation: ParticleRotation::Constant(glam::Quat::from_axis_angle(
-                    glam::Vec3::X,
-                    std::f32::consts::FRAC_PI_2,
-                )),
+                rotation: ParticleRotation::RandomAroundAxis(glam::Vec3::Y),
                 gravity: 0.0,
             },
         );
@@ -365,10 +359,16 @@ impl GraphicsManager {
         let player_transform = *self.world.get::<Transform>(player_entity).unwrap();
         let world_root = self.world.root();
 
+        let fire_rot = glam::Quat::from_axis_angle(glam::Vec3::X, std::f32::consts::FRAC_PI_2);
+        let fire_transform = Transform {
+            translation: glam::Vec3::Z * -3.0,
+            rotation: fire_rot,
+            scale: glam::Vec3::ONE,
+        };
         self.fire_particle_system.spawn(
             &self.renderer,
             &mut self.world,
-            &Transform::default(),
+            &fire_transform,
             player_entity,
             delta_time,
         );
