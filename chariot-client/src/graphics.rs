@@ -81,8 +81,6 @@ pub struct GraphicsManager {
     pub world: World,
     pub renderer: Renderer,
     pub resources: ResourceManager,
-
-    minimap_ui: UIDrawable,
     pub ui: UIState,
 
     pub player_num: PlayerID,
@@ -100,7 +98,7 @@ pub enum UIState {
         game_announcement_title: StringDrawable,
         game_announcement_subtitle: StringDrawable,
         announcement_state: AnnouncementState,
-        // minimap_ui: UIDrawable,
+        minimap_ui: UIDrawable,
     },
 }
 impl fmt::Display for UIState {
@@ -161,49 +159,6 @@ P tells the server to start the next round",
             &renderer,
             &mut resources,
         );
-        let minimap_map_handle =
-            resources.import_texture(&renderer, "UI/minimap/track_transparent.png");
-        let player_location_handles: Vec<TextureHandle> = [
-            "UI/Map Select/P1Btn.png",
-            "UI/Map Select/P2Btn.png",
-            "UI/Map Select/P3Btn.png",
-            "UI/Map Select/P4Btn.png",
-        ]
-        .iter()
-        .map(|filename| resources.import_texture(&renderer, filename))
-        .collect();
-
-        let minimap_map_texture = resources
-            .textures
-            .get(&minimap_map_handle)
-            .expect("minimap doesn't exist!");
-
-        let mut player_location_markers: Vec<technique::UILayerTechnique> = player_location_handles
-            .iter()
-            .map(|handle| resources.textures.get(&handle).unwrap())
-            .map(|texture| {
-                technique::UILayerTechnique::new(
-                    &renderer,
-                    glam::vec2(0.0, 0.0),
-                    glam::vec2(0.02, 0.02),
-                    glam::vec2(0.0, 0.0),
-                    glam::vec2(1.0, 1.0),
-                    &texture,
-                )
-            })
-            .collect();
-
-        let mut layer_vec = vec![technique::UILayerTechnique::new(
-            &renderer,
-            glam::vec2(0.0, 0.0),
-            glam::vec2(0.2, 0.2),
-            glam::vec2(0.0, 0.0),
-            glam::vec2(1.0, 1.0),
-            &minimap_map_texture,
-        )];
-        layer_vec.append(&mut player_location_markers);
-
-        let minimap_ui = UIDrawable { layers: layer_vec };
 
         let postprocess = technique::FSQTechnique::new(&renderer, &resources, "postprocess");
 
@@ -214,7 +169,6 @@ P tells the server to start the next round",
             world,
             renderer,
             resources,
-            minimap_ui,
             player_choices: Default::default(),
             player_entities: [None, None, None, None],
             ui: UIState::LoadingScreen { loading_text },
@@ -372,12 +326,59 @@ P tells the server to start the next round",
             &mut self.resources,
         );
 
-        println!("in game hud");
+        // minimap
+        let minimap_map_handle = self
+            .resources
+            .import_texture(&self.renderer, "UI/minimap/track_transparent.png");
+        let player_location_handles: Vec<TextureHandle> = [
+            "UI/Map Select/P1Btn.png",
+            "UI/Map Select/P2Btn.png",
+            "UI/Map Select/P3Btn.png",
+            "UI/Map Select/P4Btn.png",
+        ]
+        .iter()
+        .map(|filename| self.resources.import_texture(&self.renderer, filename))
+        .collect();
+
+        let minimap_map_texture = self
+            .resources
+            .textures
+            .get(&minimap_map_handle)
+            .expect("minimap doesn't exist!");
+
+        let mut player_location_markers: Vec<technique::UILayerTechnique> = player_location_handles
+            .iter()
+            .map(|handle| self.resources.textures.get(&handle).unwrap())
+            .map(|texture| {
+                technique::UILayerTechnique::new(
+                    &self.renderer,
+                    glam::vec2(0.0, 0.0),
+                    glam::vec2(0.02, 0.02),
+                    glam::vec2(0.0, 0.0),
+                    glam::vec2(1.0, 1.0),
+                    &texture,
+                )
+            })
+            .collect();
+
+        let mut layer_vec = vec![technique::UILayerTechnique::new(
+            &self.renderer,
+            glam::vec2(0.0, 0.0),
+            glam::vec2(0.2, 0.2),
+            glam::vec2(0.0, 0.0),
+            glam::vec2(1.0, 1.0),
+            &minimap_map_texture,
+        )];
+        layer_vec.append(&mut player_location_markers);
+
+        let minimap_ui = UIDrawable { layers: layer_vec };
+
         self.ui = UIState::InGameHUD {
             place_position_text,
             game_announcement_title,
             game_announcement_subtitle,
             announcement_state: AnnouncementState::None,
+            minimap_ui,
         }
     }
 
@@ -425,49 +426,51 @@ P tells the server to start the next round",
     }
 
     pub fn update_minimap(&mut self) {
-        // Only update if we actually have entities to map
-        if !self.player_entities.iter().all(Option::is_some) {
-            return;
-        }
+        if let UIState::InGameHUD { minimap_ui, .. } = &mut self.ui {
+            // Only update if we actually have entities to map
+            if !self.player_entities.iter().all(Option::is_some) {
+                return;
+            }
 
-        // Convert "map units" locations into proportions of minimap size
-        fn get_minimap_player_location(location: (f32, f32)) -> (f32, f32) {
-            // these values are guesses btw
-            const MIN_TRACK_X: f32 = -119.0; // top
-            const MAX_TRACK_X: f32 = 44.0; // bottom
-            const MIN_TRACK_Z: f32 = -48.0; // right
-            const MAX_TRACK_Z: f32 = 119.0; // left
+            // Convert "map units" locations into proportions of minimap size
+            fn get_minimap_player_location(location: (f32, f32)) -> (f32, f32) {
+                // these values are guesses btw
+                const MIN_TRACK_X: f32 = -119.0; // top
+                const MAX_TRACK_X: f32 = 44.0; // bottom
+                const MIN_TRACK_Z: f32 = -48.0; // right
+                const MAX_TRACK_Z: f32 = 119.0; // left
 
-            (
-                (MAX_TRACK_Z - location.1) / (MAX_TRACK_Z - MIN_TRACK_Z),
-                (location.0 - MIN_TRACK_X) / (MAX_TRACK_X - MIN_TRACK_X),
-            )
-        }
+                (
+                    (MAX_TRACK_Z - location.1) / (MAX_TRACK_Z - MIN_TRACK_Z),
+                    (location.0 - MIN_TRACK_X) / (MAX_TRACK_X - MIN_TRACK_X),
+                )
+            }
 
-        let player_locations = self
-            .player_entities
-            .iter()
-            .map(|player_num| {
-                let location = self
-                    .world
-                    .get::<Transform>(player_num.unwrap())
-                    .unwrap()
-                    .translation;
-                (location.x, location.z)
-            })
-            .map(get_minimap_player_location);
+            let player_locations = self
+                .player_entities
+                .iter()
+                .map(|player_num| {
+                    let location = self
+                        .world
+                        .get::<Transform>(player_num.unwrap())
+                        .unwrap()
+                        .translation;
+                    (location.x, location.z)
+                })
+                .map(get_minimap_player_location);
 
-        for (player_index, location) in player_locations.enumerate() {
-            let player_layer = self.minimap_ui.layers.get_mut(player_index + 1).unwrap();
+            for (player_index, location) in player_locations.enumerate() {
+                let player_layer = minimap_ui.layers.get_mut(player_index + 1).unwrap();
 
-            let raw_verts_data = UILayerTechnique::create_verts_data(
-                Vec2::new(0.2 * location.0, 0.2 * location.1),
-                Vec2::new(0.02, 0.02),
-            );
-            let verts_data: &[u8] = bytemuck::cast_slice(&raw_verts_data);
+                let raw_verts_data = UILayerTechnique::create_verts_data(
+                    Vec2::new(0.2 * location.0, 0.2 * location.1),
+                    Vec2::new(0.02, 0.02),
+                );
+                let verts_data: &[u8] = bytemuck::cast_slice(&raw_verts_data);
 
-            self.renderer
-                .write_buffer(&player_layer.vertex_buffer, verts_data);
+                self.renderer
+                    .write_buffer(&player_layer.vertex_buffer, verts_data);
+            }
         }
     }
 
@@ -599,6 +602,7 @@ P tells the server to start the next round",
                 game_announcement_title,
                 game_announcement_subtitle,
                 announcement_state,
+                minimap_ui,
             } => {
                 if place_position_text.should_draw {
                     let text_graph = place_position_text.render_graph(&self.resources);
@@ -615,7 +619,7 @@ P tells the server to start the next round",
                         render_job.merge_graph_after("postprocess", text_graph);
                     }
                 }
-                let ui_graph = self.minimap_ui.render_graph(&self.resources);
+                let ui_graph = minimap_ui.render_graph(&self.resources);
                 render_job.merge_graph_after("postprocess", ui_graph);
             }
         }
