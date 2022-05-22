@@ -1,5 +1,5 @@
 {
 	"editor.insertSpaces": false,
 	"editor.detectIndentation": false,
-	"editor.formatOnSave": true
+	"editor.formatOnSave": true,
 }

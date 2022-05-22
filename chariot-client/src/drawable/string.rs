@@ -8,13 +8,17 @@ use glam::Vec2;
 pub struct StringDrawable {
     ui_drawable: UIDrawable,
     glyph_cache: GlyphCache,
+    pub screen_position: Vec2,
+    pub center_text: bool,
 }
 
 impl StringDrawable {
-    pub fn new(font_name: &str, point_size: f32) -> StringDrawable {
+    pub fn new(font_name: &str, point_size: f32, screen_position: Vec2) -> StringDrawable {
         StringDrawable {
             ui_drawable: UIDrawable { layers: vec![] },
             glyph_cache: GlyphCache::new(font_name, point_size),
+            screen_position,
+            center_text: false,
         }
     }
 
@@ -23,10 +27,18 @@ impl StringDrawable {
     pub fn set(
         &mut self,
         content: &str,
-        mut screen_pos: Vec2,
         renderer: &Renderer,
         resource_manager: &mut ResourceManager,
     ) {
+        let mut screen_pos = self.screen_position.clone();
+
+        if self.center_text {
+            // to center the screen position:
+            let letter_width = 11.0 / 741.0;
+            let word_width: f32 = content.len() as f32 * letter_width;
+            screen_pos[0] -= word_width / 2.0;
+        }
+
         // get UILayerTechniques for each glyph
         let layers: Vec<UILayerTechnique> = content
             .chars()

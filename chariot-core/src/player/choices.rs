@@ -17,7 +17,7 @@ pub enum Chair {
 impl fmt::Display for Chair {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let printable = match *self {
-            Chair::Standard => "standard",
+            Chair::Standard => "swivel",
         };
         write!(f, "{}", printable)
     }
