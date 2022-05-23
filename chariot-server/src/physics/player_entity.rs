@@ -145,13 +145,13 @@ impl PlayerEntity {
         let acceleration = self_forces / self.stat(Stat::Mass);
 
         let angular_velocity: f64 = match self.player_inputs.rotation_status {
-            RotationStatus::InSpinClockwise => f64::min(
-                self.stat(Stat::MaxCarSpin),
-                self.angular_velocity + self.stat(Stat::CarSpin),
+            RotationStatus::InSpinClockwise(modifier) => f64::min(
+                modifier as f64 * self.stat(Stat::MaxCarSpin),
+                self.angular_velocity + modifier as f64 * self.stat(Stat::CarSpin),
             ),
-            RotationStatus::InSpinCounterclockwise => f64::max(
-                -self.stat(Stat::MaxCarSpin),
-                self.angular_velocity - self.stat(Stat::CarSpin),
+            RotationStatus::InSpinCounterclockwise(modifier) => f64::max(
+                -modifier as f64 * self.stat(Stat::MaxCarSpin),
+                self.angular_velocity - modifier as f64 * self.stat(Stat::CarSpin),
             ),
             RotationStatus::NotInSpin => {
                 self.angular_velocity * self.stat(Stat::RotationReductionCoefficient)
@@ -288,7 +288,7 @@ impl PlayerEntity {
             // is directionless, so the force of braking applies in a different
             // direction: specifically, it acts against whatever the current
             // direction of travel is. (which is not the steering direction!)
-            EngineStatus::Accelerating => {
+            EngineStatus::Accelerating(_modifier) => {
                 return self.entity_location.unit_steer_direction
                     * self.stat(Stat::Mass)
                     * self.stat(Stat::CarAccelerator);
@@ -334,7 +334,7 @@ impl PlayerEntity {
                 PhysicsChangeType::NoTurningRight => {
                     if matches!(
                         self.player_inputs.rotation_status,
-                        RotationStatus::InSpinClockwise
+                        RotationStatus::InSpinClockwise { .. }
                     ) {
                         self.player_inputs.rotation_status = RotationStatus::NotInSpin;
                         self.angular_velocity -= self.stat(Stat::CarSpin);
@@ -343,7 +343,7 @@ impl PlayerEntity {
                 PhysicsChangeType::NoTurningLeft => {
                     if matches!(
                         self.player_inputs.rotation_status,
-                        RotationStatus::InSpinCounterclockwise
+                        RotationStatus::InSpinCounterclockwise { .. }
                     ) {
                         self.player_inputs.rotation_status = RotationStatus::NotInSpin;
                         self.angular_velocity += self.stat(Stat::CarSpin);
@@ -354,13 +354,15 @@ impl PlayerEntity {
                 }
                 PhysicsChangeType::InSpainButTheAIsSilent => {
                     match self.player_inputs.rotation_status {
-                        RotationStatus::InSpinClockwise => {}
+                        RotationStatus::InSpinClockwise { .. } => {}
                         RotationStatus::NotInSpin => {
-                            self.player_inputs.rotation_status = RotationStatus::InSpinClockwise;
+                            self.player_inputs.rotation_status =
+                                RotationStatus::InSpinClockwise(1.0);
                             self.angular_velocity += self.stat(Stat::CarSpin);
                         }
-                        RotationStatus::InSpinCounterclockwise => {
-                            self.player_inputs.rotation_status = RotationStatus::InSpinClockwise;
+                        RotationStatus::InSpinCounterclockwise(modifier) => {
+                            self.player_inputs.rotation_status =
+                                RotationStatus::InSpinClockwise(modifier);
                             self.angular_velocity += 2.0 * self.stat(Stat::CarSpin);
                         }
                     }

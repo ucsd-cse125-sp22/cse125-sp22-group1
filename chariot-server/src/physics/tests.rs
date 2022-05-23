@@ -16,7 +16,7 @@ use crate::physics::player_entity::PlayerEntity;
 fn get_starting_player_props() -> PlayerEntity {
     PlayerEntity {
         player_inputs: PlayerInputs {
-            engine_status: EngineStatus::Accelerating,
+            engine_status: EngineStatus::Accelerating(1.0),
             rotation_status: RotationStatus::NotInSpin,
         },
 
@@ -143,7 +143,7 @@ fn test_decelerating() {
 fn test_spinning() {
     let mut props = get_starting_player_props();
     props.velocity = DVec3::ZERO;
-    props.player_inputs.rotation_status = RotationStatus::InSpinClockwise;
+    props.player_inputs.rotation_status = RotationStatus::InSpinClockwise(1.0);
     props = props.do_physics_step(1.0, Vec::new(), Vec::new(), std::iter::empty());
 
     assert_eq!(props.angular_velocity, GLOBAL_CONFIG.car_spin);
