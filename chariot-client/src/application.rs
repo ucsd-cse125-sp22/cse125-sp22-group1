@@ -331,13 +331,9 @@ impl Application {
                     /***** CONTROLS *****/
                     // Accelerator
                     Button::RightTrigger2 if value > 0.0 => {
-                        println!("New gamepad event: {:?}", event);
                         Some(InputEvent::Engine(EngineStatus::Accelerating(value)))
                     }
-                    Button::RightTrigger2 => {
-                        println!("New gamepad event: {:?}", event);
-                        Some(InputEvent::Engine(EngineStatus::Neutral))
-                    }
+                    Button::RightTrigger2 => Some(InputEvent::Engine(EngineStatus::Neutral)),
                     // Brake
                     Button::LeftTrigger2 => None,
 
@@ -392,16 +388,12 @@ impl Application {
                 /***** MOVEMENT *****/
                 // Turn right
                 Axis::LeftStickX if value > 0.0 => {
-                    println!("New gamepad event: {:?}", event);
                     Some(InputEvent::Rotation(RotationStatus::InSpinClockwise(value)))
                 }
                 // Turn left
-                Axis::LeftStickX if value < 0.0 => {
-                    println!("New gamepad event: {:?}", event);
-                    Some(InputEvent::Rotation(
-                        RotationStatus::InSpinCounterclockwise(-value),
-                    ))
-                }
+                Axis::LeftStickX if value < 0.0 => Some(InputEvent::Rotation(
+                    RotationStatus::InSpinCounterclockwise(-value),
+                )),
                 // No turn
                 Axis::LeftStickX => Some(InputEvent::Rotation(RotationStatus::NotInSpin)),
 
