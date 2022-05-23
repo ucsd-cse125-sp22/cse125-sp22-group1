@@ -75,7 +75,7 @@ impl GameServer {
                     player_choices: Default::default(),
                 },
                 players: [0, 1, 2, 3]
-                    .map(|num| get_player_start_physics_properties(&Chair::Standard, num)),
+                    .map(|num| get_player_start_physics_properties(&Chair::Swivel, num)),
                 map: None,
             },
         }

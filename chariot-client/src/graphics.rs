@@ -1,4 +1,5 @@
 use chariot_core::entity_location::EntityLocation;
+use chariot_core::player::choices::Chair;
 use chariot_core::player::choices::PlayerChoices;
 use chariot_core::player::choices::Track;
 use chariot_core::player::PlayerID;
@@ -112,11 +113,7 @@ impl GraphicsManager {
 
         let mut loading_text = StringDrawable::new("ArialMT", 28.0, Vec2::new(0.005, 0.047));
         loading_text.set(
-            "Enter sets your chair to standard
-sets your map vote to track
-; sets your ready status to true
-L sets force_start to true
-P tells the server to start the next round",
+            "Enter sets your chair to standardsets your map vote to track; sets your ready status to trueL sets force_start to trueP tells the server to start the next round",
             &renderer,
             &mut resources,
         );
@@ -221,7 +218,7 @@ P tells the server to start the next round",
             .resources
             .import_gltf(
                 &mut self.renderer,
-                format!("models/{}.glb", choices.chair).to_string(),
+                format!("models/{}.glb", choices.chair.file()).to_string(),
             )
             .expect("Failed to import chair");
 
@@ -270,30 +267,82 @@ P tells the server to start the next round",
             .world
             .get_mut::<Transform>(player_entity)
             .expect("Trying to update player location when transform does not exist");
-        *player_transform = Transform::from_entity_location(&location, player_transform.scale);
+        let new_player_transform =
+            Transform::from_entity_location(&location, player_transform.scale);
+        *player_transform = new_player_transform;
 
-        // if this player is the main player, update the camera too (based on velocity)
-        if player_entity == self.camera_entity && *velocity != DVec3::ZERO {
-            if let Some(camera) = self.world.get_mut::<Camera>(self.camera_entity) {
-                // first we have to compensate for the rotation of the chair model
-                let rotation_angle = location.unit_steer_direction.angle_between(DVec3::X);
-                // next, we add the angle of the direction of the velocity
-                let velocity_angle =
-                    DVec3::new(velocity.x, 0.0, velocity.z).angle_between(DVec3::X);
-
-                // there's actually some magic trig cancellations happening here that simplify this calculation
-                let mut orbit_yaw = velocity.z.signum() * velocity_angle
-                    - location.unit_steer_direction.z.signum() * rotation_angle;
-
-                // if the yaw change would be bigger than PI, wrap back around
-                let yaw_difference = orbit_yaw - camera.orbit_angle.x as f64;
-                if yaw_difference.abs() > PI {
-                    orbit_yaw += yaw_difference.signum() * 2.0 * PI;
+        // If we are moving, we might need to rotate the model
+        if velocity.length() > 0.0 {
+            if let Some(Chair::Beanbag) = self.player_choices[player_num].as_ref().map(|c| c.chair)
+            {
+                for drawable in self
+                    .world
+                    .get_mut::<Vec<StaticMeshDrawable>>(player_entity)
+                    .unwrap()
+                    .iter_mut()
+                {
+                    // We need an axis and angle of orientation
+                    // Axis is what we spin on
+                    // Angle is how far we spin
+                    // If we are moving towards velocity, we want to spin "downward" towards it
+                    // Thus, the axis is the "right-left" of velocity
+                    // This is what we get here
+                    let axis = velocity.as_vec3().cross(glam::Vec3::Y).normalize();
+                    drawable.modifiers.rotation = Some(
+                        glam::Quat::from_axis_angle(
+                            axis,
+                            // For the angle, we want to move the velocity's length
+                            // But we could go either + or - that amount
+                            // We want to go "towards the ground"
+                            // So we figure out if the angle between velocity and the Y axis is + or -
+                            // And then go from there!
+                            -(axis.angle_between(-glam::Vec3::Y)).signum()
+                                * velocity.length() as f32,
+                        )
+                        .normalize()
+                        .mul_quat(drawable.modifiers.rotation.unwrap_or_default()),
+                    );
                 }
+            }
+        }
 
-                // set the new orbit angle complete with magic pitch for now
-                camera.orbit_angle =
-                    Vec2::new(orbit_yaw as f32, -0.3).lerp(camera.orbit_angle, 0.5);
+        if player_entity == self.camera_entity {
+            if let Some(camera) = self.world.get_mut::<Camera>(self.camera_entity) {
+                match self.player_choices[player_num]
+                    .as_ref()
+                    .unwrap()
+                    .clone()
+                    .chair
+                    .cam()
+                {
+                    chariot_core::player::choices::CameraType::FaceForwards => {
+                        camera.orbit_angle = Vec2::new(0.0, -0.3).lerp(camera.orbit_angle, 0.5);
+                    }
+                    chariot_core::player::choices::CameraType::FaceVelocity => {
+                        if *velocity != DVec3::ZERO {
+                            // first we have to compensate for the rotation of the chair model
+                            let rotation_angle =
+                                location.unit_steer_direction.angle_between(DVec3::X);
+                            // next, we add the angle of the direction of the velocity
+                            let velocity_angle =
+                                DVec3::new(velocity.x, 0.0, velocity.z).angle_between(DVec3::X);
+
+                            // there's actually some magic trig cancellations happening here that simplify this calculation
+                            let mut orbit_yaw = velocity.z.signum() * velocity_angle
+                                - location.unit_steer_direction.z.signum() * rotation_angle;
+
+                            // if the yaw change would be bigger than PI, wrap back around
+                            let yaw_difference = orbit_yaw - camera.orbit_angle.x as f64;
+                            if yaw_difference.abs() > PI {
+                                orbit_yaw += yaw_difference.signum() * 2.0 * PI;
+                            }
+
+                            // set the new orbit angle complete with magic pitch for now
+                            camera.orbit_angle =
+                                Vec2::new(orbit_yaw as f32, -0.3).lerp(camera.orbit_angle, 0.5);
+                        }
+                    }
+                };
             }
         }
     }
@@ -385,17 +434,38 @@ P tells the server to start the next round",
             .map(|l| l.calc_view_proj(&view_bounds))
             .collect();
 
+        let default_translation = Transform::default();
         let mut render_job = render_job::RenderJob::default();
         self.world.dfs_acc(self.world.root(), root_xform, |e, acc| {
-            let cur_model = self
+            let cur_transform = self
                 .world
                 .get::<Transform>(e)
-                .unwrap_or(&Transform::default())
-                .to_mat4();
+                .unwrap_or(&default_translation);
+            let cur_model = cur_transform.to_mat4();
             let acc_model = *acc * cur_model;
 
             if let Some(drawables) = self.world.get::<Vec<StaticMeshDrawable>>(e) {
                 for drawable in drawables.iter() {
+                    let mut acc_model = acc_model;
+
+                    if drawable.modifiers.absolute_angle {
+                        acc_model = *acc
+                            * Transform {
+                                translation: cur_transform.translation,
+                                rotation: glam::Quat::IDENTITY,
+                                scale: cur_transform.scale,
+                            }
+                            .to_mat4();
+                    } else if let Some(rotation) = drawable.modifiers.rotation {
+                        acc_model = *acc
+                            * Transform {
+                                translation: cur_transform.translation,
+                                rotation: rotation,
+                                scale: cur_transform.scale,
+                            }
+                            .to_mat4();
+                    }
+
                     drawable.update_xforms(&self.renderer, proj, view, acc_model);
                     drawable.update_lights(&self.renderer, acc_model, &lights);
                     let render_graph = drawable.render_graph(&self.resources);
