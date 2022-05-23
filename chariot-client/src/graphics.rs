@@ -13,6 +13,7 @@ use crate::renderer::*;
 use crate::resources::*;
 use crate::scenegraph::components::*;
 use crate::scenegraph::*;
+use crate::ui::ui_region::UIRegion;
 use crate::ui_state::AnnouncementState;
 use crate::ui_state::UIState;
 
@@ -70,6 +71,7 @@ pub struct GraphicsManager {
     pub renderer: Renderer,
     pub resources: ResourceManager,
     pub ui: UIState,
+    pub ui_regions: Vec<UIRegion>,
     pub player_num: PlayerID,
     pub player_choices: [Option<PlayerChoices>; 4],
     postprocess: technique::FSQTechnique,
@@ -114,6 +116,7 @@ impl GraphicsManager {
         let world = setup_void();
 
         Self {
+            ui_regions: vec![],
             postprocess,
             world,
             renderer,

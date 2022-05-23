@@ -28,19 +28,23 @@ impl Application {
     pub fn new(mut graphics_manager: GraphicsManager) -> Self {
         let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
         let game = GameClient::new(ip_addr);
-        let ui_regions = graphics_manager.display_main_menu();
+        graphics_manager.display_main_menu();
 
         Self {
             graphics: graphics_manager,
             game,
             pressed_keys: HashSet::new(),
             mouse_pos: PhysicalPosition::<f64> { x: -1.0, y: -1.0 },
-            ui_regions,
+            ui_regions: vec![],
         }
     }
 
     pub fn render(&mut self) {
         self.graphics.render();
+        let ui_regions = self.graphics.get_ui_regions();
+        if ui_regions.len() > 0 {
+            self.ui_regions = ui_regions;
+        }
     }
 
     pub fn update(&mut self) {
@@ -279,7 +283,8 @@ impl Application {
         self.mouse_pos.x = x;
         self.mouse_pos.y = y;
 
-        self.ui_regions
+        let regions = &mut self.ui_regions;
+        regions
             .iter_mut()
             .for_each(|reg| reg.set_hovering(x, y, &mut self.graphics, &mut self.game));
     }
