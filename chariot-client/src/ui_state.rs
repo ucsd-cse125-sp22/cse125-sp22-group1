@@ -193,10 +193,10 @@ impl GraphicsManager {
         self.ui = UIState::MainMenu { background };
         // join lobby button
         let mut join_lobby_button = UIRegion::new(472.0, 452.0, 336.0, 87.0);
-        join_lobby_button.on_enter(|| println!("region entered"));
-        join_lobby_button.on_exit(|| println!("region exited"));
-        join_lobby_button.on_click(|| println!("region clicked"));
-        join_lobby_button.on_release(|| println!("region released"));
+        join_lobby_button.on_enter(|_| println!("region entered"));
+        join_lobby_button.on_exit(|_| println!("region exited"));
+        join_lobby_button.on_click(|this| this.display_chairacter_select());
+        join_lobby_button.on_release(|_| println!("region released"));
 
         vec![join_lobby_button]
     }

@@ -251,7 +251,7 @@ impl Application {
 
         self.ui_regions
             .iter_mut()
-            .for_each(|reg| reg.set_hovering(x, y));
+            .for_each(|reg| reg.set_hovering(x, y, &mut self.graphics));
     }
 
     pub fn on_left_mouse(&mut self, state: ElementState) {
@@ -262,11 +262,11 @@ impl Application {
             ElementState::Pressed => self
                 .ui_regions
                 .iter_mut()
-                .for_each(|reg| reg.set_active(x, y)),
+                .for_each(|reg| reg.set_active(x, y, &mut self.graphics)),
             ElementState::Released => self
                 .ui_regions
                 .iter_mut()
-                .for_each(|reg| reg.set_inactive()),
+                .for_each(|reg| reg.set_inactive(&mut self.graphics)),
         }
     }
 

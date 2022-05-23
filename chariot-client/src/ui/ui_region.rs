@@ -1,3 +1,5 @@
+use crate::graphics::GraphicsManager;
+
 pub struct UIRegion {
     x0: f64,
     y0: f64,
@@ -5,10 +7,10 @@ pub struct UIRegion {
     y1: f64,
     is_hovering: bool,
     is_active: bool,
-    on_enter_listeners: Vec<Box<dyn FnMut() -> ()>>,
-    on_exit_listeners: Vec<Box<dyn FnMut() -> ()>>,
-    on_click_listeners: Vec<Box<dyn FnMut() -> ()>>,
-    on_release_listeners: Vec<Box<dyn FnMut() -> ()>>,
+    on_enter_listeners: Vec<Box<dyn FnMut(&mut GraphicsManager) -> ()>>,
+    on_exit_listeners: Vec<Box<dyn FnMut(&mut GraphicsManager) -> ()>>,
+    on_click_listeners: Vec<Box<dyn FnMut(&mut GraphicsManager) -> ()>>,
+    on_release_listeners: Vec<Box<dyn FnMut(&mut GraphicsManager) -> ()>>,
 }
 
 impl UIRegion {
@@ -29,31 +31,31 @@ impl UIRegion {
     }
 
     #[inline]
-    fn execute_on_enter(&mut self) {
+    fn execute_on_enter(&mut self, graphics: &mut GraphicsManager) {
         self.on_enter_listeners
             .iter_mut()
-            .for_each(|boxed| (**boxed)());
+            .for_each(|boxed| (**boxed)(graphics));
     }
 
     #[inline]
-    fn execute_on_exit(&mut self) {
+    fn execute_on_exit(&mut self, graphics: &mut GraphicsManager) {
         self.on_exit_listeners
             .iter_mut()
-            .for_each(|boxed| (**boxed)());
+            .for_each(|boxed| (**boxed)(graphics));
     }
 
     #[inline]
-    fn execute_on_click(&mut self) {
+    fn execute_on_click(&mut self, graphics: &mut GraphicsManager) {
         self.on_click_listeners
             .iter_mut()
-            .for_each(|boxed| (**boxed)());
+            .for_each(|boxed| (**boxed)(graphics));
     }
 
     #[inline]
-    fn execute_on_release(&mut self) {
+    fn execute_on_release(&mut self, graphics: &mut GraphicsManager) {
         self.on_release_listeners
             .iter_mut()
-            .for_each(|boxed| (**boxed)());
+            .for_each(|boxed| (**boxed)(graphics));
     }
 
     #[inline]
@@ -61,48 +63,48 @@ impl UIRegion {
         x >= self.x0 && x <= self.x1 && y >= self.y0 && y <= self.y1
     }
 
-    pub fn set_hovering(&mut self, x: f64, y: f64) {
+    pub fn set_hovering(&mut self, x: f64, y: f64, graphics: &mut GraphicsManager) {
         let is_hovering = self.is_inside(x, y);
 
         if is_hovering == true && self.is_hovering == false {
-            self.execute_on_enter();
+            self.execute_on_enter(graphics);
         } else if is_hovering == false && self.is_hovering == true {
-            self.execute_on_exit();
+            self.execute_on_exit(graphics);
         }
         self.is_hovering = is_hovering;
     }
 
-    pub fn set_active(&mut self, x: f64, y: f64) {
+    pub fn set_active(&mut self, x: f64, y: f64, graphics: &mut GraphicsManager) {
         if !self.is_inside(x, y) {
             return;
         }
 
         self.is_active = true;
-        self.execute_on_click();
+        self.execute_on_click(graphics);
     }
 
-    pub fn set_inactive(&mut self) {
+    pub fn set_inactive(&mut self, graphics: &mut GraphicsManager) {
         if !self.is_active {
             return;
         }
 
         self.is_active = false;
-        self.execute_on_release();
+        self.execute_on_release(graphics);
     }
 
-    pub fn on_enter<F: 'static + FnMut() -> ()>(&mut self, closure: F) {
+    pub fn on_enter<F: 'static + FnMut(&mut GraphicsManager) -> ()>(&mut self, closure: F) {
         self.on_enter_listeners.push(Box::new(closure));
     }
 
-    pub fn on_exit<F: 'static + FnMut() -> ()>(&mut self, closure: F) {
+    pub fn on_exit<F: 'static + FnMut(&mut GraphicsManager) -> ()>(&mut self, closure: F) {
         self.on_exit_listeners.push(Box::new(closure));
     }
 
-    pub fn on_click<F: 'static + FnMut() -> ()>(&mut self, closure: F) {
+    pub fn on_click<F: 'static + FnMut(&mut GraphicsManager) -> ()>(&mut self, closure: F) {
         self.on_click_listeners.push(Box::new(closure));
     }
 
-    pub fn on_release<F: 'static + FnMut() -> ()>(&mut self, closure: F) {
+    pub fn on_release<F: 'static + FnMut(&mut GraphicsManager) -> ()>(&mut self, closure: F) {
         self.on_release_listeners.push(Box::new(closure));
     }
 }
