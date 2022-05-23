@@ -1,6 +1,9 @@
+use std::collections::HashMap;
+
 use crate::game::powerup::PowerUp;
 use crate::physics::bounding_box::BoundingBox;
 use chariot_core::entity_location::EntityLocation;
+use chariot_core::player::choices::{Chair, Stat};
 use chariot_core::player::{
     lap_info::LapInformation,
     physics_changes::{PhysicsChange, PhysicsChangeType},
@@ -19,7 +22,6 @@ pub struct PlayerEntity {
     pub velocity: DVec3,
     pub angular_velocity: f64, // in radians per time unit
 
-    pub mass: f64,
     pub size: DVec3,
     pub bounding_box: BoundingBox,
 
@@ -33,6 +35,8 @@ pub struct PlayerEntity {
     pub lap_info: LapInformation,
 
     pub current_powerup: Option<PowerUp>,
+    pub chair: Chair,
+    pub stat_modifiers: HashMap<Stat, f64>,
 }
 
 impl PlayerEntity {
@@ -98,8 +102,8 @@ impl PlayerEntity {
 
         let v1 = self.velocity;
         let v2 = other.velocity;
-        let m1 = self.mass;
-        let m2 = other.mass;
+        let m1 = self.stat(Stat::Mass);
+        let m2 = self.stat(Stat::Mass);
         let x1 = self.entity_location.position;
         let x2 = other.entity_location.position;
 
@@ -109,6 +113,23 @@ impl PlayerEntity {
 
         let result = term1 * term2 * term3;
         return DVec3::new(result.x, 0.0, result.z);
+    }
+
+    pub fn get_stat_modifier(&self, name: Stat) -> f64 {
+        *self.stat_modifiers.get(&name).unwrap_or(&1.0)
+    }
+
+    pub fn _mod_stat_modifier(&mut self, name: Stat, value: f64) {
+        self.stat_modifiers
+            .insert(name, self.get_stat_modifier(name) * value);
+    }
+
+    pub fn _reset_stat_modifier(&mut self, name: Stat) {
+        self.stat_modifiers.remove(&name);
+    }
+
+    pub fn stat(&self, name: Stat) -> f64 {
+        self.get_stat_modifier(name) * self.chair.stat(&name)
     }
 
     /* Given a set of physical properties, compute and return what next tick's
@@ -121,19 +142,19 @@ impl PlayerEntity {
         potential_triggers: impl Iterator<Item = &'a mut dyn TriggerEntity>,
     ) -> PlayerEntity {
         let self_forces = self.sum_of_self_forces();
-        let acceleration = self_forces / self.mass;
+        let acceleration = self_forces / self.stat(Stat::Mass);
 
         let angular_velocity: f64 = match self.player_inputs.rotation_status {
             RotationStatus::InSpinClockwise => f64::min(
-                GLOBAL_CONFIG.max_car_spin,
-                self.angular_velocity + GLOBAL_CONFIG.car_spin,
+                self.stat(Stat::MaxCarSpin),
+                self.angular_velocity + self.stat(Stat::CarSpin),
             ),
             RotationStatus::InSpinCounterclockwise => f64::max(
-                -GLOBAL_CONFIG.max_car_spin,
-                self.angular_velocity - GLOBAL_CONFIG.car_spin,
+                -self.stat(Stat::MaxCarSpin),
+                self.angular_velocity - self.stat(Stat::CarSpin),
             ),
             RotationStatus::NotInSpin => {
-                self.angular_velocity * GLOBAL_CONFIG.rotation_reduction_coefficient
+                self.angular_velocity * self.stat(Stat::RotationReductionCoefficient)
             }
         };
 
@@ -152,10 +173,24 @@ impl PlayerEntity {
         terrain_with_collisions.retain(|terrain| self.bounding_box.is_colliding(terrain));
         let collision_terrain_is_new = terrain_with_collisions != self.current_colliders;
 
+        // Make sure we aren't too fast/slow, but BEFORE we bounce off walls (which can be fast intentionally)
+        let mut new_velocity = self.velocity + delta_velocity;
+        if new_velocity.length() > self.stat(Stat::MaxCarSpeed) {
+            new_velocity = new_velocity.normalize() * self.stat(Stat::MaxCarSpeed);
+        } else if new_velocity.length() < 0.0005 {
+            new_velocity = DVec3::ZERO;
+        } else if new_velocity.dot(self.velocity) < 0.0 {
+            // If we are trying to reverse direction and are braking, we should just stop isntead
+            if let EngineStatus::Braking = self.player_inputs.engine_status {
+                new_velocity = DVec3::ZERO;
+            }
+        }
+
         // We only react to colliding with a set of objects if we aren't already
         // colliding with them (otherwise, it's super easy to get stuck inside
         // an object)
         if collision_terrain_is_new {
+            let multiplier = -(1.0 + GLOBAL_CONFIG.wall_bounciness);
             for terrain in &terrain_with_collisions {
                 // We want to "reflect" off of objects: this means negating the
                 // x component of velocity if hitting a face parallel to the
@@ -163,30 +198,17 @@ impl PlayerEntity {
                 if self.entity_location.position.x >= terrain.min_x
                     && self.entity_location.position.x <= terrain.max_x
                 {
-                    delta_velocity.z += -2.0 * self.velocity.z;
+                    new_velocity.z += multiplier * self.velocity.z;
                 } else {
-                    delta_velocity.x += -2.0 * self.velocity.x;
+                    new_velocity.x += multiplier * self.velocity.x;
                 }
             }
         }
 
-        let mut new_velocity = self.velocity + delta_velocity;
-        if new_velocity.length() > GLOBAL_CONFIG.max_car_speed {
-            new_velocity = new_velocity.normalize() * GLOBAL_CONFIG.max_car_speed;
-        } else if new_velocity.length() < 0.05 {
-            new_velocity = DVec3::ZERO;
-        }
-
-        let new_steer_direction =
-		// we want to instantly snap to the new direction if bouncing off an object (otherwise is confusing)
-		if collision_terrain_is_new {
-			new_velocity.normalize()
-		} else {
-			rotation_matrix
-				.mul_vec3(self.entity_location.unit_steer_direction.as_vec3())
-				.normalize()
-				.as_dvec3()
-		};
+        let new_steer_direction = rotation_matrix
+            .mul_vec3(self.entity_location.unit_steer_direction.as_vec3())
+            .normalize()
+            .as_dvec3();
 
         let mut new_player = PlayerEntity {
             player_inputs: PlayerInputs {
@@ -204,12 +226,13 @@ impl PlayerEntity {
 
             velocity: new_velocity,
             angular_velocity,
-            mass: self.mass,
             size: self.size,
             bounding_box: self.bounding_box,
             physics_changes: self.physics_changes.clone(),
             lap_info: self.lap_info,
-            current_powerup: None,
+            current_powerup: self.current_powerup,
+            chair: self.chair,
+            stat_modifiers: self.stat_modifiers.to_owned(),
         };
 
         new_player.apply_physics_changes();
@@ -248,11 +271,13 @@ impl PlayerEntity {
     }
 
     fn gravitational_force_on_object(&self) -> DVec3 {
-        return DVec3::new(0.0, -1.0, 0.0) * self.mass * GLOBAL_CONFIG.gravity_coefficient;
+        return DVec3::new(0.0, -1.0, 0.0)
+            * self.stat(Stat::Mass)
+            * self.stat(Stat::GravityCoefficient);
     }
 
     fn normal_force_on_object(&self) -> DVec3 {
-        return self.entity_location.unit_upward_direction * self.mass;
+        return self.entity_location.unit_upward_direction * self.stat(Stat::Mass);
     }
 
     // Includes two player-applied forces: accelerator and brake.
@@ -265,16 +290,16 @@ impl PlayerEntity {
             // direction of travel is. (which is not the steering direction!)
             EngineStatus::Accelerating => {
                 return self.entity_location.unit_steer_direction
-                    * self.mass
-                    * GLOBAL_CONFIG.car_accelerator;
+                    * self.stat(Stat::Mass)
+                    * self.stat(Stat::CarAccelerator);
             }
             // apply the force in the reverse direction of current velocity;
             // just do nothing if velocity is zero
             EngineStatus::Braking => {
                 return self.velocity.normalize_or_zero()
                     * -1.0
-                    * self.mass
-                    * GLOBAL_CONFIG.car_brake;
+                    * self.stat(Stat::Mass)
+                    * self.stat(Stat::CarBrake);
             }
             // And there is no player-applied force when not accelerating or braking
             EngineStatus::Neutral => return DVec3::new(0.0, 0.0, 0.0),
@@ -286,14 +311,17 @@ impl PlayerEntity {
     fn air_resistance_force_on_object(&self) -> DVec3 {
         // air resistance is proportional to the square of velocity
         return self.velocity
-            * self.mass
+            * self.stat(Stat::Mass)
             * -1.0
-            * GLOBAL_CONFIG.drag_coefficient
+            * self.stat(Stat::DragCoefficient)
             * self.velocity.length();
     }
 
     fn rolling_resistance_force_on_object(&self) -> DVec3 {
-        return self.velocity * self.mass * -1.0 * GLOBAL_CONFIG.rolling_resistance_coefficient;
+        return self.velocity
+            * self.stat(Stat::Mass)
+            * -1.0
+            * self.stat(Stat::RollingResistanceCoefficient);
     }
 
     fn apply_physics_changes(&mut self) {
@@ -309,7 +337,7 @@ impl PlayerEntity {
                         RotationStatus::InSpinClockwise
                     ) {
                         self.player_inputs.rotation_status = RotationStatus::NotInSpin;
-                        self.angular_velocity -= GLOBAL_CONFIG.car_spin;
+                        self.angular_velocity -= self.stat(Stat::CarSpin);
                     }
                 }
                 PhysicsChangeType::NoTurningLeft => {
@@ -318,22 +346,22 @@ impl PlayerEntity {
                         RotationStatus::InSpinCounterclockwise
                     ) {
                         self.player_inputs.rotation_status = RotationStatus::NotInSpin;
-                        self.angular_velocity += GLOBAL_CONFIG.car_spin;
+                        self.angular_velocity += self.stat(Stat::CarSpin);
                     }
                 }
                 PhysicsChangeType::ShoppingCart => {
-                    self.angular_velocity += GLOBAL_CONFIG.car_spin / 2.0;
+                    self.angular_velocity += self.stat(Stat::CarSpin) / 2.0;
                 }
                 PhysicsChangeType::InSpainButTheAIsSilent => {
                     match self.player_inputs.rotation_status {
                         RotationStatus::InSpinClockwise => {}
                         RotationStatus::NotInSpin => {
                             self.player_inputs.rotation_status = RotationStatus::InSpinClockwise;
-                            self.angular_velocity += GLOBAL_CONFIG.car_spin;
+                            self.angular_velocity += self.stat(Stat::CarSpin);
                         }
                         RotationStatus::InSpinCounterclockwise => {
                             self.player_inputs.rotation_status = RotationStatus::InSpinClockwise;
-                            self.angular_velocity += 2.0 * GLOBAL_CONFIG.car_spin;
+                            self.angular_velocity += 2.0 * self.stat(Stat::CarSpin);
                         }
                     }
                 }

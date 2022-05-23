@@ -17,8 +17,8 @@ use material::*;
 use static_mesh::*;
 use wgpu::util::DeviceExt;
 
-use crate::drawable::*;
 use crate::renderer::*;
+use crate::{drawable::*, scenegraph::components::Modifiers};
 
 // This file has the ResourceManager, which is responsible for loading gltf models and assigning resource handles
 
@@ -211,7 +211,6 @@ impl ResourceManager {
                     println!("\tprocessing mesh '{}'", mesh.name().unwrap_or("<unnamed>"));
                     for (prim_idx, primitive) in mesh.primitives().enumerate() {
                         //println!("\t\tprocessing prim {}", prim_idx);
-
                         let (mesh_handle, mesh_bounds) =
                             self.import_mesh(renderer, &buffers, &primitive, transform);
 
@@ -247,13 +246,27 @@ impl ResourceManager {
                             );
                         }
 
-                        let drawable = StaticMeshDrawable::new(
+                        let mut modifiers: Modifiers = Default::default();
+                        if let Some(extras) = mesh.extras().as_ref() {
+                            let mesh_data: Value =
+                                serde_json::from_str(extras.as_ref().get()).unwrap();
+                            if mesh_data["spin"] == "none" {
+                                println!(
+                                    "\t\tmesh '{}' will ignore rotation!",
+                                    mesh.name().unwrap_or("<unnamed>")
+                                );
+                                modifiers.absolute_angle = true;
+                            }
+                        }
+
+                        let mut drawable = StaticMeshDrawable::new(
                             renderer,
                             self,
                             *material_handle,
                             mesh_handle,
                             0,
                         );
+                        drawable.modifiers = modifiers;
                         drawables.push(drawable);
 
                         mesh_handles.push(mesh_handle);
@@ -446,8 +459,9 @@ impl ResourceManager {
             .base_color_texture()
             .map(|info| info.texture().source().index())
             .unwrap_or(0); //"No base color tex for material");
-        let base_color_handle = images[base_color_index];
+
         let base_color_view = if let Some(_tex_info) = pbr_metallic_roughness.base_color_texture() {
+            let base_color_handle = images[base_color_index];
             self.textures
                 .get(&base_color_handle)
                 .expect("Couldn't find base texture")

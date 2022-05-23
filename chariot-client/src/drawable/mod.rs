@@ -4,6 +4,7 @@ pub mod technique;
 
 use crate::renderer::*;
 use crate::resources::*;
+use crate::scenegraph::components::Modifiers;
 use technique::*;
 
 /*
@@ -23,6 +24,7 @@ pub trait Drawable {
 pub struct StaticMeshDrawable {
     shadow_draws: Vec<ShadowDrawTechnique>,
     forward_draw: ForwardDrawTechnique,
+    pub modifiers: Modifiers,
 }
 
 impl StaticMeshDrawable {
@@ -51,6 +53,7 @@ impl StaticMeshDrawable {
                 static_mesh,
                 submesh_idx,
             ),
+            modifiers: Default::default(),
         }
     }
 
