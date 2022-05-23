@@ -14,6 +14,7 @@ use crate::drawable::*;
 use crate::renderer::*;
 use crate::resources::*;
 use crate::scenegraph::components::*;
+use crate::scenegraph::particle_system::*;
 use crate::scenegraph::*;
 use crate::ui_state::AnnouncementState;
 use crate::ui_state::UIState;

@@ -10,8 +10,6 @@ use crate::resources::{accum_bounds, new_bounds, Bounds};
 pub mod components;
 pub mod particle_system;
 
-pub use particle_system::*;
-
 pub type Entity = u32;
 
 pub const NULL_ENTITY: Entity = Entity::MAX;
