@@ -1,3 +1,4 @@
+use gilrs::{Axis, Button, EventType};
 use std::collections::HashSet;
 use std::time::Instant;
 
@@ -180,13 +181,15 @@ impl Application {
     fn get_input_event(&self, key: VirtualKeyCode) -> Option<InputEvent> {
         match key {
             // Forwards
-            VirtualKeyCode::W => Some(InputEvent::Engine(EngineStatus::Accelerating)),
+            VirtualKeyCode::W => Some(InputEvent::Engine(EngineStatus::Accelerating(1.0))),
             // Backwards
             VirtualKeyCode::S => Some(InputEvent::Engine(EngineStatus::Braking)),
             // Left
-            VirtualKeyCode::A => Some(InputEvent::Rotation(RotationStatus::InSpinCounterclockwise)),
+            VirtualKeyCode::A => Some(InputEvent::Rotation(
+                RotationStatus::InSpinCounterclockwise(1.0),
+            )),
             // Right
-            VirtualKeyCode::D => Some(InputEvent::Rotation(RotationStatus::InSpinClockwise)),
+            VirtualKeyCode::D => Some(InputEvent::Rotation(RotationStatus::InSpinClockwise(1.0))),
             // Right
             _ => None,
         }
@@ -194,16 +197,16 @@ impl Application {
 
     fn invert_event(&self, event: Option<InputEvent>) -> Option<InputEvent> {
         Some(match event {
-            Some(InputEvent::Engine(EngineStatus::Accelerating)) => {
+            Some(InputEvent::Engine(EngineStatus::Accelerating(_))) => {
                 InputEvent::Engine(EngineStatus::Neutral)
             }
             Some(InputEvent::Engine(EngineStatus::Braking)) => {
                 InputEvent::Engine(EngineStatus::Neutral)
             }
-            Some(InputEvent::Rotation(RotationStatus::InSpinClockwise)) => {
+            Some(InputEvent::Rotation(RotationStatus::InSpinClockwise(_))) => {
                 InputEvent::Rotation(RotationStatus::NotInSpin)
             }
-            Some(InputEvent::Rotation(RotationStatus::InSpinCounterclockwise)) => {
+            Some(InputEvent::Rotation(RotationStatus::InSpinCounterclockwise(_))) => {
                 InputEvent::Rotation(RotationStatus::NotInSpin)
             }
             _ => return None,
@@ -311,5 +314,119 @@ impl Application {
 
     pub fn _print_keys(&self) {
         println!("Pressed keys: {:?}", self.pressed_keys)
+    }
+
+    fn get_input_event_gamepad(
+        &mut self,
+        event: Result<(Button, f32), (Axis, f32)>,
+    ) -> Option<InputEvent> {
+        match event {
+            // Button (value: [0, 1])
+            Ok((button, value)) => {
+                match button {
+                    /***** GAMEPLAY *****/
+                    // Item?
+                    Button::South => None,
+
+                    /***** CONTROLS *****/
+                    // Accelerator
+                    Button::RightTrigger2 if value > 0.0 => {
+                        Some(InputEvent::Engine(EngineStatus::Accelerating(value)))
+                    }
+                    Button::RightTrigger2 => Some(InputEvent::Engine(EngineStatus::Neutral)),
+                    // Brake
+                    Button::LeftTrigger2 => None,
+
+                    /***** MENU *****/ // TODO: this is temporary. we need a real way to handle menu input w controllers
+                    // Force-start
+                    Button::Start if value == 1.0 => {
+                        self.graphics.set_loading_text("Forcing a start!");
+                        self.game.force_start();
+                        None
+                    }
+                    // Ready up
+                    Button::Select if value == 1.0 => {
+                        self.graphics.set_loading_text("Setting ready");
+                        self.game.signal_ready_status(true);
+                        None
+                    }
+                    Button::DPadLeft if value == 1.0 => {
+                        let new_chair = match self.graphics.player_choices[self.graphics.player_num]
+                            .as_ref()
+                            .unwrap()
+                            .chair
+                        {
+                            Chair::Swivel => Chair::Folding,
+                            Chair::Recliner => Chair::Swivel,
+                            Chair::Ergonomic => Chair::Recliner,
+                            Chair::Beanbag => Chair::Ergonomic,
+                            Chair::Folding => Chair::Beanbag,
+                        };
+                        self.game.pick_chair(new_chair);
+                        None
+                    }
+                    Button::DPadRight if value == 1.0 => {
+                        let new_chair = match self.graphics.player_choices[self.graphics.player_num]
+                            .as_ref()
+                            .unwrap()
+                            .chair
+                        {
+                            Chair::Swivel => Chair::Recliner,
+                            Chair::Recliner => Chair::Ergonomic,
+                            Chair::Ergonomic => Chair::Beanbag,
+                            Chair::Beanbag => Chair::Folding,
+                            Chair::Folding => Chair::Swivel,
+                        };
+                        self.game.pick_chair(new_chair);
+                        None
+                    }
+                    _ => None,
+                }
+            }
+            // Axis (value: [-1, 1])
+            Err((axis, value)) => match axis {
+                /***** MOVEMENT *****/
+                // Turn right
+                Axis::LeftStickX if value > 0.0 => {
+                    Some(InputEvent::Rotation(RotationStatus::InSpinClockwise(value)))
+                }
+                // Turn left
+                Axis::LeftStickX if value < 0.0 => Some(InputEvent::Rotation(
+                    RotationStatus::InSpinCounterclockwise(-value),
+                )),
+                // No turn
+                Axis::LeftStickX => Some(InputEvent::Rotation(RotationStatus::NotInSpin)),
+
+                /***** CAMERA *****/
+                // TODO?
+                Axis::RightStickX => None,
+                Axis::RightStickY => None,
+                _ => None,
+            },
+        }
+    }
+
+    pub fn handle_gamepad_event(&mut self, event: gilrs::Event) {
+        let input_event = match event.event {
+            EventType::ButtonChanged(button, value, _) => {
+                self.get_input_event_gamepad(Ok((button, value)))
+            }
+            EventType::AxisChanged(axis, value, _) => {
+                self.get_input_event_gamepad(Err((axis, value)))
+            }
+            EventType::Connected => {
+                println!("Connected new gamepad #{}!", event.id);
+                None
+            }
+            EventType::Disconnected => {
+                println!("Gamepad #{} disconnected!", event.id);
+                None
+            }
+            _ => None,
+        };
+
+        if let Some(valid_input_event) = input_event {
+            self.game.send_input_event(valid_input_event);
+        }
     }
 }

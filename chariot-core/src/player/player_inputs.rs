@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+type Modifier = f32;
+
 #[derive(Copy, Clone, Serialize, Deserialize)]
 pub enum InputEvent {
     Engine(EngineStatus),
@@ -8,15 +10,15 @@ pub enum InputEvent {
 
 #[derive(Copy, Clone, Serialize, Deserialize, Debug)]
 pub enum EngineStatus {
-    Accelerating,
+    Accelerating(Modifier),
     Neutral,
     Braking,
 }
 
 #[derive(Copy, Clone, Serialize, Deserialize, Debug)]
 pub enum RotationStatus {
-    InSpinClockwise,
-    InSpinCounterclockwise,
+    InSpinClockwise(Modifier),
+    InSpinCounterclockwise(Modifier),
     NotInSpin,
 }
 
