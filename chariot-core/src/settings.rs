@@ -32,6 +32,8 @@ pub struct Settings {
     pub max_car_speed: f64,
     pub max_car_spin: f64,
 
+    pub wall_bounciness: f64,
+
     // Voting
     pub audience_vote_time_ms: u64,
 }
@@ -71,15 +73,17 @@ impl Settings {
             // the rotational analogue of friction: each time step in free
             // rotation, what proportion of angular velocity should be
             // conserved?
-            .set_default("rotation_reduction_coefficient", 0.80)?
+            .set_default("rotation_reduction_coefficient", 0.40)?
             // Coefficient to control how forceful player-controlled acceleration is
-            .set_default("car_accelerator", 0.8)?
+            .set_default("car_accelerator", 0.8 / 15.0)?
             // Coefficient to control how forceful player-controlled braking is
-            .set_default("car_brake", 0.05)?
+            .set_default("car_brake", 0.005)?
             // Coefficient to control how fast the player can spin
-            .set_default("car_spin", 0.025)?
-            .set_default("max_car_speed", 1.0)?
-            .set_default("max_car_spin", 0.25)?
+            .set_default("car_spin", 0.03)?
+            .set_default("max_car_speed", 0.5)?
+            .set_default("max_car_spin", 0.1)?
+            // How hard we should bounce off the walls (1.0 = as fast as we were initially going)
+            .set_default("wall_bounciness", 3.0)?
             .set_default("audience_vote_time_ms", 30000)?
             .add_source(File::with_name("config.yaml").required(false))
             .build()?;

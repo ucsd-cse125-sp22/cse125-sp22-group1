@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+
+use chariot_core::player::choices::Chair;
 use glam::DVec3;
 
 use crate::physics::bounding_box::BoundingBox;
@@ -25,7 +28,6 @@ fn get_starting_player_props() -> PlayerEntity {
 
         velocity: DVec3::new(2.0, 0.0, 1.0),
         angular_velocity: 0.0,
-        mass: 10.0,
 
         current_colliders: Vec::new(),
 
@@ -34,6 +36,8 @@ fn get_starting_player_props() -> PlayerEntity {
         physics_changes: Vec::new(),
         lap_info: LapInformation::new(),
         current_powerup: None,
+        chair: Chair::Swivel,
+        stat_modifiers: HashMap::new(),
     }
 }
 
@@ -52,7 +56,6 @@ fn get_origin_cube() -> PlayerEntity {
 
         velocity: DVec3::ZERO,
         angular_velocity: 0.0,
-        mass: 10.0,
 
         current_colliders: Vec::new(),
 
@@ -61,6 +64,8 @@ fn get_origin_cube() -> PlayerEntity {
         physics_changes: Vec::new(),
         lap_info: LapInformation::new(),
         current_powerup: None,
+        chair: Chair::Swivel,
+        stat_modifiers: HashMap::new(),
     }
 }
 

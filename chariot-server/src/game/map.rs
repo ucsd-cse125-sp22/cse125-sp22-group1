@@ -71,7 +71,7 @@ impl Map {
             filename
         );
         filename.split(".").next().expect("invalid filename format");
-        let map_path = format!("{}/models/{}.glb", GLOBAL_CONFIG.resource_folder, filename);
+        let map_path = format!("{}/maps/{}.glb", GLOBAL_CONFIG.resource_folder, filename);
         let (document, buffers, _) = gltf::import(map_path)?;
         if document.scenes().count() != 1 {
             panic!(
