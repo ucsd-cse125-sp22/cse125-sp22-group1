@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 
+use glam::DVec2;
 use serde_json::Value;
 
 use crate::{
@@ -195,6 +196,14 @@ impl Map {
                 queue.push_back((child, transform));
             }
         }
+
+        // temp ramp for testing, do blender things afterwards
+        ramps.push(Ramp {
+            footprint: [[10.0, 20.0], [-100.0, 100.0]],
+            min_height: 0.0,
+            max_height: 2.5,
+            incline_direction: DVec2::X,
+        });
 
         println!("done!");
 

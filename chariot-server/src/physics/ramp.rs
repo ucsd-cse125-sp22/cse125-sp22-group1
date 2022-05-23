@@ -1,5 +1,7 @@
 use glam::DVec2;
 
+use super::bounding_box::BoundingBox;
+
 #[derive(Clone, Copy)]
 pub struct Ramp {
     // [[min_x, max_x]; [min_z, max_z]]
@@ -10,7 +12,23 @@ pub struct Ramp {
     pub incline_direction: DVec2,
 }
 
+pub struct RampCollisionResult {
+    pub ramp: Ramp,
+    // true: can drive on top of the ramp, false: collides with the ramp and should bounce off
+    pub can_get_on: bool,
+}
+
 impl Ramp {
+    pub fn bounding_box(&self) -> BoundingBox {
+        BoundingBox {
+            min_x: self.footprint[0][0],
+            max_x: self.footprint[0][1],
+            min_y: self.min_height,
+            max_y: self.max_height,
+            min_z: self.footprint[1][0],
+            max_z: self.footprint[1][1],
+        }
+    }
     pub fn coordinates_in_footprint(&self, x: f64, z: f64) -> bool {
         x >= self.footprint[0][0]
             && x <= self.footprint[0][1]
@@ -24,9 +42,7 @@ impl Ramp {
             return 0.0;
         }
 
-        // first, find which corners are lowest and highest; drop a vector
-        // between them to represent the incline
-
+        let [[min_x, max_x], [min_z, max_z]] = self.footprint;
         let incline_x = self.incline_direction.x;
         let incline_z = self.incline_direction.y;
 

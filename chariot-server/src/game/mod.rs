@@ -24,6 +24,7 @@ use chariot_core::GLOBAL_CONFIG;
 
 use crate::chairs::get_player_start_physics_properties;
 use crate::physics::player_entity::PlayerEntity;
+use crate::physics::ramp::RampCollisionResult;
 use crate::progress::get_player_placement_array;
 
 use self::map::Map;
@@ -347,13 +348,16 @@ impl GameServer {
                     .ramps
                     .clone();
 
+                let mut per_player_current_ramps: Vec<Option<RampCollisionResult>> = vec![];
+
                 // update bounding box dimensions and temporary physics changes for each player
                 for player in &mut self.game_state.players {
                     player
                         .physics_changes
                         .retain(|change| change.expiration_time > now);
+                    let ramp_collision_result = player.update_upwards_from_ramps(ramps);
+                    per_player_current_ramps.push(ramp_collision_result);
                     player.update_bounding_box();
-                    player.set_upward_direction_from_bounding_box(&ramps);
                 }
 
                 let others = |this_index: usize| -> Vec<&PlayerEntity> {
@@ -379,12 +383,12 @@ impl GameServer {
                         1.0,
                         others(n),
                         colliders.clone(),
-                        ramps.clone(),
                         self.game_state
                             .map
                             .as_mut()
                             .expect("No map loaded in game loop!")
                             .trigger_iter(),
+                        per_player_current_ramps.get(n).unwrap().as_ref(),
                     )
                 });
 

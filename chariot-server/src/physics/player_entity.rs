@@ -10,25 +10,25 @@ use chariot_core::player::{
     player_inputs::{EngineStatus, PlayerInputs, RotationStatus},
 };
 use chariot_core::GLOBAL_CONFIG;
-use glam::DVec3;
+use glam::{DMat3, DQuat, DVec3};
 
 use crate::physics::trigger_entity::TriggerEntity;
 
-use super::ramp::Ramp;
+use super::ramp::{Ramp, RampCollisionResult};
 
-fn get_height_at_coordinates(x: f64, z: f64, ramps: &Vec<Ramp>) -> f64 {
-    let ramp_heights = ramps
+fn get_index_of_ramp_with_potential_effect(x: f64, z: f64, ramps: &Vec<Ramp>) -> Option<usize> {
+    let ramp_heights: Vec<usize> = ramps
         .iter()
-        .filter(|ramp| ramp.coordinates_in_footprint(x, z))
-        .map(|ramp| ramp.get_height_at_coordinates(x, z));
+        .enumerate()
+        .filter(|(_, ramp)| ramp.coordinates_in_footprint(x, z))
+        .map(|(index, _)| index)
+        .collect();
 
-    let mut height = 0.0;
-    for ramp_height in ramp_heights {
-        if ramp_height > height {
-            height = ramp_height;
-        }
+    if ramp_heights.len() > 0 {
+        Some(*ramp_heights.get(0).unwrap())
+    } else {
+        None
     }
-    height
 }
 
 pub struct PlayerEntity {
@@ -53,8 +53,8 @@ pub struct PlayerEntity {
 }
 
 impl PlayerEntity {
-    // set the upward direction based on the bounding box
-    pub fn set_upward_direction_from_bounding_box(&mut self, ramps: &Vec<Ramp>) {
+    // Get upward direction based on position of wheels on this ramp; if it's too steep to traverse, return None instead of the new upward angle
+    fn maybe_get_upward_direction_on_ramp(&self, ramp: &Ramp) -> Option<DVec3> {
         let BoundingBox {
             min_x,
             max_x,
@@ -62,20 +62,45 @@ impl PlayerEntity {
             max_z,
             ..
         } = self.bounding_box;
-
-        let lower_left_corner =
-            DVec3::new(min_x, get_height_at_coordinates(min_x, min_z, ramps), min_z);
-        let lower_right_corner =
-            DVec3::new(max_x, get_height_at_coordinates(max_x, min_z, ramps), min_z);
-        let upper_left_corner =
-            DVec3::new(min_x, get_height_at_coordinates(min_x, max_z, ramps), max_z);
-        let upper_right_corner =
-            DVec3::new(max_x, get_height_at_coordinates(max_x, max_z, ramps), max_z);
+        let ll_height = ramp.get_height_at_coordinates(min_x, min_z);
+        let lr_height = ramp.get_height_at_coordinates(max_x, min_z);
+        let ul_height = ramp.get_height_at_coordinates(min_x, max_z);
+        let ur_height = ramp.get_height_at_coordinates(max_x, max_z);
+        let lower_left_corner = DVec3::new(min_x, ll_height, min_z);
+        let lower_right_corner = DVec3::new(max_x, lr_height, min_z);
+        let upper_left_corner = DVec3::new(min_x, ul_height, max_z);
+        let upper_right_corner = DVec3::new(max_x, ur_height, max_z);
 
         let diagonal_1 = lower_right_corner - upper_left_corner;
         let diagonal_2 = upper_right_corner - lower_left_corner;
 
-        self.entity_location.unit_upward_direction = diagonal_2.cross(diagonal_1).normalize();
+        let mut upward = diagonal_2.cross(diagonal_1);
+        // when close, these can oscillate back and forth, so just make sure it's pointing positive
+        if upward.y < 0.0 {
+            upward *= -1.0;
+        }
+
+        return if upward.angle_between(DVec3::Y) > std::f64::consts::FRAC_PI_3 {
+            None
+        } else {
+            Some(upward.normalize())
+        };
+    }
+
+    // whenever not on a ramp, we flatten out, instead of being all wonky
+    fn get_upward_direction_off_ramp(&self) -> DVec3 {
+        let upward = self.entity_location.unit_upward_direction;
+        if upward != DVec3::Y {
+            // this is normal to the plane which contains the Y-axis and the
+            // old upward direction; when upward_direction is equal to Y, the
+            // cross product is zero, so skip that possibility
+            let rotation_axis = DVec3::Y.cross(upward);
+            let rotation_matrix = DQuat::from_axis_angle(rotation_axis, -0.1);
+
+            return (rotation_matrix * upward).normalize();
+        } else {
+            return DVec3::Y;
+        }
     }
 
     // update the underlying bounding box based on position, size, and steer angles
@@ -103,6 +128,53 @@ impl PlayerEntity {
             yaw,
             roll,
         );
+    }
+
+    pub fn update_upwards_from_ramps(
+        &mut self,
+        potential_ramps: &Vec<Ramp>,
+    ) -> Option<RampCollisionResult> {
+        let BoundingBox {
+            min_x,
+            max_x,
+            min_z,
+            max_z,
+            ..
+        } = self.bounding_box;
+
+        let index_of_ramp_with_effect = [
+            [min_x, min_z],
+            [min_x, max_z],
+            [max_x, min_z],
+            [max_x, max_z],
+        ]
+        .iter()
+        .map(|[x, z]| get_index_of_ramp_with_potential_effect(*x, *z, &potential_ramps))
+        .fold(None, |acc, e| if e.is_some() { e } else { acc });
+
+        match index_of_ramp_with_effect {
+            Some(index) => {
+                if let Some(upward) =
+                    self.maybe_get_upward_direction_on_ramp(potential_ramps.get(index).unwrap())
+                {
+                    self.entity_location.unit_upward_direction = upward;
+                    Some(RampCollisionResult {
+                        ramp: potential_ramps.get(index).unwrap().clone(),
+                        can_get_on: true,
+                    })
+                } else {
+                    Some(RampCollisionResult {
+                        ramp: potential_ramps.get(index).unwrap().clone(),
+                        can_get_on: false,
+                    })
+                }
+            }
+            None => {
+                self.entity_location.unit_upward_direction = self.get_upward_direction_off_ramp();
+                // return None; we don't have anything to do with any ramps
+                None
+            }
+        }
     }
 
     // Returns the velocity change to self from colliding with other
@@ -156,10 +228,10 @@ impl PlayerEntity {
         time_step: f64,
         potential_colliders: Vec<&PlayerEntity>,
         potential_terrain: Vec<BoundingBox>,
-        potential_ramps: Vec<Ramp>,
         potential_triggers: impl Iterator<Item = &'a mut dyn TriggerEntity>,
+        ramp_collision_result: Option<&RampCollisionResult>,
     ) -> PlayerEntity {
-        let self_forces = self.sum_of_self_forces(&potential_ramps);
+        let self_forces = self.sum_of_self_forces(ramp_collision_result);
         let acceleration = self_forces / self.stat(Stat::Mass);
 
         let angular_velocity: f64 = match self.player_inputs.rotation_status {
@@ -176,10 +248,7 @@ impl PlayerEntity {
             }
         };
 
-        let rotation_matrix = glam::Mat3::from_axis_angle(
-            self.entity_location.unit_upward_direction.as_vec3(),
-            -1.0 * angular_velocity as f32,
-        );
+        let rotation_matrix = glam::DMat3::from_axis_angle(DVec3::Y, -1.0 * angular_velocity);
 
         let mut delta_velocity = acceleration * time_step;
 
@@ -189,6 +258,9 @@ impl PlayerEntity {
 
         let mut terrain_with_collisions = potential_terrain.clone();
         terrain_with_collisions.retain(|terrain| self.bounding_box.is_colliding(terrain));
+        if ramp_collision_result.is_some() && !ramp_collision_result.unwrap().can_get_on {
+            terrain_with_collisions.push(ramp_collision_result.unwrap().ramp.bounding_box());
+        }
         let collision_terrain_is_new = terrain_with_collisions != self.current_colliders;
 
         // Make sure we aren't too fast/slow, but BEFORE we bounce off walls (which can be fast intentionally)
@@ -223,10 +295,17 @@ impl PlayerEntity {
             }
         }
 
-        let new_steer_direction = rotation_matrix
-            .mul_vec3(self.entity_location.unit_steer_direction.as_vec3())
-            .normalize()
-            .as_dvec3();
+        // let new_steer_direction = rotation_matrix
+        // .mul_vec3(self.entity_location.unit_steer_direction.as_vec3())
+        // .normalize()
+        // .as_dvec3();
+        let new_steer_direction =
+            rotation_matrix * self.entity_location.unit_steer_direction.normalize();
+
+        let mut new_position = self.entity_location.position + new_velocity * time_step;
+        if new_position.y <= 1.0 {
+            new_position.y = 1.0;
+        }
 
         let mut new_player = PlayerEntity {
             player_inputs: PlayerInputs {
@@ -235,7 +314,7 @@ impl PlayerEntity {
             },
 
             entity_location: EntityLocation {
-                position: self.entity_location.position + self.velocity * time_step,
+                position: new_position,
                 unit_steer_direction: new_steer_direction,
                 unit_upward_direction: self.entity_location.unit_upward_direction,
             },
@@ -267,25 +346,42 @@ impl PlayerEntity {
         return new_player;
     }
 
-    fn is_aerial(&self, ramps: &Vec<Ramp>) -> bool {
-        return self.entity_location.position[1]
-            > self.size[1]
-                + get_height_at_coordinates(
+    fn is_aerial(&self, ramp_collision_result: Option<&RampCollisionResult>) -> bool {
+        let ground_level = if ramp_collision_result.is_some() {
+            ramp_collision_result
+                .unwrap()
+                .ramp
+                .get_height_at_coordinates(
                     self.entity_location.position[0],
                     self.entity_location.position[2],
-                    ramps,
-                );
+                )
+        } else {
+            0.0
+        };
+
+        self.entity_location.position[1] - (self.size[1] / 2.0) > ground_level
     }
 
-    fn sum_of_self_forces(&self, ramps: &Vec<Ramp>) -> DVec3 {
-        let air_forces = self.gravitational_force_on_object()
+    fn sum_of_self_forces(&self, ramp_collision_result: Option<&RampCollisionResult>) -> DVec3 {
+        let gravitational_force = self.gravitational_force_on_object();
+        let mut air_forces = gravitational_force
             + self.player_applied_force_on_object()
             + self.air_resistance_force_on_object();
 
-        return if self.is_aerial(ramps) {
+        let mut normal_force = self.normal_force_on_object();
+        if normal_force.length_squared() > gravitational_force.length_squared() {
+            normal_force = normal_force * gravitational_force.length() / normal_force.length();
+        }
+
+        if ramp_collision_result.is_some() && ramp_collision_result.unwrap().can_get_on {
+            // vroom vroom vroom
+            air_forces += self.acceleration_force_on_object() * 20.0;
+        }
+
+        return if self.is_aerial(ramp_collision_result) {
             air_forces
         } else {
-            air_forces + self.normal_force_on_object() + self.rolling_resistance_force_on_object()
+            air_forces + normal_force + self.rolling_resistance_force_on_object()
         };
     }
 
@@ -299,6 +395,19 @@ impl PlayerEntity {
         return self.entity_location.unit_upward_direction * self.stat(Stat::Mass);
     }
 
+    fn acceleration_force_on_object(&self) -> DVec3 {
+        let (up_x, up_y, up_z) = self.entity_location.unit_upward_direction.into();
+        let pitch = DVec3::new(up_x, up_y, 0.0).angle_between(DVec3::Y);
+        let roll = DVec3::new(0.0, up_y, up_z).angle_between(DVec3::Y);
+        let pitch_rotation_matrix = DMat3::from_rotation_z(pitch);
+        let roll_rotation_matrix = DMat3::from_rotation_x(roll);
+
+        let acceleration_direction = pitch_rotation_matrix
+            .mul_vec3(roll_rotation_matrix.mul_vec3(self.entity_location.unit_steer_direction));
+
+        acceleration_direction.normalize() * self.stat(Stat::Mass) * self.stat(Stat::CarAccelerator)
+    }
+
     // Includes two player-applied forces: accelerator and brake.
     fn player_applied_force_on_object(&self) -> DVec3 {
         match self.player_inputs.engine_status {
@@ -307,11 +416,7 @@ impl PlayerEntity {
             // is directionless, so the force of braking applies in a different
             // direction: specifically, it acts against whatever the current
             // direction of travel is. (which is not the steering direction!)
-            EngineStatus::Accelerating => {
-                return self.entity_location.unit_steer_direction
-                    * self.stat(Stat::Mass)
-                    * self.stat(Stat::CarAccelerator);
-            }
+            EngineStatus::Accelerating => self.acceleration_force_on_object(),
             // apply the force in the reverse direction of current velocity;
             // just do nothing if velocity is zero
             EngineStatus::Braking => {

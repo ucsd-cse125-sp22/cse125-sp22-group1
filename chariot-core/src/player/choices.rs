@@ -40,7 +40,7 @@ lazy_static! {
         (Stat::CarSpin, GLOBAL_CONFIG.car_spin),
         (Stat::MaxCarSpeed, GLOBAL_CONFIG.max_car_speed),
         (Stat::MaxCarSpin, GLOBAL_CONFIG.max_car_spin),
-        (Stat::Mass, 10.0),
+        (Stat::Mass, 0.01),
     ]
     .iter()
     .map(|(k, v)| (*k, *v))
