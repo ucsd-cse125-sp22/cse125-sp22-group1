@@ -339,13 +339,21 @@ impl GameServer {
                 question_idx,
                 ..
             } => {
+                let ramps = &self
+                    .game_state
+                    .map
+                    .as_ref()
+                    .expect("No map loaded in game loop!")
+                    .ramps
+                    .clone();
+
                 // update bounding box dimensions and temporary physics changes for each player
                 for player in &mut self.game_state.players {
                     player
                         .physics_changes
                         .retain(|change| change.expiration_time > now);
                     player.update_bounding_box();
-                    player.set_upward_direction_from_bounding_box();
+                    player.set_upward_direction_from_bounding_box(&ramps);
                 }
 
                 let others = |this_index: usize| -> Vec<&PlayerEntity> {
@@ -364,14 +372,6 @@ impl GameServer {
                     .as_ref()
                     .expect("No map loaded in game loop!")
                     .colliders
-                    .clone();
-
-                let ramps = &self
-                    .game_state
-                    .map
-                    .as_ref()
-                    .expect("No map loaded in game loop!")
-                    .ramps
                     .clone();
 
                 self.game_state.players = [0, 1, 2, 3].map(|n| {

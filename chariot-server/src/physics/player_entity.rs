@@ -13,8 +13,19 @@ use crate::physics::trigger_entity::TriggerEntity;
 
 use super::ramp::Ramp;
 
-fn get_height_at_coordinates(_x: f64, _z: f64) -> f64 {
-    return 0.0;
+fn get_height_at_coordinates(x: f64, z: f64, ramps: &Vec<Ramp>) -> f64 {
+    let ramp_heights = ramps
+        .iter()
+        .filter(|ramp| ramp.coordinates_in_footprint(x, z))
+        .map(|ramp| ramp.get_height_at_coordinates(x, z));
+
+    let mut height = 0.0;
+    for ramp_height in ramp_heights {
+        if ramp_height > height {
+            height = ramp_height;
+        }
+    }
+    height
 }
 
 pub struct PlayerEntity {
@@ -39,7 +50,7 @@ pub struct PlayerEntity {
 
 impl PlayerEntity {
     // set the upward direction based on the bounding box
-    pub fn set_upward_direction_from_bounding_box(&mut self) {
+    pub fn set_upward_direction_from_bounding_box(&mut self, ramps: &Vec<Ramp>) {
         let BoundingBox {
             min_x,
             max_x,
@@ -48,10 +59,14 @@ impl PlayerEntity {
             ..
         } = self.bounding_box;
 
-        let lower_left_corner = DVec3::new(min_x, get_height_at_coordinates(min_x, min_z), min_z);
-        let lower_right_corner = DVec3::new(max_x, get_height_at_coordinates(max_x, min_z), min_z);
-        let upper_left_corner = DVec3::new(min_x, get_height_at_coordinates(min_x, max_z), max_z);
-        let upper_right_corner = DVec3::new(max_x, get_height_at_coordinates(max_x, max_z), max_z);
+        let lower_left_corner =
+            DVec3::new(min_x, get_height_at_coordinates(min_x, min_z, ramps), min_z);
+        let lower_right_corner =
+            DVec3::new(max_x, get_height_at_coordinates(max_x, min_z, ramps), min_z);
+        let upper_left_corner =
+            DVec3::new(min_x, get_height_at_coordinates(min_x, max_z, ramps), max_z);
+        let upper_right_corner =
+            DVec3::new(max_x, get_height_at_coordinates(max_x, max_z, ramps), max_z);
 
         let diagonal_1 = lower_right_corner - upper_left_corner;
         let diagonal_2 = upper_right_corner - lower_left_corner;
@@ -123,7 +138,7 @@ impl PlayerEntity {
         potential_ramps: Vec<Ramp>,
         potential_triggers: impl Iterator<Item = &'a mut dyn TriggerEntity>,
     ) -> PlayerEntity {
-        let self_forces = self.sum_of_self_forces();
+        let self_forces = self.sum_of_self_forces(&potential_ramps);
         let acceleration = self_forces / self.mass;
 
         let angular_velocity: f64 = match self.player_inputs.rotation_status {
@@ -229,21 +244,22 @@ impl PlayerEntity {
         return new_player;
     }
 
-    fn is_aerial(&self) -> bool {
+    fn is_aerial(&self, ramps: &Vec<Ramp>) -> bool {
         return self.entity_location.position[1]
             > self.size[1]
                 + get_height_at_coordinates(
                     self.entity_location.position[0],
                     self.entity_location.position[2],
+                    ramps,
                 );
     }
 
-    fn sum_of_self_forces(&self) -> DVec3 {
+    fn sum_of_self_forces(&self, ramps: &Vec<Ramp>) -> DVec3 {
         let air_forces = self.gravitational_force_on_object()
             + self.player_applied_force_on_object()
             + self.air_resistance_force_on_object();
 
-        return if self.is_aerial() {
+        return if self.is_aerial(ramps) {
             air_forces
         } else {
             air_forces + self.normal_force_on_object() + self.rolling_resistance_force_on_object()
