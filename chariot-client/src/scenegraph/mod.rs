@@ -8,6 +8,7 @@ use components::*;
 use crate::resources::{accum_bounds, new_bounds, Bounds};
 
 pub mod components;
+pub mod particle_system;
 
 pub type Entity = u32;
 
@@ -26,6 +27,7 @@ pub trait ComponentStorage<T: Component>: Default {
     unsafe fn insert_unchecked(&mut self, entity: Entity, data: T);
     unsafe fn get_unchecked(&self, entity: Entity) -> &T;
     unsafe fn get_unchecked_mut(&mut self, entity: Entity) -> &mut T;
+    unsafe fn remove_unchecked(&mut self, entity: Entity);
     fn contains(&self, entity: Entity) -> bool;
 }
 
@@ -39,6 +41,18 @@ pub struct VecStorage<T: Component> {
 impl<T: Component> VecStorage<T> {
     pub fn iter(&self) -> std::slice::Iter<T> {
         self.dense.iter()
+    }
+
+    pub fn iter_with_entity(
+        &self,
+    ) -> std::iter::Zip<std::slice::Iter<Entity>, std::slice::Iter<T>> {
+        self.entities.iter().zip(self.dense.iter())
+    }
+
+    pub fn iter_with_entity_mut(
+        &mut self,
+    ) -> std::iter::Zip<std::slice::Iter<Entity>, std::slice::IterMut<T>> {
+        self.entities.iter().zip(self.dense.iter_mut())
     }
 }
 
@@ -71,6 +85,18 @@ impl<T: Component> ComponentStorage<T> for VecStorage<T> {
         let eidx = entity as usize;
         let comp_idx = self.sparse.get_unchecked(eidx).assume_init() as usize;
         self.dense.get_unchecked_mut(comp_idx)
+    }
+
+    unsafe fn remove_unchecked(&mut self, entity: Entity) {
+        let eidx = entity as usize;
+        let comp_idx = self.sparse.get_unchecked(eidx).assume_init();
+        let last = *self.entities.last().unwrap();
+        self.sparse
+            .get_unchecked_mut(last as usize)
+            .as_mut_ptr()
+            .write(comp_idx);
+        self.entities.swap_remove(comp_idx as usize);
+        self.dense.swap_remove(comp_idx as usize);
     }
 
     fn contains(&self, entity: Entity) -> bool {
@@ -266,7 +292,6 @@ impl World {
     }
 
     pub fn get_mut<T: Component>(&mut self, entity: Entity) -> Option<&mut T> {
-        let _type_id = TypeId::of::<T>();
         let storage = self
             .storage_mut::<T>()
             .expect("Attempting to get unregistered component");
@@ -279,7 +304,6 @@ impl World {
     }
 
     pub fn insert<T: Component>(&mut self, entity: Entity, component: T) {
-        let _type_id = TypeId::of::<T>();
         let storage = self
             .storage_mut::<T>()
             .expect("Attempting to get unregistered component");
@@ -288,6 +312,15 @@ impl World {
             unsafe { *storage.get_unchecked_mut(entity) = component };
         } else {
             unsafe { storage.insert_unchecked(entity, component) };
+        }
+    }
+
+    pub fn remove<T: Component>(&mut self, entity: Entity) {
+        let storage = self
+            .storage_mut::<T>()
+            .expect("Attempting to remove unregistered component");
+        if storage.contains(entity) {
+            unsafe { storage.remove_unchecked(entity) };
         }
     }
 }
