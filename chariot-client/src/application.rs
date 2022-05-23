@@ -70,21 +70,17 @@ impl Application {
             match packet {
                 ClientBoundPacket::PlayerNumber(player_number, others_choices) => {
                     self.graphics.player_num = player_number;
-                    println!("I am now player #{}!", player_number);
                     self.graphics.player_choices = others_choices;
                     self.graphics.player_choices[player_number] = Some(Default::default());
-                    println!("all players: {:?}", self.graphics.player_choices);
                     self.graphics.load_pregame();
                 }
                 ClientBoundPacket::PlayerJoined(player_number) => {
-                    println!("player {} joined!", player_number);
                     if player_number != self.graphics.player_num {
                         self.graphics.player_choices[player_number] = Some(Default::default());
                     }
                 }
 
                 ClientBoundPacket::PlayerChairChoice(player_num, chair) => {
-                    println!("{player_num} has chosen {chair}");
                     self.graphics.player_choices[player_num]
                         .as_mut()
                         .expect("Attempted to set chair on player we don't know about!")
@@ -126,7 +122,6 @@ impl Application {
                 }
                 ClientBoundPacket::GameStart(_) => {
                     self.graphics.display_hud();
-                    println!("The game has begun!")
                 }
                 ClientBoundPacket::PowerupPickup => println!("we got a powerup!"),
                 ClientBoundPacket::VotingStarted {

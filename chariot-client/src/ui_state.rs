@@ -258,23 +258,16 @@ impl GraphicsManager {
         main_menu_button.on_click(|graphics, _game_client| {
             graphics.display_main_menu();
         });
-        main_menu_button.on_enter(|_, _| println!("entered main menu"));
-        main_menu_button.on_exit(|_, _| println!("exited main menu"));
 
         let mut ready_button = UIRegion::new(999.0, 587.0, 225.0, 64.0);
         ready_button.on_click(|_graphics, game_client| {
             game_client.signal_ready_status(true);
         });
-        ready_button.on_enter(|_, _| println!("entered ready button"));
-        ready_button.on_exit(|_, _| println!("exited ready button"));
 
         let mut force_start_button = UIRegion::new(999.0, 637.0, 225.0, 31.0);
         force_start_button.on_click(|_graphics, game_client| {
             game_client.force_start();
         });
-
-        force_start_button.on_enter(|_, _| println!("entered force start button"));
-        force_start_button.on_exit(|_, _| println!("exited force start button"));
 
         self.ui_regions = vec![main_menu_button, ready_button, force_start_button];
     }
@@ -312,7 +305,10 @@ impl GraphicsManager {
             )];
 
             *chair_select_box = UIDrawable { layers: layer_vec };
-            self.maybe_display_chair(chair, self.player_num);
+
+            for (player_id, choice) in self.player_choices.clone().iter().flatten().enumerate() {
+                self.maybe_display_chair(choice.chair, player_id);
+            }
         }
     }
 
