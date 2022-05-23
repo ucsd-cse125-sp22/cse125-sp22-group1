@@ -70,7 +70,6 @@ pub struct GraphicsManager {
     pub renderer: Renderer,
     pub resources: ResourceManager,
     pub ui: UIState,
-
     pub player_num: PlayerID,
     pub player_choices: [Option<PlayerChoices>; 4],
     postprocess: technique::FSQTechnique,
@@ -470,12 +469,18 @@ impl GraphicsManager {
             UIState::ChairacterSelect {
                 background,
                 chair_select_box,
+                player_chair_images,
             } => {
                 let background_graph = background.render_graph(&self.resources);
                 render_job.merge_graph_after("postprocess", background_graph);
 
                 let chair_select_box_graph = chair_select_box.render_graph(&self.resources);
                 render_job.merge_graph_after("postprocess", chair_select_box_graph);
+
+                for chair_image in player_chair_images.iter().flatten() {
+                    let chair_graph = chair_image.render_graph(&self.resources);
+                    render_job.merge_graph_after("postprocess", chair_graph);
+                }
             }
             UIState::InGameHUD {
                 place_position_text,

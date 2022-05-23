@@ -1,4 +1,4 @@
-use crate::graphics::GraphicsManager;
+use crate::{game::GameClient, graphics::GraphicsManager};
 
 pub struct UIRegion {
     x0: f64,
@@ -7,10 +7,10 @@ pub struct UIRegion {
     y1: f64,
     is_hovering: bool,
     is_active: bool,
-    on_enter_listeners: Vec<Box<dyn FnMut(&mut GraphicsManager) -> ()>>,
-    on_exit_listeners: Vec<Box<dyn FnMut(&mut GraphicsManager) -> ()>>,
-    on_click_listeners: Vec<Box<dyn FnMut(&mut GraphicsManager) -> ()>>,
-    on_release_listeners: Vec<Box<dyn FnMut(&mut GraphicsManager) -> ()>>,
+    on_enter_listeners: Vec<Box<dyn FnMut(&mut GraphicsManager, &mut GameClient) -> ()>>,
+    on_exit_listeners: Vec<Box<dyn FnMut(&mut GraphicsManager, &mut GameClient) -> ()>>,
+    on_click_listeners: Vec<Box<dyn FnMut(&mut GraphicsManager, &mut GameClient) -> ()>>,
+    on_release_listeners: Vec<Box<dyn FnMut(&mut GraphicsManager, &mut GameClient) -> ()>>,
 }
 
 impl UIRegion {
@@ -31,31 +31,31 @@ impl UIRegion {
     }
 
     #[inline]
-    fn execute_on_enter(&mut self, graphics: &mut GraphicsManager) {
+    fn execute_on_enter(&mut self, graphics: &mut GraphicsManager, client: &mut GameClient) {
         self.on_enter_listeners
             .iter_mut()
-            .for_each(|boxed| (**boxed)(graphics));
+            .for_each(|boxed| (**boxed)(graphics, client));
     }
 
     #[inline]
-    fn execute_on_exit(&mut self, graphics: &mut GraphicsManager) {
+    fn execute_on_exit(&mut self, graphics: &mut GraphicsManager, client: &mut GameClient) {
         self.on_exit_listeners
             .iter_mut()
-            .for_each(|boxed| (**boxed)(graphics));
+            .for_each(|boxed| (**boxed)(graphics, client));
     }
 
     #[inline]
-    fn execute_on_click(&mut self, graphics: &mut GraphicsManager) {
+    fn execute_on_click(&mut self, graphics: &mut GraphicsManager, client: &mut GameClient) {
         self.on_click_listeners
             .iter_mut()
-            .for_each(|boxed| (**boxed)(graphics));
+            .for_each(|boxed| (**boxed)(graphics, client));
     }
 
     #[inline]
-    fn execute_on_release(&mut self, graphics: &mut GraphicsManager) {
+    fn execute_on_release(&mut self, graphics: &mut GraphicsManager, client: &mut GameClient) {
         self.on_release_listeners
             .iter_mut()
-            .for_each(|boxed| (**boxed)(graphics));
+            .for_each(|boxed| (**boxed)(graphics, client));
     }
 
     #[inline]
@@ -63,48 +63,72 @@ impl UIRegion {
         x >= self.x0 && x <= self.x1 && y >= self.y0 && y <= self.y1
     }
 
-    pub fn set_hovering(&mut self, x: f64, y: f64, graphics: &mut GraphicsManager) {
+    pub fn set_hovering(
+        &mut self,
+        x: f64,
+        y: f64,
+        graphics: &mut GraphicsManager,
+        client: &mut GameClient,
+    ) {
         let is_hovering = self.is_inside(x, y);
 
         if is_hovering == true && self.is_hovering == false {
-            self.execute_on_enter(graphics);
+            self.execute_on_enter(graphics, client);
         } else if is_hovering == false && self.is_hovering == true {
-            self.execute_on_exit(graphics);
+            self.execute_on_exit(graphics, client);
         }
         self.is_hovering = is_hovering;
     }
 
-    pub fn set_active(&mut self, x: f64, y: f64, graphics: &mut GraphicsManager) {
+    pub fn set_active(
+        &mut self,
+        x: f64,
+        y: f64,
+        graphics: &mut GraphicsManager,
+        client: &mut GameClient,
+    ) {
         if !self.is_inside(x, y) {
             return;
         }
 
         self.is_active = true;
-        self.execute_on_click(graphics);
+        self.execute_on_click(graphics, client);
     }
 
-    pub fn set_inactive(&mut self, graphics: &mut GraphicsManager) {
+    pub fn set_inactive(&mut self, graphics: &mut GraphicsManager, client: &mut GameClient) {
         if !self.is_active {
             return;
         }
 
         self.is_active = false;
-        self.execute_on_release(graphics);
+        self.execute_on_release(graphics, client);
     }
 
-    pub fn on_enter<F: 'static + FnMut(&mut GraphicsManager) -> ()>(&mut self, closure: F) {
+    pub fn on_enter<F: 'static + FnMut(&mut GraphicsManager, &mut GameClient) -> ()>(
+        &mut self,
+        closure: F,
+    ) {
         self.on_enter_listeners.push(Box::new(closure));
     }
 
-    pub fn on_exit<F: 'static + FnMut(&mut GraphicsManager) -> ()>(&mut self, closure: F) {
+    pub fn on_exit<F: 'static + FnMut(&mut GraphicsManager, &mut GameClient) -> ()>(
+        &mut self,
+        closure: F,
+    ) {
         self.on_exit_listeners.push(Box::new(closure));
     }
 
-    pub fn on_click<F: 'static + FnMut(&mut GraphicsManager) -> ()>(&mut self, closure: F) {
+    pub fn on_click<F: 'static + FnMut(&mut GraphicsManager, &mut GameClient) -> ()>(
+        &mut self,
+        closure: F,
+    ) {
         self.on_click_listeners.push(Box::new(closure));
     }
 
-    pub fn on_release<F: 'static + FnMut(&mut GraphicsManager) -> ()>(&mut self, closure: F) {
+    pub fn on_release<F: 'static + FnMut(&mut GraphicsManager, &mut GameClient) -> ()>(
+        &mut self,
+        closure: F,
+    ) {
         self.on_release_listeners.push(Box::new(closure));
     }
 }

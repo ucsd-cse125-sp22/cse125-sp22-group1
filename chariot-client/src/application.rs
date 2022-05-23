@@ -28,7 +28,7 @@ impl Application {
     pub fn new(mut graphics_manager: GraphicsManager) -> Self {
         let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
         let game = GameClient::new(ip_addr);
-        let ui_regions = graphics_manager.load_menu();
+        let ui_regions = graphics_manager.display_main_menu();
 
         Self {
             graphics: graphics_manager,
@@ -54,18 +54,23 @@ impl Application {
                     println!("I am now player #{}!", player_number);
                     self.graphics.player_choices = others_choices;
                     self.graphics.player_choices[player_number] = Some(Default::default());
+                    println!("all players: {:?}", self.graphics.player_choices);
                     self.graphics.load_pregame();
                 }
                 ClientBoundPacket::PlayerJoined(player_number) => {
-                    self.graphics.player_choices[player_number] = Some(Default::default());
+                    println!("player {} joined!", player_number);
+                    if player_number != self.graphics.player_num {
+                        self.graphics.player_choices[player_number] = Some(Default::default());
+                    }
                 }
 
                 ClientBoundPacket::PlayerChairChoice(player_num, chair) => {
-                    println!("Player #{} has chosen chair {}!", player_num, chair.clone());
+                    println!("{player_num} has chosen {chair}");
                     self.graphics.player_choices[player_num]
                         .as_mut()
                         .expect("Attempted to set chair on player we don't know about!")
                         .chair = chair;
+                    self.graphics.maybe_display_chair(chair, player_num);
                 }
                 ClientBoundPacket::PlayerMapChoice(player_num, map) => {
                     println!("Player #{} has voted for map {}!", player_num, map.clone());
@@ -238,12 +243,13 @@ impl Application {
                 .chair
             {
                 Chair::Swivel => Chair::Recliner,
-                Chair::Recliner => Chair::Ergonomic,
-                Chair::Ergonomic => Chair::Beanbag,
-                Chair::Beanbag => Chair::Folding,
+                Chair::Recliner => Chair::Beanbag,
+                Chair::Beanbag => Chair::Ergonomic,
+                Chair::Ergonomic => Chair::Folding,
                 Chair::Folding => Chair::Swivel,
             };
             self.game.pick_chair(new_chair);
+            self.graphics.maybe_select_chair(new_chair);
         } else if key == VirtualKeyCode::Left {
             let new_chair = match self.graphics.player_choices[self.graphics.player_num]
                 .as_ref()
@@ -252,10 +258,11 @@ impl Application {
             {
                 Chair::Swivel => Chair::Folding,
                 Chair::Recliner => Chair::Swivel,
-                Chair::Ergonomic => Chair::Recliner,
-                Chair::Beanbag => Chair::Ergonomic,
-                Chair::Folding => Chair::Beanbag,
+                Chair::Beanbag => Chair::Recliner,
+                Chair::Ergonomic => Chair::Beanbag,
+                Chair::Folding => Chair::Ergonomic,
             };
+            self.graphics.maybe_select_chair(new_chair);
             self.game.pick_chair(new_chair);
         }
     }
@@ -274,7 +281,7 @@ impl Application {
 
         self.ui_regions
             .iter_mut()
-            .for_each(|reg| reg.set_hovering(x, y, &mut self.graphics));
+            .for_each(|reg| reg.set_hovering(x, y, &mut self.graphics, &mut self.game));
     }
 
     pub fn on_left_mouse(&mut self, state: ElementState) {
@@ -285,11 +292,11 @@ impl Application {
             ElementState::Pressed => self
                 .ui_regions
                 .iter_mut()
-                .for_each(|reg| reg.set_active(x, y, &mut self.graphics)),
+                .for_each(|reg| reg.set_active(x, y, &mut self.graphics, &mut self.game)),
             ElementState::Released => self
                 .ui_regions
                 .iter_mut()
-                .for_each(|reg| reg.set_inactive(&mut self.graphics)),
+                .for_each(|reg| reg.set_inactive(&mut self.graphics, &mut self.game)),
         }
     }
 

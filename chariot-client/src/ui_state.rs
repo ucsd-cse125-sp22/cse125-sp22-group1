@@ -1,5 +1,6 @@
 use std::time::Instant;
 
+use chariot_core::player::choices::Chair;
 use glam::Vec2;
 use ordinal::Ordinal;
 
@@ -36,6 +37,7 @@ pub enum UIState {
     ChairacterSelect {
         background: UIDrawable,
         chair_select_box: UIDrawable,
+        player_chair_images: Vec<Option<UIDrawable>>,
     },
     InGameHUD {
         place_position_text: StringDrawable,
@@ -60,6 +62,7 @@ impl GraphicsManager {
             game_announcement_subtitle.set(subtitle, &self.renderer, &mut self.resources);
         }
     }
+
     pub fn update_voting_announcements(&mut self) {
         if let UIState::InGameHUD {
             announcement_state, ..
@@ -168,7 +171,7 @@ impl GraphicsManager {
         }
     }
 
-    pub fn load_menu(&mut self) -> Vec<UIRegion> {
+    pub fn display_main_menu(&mut self) -> Vec<UIRegion> {
         let background_handle = self
             .resources
             .import_texture(&self.renderer, "UI/homebackground.png");
@@ -191,17 +194,17 @@ impl GraphicsManager {
         let background = UIDrawable { layers: layer_vec };
 
         self.ui = UIState::MainMenu { background };
+
         // join lobby button
         let mut join_lobby_button = UIRegion::new(472.0, 452.0, 336.0, 87.0);
-        join_lobby_button.on_enter(|_| println!("region entered"));
-        join_lobby_button.on_exit(|_| println!("region exited"));
-        join_lobby_button.on_click(|this| this.display_chairacter_select());
-        join_lobby_button.on_release(|_| println!("region released"));
+        join_lobby_button.on_click(|graphics, _| {
+            graphics.display_chairacter_select();
+        });
 
         vec![join_lobby_button]
     }
 
-    pub fn display_chairacter_select(&mut self) {
+    pub fn display_chairacter_select(&mut self) -> Vec<UIRegion> {
         let background_handle = self
             .resources
             .import_texture(&self.renderer, "UI/ChairSelect/background.png");
@@ -233,12 +236,6 @@ impl GraphicsManager {
             .get(&chair_select_box_handle)
             .expect("background doesn't exist!");
 
-        // x = 304
-        // y = 548
-        // image_width = 141
-        // image_height = 134
-        // screen_width = 1280
-        // screen_height = 720
         let layer_vec = vec![technique::UILayerTechnique::new(
             &self.renderer,
             glam::vec2(304.0 / 1280.0, 548.0 / 720.0),
@@ -252,6 +249,107 @@ impl GraphicsManager {
         self.ui = UIState::ChairacterSelect {
             background,
             chair_select_box,
+            player_chair_images: vec![None, None, None, None],
+        };
+
+        // buttons
+        let mut main_menu_button = UIRegion::new(40.0, 587.0, 224.0, 64.0);
+        main_menu_button.on_click(|graphics, _game_client| {
+            graphics.display_main_menu();
+        });
+        main_menu_button.on_enter(|_, _| println!("entered main menu"));
+        main_menu_button.on_exit(|_, _| println!("exited main menu"));
+
+        let mut ready_button = UIRegion::new(999.0, 587.0, 225.0, 64.0);
+        ready_button.on_click(|_graphics, game_client| {
+            game_client.signal_ready_status(true);
+        });
+        ready_button.on_enter(|_, _| println!("entered ready button"));
+        ready_button.on_exit(|_, _| println!("exited ready button"));
+
+        let mut force_start_button = UIRegion::new(999.0, 637.0, 225.0, 31.0);
+        force_start_button.on_click(|_graphics, game_client| {
+            game_client.force_start();
+        });
+
+        force_start_button.on_enter(|_, _| println!("entered force start button"));
+        force_start_button.on_exit(|_, _| println!("exited force start button"));
+
+        vec![main_menu_button, ready_button, force_start_button]
+    }
+
+    pub fn maybe_select_chair(&mut self, chair: Chair) {
+        if let UIState::ChairacterSelect {
+            chair_select_box, ..
+        } = &mut self.ui
+        {
+            let position = match chair {
+                Chair::Swivel => glam::vec2(304.0 / 1280.0, 548.0 / 720.0),
+                Chair::Recliner => glam::vec2(437.0 / 1280.0, 548.0 / 720.0),
+                Chair::Beanbag => glam::vec2(570.0 / 1280.0, 548.0 / 720.0),
+                Chair::Ergonomic => glam::vec2(703.0 / 1280.0, 548.0 / 720.0),
+                Chair::Folding => glam::vec2(835.0 / 1280.0, 548.0 / 720.0),
+            };
+            // not sure the best way to change the position; for now, I'm just rerendering completely
+            let chair_select_box_handle = self
+                .resources
+                .import_texture(&self.renderer, "UI/ChairSelect/chairselectbox.png");
+
+            let chair_select_box_texture = self
+                .resources
+                .textures
+                .get(&chair_select_box_handle)
+                .expect("chair select box doesn't exist!");
+
+            let layer_vec = vec![technique::UILayerTechnique::new(
+                &self.renderer,
+                position,
+                glam::vec2(141.0 / 1280.0, 134.0 / 720.0),
+                glam::vec2(0.0, 0.0),
+                glam::vec2(1.0, 1.0),
+                &chair_select_box_texture,
+            )];
+
+            *chair_select_box = UIDrawable { layers: layer_vec };
+            self.maybe_display_chair(chair, self.player_num);
+        }
+    }
+
+    pub fn maybe_display_chair(&mut self, chair: Chair, player: usize) {
+        if let UIState::ChairacterSelect {
+            player_chair_images,
+            ..
+        } = &mut self.ui
+        {
+            let chair_image = self.resources.import_texture(
+                &self.renderer,
+                format!("UI/ChairSelect/display/type={}.png", chair.file()).as_str(),
+            );
+
+            let chair_texture = self
+                .resources
+                .textures
+                .get(&chair_image)
+                .expect(format!("{} doesn't exist!", chair.to_string()).as_str());
+
+            let position = match player {
+                0 => glam::vec2(165.0 / 1280.0, 187.0 / 720.0),
+                1 => glam::vec2(422.0 / 1280.0, 146.0 / 720.0),
+                2 => glam::vec2(697.0 / 1280.0, 196.0 / 720.0),
+                3 => glam::vec2(166.0 / 1280.0, 247.0 / 720.0),
+                _ => glam::vec2(165.0 / 1280.0, 187.0 / 720.0),
+            };
+
+            let layers = vec![technique::UILayerTechnique::new(
+                &self.renderer,
+                position,
+                glam::vec2(166.0 / 1280.0, 247.0 / 720.0),
+                glam::vec2(0.0, 0.0),
+                glam::vec2(1.0, 1.0),
+                &chair_texture,
+            )];
+
+            player_chair_images[player] = Some(UIDrawable { layers });
         }
     }
 

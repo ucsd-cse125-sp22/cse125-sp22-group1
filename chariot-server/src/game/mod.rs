@@ -270,6 +270,12 @@ impl GameServer {
                                 ClientBoundPacket::PlayerNumber(idx, player_choices.clone()),
                             );
                             player_choices[idx] = Some(Default::default());
+
+                            // go tell everyone else we have a new player
+                            println!("telling everyone about our new player");
+                            for con in self.connections.iter_mut() {
+                                con.push_outgoing(ClientBoundPacket::PlayerJoined(idx));
+                            }
                         }
                         Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => (),
                         Err(e) => println!("couldn't get connecting client info {:?}", e),
