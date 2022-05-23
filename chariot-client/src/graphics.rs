@@ -127,12 +127,6 @@ impl GraphicsManager {
         }
     }
 
-    pub fn set_loading_text(&mut self, new_text: &str) {
-        if let UIState::LoadingScreen { loading_text, .. } = &mut self.ui {
-            loading_text.set(new_text, &self.renderer, &mut self.resources);
-        }
-    }
-
     pub fn load_pregame(&mut self) {
         println!("Loading pregame screen!");
         self.world = setup_void();
@@ -473,15 +467,15 @@ impl GraphicsManager {
 
         match &self.ui {
             UIState::None => {}
-            UIState::LoadingScreen {
-                loading_text,
+            UIState::ChairacterSelect {
                 background,
+                chair_select_box,
             } => {
-                let text_graph = loading_text.render_graph(&self.resources);
-                render_job.merge_graph_after("postprocess", text_graph);
-
                 let background_graph = background.render_graph(&self.resources);
                 render_job.merge_graph_after("postprocess", background_graph);
+
+                let chair_select_box_graph = chair_select_box.render_graph(&self.resources);
+                render_job.merge_graph_after("postprocess", chair_select_box_graph);
             }
             UIState::InGameHUD {
                 place_position_text,

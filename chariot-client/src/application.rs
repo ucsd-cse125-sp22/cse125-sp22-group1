@@ -217,19 +217,19 @@ impl Application {
         };
 
         if key == VirtualKeyCode::R {
-            self.graphics.set_loading_text("Reloading shaders");
+            println!("Reloading shaders");
             register_passes(&mut self.graphics.renderer);
         } else if key == VirtualKeyCode::Apostrophe {
-            self.graphics.set_loading_text("Picking map");
+            println!("Picking map");
             self.game.pick_map(Track::Track);
         } else if key == VirtualKeyCode::Semicolon {
-            self.graphics.set_loading_text("Setting ready");
+            println!("Setting ready");
             self.game.signal_ready_status(true);
         } else if key == VirtualKeyCode::L {
-            self.graphics.set_loading_text("Forcing a start!");
+            println!("Forcing a start!");
             self.game.force_start();
         } else if key == VirtualKeyCode::P {
-            self.graphics.set_loading_text("Starting next game!");
+            println!("Starting next game!");
             self.game.next_game();
         } else if key == VirtualKeyCode::Right {
             let new_chair = match self.graphics.player_choices[self.graphics.player_num]

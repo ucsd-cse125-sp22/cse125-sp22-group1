@@ -33,9 +33,9 @@ pub enum UIState {
     MainMenu {
         background: UIDrawable,
     },
-    LoadingScreen {
-        loading_text: StringDrawable,
+    ChairacterSelect {
         background: UIDrawable,
+        chair_select_box: UIDrawable,
     },
     InGameHUD {
         place_position_text: StringDrawable,
@@ -204,7 +204,7 @@ impl GraphicsManager {
     pub fn display_chairacter_select(&mut self) {
         let background_handle = self
             .resources
-            .import_texture(&self.renderer, "UI/chairselect/background.png");
+            .import_texture(&self.renderer, "UI/ChairSelect/background.png");
 
         let background_texture = self
             .resources
@@ -223,20 +223,35 @@ impl GraphicsManager {
 
         let background = UIDrawable { layers: layer_vec };
 
-        let mut loading_text = StringDrawable::new("ArialMT", 28.0, Vec2::new(0.005, 0.047));
-        loading_text.set(
-            "Enter sets your chair to standard
-sets your map vote to track
-; sets your ready status to true
-L sets force_start to true
-P tells the server to start the next round",
-            &self.renderer,
-            &mut self.resources,
-        );
+        let chair_select_box_handle = self
+            .resources
+            .import_texture(&self.renderer, "UI/ChairSelect/chairselectbox.png");
 
-        self.ui = UIState::LoadingScreen {
-            loading_text,
+        let chair_select_box_texture = self
+            .resources
+            .textures
+            .get(&chair_select_box_handle)
+            .expect("background doesn't exist!");
+
+        // x = 304
+        // y = 548
+        // image_width = 141
+        // image_height = 134
+        // screen_width = 1280
+        // screen_height = 720
+        let layer_vec = vec![technique::UILayerTechnique::new(
+            &self.renderer,
+            glam::vec2(304.0 / 1280.0, 548.0 / 720.0),
+            glam::vec2(141.0 / 1280.0, 134.0 / 720.0),
+            glam::vec2(0.0, 0.0),
+            glam::vec2(1.0, 1.0),
+            &chair_select_box_texture,
+        )];
+
+        let chair_select_box = UIDrawable { layers: layer_vec };
+        self.ui = UIState::ChairacterSelect {
             background,
+            chair_select_box,
         }
     }
 
