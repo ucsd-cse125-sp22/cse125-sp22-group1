@@ -2,6 +2,8 @@ use gilrs::{Axis, Button, EventType};
 use std::collections::HashSet;
 use std::time::Instant;
 
+use std::time::{Duration, SystemTime};
+
 use chariot_core::player::choices::{Chair, Track};
 
 use winit::dpi::PhysicalPosition;
@@ -22,6 +24,7 @@ pub struct Application {
     pub game: GameClient,
     pub pressed_keys: HashSet<VirtualKeyCode>,
     mouse_pos: PhysicalPosition<f64>,
+    last_update: SystemTime,
     ui_regions: Vec<UIRegion>,
 }
 
@@ -43,6 +46,7 @@ impl Application {
             game,
             pressed_keys: HashSet::new(),
             mouse_pos: PhysicalPosition::<f64> { x: -1.0, y: -1.0 },
+            last_update: SystemTime::now(),
             ui_regions: vec![test_ui_region],
         }
     }
@@ -52,6 +56,16 @@ impl Application {
     }
 
     pub fn update(&mut self) {
+        let delta_time = self.last_update.elapsed().unwrap().as_secs_f32();
+        self.graphics.update(delta_time);
+
+        // TODO: do this for other players
+        if self.pressed_keys.contains(&VirtualKeyCode::W) {
+            self.graphics.add_fire_to_player(0, delta_time);
+        }
+
+        self.last_update = SystemTime::now();
+
         self.game.fetch_incoming_packets();
 
         // process current packets
