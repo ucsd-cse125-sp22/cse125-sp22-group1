@@ -1,3 +1,4 @@
+pub mod particle;
 pub mod string;
 pub mod technique;
 

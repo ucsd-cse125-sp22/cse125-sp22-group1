@@ -6,12 +6,13 @@ use chariot_core::player::PlayerID;
 use glam::{DVec3, Vec2};
 use std::f64::consts::PI;
 
+use crate::drawable::particle::ParticleDrawable;
 use crate::drawable::technique::Technique;
-
 use crate::drawable::*;
 use crate::renderer::*;
 use crate::resources::*;
 use crate::scenegraph::components::*;
+use crate::scenegraph::particle_system::*;
 use crate::scenegraph::*;
 use crate::ui::ui_region::UIRegion;
 use crate::ui_state::AnnouncementState;
@@ -40,6 +41,11 @@ pub fn register_passes(renderer: &mut Renderer) {
         "ui",
         &util::direct_graphics_nodepth_pass!("shaders/ui.wgsl"),
     );
+
+    renderer.register_pass(
+        "particle",
+        &util::direct_graphics_nodepth_pass!("shaders/particle.wgsl"),
+    );
 }
 
 fn setup_void() -> World {
@@ -48,6 +54,10 @@ fn setup_void() -> World {
     world.register::<Vec<StaticMeshDrawable>>();
     world.register::<Bounds>();
     world.register::<Light>();
+
+    ParticleSystem::<0>::register_components(&mut world);
+    ParticleSystem::<1>::register_components(&mut world);
+
     let world_root = world.root();
 
     {
@@ -74,8 +84,10 @@ pub struct GraphicsManager {
     pub ui_regions: Vec<UIRegion>,
     pub player_num: PlayerID,
     pub player_choices: [Option<PlayerChoices>; 4],
-    postprocess: technique::FSQTechnique,
     pub player_entities: [Option<Entity>; 4],
+    postprocess: technique::FSQTechnique,
+    fire_particle_system: ParticleSystem<0>,
+    smoke_particle_system: ParticleSystem<1>,
     camera_entity: Entity,
 }
 
@@ -111,9 +123,43 @@ impl GraphicsManager {
             renderer.register_framebuffer("shadow_out1", fb_desc);
         }
 
-        let postprocess = technique::FSQTechnique::new(&renderer, &resources, "postprocess");
+        let quad_handle = resources.create_quad_mesh(&renderer);
+        let fire_handle = resources.import_texture(&renderer, "sprites/fire.png");
+        let fire_offset = glam::Vec3::Z * -3.0;
+        let fire_particle_system = ParticleSystem::new(
+            &renderer,
+            &mut resources,
+            ParticleSystemParams {
+                texture_handle: fire_handle,
+                mesh_handle: quad_handle,
+                pos_range: (-glam::Vec3::ONE * 0.2, glam::Vec3::ONE * 0.2),
+                size_range: (glam::vec2(0.9, 1.9), glam::vec2(1.1, 2.1)),
+                initial_vel: glam::Vec3::ZERO,
+                spawn_rate: 50.0,
+                lifetime: 1.0,
+                rotation: ParticleRotation::RandomAroundAxis(glam::Vec3::Y),
+                gravity: 0.0,
+            },
+        );
 
+        let smoke_handle = resources.import_texture(&renderer, "sprites/smoke.png");
+        let smoke_particle_system = ParticleSystem::new(
+            &renderer,
+            &mut resources,
+            ParticleSystemParams {
+                texture_handle: smoke_handle,
+                mesh_handle: quad_handle,
+                pos_range: (-glam::Vec3::ONE * 0.1, glam::Vec3::ONE * 0.1),
+                size_range: (glam::Vec2::ONE, glam::Vec2::ONE * 3.0),
+                initial_vel: glam::Vec3::ZERO,
+                spawn_rate: 50.0,
+                lifetime: 5.0,
+                rotation: ParticleRotation::Billboard,
+                gravity: -0.2,
+            },
+        );
         let world = setup_void();
+        let postprocess = technique::FSQTechnique::new(&renderer, &resources, "postprocess");
 
         Self {
             ui_regions: vec![],
@@ -125,6 +171,8 @@ impl GraphicsManager {
             player_entities: [None, None, None, None],
             ui: UIState::None,
             player_num: 4,
+            fire_particle_system,
+            smoke_particle_system,
             camera_entity: NULL_ENTITY,
         }
     }
@@ -151,6 +199,10 @@ impl GraphicsManager {
         world.register::<Vec<StaticMeshDrawable>>();
         world.register::<Bounds>();
         world.register::<Light>();
+
+        ParticleSystem::<0>::register_components(&mut world);
+        ParticleSystem::<1>::register_components(&mut world);
+
         let world_root = world.root();
 
         {
@@ -231,6 +283,13 @@ impl GraphicsManager {
         }
 
         self.player_entities[player_num as usize] = Some(chair);
+    }
+
+    pub fn update(&mut self, delta_time: f32) {
+        self.fire_particle_system
+            .update(&mut self.world, delta_time);
+        self.smoke_particle_system
+            .update(&mut self.world, delta_time);
     }
 
     pub fn update_player_location(
@@ -326,6 +385,34 @@ impl GraphicsManager {
                 };
             }
         }
+    }
+
+    pub fn add_fire_to_player(&mut self, player_num: PlayerID, delta_time: f32) {
+        let player_entity = self.player_entities[player_num as usize].unwrap();
+        let player_transform = *self.world.get::<Transform>(player_entity).unwrap();
+        let world_root = self.world.root();
+
+        let fire_rot = glam::Quat::from_axis_angle(glam::Vec3::X, std::f32::consts::FRAC_PI_2);
+        let fire_transform = Transform {
+            translation: glam::Vec3::Z * -3.0,
+            rotation: fire_rot,
+            scale: glam::Vec3::ONE,
+        };
+        self.fire_particle_system.spawn(
+            &self.renderer,
+            &mut self.world,
+            &fire_transform,
+            player_entity,
+            delta_time,
+        );
+
+        self.smoke_particle_system.spawn(
+            &self.renderer,
+            &mut self.world,
+            &player_transform,
+            world_root,
+            delta_time,
+        );
     }
 
     pub fn render(&mut self) {
@@ -454,6 +541,27 @@ impl GraphicsManager {
                 }
             }
 
+            if let Some(drawable) = self
+                .world
+                .get::<Option<ParticleDrawable>>(e)
+                .filter(|d| d.is_some())
+                .map(|d| d.as_ref().unwrap())
+            {
+                if let Some(particle_model) =
+                    self.fire_particle_system
+                        .calc_particle_model(&self.world, e, view)
+                {
+                    drawable.update_mvp(&self.renderer, acc_model * particle_model, view, proj);
+                }
+
+                if let Some(particle_model) =
+                    self.smoke_particle_system
+                        .calc_particle_model(&self.world, e, view)
+                {
+                    drawable.update_mvp(&self.renderer, acc_model * particle_model, view, proj);
+                }
+            }
+
             acc_model
         });
 
@@ -466,6 +574,15 @@ impl GraphicsManager {
         );
         let postprocess_graph = self.postprocess.render_item(&self.resources).to_graph();
         render_job.merge_graph_after("forward", postprocess_graph);
+
+        if let Some(drawables) = self.world.storage::<Option<ParticleDrawable>>() {
+            for maybe_drawable in drawables.iter() {
+                if let Some(drawable) = maybe_drawable {
+                    let graph = drawable.render_graph(&self.resources);
+                    render_job.merge_graph_after("postprocess", graph);
+                }
+            }
+        }
 
         match &self.ui {
             UIState::None => {}
