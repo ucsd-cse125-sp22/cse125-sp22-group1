@@ -25,7 +25,6 @@ pub fn get_player_start_physics_properties(chair: &Chair, player_number: PlayerI
     return PlayerEntity {
         velocity: DVec3::ZERO,
         angular_velocity: 0.0,
-        mass: chair.stat("mass"),
         size: chair.scale(),
         bounding_box: BoundingBox::new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0), // will be made correct on the first physics tick
         player_inputs: PlayerInputs {

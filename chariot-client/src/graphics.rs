@@ -113,11 +113,7 @@ impl GraphicsManager {
 
         let mut loading_text = StringDrawable::new("ArialMT", 28.0, Vec2::new(0.005, 0.047));
         loading_text.set(
-            "Enter sets your chair to standard
-sets your map vote to track
-; sets your ready status to true
-L sets force_start to true
-P tells the server to start the next round",
+            "Enter sets your chair to standardsets your map vote to track; sets your ready status to trueL sets force_start to trueP tells the server to start the next round",
             &renderer,
             &mut resources,
         );

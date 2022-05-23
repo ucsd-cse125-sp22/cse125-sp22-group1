@@ -28,7 +28,6 @@ fn get_starting_player_props() -> PlayerEntity {
 
         velocity: DVec3::new(2.0, 0.0, 1.0),
         angular_velocity: 0.0,
-        mass: 10.0,
 
         current_colliders: Vec::new(),
 
@@ -57,7 +56,6 @@ fn get_origin_cube() -> PlayerEntity {
 
         velocity: DVec3::ZERO,
         angular_velocity: 0.0,
-        mass: 10.0,
 
         current_colliders: Vec::new(),
 
