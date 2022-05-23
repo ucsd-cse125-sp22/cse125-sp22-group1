@@ -172,10 +172,7 @@ impl GraphicsManager {
         {
             let track_import = self
                 .resources
-                .import_gltf(
-                    &mut self.renderer,
-                    format!("models/{}.glb", map.to_string()),
-                )
+                .import_gltf(&mut self.renderer, format!("maps/{}.glb", map.to_string()))
                 .expect("Unable to load racetrack");
 
             let _track = world
