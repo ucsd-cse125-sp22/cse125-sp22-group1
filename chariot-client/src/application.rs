@@ -1,6 +1,8 @@
 use std::collections::HashSet;
+use std::time::Instant;
 
 use chariot_core::player::choices::{Chair, Track};
+
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, VirtualKeyCode};
 
@@ -8,27 +10,39 @@ use chariot_core::networking::ClientBoundPacket;
 use chariot_core::player::player_inputs::{EngineStatus, InputEvent, RotationStatus};
 use chariot_core::GLOBAL_CONFIG;
 
-use crate::game::{self, GameClient};
+use crate::game::GameClient;
 use crate::graphics::{register_passes, GraphicsManager};
+
+use crate::ui::ui_region::UIRegion;
+use crate::ui_state::AnnouncementState;
 
 pub struct Application {
     pub graphics: GraphicsManager,
     pub game: GameClient,
     pub pressed_keys: HashSet<VirtualKeyCode>,
     mouse_pos: PhysicalPosition<f64>,
+    ui_regions: Vec<UIRegion>,
 }
 
 impl Application {
     pub fn new(mut graphics_manager: GraphicsManager) -> Self {
         let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
-        let game = game::GameClient::new(ip_addr);
+        let game = GameClient::new(ip_addr);
         graphics_manager.load_menu();
+
+        // demonstration region about encompassing the corner text
+        let mut test_ui_region = UIRegion::new(5.0, 7.0, 150.0, 26.0);
+        test_ui_region.on_enter(|| println!("region entered"));
+        test_ui_region.on_exit(|| println!("region exited"));
+        test_ui_region.on_click(|| println!("region clicked"));
+        test_ui_region.on_release(|| println!("region released"));
 
         Self {
             graphics: graphics_manager,
             game,
             pressed_keys: HashSet::new(),
             mouse_pos: PhysicalPosition::<f64> { x: -1.0, y: -1.0 },
+            ui_regions: vec![test_ui_region],
         }
     }
 
@@ -88,18 +102,58 @@ impl Application {
                     });
                 }
                 ClientBoundPacket::PlacementUpdate(position) => {
-                    println!("I am now placed {}!", position);
+                    self.graphics.maybe_update_place(position);
                 }
                 ClientBoundPacket::LapUpdate(lap_num) => {
                     println!("I am now on lap {}!", lap_num);
                 }
-                ClientBoundPacket::GameStart(_) => println!("The game has begun!"),
+                ClientBoundPacket::GameStart(_) => {
+                    self.graphics.display_hud();
+                    println!("The game has begun!")
+                }
                 ClientBoundPacket::PowerupPickup => println!("we got a powerup!"),
-                ClientBoundPacket::InteractionActivate(question, decision) => {
-                    println!(
-                        "The Audience has voted on {}, and voted for option {}!",
-                        question.prompt, decision.label
+                ClientBoundPacket::VotingStarted {
+                    question,
+                    time_until_vote_end,
+                } => {
+                    let vote_end_time = Instant::now() + time_until_vote_end;
+                    self.graphics.make_announcement(
+                        "The audience is deciding your fate",
+                        format!(
+                            "They decide in {} seconds",
+                            (vote_end_time - Instant::now()).as_secs()
+                        )
+                        .as_str(),
                     );
+
+                    self.graphics.maybe_set_announcement_state(
+                        AnnouncementState::VotingInProgress {
+                            prompt: question.prompt,
+                            vote_end_time,
+                        },
+                    );
+                }
+                ClientBoundPacket::InteractionActivate {
+                    question,
+                    decision,
+                    time_effect_is_live,
+                } => {
+                    let effect_end_time = Instant::now() + time_effect_is_live;
+                    self.graphics.make_announcement(
+                        format!("{} was chosen!", decision.label).as_str(),
+                        format!(
+                            "Effects will last for another {} seconds",
+                            (effect_end_time - Instant::now()).as_secs()
+                        )
+                        .as_str(),
+                    );
+
+                    self.graphics
+                        .maybe_set_announcement_state(AnnouncementState::VoteActiveTime {
+                            prompt: question.prompt,
+                            decision: decision.label,
+                            effect_end_time,
+                        });
                 }
                 ClientBoundPacket::AllDone(final_placements) => {
                     println!(
@@ -114,14 +168,12 @@ impl Application {
                             .collect::<String>()
                     );
                 }
-                ClientBoundPacket::VotingStarted(question) => {
-                    println!("The audience is now voting on {}", question.prompt)
-                }
                 ClientBoundPacket::StartNextGame => {
                     self.graphics.load_pregame();
                 }
             }
         }
+        self.graphics.update_minimap();
     }
 
     // Input configuration
@@ -172,23 +224,46 @@ impl Application {
         };
 
         if key == VirtualKeyCode::R {
-            println!("Reloading shaders");
+            self.graphics.set_loading_text("Reloading shaders");
             register_passes(&mut self.graphics.renderer);
-        } else if key == VirtualKeyCode::Return {
-            println!("Picking chair");
-            self.game.pick_chair(Chair::Standard);
         } else if key == VirtualKeyCode::Apostrophe {
-            println!("Picking map");
+            self.graphics.set_loading_text("Picking map");
             self.game.pick_map(Track::Track);
         } else if key == VirtualKeyCode::Semicolon {
-            println!("Setting ready");
+            self.graphics.set_loading_text("Setting ready");
             self.game.signal_ready_status(true);
         } else if key == VirtualKeyCode::L {
-            println!("Forcing a start!");
+            self.graphics.set_loading_text("Forcing a start!");
             self.game.force_start();
         } else if key == VirtualKeyCode::P {
-            println!("Starting next game!");
+            self.graphics.set_loading_text("Starting next game!");
             self.game.next_game();
+        } else if key == VirtualKeyCode::Right {
+            let new_chair = match self.graphics.player_choices[self.graphics.player_num]
+                .as_ref()
+                .unwrap()
+                .chair
+            {
+                Chair::Swivel => Chair::Recliner,
+                Chair::Recliner => Chair::Ergonomic,
+                Chair::Ergonomic => Chair::Beanbag,
+                Chair::Beanbag => Chair::Folding,
+                Chair::Folding => Chair::Swivel,
+            };
+            self.game.pick_chair(new_chair);
+        } else if key == VirtualKeyCode::Left {
+            let new_chair = match self.graphics.player_choices[self.graphics.player_num]
+                .as_ref()
+                .unwrap()
+                .chair
+            {
+                Chair::Swivel => Chair::Folding,
+                Chair::Recliner => Chair::Swivel,
+                Chair::Ergonomic => Chair::Recliner,
+                Chair::Beanbag => Chair::Ergonomic,
+                Chair::Folding => Chair::Beanbag,
+            };
+            self.game.pick_chair(new_chair);
         }
     }
 
@@ -203,14 +278,25 @@ impl Application {
     pub fn on_mouse_move(&mut self, x: f64, y: f64) {
         self.mouse_pos.x = x;
         self.mouse_pos.y = y;
+
+        self.ui_regions
+            .iter_mut()
+            .for_each(|reg| reg.set_hovering(x, y));
     }
 
     pub fn on_left_mouse(&mut self, state: ElementState) {
-        let _x = self.mouse_pos.x;
-        let _y = self.mouse_pos.y;
+        let x = self.mouse_pos.x;
+        let y = self.mouse_pos.y;
 
-        if let ElementState::Released = state {
-            // println!("Mouse clicked @ ({}, {})!", x, y);
+        match state {
+            ElementState::Pressed => self
+                .ui_regions
+                .iter_mut()
+                .for_each(|reg| reg.set_active(x, y)),
+            ElementState::Released => self
+                .ui_regions
+                .iter_mut()
+                .for_each(|reg| reg.set_inactive()),
         }
     }
 

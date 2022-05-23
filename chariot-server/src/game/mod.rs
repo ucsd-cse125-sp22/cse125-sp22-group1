@@ -75,7 +75,7 @@ impl GameServer {
                     player_choices: Default::default(),
                 },
                 players: [0, 1, 2, 3]
-                    .map(|num| get_player_start_physics_properties(&Chair::Standard, num)),
+                    .map(|num| get_player_start_physics_properties(&Chair::Swivel, num)),
                 map: None,
             },
         }
@@ -358,10 +358,19 @@ impl GameServer {
                         .collect()
                 };
 
+                let colliders = &self
+                    .game_state
+                    .map
+                    .as_ref()
+                    .expect("No map loaded in game loop!")
+                    .colliders
+                    .clone();
+
                 self.game_state.players = [0, 1, 2, 3].map(|n| {
                     self.game_state.players[n].do_physics_step(
                         1.0,
                         others(n),
+                        colliders.clone(),
                         self.game_state
                             .map
                             .as_mut()
@@ -393,22 +402,23 @@ impl GameServer {
                             );
 
                             let decision = current_question.options[winner].clone();
+                            let time_effect_is_live = Duration::new(30, 0);
+                            let effect_end_time = now + time_effect_is_live;
 
                             for client in self.connections.iter_mut() {
-                                client.push_outgoing(ClientBoundPacket::InteractionActivate(
-                                    current_question.clone(),
-                                    decision.clone(),
-                                ));
+                                client.push_outgoing(ClientBoundPacket::InteractionActivate {
+                                    question: current_question.clone(),
+                                    decision: decision.clone(),
+                                    time_effect_is_live,
+                                });
                             }
-
-                            let decision_end_time = now + Duration::new(30, 0);
 
                             match decision.action {
                                 chariot_core::questions::AudienceAction::NoLeft => {
                                     self.game_state.players.iter_mut().for_each(|playa| {
                                         playa.physics_changes.push(PhysicsChange {
                                             change_type: PhysicsChangeType::NoTurningLeft,
-                                            expiration_time: decision_end_time,
+                                            expiration_time: effect_end_time,
                                         });
                                     });
                                 }
@@ -416,7 +426,7 @@ impl GameServer {
                                     self.game_state.players.iter_mut().for_each(|playa| {
                                         playa.physics_changes.push(PhysicsChange {
                                             change_type: PhysicsChangeType::NoTurningRight,
-                                            expiration_time: decision_end_time,
+                                            expiration_time: effect_end_time,
                                         });
                                     });
                                 }
@@ -424,7 +434,7 @@ impl GameServer {
 
                             *voting_game_state = VotingState::VoteResultActive {
                                 decision,
-                                decision_end_time,
+                                decision_end_time: effect_end_time,
                             };
                         }
                     }
@@ -439,20 +449,22 @@ impl GameServer {
                     }
                     VotingState::VoteCooldown(cooldown) => {
                         if *cooldown < now {
-                            let time_until_voting_enabled = Duration::new(30, 0);
+                            let time_until_vote_end = Duration::new(30, 0);
+                            let vote_end_time = now + time_until_vote_end;
                             let question: QuestionData = QUESTIONS[*question_idx].clone();
                             *question_idx = (*question_idx + 1) % QUESTIONS.len();
 
                             *voting_game_state = VotingState::WaitingForVotes {
                                 audience_votes: HashMap::new(),
                                 current_question: question.clone(),
-                                vote_close_time: now + time_until_voting_enabled, // now + 30 seconds
+                                vote_close_time: vote_end_time,
                             };
 
                             for client in self.connections.iter_mut() {
-                                client.push_outgoing(ClientBoundPacket::VotingStarted(
-                                    question.clone(),
-                                ));
+                                client.push_outgoing(ClientBoundPacket::VotingStarted {
+                                    question: question.clone(),
+                                    time_until_vote_end,
+                                });
                             }
 
                             GameServer::broadcast_ws(

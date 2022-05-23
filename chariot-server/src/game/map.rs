@@ -70,7 +70,7 @@ impl Map {
             filename
         );
         filename.split(".").next().expect("invalid filename format");
-        let map_path = format!("{}/models/{}.glb", GLOBAL_CONFIG.resource_folder, filename);
+        let map_path = format!("{}/maps/{}.glb", GLOBAL_CONFIG.resource_folder, filename);
         let (document, buffers, _) = gltf::import(map_path)?;
         if document.scenes().count() != 1 {
             panic!(
@@ -80,7 +80,7 @@ impl Map {
             );
         }
 
-        let colliders: Vec<BoundingBox> = Vec::new();
+        let mut colliders: Vec<BoundingBox> = Vec::new();
 
         let mut checkpoints: Vec<Checkpoint> = Vec::new();
         let mut major_zones: Vec<Zone> = Vec::new();
@@ -174,7 +174,7 @@ impl Map {
                                     "Loading mesh '{}' as a collider",
                                     mesh.name().unwrap_or("<unnamed>")
                                 );
-                                todo!();
+                                colliders.push(mesh_bounds);
                             } else {
                                 panic!(
                                     "Mesh '{}' has unknown purpose '{}'!",

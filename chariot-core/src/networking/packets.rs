@@ -51,10 +51,21 @@ pub enum ClientBoundPacket {
     // During game
     EntityUpdate(Vec<(EntityLocation, DVec3)>), // Clients will need to know the location and velocity of every player
     PowerupPickup,                              // Add a payload here when appropriate
-    VotingStarted(QuestionData),                // Sent when the audience begins voting (suspense!)
-    InteractionActivate(QuestionData, QuestionOption), // Sent when the audience has voted on something
-    LapUpdate(LapNumber),                              // What lap are you now on?
-    PlacementUpdate(Placement),                        // What place in the race are you now at?
+    VotingStarted {
+        question: QuestionData,
+        #[serde(with = "serde_millis")]
+        time_until_vote_end: Duration,
+    }, // Sent when the audience begins voting (suspense!)
+
+    InteractionActivate {
+        question: QuestionData,
+        decision: QuestionOption,
+        #[serde(with = "serde_millis")]
+        time_effect_is_live: Duration,
+    }, // Sent when the audience has voted on something
+
+    LapUpdate(LapNumber),       // What lap are you now on?
+    PlacementUpdate(Placement), // What place in the race are you now at?
 
     // After game
     AllDone([Placement; 4]), // All players' final placements
