@@ -227,9 +227,10 @@ impl GraphicsManager {
 
         let background = UIDrawable { layers: layer_vec };
 
-        let chair_select_box_handle = self
-            .resources
-            .import_texture(&self.renderer, "UI/ChairSelect/chairselectbox.png");
+        let chair_select_box_handle = self.resources.import_texture(
+            &self.renderer,
+            format!("UI/ChairSelect/select/p{}rectangle.png", self.player_num).as_str(),
+        );
 
         let chair_select_box_texture = self
             .resources
@@ -285,9 +286,10 @@ impl GraphicsManager {
                 Chair::Folding => glam::vec2(835.0 / 1280.0, 548.0 / 720.0),
             };
             // not sure the best way to change the position; for now, I'm just rerendering completely
-            let chair_select_box_handle = self
-                .resources
-                .import_texture(&self.renderer, "UI/ChairSelect/chairselectbox.png");
+            let chair_select_box_handle = self.resources.import_texture(
+                &self.renderer,
+                format!("UI/ChairSelect/select/p{}rectangle.png", self.player_num).as_str(),
+            );
 
             let chair_select_box_texture = self
                 .resources
@@ -333,7 +335,7 @@ impl GraphicsManager {
                 0 => glam::vec2(165.0 / 1280.0, 187.0 / 720.0),
                 1 => glam::vec2(422.0 / 1280.0, 146.0 / 720.0),
                 2 => glam::vec2(697.0 / 1280.0, 196.0 / 720.0),
-                3 => glam::vec2(166.0 / 1280.0, 247.0 / 720.0),
+                3 => glam::vec2(956.0 / 1280.0, 146.0 / 720.0),
                 _ => glam::vec2(165.0 / 1280.0, 187.0 / 720.0),
             };
 
