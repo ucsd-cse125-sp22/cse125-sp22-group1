@@ -7,15 +7,14 @@ use glam::{DVec3, Vec2};
 use std::f64::consts::PI;
 
 use crate::drawable::particle::ParticleDrawable;
-use crate::drawable::string::StringDrawable;
 use crate::drawable::technique::Technique;
-
 use crate::drawable::*;
 use crate::renderer::*;
 use crate::resources::*;
 use crate::scenegraph::components::*;
 use crate::scenegraph::particle_system::*;
 use crate::scenegraph::*;
+use crate::ui::ui_region::UIRegion;
 use crate::ui_state::AnnouncementState;
 use crate::ui_state::UIState;
 
@@ -82,7 +81,7 @@ pub struct GraphicsManager {
     pub renderer: Renderer,
     pub resources: ResourceManager,
     pub ui: UIState,
-
+    pub ui_regions: Vec<UIRegion>,
     pub player_num: PlayerID,
     pub player_choices: [Option<PlayerChoices>; 4],
     pub player_entities: [Option<Entity>; 4],
@@ -159,40 +158,23 @@ impl GraphicsManager {
                 gravity: -0.2,
             },
         );
-
-        let mut loading_text = StringDrawable::new("ArialMT", 28.0, Vec2::new(0.005, 0.047));
-        loading_text.set(
-            "Enter sets your chair to standardsets your map vote to track; sets your ready status to trueL sets force_start to trueP tells the server to start the next round",
-            &renderer,
-            &mut resources,
-        );
-
         let world = setup_void();
         let postprocess = technique::FSQTechnique::new(&renderer, &resources, "postprocess");
 
         Self {
+            ui_regions: vec![],
+            postprocess,
             world,
             renderer,
             resources,
-            ui: UIState::LoadingScreen { loading_text },
-            player_num: 4,
             player_choices: Default::default(),
             player_entities: [None, None, None, None],
-            postprocess,
+            ui: UIState::None,
+            player_num: 4,
             fire_particle_system,
             smoke_particle_system,
             camera_entity: NULL_ENTITY,
         }
-    }
-
-    pub fn set_loading_text(&mut self, new_text: &str) {
-        if let UIState::LoadingScreen { loading_text } = &mut self.ui {
-            loading_text.set(new_text, &self.renderer, &mut self.resources);
-        }
-    }
-
-    pub fn load_menu(&mut self) {
-        println!("Loading main menu!");
     }
 
     pub fn load_pregame(&mut self) {
@@ -603,9 +585,22 @@ impl GraphicsManager {
         }
 
         match &self.ui {
-            UIState::LoadingScreen { loading_text } => {
-                let text_graph = loading_text.render_graph(&self.resources);
-                render_job.merge_graph_after("postprocess", text_graph);
+            UIState::None => {}
+            UIState::ChairacterSelect {
+                background,
+                chair_select_box,
+                player_chair_images,
+            } => {
+                let background_graph = background.render_graph(&self.resources);
+                render_job.merge_graph_after("postprocess", background_graph);
+
+                let chair_select_box_graph = chair_select_box.render_graph(&self.resources);
+                render_job.merge_graph_after("postprocess", chair_select_box_graph);
+
+                for chair_image in player_chair_images.iter().flatten() {
+                    let chair_graph = chair_image.render_graph(&self.resources);
+                    render_job.merge_graph_after("postprocess", chair_graph);
+                }
             }
             UIState::InGameHUD {
                 place_position_text,
@@ -626,6 +621,10 @@ impl GraphicsManager {
                     render_job.merge_graph_after("postprocess", text_graph);
                 }
                 let ui_graph = minimap_ui.render_graph(&self.resources);
+                render_job.merge_graph_after("postprocess", ui_graph);
+            }
+            UIState::MainMenu { background } => {
+                let ui_graph = background.render_graph(&self.resources);
                 render_job.merge_graph_after("postprocess", ui_graph);
             }
         }

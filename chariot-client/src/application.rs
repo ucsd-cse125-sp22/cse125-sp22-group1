@@ -2,7 +2,7 @@ use gilrs::{Axis, Button, EventType};
 use std::collections::HashSet;
 use std::time::Instant;
 
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 
 use chariot_core::player::choices::{Chair, Track};
 
@@ -32,27 +32,24 @@ impl Application {
     pub fn new(mut graphics_manager: GraphicsManager) -> Self {
         let ip_addr = format!("{}:{}", GLOBAL_CONFIG.server_address, GLOBAL_CONFIG.port);
         let game = GameClient::new(ip_addr);
-        graphics_manager.load_menu();
-
-        // demonstration region about encompassing the corner text
-        let mut test_ui_region = UIRegion::new(5.0, 7.0, 150.0, 26.0);
-        test_ui_region.on_enter(|| println!("region entered"));
-        test_ui_region.on_exit(|| println!("region exited"));
-        test_ui_region.on_click(|| println!("region clicked"));
-        test_ui_region.on_release(|| println!("region released"));
+        graphics_manager.display_main_menu();
 
         Self {
             graphics: graphics_manager,
             game,
             pressed_keys: HashSet::new(),
             mouse_pos: PhysicalPosition::<f64> { x: -1.0, y: -1.0 },
+            ui_regions: vec![],
             last_update: SystemTime::now(),
-            ui_regions: vec![test_ui_region],
         }
     }
 
     pub fn render(&mut self) {
         self.graphics.render();
+        let ui_regions = self.graphics.get_ui_regions();
+        if ui_regions.len() > 0 {
+            self.ui_regions = ui_regions;
+        }
     }
 
     pub fn update(&mut self) {
@@ -73,21 +70,22 @@ impl Application {
             match packet {
                 ClientBoundPacket::PlayerNumber(player_number, others_choices) => {
                     self.graphics.player_num = player_number;
-                    println!("I am now player #{}!", player_number);
                     self.graphics.player_choices = others_choices;
                     self.graphics.player_choices[player_number] = Some(Default::default());
                     self.graphics.load_pregame();
                 }
                 ClientBoundPacket::PlayerJoined(player_number) => {
-                    self.graphics.player_choices[player_number] = Some(Default::default());
+                    if player_number != self.graphics.player_num {
+                        self.graphics.player_choices[player_number] = Some(Default::default());
+                    }
                 }
 
                 ClientBoundPacket::PlayerChairChoice(player_num, chair) => {
-                    println!("Player #{} has chosen chair {}!", player_num, chair.clone());
                     self.graphics.player_choices[player_num]
                         .as_mut()
                         .expect("Attempted to set chair on player we don't know about!")
                         .chair = chair;
+                    self.graphics.maybe_display_chair(chair, player_num);
                 }
                 ClientBoundPacket::PlayerMapChoice(player_num, map) => {
                     println!("Player #{} has voted for map {}!", player_num, map.clone());
@@ -124,7 +122,6 @@ impl Application {
                 }
                 ClientBoundPacket::GameStart(_) => {
                     self.graphics.display_hud();
-                    println!("The game has begun!")
                 }
                 ClientBoundPacket::PowerupPickup => println!("we got a powerup!"),
                 ClientBoundPacket::VotingStarted {
@@ -241,19 +238,19 @@ impl Application {
         };
 
         if key == VirtualKeyCode::R {
-            self.graphics.set_loading_text("Reloading shaders");
+            println!("Reloading shaders");
             register_passes(&mut self.graphics.renderer);
         } else if key == VirtualKeyCode::Apostrophe {
-            self.graphics.set_loading_text("Picking map");
+            println!("Picking map");
             self.game.pick_map(Track::Track);
         } else if key == VirtualKeyCode::Semicolon {
-            self.graphics.set_loading_text("Setting ready");
+            println!("Setting ready");
             self.game.signal_ready_status(true);
         } else if key == VirtualKeyCode::L {
-            self.graphics.set_loading_text("Forcing a start!");
+            println!("Forcing a start!");
             self.game.force_start();
         } else if key == VirtualKeyCode::P {
-            self.graphics.set_loading_text("Starting next game!");
+            println!("Starting next game!");
             self.game.next_game();
         } else if key == VirtualKeyCode::Right {
             let new_chair = match self.graphics.player_choices[self.graphics.player_num]
@@ -262,12 +259,13 @@ impl Application {
                 .chair
             {
                 Chair::Swivel => Chair::Recliner,
-                Chair::Recliner => Chair::Ergonomic,
-                Chair::Ergonomic => Chair::Beanbag,
-                Chair::Beanbag => Chair::Folding,
+                Chair::Recliner => Chair::Beanbag,
+                Chair::Beanbag => Chair::Ergonomic,
+                Chair::Ergonomic => Chair::Folding,
                 Chair::Folding => Chair::Swivel,
             };
             self.game.pick_chair(new_chair);
+            self.graphics.maybe_select_chair(new_chair);
         } else if key == VirtualKeyCode::Left {
             let new_chair = match self.graphics.player_choices[self.graphics.player_num]
                 .as_ref()
@@ -276,10 +274,11 @@ impl Application {
             {
                 Chair::Swivel => Chair::Folding,
                 Chair::Recliner => Chair::Swivel,
-                Chair::Ergonomic => Chair::Recliner,
-                Chair::Beanbag => Chair::Ergonomic,
-                Chair::Folding => Chair::Beanbag,
+                Chair::Beanbag => Chair::Recliner,
+                Chair::Ergonomic => Chair::Beanbag,
+                Chair::Folding => Chair::Ergonomic,
             };
+            self.graphics.maybe_select_chair(new_chair);
             self.game.pick_chair(new_chair);
         }
     }
@@ -296,9 +295,10 @@ impl Application {
         self.mouse_pos.x = x;
         self.mouse_pos.y = y;
 
-        self.ui_regions
+        let regions = &mut self.ui_regions;
+        regions
             .iter_mut()
-            .for_each(|reg| reg.set_hovering(x, y));
+            .for_each(|reg| reg.set_hovering(x, y, &mut self.graphics, &mut self.game));
     }
 
     pub fn on_left_mouse(&mut self, state: ElementState) {
@@ -309,11 +309,11 @@ impl Application {
             ElementState::Pressed => self
                 .ui_regions
                 .iter_mut()
-                .for_each(|reg| reg.set_active(x, y)),
+                .for_each(|reg| reg.set_active(x, y, &mut self.graphics, &mut self.game)),
             ElementState::Released => self
                 .ui_regions
                 .iter_mut()
-                .for_each(|reg| reg.set_inactive()),
+                .for_each(|reg| reg.set_inactive(&mut self.graphics, &mut self.game)),
         }
     }
 
@@ -354,13 +354,11 @@ impl Application {
                     /***** MENU *****/ // TODO: this is temporary. we need a real way to handle menu input w controllers
                     // Force-start
                     Button::Start if value == 1.0 => {
-                        self.graphics.set_loading_text("Forcing a start!");
                         self.game.force_start();
                         None
                     }
                     // Ready up
                     Button::Select if value == 1.0 => {
-                        self.graphics.set_loading_text("Setting ready");
                         self.game.signal_ready_status(true);
                         None
                     }

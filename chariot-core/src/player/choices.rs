@@ -1,12 +1,15 @@
 use glam::DVec3;
 use lazy_static::lazy_static;
-use std::{collections::HashMap, fmt};
+use std::{
+    collections::HashMap,
+    fmt::{self},
+};
 
 use serde::{Deserialize, Serialize};
 
 use crate::GLOBAL_CONFIG;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct PlayerChoices {
     pub chair: Chair,
     pub map: Track,
@@ -61,12 +64,12 @@ pub enum Stat {
     Mass,
 }
 
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
 pub enum Chair {
     Swivel,
     Recliner,
-    Ergonomic,
     Beanbag,
+    Ergonomic,
     Folding,
 }
 
@@ -186,7 +189,7 @@ pub enum CameraType {
     FaceVelocity,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum Track {
     Track,
 }
