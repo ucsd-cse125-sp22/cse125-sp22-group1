@@ -1,10 +1,10 @@
+use std::borrow::BorrowMut;
 use std::{
     cmp::Eq,
     collections::{HashMap, VecDeque},
     ops::Bound,
     sync::atomic::{AtomicUsize, Ordering},
 };
-use std::borrow::BorrowMut;
 
 use serde_json::Value;
 use wgpu::Texture;
@@ -19,8 +19,8 @@ use static_mesh::*;
 use wgpu::util::DeviceExt;
 
 use crate::renderer::*;
-use crate::{drawable::*, scenegraph::components::Modifiers};
 use crate::resources::glyph_cache::GlyphCache;
+use crate::{drawable::*, scenegraph::components::Modifiers};
 
 // This file has the ResourceManager, which is responsible for loading gltf models and assigning resource handles
 
@@ -82,7 +82,7 @@ pub struct FontSelection {
     // the only side effect of requiring static here is that all fonts must be hardcoded...
     // which for our cases is always true
     pub font_name: &'static str,
-    pub point_size: i32
+    pub point_size: i32,
 }
 
 pub trait Handle {
@@ -126,7 +126,7 @@ pub struct ResourceManager {
     pub textures: HashMap<TextureHandle, Texture>,
     pub materials: HashMap<MaterialHandle, Material>,
     pub meshes: HashMap<StaticMeshHandle, StaticMesh>,
-    pub glyph_caches: HashMap<FontSelection, GlyphCache>
+    pub glyph_caches: HashMap<FontSelection, GlyphCache>,
 }
 
 impl ResourceManager {
@@ -673,6 +673,8 @@ impl ResourceManager {
     pub fn get_glyph_cache(&mut self, font_selection: FontSelection) -> &mut GlyphCache {
         self.glyph_caches
             .entry(font_selection)
-            .or_insert_with_key(|selection| GlyphCache::new(&selection.font_name, selection.point_size as f32))
+            .or_insert_with_key(|selection| {
+                GlyphCache::new(&selection.font_name, selection.point_size as f32)
+            })
     }
 }

@@ -84,11 +84,7 @@ impl GlyphCache {
     // fetches the glyph that corresponds with the given character
     // if the glyph hasn't been rasterized yet, that will happen now
     // i find it annoying that I have to pass the renderer AND resource_manager into this function but here we are
-    pub fn get_glyph(
-        &mut self,
-        character: char,
-        renderer: &Renderer,
-    ) -> &Glyph {
+    pub fn get_glyph(&mut self, character: char, renderer: &Renderer) -> &Glyph {
         // why do I gotta check the cache this way?
         // ...long story https://stackoverflow.com/questions/42879098/why-are-borrows-of-struct-members-allowed-in-mut-self-but-not-of-self-to-immut
         if self.cache.contains_key(&character) {
@@ -98,11 +94,7 @@ impl GlyphCache {
         return self.raster_glyph(character, renderer);
     }
 
-    fn raster_glyph(
-        &mut self,
-        character: char,
-        renderer: &Renderer,
-    ) -> &Glyph {
+    fn raster_glyph(&mut self, character: char, renderer: &Renderer) -> &Glyph {
         // fetch the glyph_id for this character
         // TODO: rather than CRASH, we should render the "unrecognized character" glyph
         let glyph_id = self

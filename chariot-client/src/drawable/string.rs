@@ -46,23 +46,38 @@ impl StringBuilder {
         self
     }
 
-    pub fn build_drawable(self, renderer: &Renderer, resource_manager: &mut ResourceManager) -> UIDrawable {
+    pub fn build_drawable(
+        self,
+        renderer: &Renderer,
+        resource_manager: &mut ResourceManager,
+    ) -> UIDrawable {
         let mut screen_pos = self.screen_position.clone();
 
         let glyph_cache = resource_manager.get_glyph_cache(self.font_selection);
 
         // first, grab all glyphs
-        let total_string_width: f32 = self.content.chars().map(|char| glyph_cache.get_glyph(char, renderer).get_advance_surface_offset(renderer).x).sum();
+        let total_string_width: f32 = self
+            .content
+            .chars()
+            .map(|char| {
+                glyph_cache
+                    .get_glyph(char, renderer)
+                    .get_advance_surface_offset(renderer)
+                    .x
+            })
+            .sum();
 
         // generate starting position depending on alignment settings
         match self.alignment {
             StringAlignment::LEFT => {}
             StringAlignment::RIGHT => screen_pos.x -= total_string_width,
-            StringAlignment::CENTERED => screen_pos.x -= total_string_width / 2.0
+            StringAlignment::CENTERED => screen_pos.x -= total_string_width / 2.0,
         }
 
         // get UILayerTechniques for each glyph
-        let layers: Vec<UILayerTechnique> = self.content.chars()
+        let layers: Vec<UILayerTechnique> = self
+            .content
+            .chars()
             .map(|char| {
                 let glyph = glyph_cache.get_glyph(char, renderer);
                 let render_position = screen_pos - glyph.get_origin_surface_offset(renderer);
