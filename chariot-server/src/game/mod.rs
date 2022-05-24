@@ -173,7 +173,10 @@ impl GameServer {
                     },
                     ServerBoundPacket::SetReadyStatus(new_status) => {
                         match &mut self.game_state.phase {
-                            GamePhase::ConnectingAndChoosingSettings { player_choices, .. } => {
+                            GamePhase::ConnectingAndChoosingSettings {
+                                player_choices,
+                                force_start,
+                            } => {
                                 if let Some(PlayerChoices { ready, .. }) =
                                     &mut player_choices[player_num]
                                 {
@@ -186,6 +189,16 @@ impl GameServer {
                                     need_to_broadcast.push(ClientBoundPacket::PlayerReadyStatus(
                                         player_num, new_status,
                                     ));
+
+                                    let players_in_game = player_choices.iter().flatten();
+                                    let not_ready_players =
+                                        players_in_game.clone().filter(|player| player.ready);
+
+                                    if not_ready_players.count() == 0
+                                        && players_in_game.count() == GLOBAL_CONFIG.player_amount
+                                    {
+                                        *force_start = true;
+                                    }
                                 }
                             }
                             _ => (),
@@ -270,6 +283,12 @@ impl GameServer {
                                 ClientBoundPacket::PlayerNumber(idx, player_choices.clone()),
                             );
                             player_choices[idx] = Some(Default::default());
+
+                            // go tell everyone else we have a new player
+                            println!("telling everyone about our new player");
+                            for con in self.connections.iter_mut() {
+                                con.push_outgoing(ClientBoundPacket::PlayerJoined(idx));
+                            }
                         }
                         Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => (),
                         Err(e) => println!("couldn't get connecting client info {:?}", e),
