@@ -1,49 +1,70 @@
-use crate::drawable::technique::UILayerTechnique;
-use crate::drawable::{Drawable, UIDrawable};
-use crate::renderer::{render_job, Renderer};
-use crate::resources::glyph_cache::GlyphCache;
-use crate::resources::ResourceManager;
 use glam::Vec2;
 
-pub struct StringDrawable {
-    ui_drawable: UIDrawable,
-    glyph_cache: GlyphCache,
-    pub screen_position: Vec2,
-    pub center_text: bool,
+use crate::drawable::technique::UILayerTechnique;
+use crate::drawable::UIDrawable;
+use crate::renderer::Renderer;
+use crate::resources::{FontSelection, ResourceManager};
+
+#[derive(Copy, Clone)]
+pub enum StringAlignment {
+    LEFT,
+    RIGHT,
+    CENTERED,
 }
 
-impl StringDrawable {
-    pub fn new(font_name: &str, point_size: f32, screen_position: Vec2) -> StringDrawable {
-        StringDrawable {
-            ui_drawable: UIDrawable { layers: vec![] },
-            glyph_cache: GlyphCache::new(font_name, point_size),
-            screen_position,
-            center_text: false,
+#[derive(Clone)]
+pub struct StringBuilder {
+    font_selection: FontSelection,
+    screen_position: Vec2,
+    alignment: StringAlignment,
+    content: String,
+}
+
+// builder-pattern structure for creating UIDrawables that represent a rendered string
+impl StringBuilder {
+    pub fn new(font_selection: FontSelection) -> StringBuilder {
+        StringBuilder {
+            font_selection,
+            alignment: StringAlignment::LEFT,
+            screen_position: Vec2::new(0.0, 0.0),
+            content: String::from(""),
         }
     }
 
-    // create a new UIDrawable based on the requested content and position
-    // screen_pos needs to be floats from 0.0 -> 1.0 because thats what the Renderer expects
-    pub fn set(
-        &mut self,
-        content: &str,
-        renderer: &Renderer,
-        resource_manager: &mut ResourceManager,
-    ) {
+    pub fn content(mut self, content: &str) -> Self {
+        self.content = String::from(content);
+        self
+    }
+
+    pub fn position(mut self, x: f32, y: f32) -> Self {
+        self.screen_position = Vec2::new(x, y);
+        self
+    }
+
+    pub fn alignment(mut self, alignment: StringAlignment) -> Self {
+        self.alignment = alignment;
+        self
+    }
+
+    pub fn build_drawable(self, renderer: &Renderer, resource_manager: &mut ResourceManager) -> UIDrawable {
         let mut screen_pos = self.screen_position.clone();
 
-        if self.center_text {
-            // to center the screen position:
-            let letter_width = 11.0 / 741.0;
-            let word_width: f32 = content.len() as f32 * letter_width;
-            screen_pos[0] -= word_width / 2.0;
+        let glyph_cache = resource_manager.get_glyph_cache(self.font_selection);
+
+        // first, grab all glyphs
+        let total_string_width: f32 = self.content.chars().map(|char| glyph_cache.get_glyph(char, renderer).get_advance_surface_offset(renderer).x).sum();
+
+        // generate starting position depending on alignment settings
+        match self.alignment {
+            StringAlignment::LEFT => {}
+            StringAlignment::RIGHT => screen_pos.x -= total_string_width,
+            StringAlignment::CENTERED => screen_pos.x -= total_string_width / 2.0
         }
 
         // get UILayerTechniques for each glyph
-        let layers: Vec<UILayerTechnique> = content
-            .chars()
+        let layers: Vec<UILayerTechnique> = self.content.chars()
             .map(|char| {
-                let glyph = self.glyph_cache.get_glyph(char, renderer, resource_manager);
+                let glyph = glyph_cache.get_glyph(char, renderer);
                 let render_position = screen_pos - glyph.get_origin_surface_offset(renderer);
 
                 // increment the screen position by the glyph advance
@@ -55,18 +76,11 @@ impl StringDrawable {
                     glyph.get_bounds_surface_offset(renderer),
                     glyph.texture_offset,
                     glyph.texture_size,
-                    glyph.get_texture(resource_manager),
+                    &glyph.texture,
                 )
             })
             .collect();
 
-        // set UIDrawable to new item
-        self.ui_drawable = UIDrawable { layers }
-    }
-}
-
-impl Drawable for StringDrawable {
-    fn render_graph<'a>(&'a self, resources: &'a ResourceManager) -> render_job::RenderGraph<'a> {
-        self.ui_drawable.render_graph(resources)
+        UIDrawable { layers }
     }
 }

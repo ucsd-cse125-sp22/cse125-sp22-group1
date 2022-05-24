@@ -2,11 +2,11 @@ use std::time::Instant;
 
 use chariot_core::player::choices::Chair;
 use glam::Vec2;
+use lazy_static::lazy_static;
 use ordinal::Ordinal;
 
 use crate::{
     drawable::{
-        string::StringDrawable,
         technique::{self, UILayerTechnique},
         UIDrawable,
     },
@@ -15,6 +15,8 @@ use crate::{
     scenegraph::components::Transform,
     ui::ui_region::UIRegion,
 };
+use crate::drawable::string::{StringAlignment, StringBuilder};
+use crate::ui::fonts::{PLACEMENT_FONT, PRIMARY_FONT};
 
 pub enum AnnouncementState {
     None,
@@ -40,32 +42,45 @@ pub enum UIState {
         player_chair_images: Vec<Option<UIDrawable>>,
     },
     InGameHUD {
-        place_position_text: StringDrawable,
-        game_announcement_title: StringDrawable,
-        game_announcement_subtitle: StringDrawable,
+        place_position_text: UIDrawable,
+        game_announcement_title: UIDrawable,
+        game_announcement_subtitle: UIDrawable,
         announcement_state: AnnouncementState,
         minimap_ui: UIDrawable,
     },
 }
 
+// by initializing the builders statically,
+// we can quickly clone then and change their content to regenerate drawables
+lazy_static! {
+static ref ANNOUNCEMENT_TITLE: StringBuilder = StringBuilder::new(PRIMARY_FONT)
+    .alignment(StringAlignment::CENTERED).content("").position(0.50, 0.04);
+
+static ref ANNOUNCEMENT_SUBTITLE: StringBuilder = StringBuilder::new(PRIMARY_FONT)
+    .alignment(StringAlignment::CENTERED).content("").position(0.50, 0.14);
+
+static ref PLACEMENT_TEXT: StringBuilder = StringBuilder::new(PLACEMENT_FONT)
+    .alignment(StringAlignment::RIGHT).content("").position(0.905, 0.057);
+}
+
 impl GraphicsManager {
     pub fn make_announcement(&mut self, title: &str, subtitle: &str) {
         if let UIState::InGameHUD {
-            game_announcement_subtitle,
-            game_announcement_title,
+            ref mut game_announcement_subtitle,
+            ref mut game_announcement_title,
             ..
-        } = &mut self.ui
+        } = self.ui
         {
-            game_announcement_title.center_text = true;
-            game_announcement_subtitle.center_text = true;
-            game_announcement_title.set(title, &self.renderer, &mut self.resources);
-            game_announcement_subtitle.set(subtitle, &self.renderer, &mut self.resources);
+            *game_announcement_title = ANNOUNCEMENT_TITLE.clone().content(title)
+                .build_drawable(&self.renderer, &mut self.resources);
+            *game_announcement_subtitle = ANNOUNCEMENT_SUBTITLE.clone().content(subtitle)
+                .build_drawable(&self.renderer, &mut self.resources);
         }
     }
 
     pub fn update_voting_announcements(&mut self) {
         if let UIState::InGameHUD {
-            announcement_state, ..
+            ref announcement_state, ..
         } = &self.ui
         {
             match announcement_state {
@@ -76,7 +91,7 @@ impl GraphicsManager {
                             "They decide in {} seconds",
                             (*vote_end_time - Instant::now()).as_secs()
                         )
-                        .as_str(),
+                            .as_str(),
                     );
                 }
                 AnnouncementState::VoteActiveTime {
@@ -91,7 +106,7 @@ impl GraphicsManager {
                             "Effects will last for another {} seconds",
                             (*effect_end_time - Instant::now()).as_secs()
                         )
-                        .as_str(),
+                            .as_str(),
                     );
                 }
                 AnnouncementState::None => {}
@@ -159,15 +174,12 @@ impl GraphicsManager {
 
     pub fn maybe_update_place(&mut self, position: u8) {
         if let UIState::InGameHUD {
-            place_position_text,
+            ref mut place_position_text,
             ..
-        } = &mut self.ui
+        } = self.ui
         {
-            place_position_text.set(
-                Ordinal(position).to_string().as_str(),
-                &self.renderer,
-                &mut self.resources,
-            );
+            *place_position_text = PLACEMENT_TEXT.clone().content(Ordinal(position).to_string().as_str())
+                .build_drawable(&self.renderer, &mut self.resources);
         }
     }
 
@@ -351,20 +363,14 @@ impl GraphicsManager {
     }
 
     pub fn display_hud(&mut self) {
-        let mut place_position_text =
-            StringDrawable::new("PressStart2P-Regular", 38.0, Vec2::new(0.905, 0.057));
-        place_position_text.set("tbd", &self.renderer, &mut self.resources);
+        let place_position_text = PLACEMENT_TEXT.clone()
+            .build_drawable(&self.renderer, &mut self.resources);
 
-        let mut game_announcement_title =
-            StringDrawable::new("ArialMT", 32.0, Vec2::new(0.50, 0.04));
-        game_announcement_title.set("NO MORE LEFT TURNS", &self.renderer, &mut self.resources);
-        let mut game_announcement_subtitle =
-            StringDrawable::new("ArialMT", 32.0, Vec2::new(0.50, 0.14));
-        game_announcement_subtitle.set(
-            "activating in 20 seconds",
-            &self.renderer,
-            &mut self.resources,
-        );
+        let game_announcement_title = ANNOUNCEMENT_TITLE.clone()
+            .build_drawable(&self.renderer, &mut self.resources);
+
+        let game_announcement_subtitle = ANNOUNCEMENT_SUBTITLE.clone()
+            .build_drawable(&self.renderer, &mut self.resources);
 
         // minimap
         let minimap_map_handle = self
@@ -376,9 +382,9 @@ impl GraphicsManager {
             "UI/Map Select/P3Btn.png",
             "UI/Map Select/P4Btn.png",
         ]
-        .iter()
-        .map(|filename| self.resources.import_texture(&self.renderer, filename))
-        .collect();
+            .iter()
+            .map(|filename| self.resources.import_texture(&self.renderer, filename))
+            .collect();
 
         let minimap_map_texture = self
             .resources

@@ -4,6 +4,7 @@ use std::{
     ops::Bound,
     sync::atomic::{AtomicUsize, Ordering},
 };
+use std::borrow::BorrowMut;
 
 use serde_json::Value;
 use wgpu::Texture;
@@ -19,6 +20,7 @@ use wgpu::util::DeviceExt;
 
 use crate::renderer::*;
 use crate::{drawable::*, scenegraph::components::Modifiers};
+use crate::resources::glyph_cache::GlyphCache;
 
 // This file has the ResourceManager, which is responsible for loading gltf models and assigning resource handles
 
@@ -75,6 +77,14 @@ pub struct MaterialHandle(usize);
 #[derive(PartialEq, Eq, Hash, Clone, Copy)]
 pub struct StaticMeshHandle(usize);
 
+#[derive(PartialEq, Eq, Hash, Clone, Copy)]
+pub struct FontSelection {
+    // the only side effect of requiring static here is that all fonts must be hardcoded...
+    // which for our cases is always true
+    pub font_name: &'static str,
+    pub point_size: i32
+}
+
 pub trait Handle {
     const INVALID: Self;
     fn unique() -> Self;
@@ -116,6 +126,7 @@ pub struct ResourceManager {
     pub textures: HashMap<TextureHandle, Texture>,
     pub materials: HashMap<MaterialHandle, Material>,
     pub meshes: HashMap<StaticMeshHandle, StaticMesh>,
+    pub glyph_caches: HashMap<FontSelection, GlyphCache>
 }
 
 impl ResourceManager {
@@ -125,6 +136,7 @@ impl ResourceManager {
             textures: HashMap::new(),
             materials: HashMap::new(),
             meshes: HashMap::new(),
+            glyph_caches: HashMap::new(),
         }
     }
 
@@ -655,5 +667,12 @@ impl ResourceManager {
         let mesh_handle = StaticMeshHandle::unique();
         self.meshes.insert(mesh_handle, mesh);
         mesh_handle
+    }
+
+    // fetch the glyph_cache for a particular font selection
+    pub fn get_glyph_cache(&mut self, font_selection: FontSelection) -> &mut GlyphCache {
+        self.glyph_caches
+            .entry(font_selection)
+            .or_insert_with_key(|selection| GlyphCache::new(&selection.font_name, selection.point_size as f32))
     }
 }

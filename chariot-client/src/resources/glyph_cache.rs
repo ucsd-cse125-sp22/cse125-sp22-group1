@@ -1,4 +1,6 @@
+use std::borrow::Borrow;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use font_kit::canvas::{Canvas, Format, RasterizationOptions};
 use font_kit::font::Font;
@@ -9,10 +11,9 @@ use pathfinder_geometry::transform2d::Transform2F;
 use wgpu::Texture;
 
 use crate::renderer::Renderer;
-use crate::resources::{ResourceManager, TextureHandle};
 
 pub struct Glyph {
-    texture_handle: TextureHandle,
+    pub texture: Rc<Texture>,
     // 0.0 - 1.0 offset on the texture of the top left corner
     pub texture_offset: Vec2,
     // 0.0 - 1.0 offset of the bottom-right corner of the texture - offset
@@ -24,13 +25,6 @@ pub struct Glyph {
 }
 
 impl Glyph {
-    pub fn get_texture<'a>(&self, resource_manager: &'a ResourceManager) -> &'a Texture {
-        resource_manager
-            .textures
-            .get(&self.texture_handle)
-            .expect("failed to get texture for glyph")
-    }
-
     // returns a UILayerTechnique-friendly 0.0 - 1.0 screen offset that represents
     // the horizontal and vertical offset of this glyph
     pub fn get_origin_surface_offset(&self, renderer: &Renderer) -> Vec2 {
@@ -59,7 +53,7 @@ pub struct GlyphCache {
     point_size: f32,
     hinting_options: HintingOptions,
     cache: HashMap<char, Glyph>,
-    current_texture: Option<TextureHandle>,
+    current_texture: Option<Rc<Texture>>,
     // the size of the wgpu texture in pixels
     texture_size: UVec2,
     // should always point to an offset that HASN'T BEEN USED YET
@@ -94,7 +88,6 @@ impl GlyphCache {
         &mut self,
         character: char,
         renderer: &Renderer,
-        resource_manager: &mut ResourceManager,
     ) -> &Glyph {
         // why do I gotta check the cache this way?
         // ...long story https://stackoverflow.com/questions/42879098/why-are-borrows-of-struct-members-allowed-in-mut-self-but-not-of-self-to-immut
@@ -102,14 +95,13 @@ impl GlyphCache {
             return self.cache.get(&character).unwrap();
         }
 
-        return self.raster_glyph(character, renderer, resource_manager);
+        return self.raster_glyph(character, renderer);
     }
 
     fn raster_glyph(
         &mut self,
         character: char,
         renderer: &Renderer,
-        resource_manager: &mut ResourceManager,
     ) -> &Glyph {
         // fetch the glyph_id for this character
         // TODO: rather than CRASH, we should render the "unrecognized character" glyph
@@ -144,8 +136,8 @@ impl GlyphCache {
         }
 
         // create a new wgpu texture if we need to
-        let texture_handle = self.current_texture.unwrap_or_else(|| {
-            resource_manager.register_texture(renderer.create_texture2d(
+        let texture = self.current_texture.clone().unwrap_or_else(|| {
+            Rc::new(renderer.create_texture2d(
                 "glyph cache texture",
                 winit::dpi::PhysicalSize::<u32> {
                     width: self.texture_size.x,
@@ -182,7 +174,7 @@ impl GlyphCache {
 
         // form glyph struct
         let glyph = Glyph {
-            texture_handle,
+            texture,
             texture_offset: self.current_offset.as_vec2() / self.texture_size.as_vec2(),
             texture_size: glyph_size.as_vec2() / self.texture_size.as_vec2(),
             bounds: Vec2::new(bounds.width() as f32, bounds.height() as f32),
@@ -219,12 +211,8 @@ impl GlyphCache {
             .collect();
 
         // copy glyph to wgpu texture
-        let texture = resource_manager
-            .textures
-            .get(&texture_handle)
-            .expect("couldn't get texture we just created for glyph cache");
         renderer.write_texture2d(
-            texture,
+            &glyph.texture,
             self.current_offset,
             texture_data.as_slice(),
             glyph_size,
