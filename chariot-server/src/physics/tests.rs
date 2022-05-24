@@ -70,86 +70,16 @@ fn get_origin_cube() -> PlayerEntity {
 }
 
 #[test]
-fn test_accelerating() {
-    let mut props = get_starting_player_props();
-    props = props.do_physics_step(1.0, Vec::new(), Vec::new(), std::iter::empty());
-
-    // since we're accelerating, should have the following changes:
-    // - should have moved forward by previous velocity times time step
-    assert!(props
-        .entity_location
-        .position
-        .abs_diff_eq(DVec3::new(2.0, 0.0, 1.0), 0.001));
-    // - velocity should have increased by acceleration amount in steer
-    // direction, and decreased because of drag and rolling resistance
-    let expected_velocity = DVec3::new(2.0, 0.0, 1.0)
-        + DVec3::new(0.6, 0.0, 0.8) * GLOBAL_CONFIG.car_accelerator
-        + DVec3::new(-2.0, 0.0, -1.0) * GLOBAL_CONFIG.drag_coefficient * (5.0 as f64).sqrt()
-        + DVec3::new(-2.0, 0.0, -1.0) * GLOBAL_CONFIG.rolling_resistance_coefficient;
-    assert!(props.velocity.abs_diff_eq(
-        expected_velocity.normalize() * GLOBAL_CONFIG.max_car_speed,
-        0.001
-    ));
-}
-
-#[test]
-fn test_non_accelerating() {
-    let mut props = get_starting_player_props();
-    props.player_inputs.engine_status = EngineStatus::Neutral;
-    props = props.do_physics_step(1.0, Vec::new(), Vec::new(), std::iter::empty());
-
-    // since we're not accelerating, should have the following changes:
-    // - should have moved forward by previous velocity times time step
-    assert!(props
-        .entity_location
-        .position
-        .abs_diff_eq(DVec3::new(2.0, 0.0, 1.0), 0.001));
-    // - velocity should only have decreased, due to drag and rolling resistance
-    let expected_velocity = DVec3::new(2.0, 0.0, 1.0)
-        + DVec3::new(-2.0, 0.0, -1.0) * GLOBAL_CONFIG.drag_coefficient * (5.0 as f64).sqrt()
-        + DVec3::new(-2.0, 0.0, -1.0) * GLOBAL_CONFIG.rolling_resistance_coefficient;
-    assert!(props.velocity.abs_diff_eq(
-        expected_velocity.normalize() * GLOBAL_CONFIG.max_car_speed,
-        0.001
-    ));
-}
-
-#[test]
-fn test_decelerating() {
-    let mut props = get_starting_player_props();
-    props.player_inputs.engine_status = EngineStatus::Braking;
-    props = props.do_physics_step(1.0, Vec::new(), Vec::new(), std::iter::empty());
-
-    // since we're decelerating, should have the following changes:
-    // - should have moved forward by previous velocity times time step
-    assert!(props
-        .entity_location
-        .position
-        .abs_diff_eq(DVec3::new(2.0, 0.0, 1.0), 0.001));
-    // - velocity should only have decreased, due to braking, drag, and rolling resistance
-    let prev_velocity = DVec3::new(2.0, 0.0, 1.0);
-    let neg_prev_velocity = DVec3::new(-2.0, 0.0, -1.0);
-    let expected_velocity = prev_velocity
-        + (neg_prev_velocity / neg_prev_velocity.length()) * GLOBAL_CONFIG.car_brake
-        + neg_prev_velocity * GLOBAL_CONFIG.drag_coefficient * (5.0 as f64).sqrt()
-        + neg_prev_velocity * GLOBAL_CONFIG.rolling_resistance_coefficient;
-    assert!(props.velocity.abs_diff_eq(
-        expected_velocity.normalize() * GLOBAL_CONFIG.max_car_speed,
-        0.001
-    ));
-}
-
-#[test]
 fn test_spinning() {
     let mut props = get_starting_player_props();
     props.velocity = DVec3::ZERO;
     props.player_inputs.rotation_status = RotationStatus::InSpinClockwise(1.0);
-    props = props.do_physics_step(1.0, Vec::new(), Vec::new(), std::iter::empty());
+    props = props.do_physics_step(1.0, Vec::new(), Vec::new(), std::iter::empty(), None);
 
     assert_eq!(props.angular_velocity, GLOBAL_CONFIG.car_spin);
 
     props.player_inputs.rotation_status = RotationStatus::NotInSpin;
-    props = props.do_physics_step(1.0, Vec::new(), Vec::new(), std::iter::empty());
+    props = props.do_physics_step(1.0, Vec::new(), Vec::new(), std::iter::empty(), None);
 
     assert_eq!(
         props.angular_velocity,

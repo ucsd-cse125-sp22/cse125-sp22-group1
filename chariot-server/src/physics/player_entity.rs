@@ -302,7 +302,7 @@ impl PlayerEntity {
         let new_steer_direction =
             rotation_matrix * self.entity_location.unit_steer_direction.normalize();
 
-        let mut new_position = self.entity_location.position + new_velocity * time_step;
+        let mut new_position = self.entity_location.position + self.velocity * time_step;
         if new_position.y <= 1.0 {
             new_position.y = 1.0;
         }
