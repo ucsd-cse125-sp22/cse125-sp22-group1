@@ -31,7 +31,10 @@ pub fn register_passes(renderer: &mut Renderer) {
         ),
     );
 
-    renderer.register_pass("shadow", &util::shadow_pass!(GLOBAL_CONFIG.get_shader_file_path("shadow.wgsl")));
+    renderer.register_pass(
+        "shadow",
+        &util::shadow_pass!(GLOBAL_CONFIG.get_shader_file_path("shadow.wgsl")),
+    );
 
     renderer.register_pass(
         "postprocess",
