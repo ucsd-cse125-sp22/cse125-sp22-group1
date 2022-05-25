@@ -1,9 +1,9 @@
-use std::path::PathBuf;
+use crate::GLOBAL_CONFIG;
 use lazy_static::lazy_static;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
-use crate::GLOBAL_CONFIG;
+use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct QuestionData {
