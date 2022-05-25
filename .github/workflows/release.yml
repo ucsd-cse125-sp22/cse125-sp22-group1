@@ -1,5 +1,7 @@
 on:
   workflow_dispatch:
+  # TODO: this is here for testing only
+  pull_request:
   push:
     branches:
       - main
