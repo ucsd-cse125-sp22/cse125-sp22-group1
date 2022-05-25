@@ -203,7 +203,6 @@ impl Map {
                                     max_height: mesh_bounds.max_y,
                                     incline_direction: incline_direction_vec,
                                 };
-                                println!("{:?}", ramp);
                                 ramps.push(ramp);
                             } else {
                                 panic!(
