@@ -1,12 +1,10 @@
 on:
   workflow_dispatch:
-  # TODO: this is here for testing only
-  pull_request:
   push:
     branches:
       - main
 
-name: Build Release
+name: Build Release - Win64
 
 jobs:
   client_build:
