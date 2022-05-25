@@ -1,9 +1,11 @@
-use std::borrow::Borrow;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::rc::Rc;
 
+use chariot_core::GLOBAL_CONFIG;
 use font_kit::canvas::{Canvas, Format, RasterizationOptions};
 use font_kit::font::Font;
+use font_kit::handle::Handle;
 use font_kit::hinting::HintingOptions;
 use font_kit::source::SystemSource;
 use glam::{UVec2, Vec2};
@@ -11,6 +13,20 @@ use pathfinder_geometry::transform2d::Transform2F;
 use wgpu::Texture;
 
 use crate::renderer::Renderer;
+
+#[derive(PartialEq, Eq, Hash, Clone, Copy)]
+pub struct FontSelection {
+    // the only side effect of requiring static here is that all fonts must be hardcoded...
+    // which for our cases is always true
+    pub source: FontSource,
+    pub point_size: i32,
+}
+
+#[derive(PartialEq, Eq, Hash, Clone, Copy)]
+pub enum FontSource {
+    SystemFont { font_name: &'static str },
+    FileFont { file_path: &'static str },
+}
 
 pub struct Glyph {
     pub texture: Rc<Texture>,
@@ -62,12 +78,23 @@ pub struct GlyphCache {
 
 impl GlyphCache {
     // creates a new GlyphCache for the named font
-    pub fn new(font_name: &str, point_size: f32) -> GlyphCache {
-        let font = SystemSource::new()
-            .select_by_postscript_name(font_name)
-            .expect("could not find requested font on the system")
+    pub fn new(font_selection: &FontSelection) -> GlyphCache {
+        let font = match font_selection.source {
+            FontSource::SystemFont { font_name } => SystemSource::new()
+                .select_by_postscript_name(font_name)
+                .expect("could not find requested font on the system")
+                .load()
+                .expect("could not load font despite finding it"),
+            FontSource::FileFont { file_path } => Handle::from_path(
+                PathBuf::from(&GLOBAL_CONFIG.resource_folder)
+                    .join("fonts")
+                    .join(file_path),
+                0,
+            )
             .load()
-            .expect("could not load font despite finding it");
+            .expect("could not find the font defined at that path"),
+        };
+        let point_size = font_selection.point_size as f32;
         GlyphCache {
             font,
             point_size,

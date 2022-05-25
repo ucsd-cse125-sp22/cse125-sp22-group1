@@ -3,7 +3,8 @@ use glam::Vec2;
 use crate::drawable::technique::UILayerTechnique;
 use crate::drawable::UIDrawable;
 use crate::renderer::Renderer;
-use crate::resources::{FontSelection, ResourceManager};
+use crate::resources::{ResourceManager};
+use crate::resources::glyph_cache::FontSelection;
 
 #[derive(Copy, Clone)]
 pub enum StringAlignment {

@@ -1,11 +1,15 @@
-use crate::resources::FontSelection;
+use crate::resources::glyph_cache::{FontSelection, FontSource};
 
 pub const PRIMARY_FONT: FontSelection = FontSelection {
-    font_name: "ArialMT",
+    source: FontSource::SystemFont {
+        font_name: "ArialMT",
+    },
     point_size: 32,
 };
 
 pub const PLACEMENT_FONT: FontSelection = FontSelection {
-    font_name: "PressStart2P-Regular",
+    source: FontSource::FileFont {
+        file_path: "PressStart2P-Regular.ttf",
+    },
     point_size: 38,
 };

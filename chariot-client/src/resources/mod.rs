@@ -19,7 +19,7 @@ use static_mesh::*;
 use wgpu::util::DeviceExt;
 
 use crate::renderer::*;
-use crate::resources::glyph_cache::GlyphCache;
+use crate::resources::glyph_cache::{FontSelection, GlyphCache};
 use crate::{drawable::*, scenegraph::components::Modifiers};
 
 // This file has the ResourceManager, which is responsible for loading gltf models and assigning resource handles
@@ -76,14 +76,6 @@ pub struct TextureHandle(usize);
 pub struct MaterialHandle(usize);
 #[derive(PartialEq, Eq, Hash, Clone, Copy)]
 pub struct StaticMeshHandle(usize);
-
-#[derive(PartialEq, Eq, Hash, Clone, Copy)]
-pub struct FontSelection {
-    // the only side effect of requiring static here is that all fonts must be hardcoded...
-    // which for our cases is always true
-    pub font_name: &'static str,
-    pub point_size: i32,
-}
 
 pub trait Handle {
     const INVALID: Self;
@@ -673,8 +665,6 @@ impl ResourceManager {
     pub fn get_glyph_cache(&mut self, font_selection: FontSelection) -> &mut GlyphCache {
         self.glyph_caches
             .entry(font_selection)
-            .or_insert_with_key(|selection| {
-                GlyphCache::new(&selection.font_name, selection.point_size as f32)
-            })
+            .or_insert_with_key(|selection| GlyphCache::new(selection))
     }
 }
