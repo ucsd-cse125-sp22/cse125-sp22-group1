@@ -22,15 +22,14 @@ jobs:
         with:
           command: build
           args: --manifest-path chariot-client/Cargo.toml --release
-      - name: Copy build artifacts
-        run: |
-          mkdir artifacts
-          cp chariot-client/target/release/chariot-client.exe artifacts
-          cp -Recurse chariot-core/resources artifacts
       - uses: actions/upload-artifact@v3
         with:
           name: chariot-client
-          path: artifacts
+          path: chariot-client/target/release/chariot-client.exe
+      - uses: actions/upload-artifact@v3
+        with:
+          name: chariot-resources
+          path: resources
 
   server_build:
     name: Chariot Server Release Builds
