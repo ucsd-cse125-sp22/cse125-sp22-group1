@@ -105,7 +105,7 @@ impl Map {
 
         // Probably better to do this recursively but i didn't wanna change stuff like crazy, not that it really matters since this is just loading anyways
         while let Some((node, parent_transform)) = queue.pop_front() {
-            //println!("Processing node '{}'", node.name().unwrap_or("<unnamed>"));
+            println!("Processing node '{}'", node.name().unwrap_or("<unnamed>"));
 
             let transform = parent_transform
                 * (match node.transform() {
@@ -178,6 +178,33 @@ impl Map {
                                     mesh.name().unwrap_or("<unnamed>")
                                 );
                                 colliders.push(mesh_bounds);
+                            } else if purpose == "ramp" {
+                                let incline_direction: String = mesh_data
+                                    .get("incline_direction")
+                                    .expect("Ramps should have an incline direction!")
+                                    .to_string();
+
+                                let incline_direction_vec = if incline_direction == "pos_x" {
+                                    -1.0 * DVec2::X
+                                } else if incline_direction == "neg_x" {
+                                    DVec2::X
+                                } else if incline_direction == "pos_z" {
+                                    -1.0 * DVec2::Y
+                                } else {
+                                    DVec2::Y
+                                };
+
+                                let ramp = Ramp {
+                                    footprint: [
+                                        [mesh_bounds.min_x, mesh_bounds.max_x],
+                                        [mesh_bounds.min_z, mesh_bounds.max_z],
+                                    ],
+                                    min_height: mesh_bounds.min_y,
+                                    max_height: mesh_bounds.max_y,
+                                    incline_direction: incline_direction_vec,
+                                };
+                                println!("{:?}", ramp);
+                                ramps.push(ramp);
                             } else {
                                 panic!(
                                     "Mesh '{}' has unknown purpose '{}'!",
@@ -196,14 +223,6 @@ impl Map {
                 queue.push_back((child, transform));
             }
         }
-
-        // temp ramp for testing, do blender things afterwards
-        ramps.push(Ramp {
-            footprint: [[10.0, 20.0], [-100.0, 100.0]],
-            min_height: 0.0,
-            max_height: 2.5,
-            incline_direction: DVec2::X,
-        });
 
         println!("done!");
 
