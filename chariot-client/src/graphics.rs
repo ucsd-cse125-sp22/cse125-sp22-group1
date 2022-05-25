@@ -3,6 +3,7 @@ use chariot_core::player::choices::Chair;
 use chariot_core::player::choices::PlayerChoices;
 use chariot_core::player::choices::Track;
 use chariot_core::player::PlayerID;
+use chariot_core::GLOBAL_CONFIG;
 use glam::{DVec3, Vec2};
 use std::f64::consts::PI;
 
@@ -22,7 +23,7 @@ pub fn register_passes(renderer: &mut Renderer) {
     renderer.register_pass(
         "forward",
         &util::indirect_graphics_depth_pass!(
-            "shaders/forward.wgsl",
+            GLOBAL_CONFIG.get_shader_file_path("forward.wgsl"),
             [
                 wgpu::TextureFormat::Rgba16Float,
                 wgpu::TextureFormat::Rgba8Unorm
@@ -30,21 +31,21 @@ pub fn register_passes(renderer: &mut Renderer) {
         ),
     );
 
-    renderer.register_pass("shadow", &util::shadow_pass!("shaders/shadow.wgsl"));
+    renderer.register_pass("shadow", &util::shadow_pass!(GLOBAL_CONFIG.get_shader_file_path("shadow.wgsl")));
 
     renderer.register_pass(
         "postprocess",
-        &util::direct_graphics_nodepth_pass!("shaders/postprocess.wgsl"),
+        &util::direct_graphics_nodepth_pass!(GLOBAL_CONFIG.get_shader_file_path("postprocess.wgsl")),
     );
 
     renderer.register_pass(
         "ui",
-        &util::direct_graphics_nodepth_pass!("shaders/ui.wgsl"),
+        &util::direct_graphics_nodepth_pass!(GLOBAL_CONFIG.get_shader_file_path("ui.wgsl")),
     );
 
     renderer.register_pass(
         "particle",
-        &util::direct_graphics_nodepth_pass!("shaders/particle.wgsl"),
+        &util::direct_graphics_nodepth_pass!(GLOBAL_CONFIG.get_shader_file_path("particle.wgsl")),
     );
 }
 

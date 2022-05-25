@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use config::{Config, ConfigError, File};
 use lazy_static::lazy_static;
 use serde::Deserialize;
@@ -48,7 +49,7 @@ impl Settings {
             .set_default("server_tick_ms", 30)?
             .set_default("player_amount", 4)?
             // files_and_resources (client)
-            .set_default("resource_folder", "../chariot-core/resources")?
+            .set_default("resource_folder", "../resources")?
             // Gameplay
             .set_default("number_laps", 3)?
             .set_default("powerup_cooldown_time", 10)?
@@ -89,6 +90,10 @@ impl Settings {
             .build()?;
 
         config.try_deserialize()
+    }
+    
+    pub fn get_shader_file_path(&self, filename: &str) -> PathBuf {
+        PathBuf::from(&self.resource_folder).join("shaders").join(filename)
     }
 }
 
