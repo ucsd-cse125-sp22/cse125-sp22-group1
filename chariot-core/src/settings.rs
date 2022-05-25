@@ -46,7 +46,7 @@ impl Settings {
             .set_default("server_address", "127.0.0.1")?
             .set_default("ws_server_port", "0.0.0.0:2334")?
             .set_default("server_tick_ms", 30)?
-            .set_default("player_amount", 2)?
+            .set_default("player_amount", 4)?
             // files_and_resources (client)
             .set_default("resource_folder", "../chariot-core/resources")?
             // Gameplay

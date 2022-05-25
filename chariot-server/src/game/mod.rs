@@ -277,8 +277,12 @@ impl GameServer {
                 {
                     match self.listener.accept() {
                         Ok((socket, addr)) => {
-                            println!("new connection from {}", addr.ip().to_string());
                             let idx = self.connections.len();
+                            println!(
+                                "new connection from {}, giving id {}",
+                                addr.ip().to_string(),
+                                idx
+                            );
                             self.connections.push(ClientConnection::new(socket));
                             self.connections.last_mut().unwrap().push_outgoing(
                                 ClientBoundPacket::PlayerNumber(idx, player_choices.clone()),
