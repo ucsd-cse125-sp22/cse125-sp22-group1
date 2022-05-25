@@ -1,0 +1,53 @@
+on:
+  push:
+    branches:
+      - main
+
+name: Build Release
+
+jobs:
+  client_build:
+    name: Chariot Client Release Builds
+    runs-on: ubuntu-latest
+    steps:
+      # required for gilrs
+      - name: Install libudev-dev and pkg-config
+        run: sudo apt-get install -y libudev-dev pkg-config
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable-x86_64-pc-windows-gnu
+          target: x86_64-pc-windows-gnu
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --manifest-path chariot-client/Cargo.toml --release --target x86_64-pc-windows-gnu
+      - name: Copy build artifacts
+        run: |
+          mkdir artifacts
+          cp chariot-client/target/x86_64-pc-windows-gnu/release/chariot_client.exe artifacts
+          cp -rf chariot-core/resources artifacts
+      - uses: actions/upload-artifact@v3
+        with:
+          name: chariot-client
+          path: artifacts
+
+  server_build:
+    name: Chariot Server Release Builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable-x86_64-pc-windows-gnu
+          target: x86_64-pc-windows-gnu
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --manifest-path chariot-server/Cargo.toml --release --target x86_64-pc-windows-gnu
+      - uses: actions/upload-artifact@v3
+        with:
+          name: chariot-server
+          path: chariot-server/target/x86_64-pc-windows-gnu/release/chariot_server.exe
