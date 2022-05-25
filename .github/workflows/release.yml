@@ -20,6 +20,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           override: true
+          default: true
           profile: minimal
           toolchain: stable
           target: x86_64-pc-windows-gnu
@@ -46,6 +47,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           override: true
+          default: true
           profile: minimal
           toolchain: stable
           target: x86_64-pc-windows-gnu
