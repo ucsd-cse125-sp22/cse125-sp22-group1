@@ -35,12 +35,12 @@ pub struct AudioThread {
 impl AudioThread {
   pub fn new(thread_id: u64, ctx: &AudioCtx, source: Buffered<Decoder<BufReader<File>>>, 
     src_opt: SourceOptions) -> Self {
-    if src_opt.emitter_pos != [0.0; 3] || 
-      src_opt.left_ear != [0.0; 3] || 
-      src_opt.right_ear != [0.0; 3] {
+    return if src_opt.emitter_pos != [0.0; 3] ||
+        src_opt.left_ear != [0.0; 3] ||
+        src_opt.right_ear != [0.0; 3] {
       // Spatial Sink
-      let spatial_sink = SpatialSink::try_new(&ctx.stream_handle, 
-        src_opt.emitter_pos, src_opt.left_ear, src_opt.right_ear);
+      let spatial_sink = SpatialSink::try_new(&ctx.stream_handle,
+                                              src_opt.emitter_pos, src_opt.left_ear, src_opt.right_ear);
       let sink = match spatial_sink {
         Ok(s) => AudioSinkType::Spatial(s),
         Err(err) => {
@@ -49,14 +49,14 @@ impl AudioThread {
         }
       };
 
-      return Self {
-        thread_id: thread_id,
+      Self {
+        thread_id,
         time_start: SystemTime::now(),
         volume: 1.0,
         pitch: 1.0,
-        source: source,
-        sink: sink,
-        src_opt: src_opt
+        source,
+        sink,
+        src_opt
       }
     } else {
       // Standard Sink
@@ -69,25 +69,25 @@ impl AudioThread {
         }
       };
 
-      return Self {
-        thread_id: thread_id,
+      Self {
+        thread_id,
         time_start: SystemTime::now(),
         volume: 1.0,
         pitch: 1.0,
-        source: source,
-        sink: sink,
-        src_opt: src_opt
+        source,
+        sink,
+        src_opt
       }
     }
   }
 
   pub fn time_alive(&mut self) -> Option<Duration> {
     let time_elapsed = self.time_start.elapsed();
-    match time_elapsed {
-      Ok(t) => return Some(t),
+    return match time_elapsed {
+      Ok(t) => Some(t),
       Err(err) => {
         println!("There was an error at retrieving thread lifetime, {}", err);
-        return None;
+        None
       }
     }
   }
@@ -202,10 +202,10 @@ impl AudioThread {
     }
   }
 
-  pub fn is_empty(&mut self) -> bool {
-    match &self.sink {
-      AudioSinkType::Spatial(sink) => return sink.empty(),
-      AudioSinkType::Standard(sink) => return sink.empty(),
+  pub fn is_empty(&self) -> bool {
+    return match &self.sink {
+      AudioSinkType::Spatial(sink) => sink.empty(),
+      AudioSinkType::Standard(sink) => sink.empty(),
     }
   }
 }

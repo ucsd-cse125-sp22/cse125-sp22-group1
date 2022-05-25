@@ -14,6 +14,7 @@ mod scenegraph;
 mod ui;
 mod ui_state;
 mod util;
+mod audio;
 
 fn main() {
     let event_loop = winit::event_loop::EventLoop::new();

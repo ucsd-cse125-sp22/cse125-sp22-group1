@@ -1,7 +1,6 @@
 use std::fs;
 use rodio::{Source, Decoder, source::{Buffered}};
 use std::time::Duration;
-use std::path::PathBuf;
 use std::io::BufReader;
 use std::collections::HashMap;
 
@@ -89,9 +88,9 @@ impl AudioSource {
     Self {
       name: path.to_owned(),
       max_thread_id: 0,
-      available_threads: available_threads,
-      threads: threads,
-      tracks: tracks,
+      available_threads,
+      threads,
+      tracks,
       volume: 1.0,
       pitch: 1.0
     }
@@ -100,7 +99,7 @@ impl AudioSource {
   // Clean Up Sink w/o Audio
   pub fn clean(&mut self) {
     self.threads.retain(|&_id, thread| {
-      if (!thread.is_empty()) {
+      if !thread.is_empty() {
         true
       } else {
         self.available_threads.push(thread.thread_id);
@@ -113,7 +112,7 @@ impl AudioSource {
   }
 
   // Finds a track in the tracklist (or returns None if it doesn't exist)
-  pub fn getTrack(&mut self, track_name: &str) -> Option<AudioBuffer> {
+  pub fn get_track(&mut self, track_name: &str) -> Option<AudioBuffer> {
     if !self.tracks.contains_key(track_name) {
       println!("Error finding the track named: {}", track_name);
       return None;
@@ -132,7 +131,7 @@ impl AudioSource {
   }
 
   // Spawns a new thread with preapplied volume & pitch for use
-  pub fn spawnThread(&mut self, ctx: &AudioCtx, source: AudioBuffer, opt: SourceOptions) -> AudioThread {
+  pub fn spawn_thread(&mut self, ctx: &AudioCtx, source: AudioBuffer, opt: SourceOptions) -> AudioThread {
     // Default to a new maximum
     let mut thread_id = self.max_thread_id;
 
@@ -163,12 +162,12 @@ impl AudioSource {
   }
 
   // Get a specific audio thread from an ID
-  pub fn getThread(&mut self, id: u64) -> Option<&AudioThread> {
+  pub fn get_thread(&mut self, id: u64) -> Option<&AudioThread> {
     return self.threads.get(&id);
   }
 
   // Get a specific audio thread from an ID
-  pub fn getMutThread(&mut self, id: u64) -> Option<&mut AudioThread> {
+  pub fn get_mut_thread(&mut self, id: u64) -> Option<&mut AudioThread> {
     return self.threads.get_mut(&id);
   }
 
@@ -178,14 +177,14 @@ impl AudioSource {
     // Clean Up All Stopped Threads
     self.clean();
 
-    let source = match self.getTrack(track_name) {
+    let source = match self.get_track(track_name) {
       Some(s) => s,
       None => {
         return None;
       }
     };
 
-    let mut thread = self.spawnThread(ctx, source, opt);
+    let mut thread = self.spawn_thread(ctx, source, opt);
     let thread_id = thread.thread_id;
 
     thread.play();
@@ -205,14 +204,14 @@ impl AudioSource {
       opt.fade_in = duration;
     }
 
-    let source = match self.getTrack(track_name) {
+    let source = match self.get_track(track_name) {
       Some(s) => s,
       None => {
         return None;
       }
     };
 
-    let mut thread = self.spawnThread(ctx, source, opt);
+    let mut thread = self.spawn_thread(ctx, source, opt);
     let thread_id = thread.thread_id;
 
     self.fade_all_threads(duration);
