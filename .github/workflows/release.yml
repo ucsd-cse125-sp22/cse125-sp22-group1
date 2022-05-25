@@ -30,9 +30,7 @@ jobs:
       - name: Copy build artifacts
         run: |
           mkdir artifacts
-          ls chariot-client/target/
-          ls chariot-client/target/x86_64-pc-windows-gnu/release/
-          cp chariot-client/target/x86_64-pc-windows-gnu/release/chariot_client.exe artifacts
+          cp chariot-client/target/x86_64-pc-windows-gnu/release/chariot-client.exe artifacts
           cp -rf chariot-core/resources artifacts
       - uses: actions/upload-artifact@v3
         with:
@@ -55,8 +53,8 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --manifest-path chariot-server/Cargo.toml --release --target x86_64-pc-windows-gnu
+          args: --manifest-path chariot-server/Cargo.toml --release
       - uses: actions/upload-artifact@v3
         with:
           name: chariot-server
-          path: chariot-server/target/release/chariot_server.exe
+          path: chariot-server/target/x86_64-pc-windows-gnu/release/chariot-server.exe
