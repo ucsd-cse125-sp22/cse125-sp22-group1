@@ -1,4 +1,4 @@
-use chariot_core::networking::ws::{WSAudienceBoundMessage, WSServerBoundMessage};
+use chariot_core::networking::ws::{Standing, WSAudienceBoundMessage, WSServerBoundMessage};
 use chariot_core::networking::Uuid;
 use chariot_core::networking::WebSocketConnection;
 
@@ -62,9 +62,22 @@ impl GameServer {
             conn.push_outgoing_message(WSAudienceBoundMessage::Assignment(id));
 
             if let GamePhase::PlayingGame {
-                voting_game_state, ..
+                voting_game_state,
+                player_placement,
+                ..
             } = &mut self.game_state.phase
             {
+                conn.push_outgoing_message(WSAudienceBoundMessage::Standings([0, 1, 2, 3].map(
+                    |idx| -> Standing {
+                        Standing {
+                            name: idx.to_string(),
+                            chair: self.game_state.players[idx].chair.to_string(),
+                            rank: player_placement[idx].placement,
+                            lap: player_placement[idx].lap,
+                        }
+                    },
+                )));
+
                 if let VotingState::WaitingForVotes {
                     current_question, ..
                 } = voting_game_state
@@ -73,6 +86,17 @@ impl GameServer {
                         current_question.clone(),
                     ))
                 }
+            } else {
+                conn.push_outgoing_message(WSAudienceBoundMessage::Standings([0, 1, 2, 3].map(
+                    |idx| -> Standing {
+                        Standing {
+                            name: idx.to_string(),
+                            chair: self.game_state.players[idx].chair.to_string(),
+                            rank: idx as u8,
+                            lap: 0,
+                        }
+                    },
+                )));
             }
         }
     }

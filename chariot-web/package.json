@@ -13,12 +13,14 @@
 	},
 	"dependencies": {
 		"next": "12.1.5",
+		"public-ip": "^5.0.0",
 		"react": "18.0.0",
 		"react-dom": "18.0.0",
 		"sass": "^1.51.0"
 	},
 	"devDependencies": {
 		"@types/node": "17.0.24",
+		"@types/public-ip": "^3.1.0",
 		"@types/react": "18.0.5",
 		"@types/react-dom": "18.0.1",
 		"eslint": "8.13.0",

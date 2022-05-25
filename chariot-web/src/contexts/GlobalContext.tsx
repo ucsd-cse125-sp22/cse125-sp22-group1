@@ -1,5 +1,5 @@
 import React from 'react';
-import { Prompt } from '../utils/networking';
+import { Prompt, Standing } from '../utils/networking';
 
 export type VotingGameState = 'voting' | 'winner' | 'waiting';
 
@@ -21,6 +21,9 @@ export type GlobalContextType = {
 
 	winner: number | null;
 	setWinner: React.Dispatch<React.SetStateAction<number | null>>;
+
+	standings: Standing[],
+	setStandings: React.Dispatch<React.SetStateAction<Standing[]>>;
 };
 
 export const GlobalContext = React.createContext<GlobalContextType>(null as any);

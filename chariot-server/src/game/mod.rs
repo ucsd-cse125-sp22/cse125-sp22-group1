@@ -14,7 +14,7 @@ use chariot_core::player::{
 use glam::DVec3;
 
 use chariot_core::entity_location::EntityLocation;
-use chariot_core::networking::ws::WSAudienceBoundMessage;
+use chariot_core::networking::ws::{Standing, WSAudienceBoundMessage};
 use chariot_core::networking::Uuid;
 use chariot_core::networking::{
     ClientBoundPacket, ClientConnection, ServerBoundPacket, WebSocketConnection,
@@ -87,7 +87,6 @@ impl GameServer {
         let max_server_tick_duration = Duration::from_millis(GLOBAL_CONFIG.server_tick_ms);
 
         loop {
-            // self.block_until_minimum_connections();
             self.acquire_any_audience_connections();
 
             let start_time = Instant::now();
@@ -135,6 +134,7 @@ impl GameServer {
     // handle every packet in received order
     fn process_incoming_packets(&mut self) {
         let mut need_to_broadcast: Vec<ClientBoundPacket> = vec![];
+        let mut audience_need_to_broadcast: Vec<WSAudienceBoundMessage> = vec![];
         for (player_num, connection) in self.connections.iter_mut().enumerate() {
             while let Some(packet) = connection.pop_incoming() {
                 match packet {
@@ -151,6 +151,20 @@ impl GameServer {
                                 *chair = new_chair.clone();
                                 need_to_broadcast.push(ClientBoundPacket::PlayerChairChoice(
                                     player_num, new_chair,
+                                ));
+                                audience_need_to_broadcast.push(WSAudienceBoundMessage::Standings(
+                                    [0, 1, 2, 3].map(|idx| -> Standing {
+                                        let mut chair = Chair::Swivel;
+                                        if let Some(player_choice) = player_choices[idx].clone() {
+                                            chair = player_choice.chair
+                                        }
+                                        Standing {
+                                            name: idx.to_string(),
+                                            chair: chair.to_string(),
+                                            rank: (idx as u8) + 1,
+                                            lap: 0,
+                                        }
+                                    }),
                                 ));
                             }
                         }
@@ -252,6 +266,10 @@ impl GameServer {
                 conn.push_outgoing(packet.clone());
             }
         }
+
+        for packet in audience_need_to_broadcast {
+            GameServer::broadcast_ws(&mut self.ws_connections, packet);
+        }
     }
 
     // sends a message to all connected web clients
@@ -348,13 +366,26 @@ impl GameServer {
             GamePhase::CountingDownToGameStart(countdown_end_time) => {
                 if now > *countdown_end_time {
                     println!("Go!!!");
+                    let player_placement = [0, 1, 2, 3].map(|_| LapInformation::new());
                     // transition to playing game after countdown
                     self.game_state.phase = GamePhase::PlayingGame {
                         // start off with 10 seconds of vote free gameplay
                         voting_game_state: VotingState::VoteCooldown(now + Duration::new(10, 0)),
-                        player_placement: [0, 1, 2, 3].map(|_| LapInformation::new()),
+                        player_placement: player_placement.clone(),
                         question_idx: 0,
-                    }
+                    };
+                    // tell the audience that we have player placement now
+                    GameServer::broadcast_ws(
+                        &mut self.ws_connections,
+                        WSAudienceBoundMessage::Standings([0, 1, 2, 3].map(|idx| -> Standing {
+                            Standing {
+                                name: idx.to_string(),
+                                chair: self.game_state.players[idx].chair.to_string(),
+                                rank: player_placement[idx].placement,
+                                lap: player_placement[idx].lap,
+                            }
+                        })),
+                    );
                 }
             }
 
@@ -592,6 +623,18 @@ impl GameServer {
                     }
 
                     player_placement[player_num] = lap_information;
+
+                    GameServer::broadcast_ws(
+                        &mut self.ws_connections,
+                        WSAudienceBoundMessage::Standings([0, 1, 2, 3].map(|idx| -> Standing {
+                            Standing {
+                                name: idx.to_string(),
+                                chair: self.game_state.players[idx].chair.to_string(),
+                                rank: player_placement[idx].placement,
+                                lap: player_placement[idx].lap,
+                            }
+                        })),
+                    );
                 }
             }
         }
