@@ -49,7 +49,7 @@ jobs:
         run: |
           mkdir release
           cp chariot-server/target/release/chariot-server.exe release
-          cp resources/*.yaml release
+          cp resources/* release -File
       - uses: actions/upload-artifact@v3
         with:
           name: chariot-server
