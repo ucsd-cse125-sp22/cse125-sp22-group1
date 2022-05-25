@@ -10,7 +10,7 @@ use chariot_core::player::{
     player_inputs::{EngineStatus, PlayerInputs, RotationStatus},
 };
 use chariot_core::GLOBAL_CONFIG;
-use glam::{DMat3, DQuat, DVec3};
+use glam::{DMat3, DQuat, DVec2, DVec3};
 
 use crate::physics::trigger_entity::TriggerEntity;
 
@@ -54,7 +54,7 @@ pub struct PlayerEntity {
 
 impl PlayerEntity {
     // Get upward direction based on position of wheels on this ramp; if it's too steep to traverse, return None instead of the new upward angle
-    fn maybe_get_upward_direction_on_ramp(&self, ramp: &Ramp) -> Option<DVec3> {
+    fn get_upward_direction_on_ramp(&self, ramp: &Ramp) -> DVec3 {
         let BoundingBox {
             min_x,
             max_x,
@@ -79,12 +79,7 @@ impl PlayerEntity {
         if upward.y < 0.0 {
             upward *= -1.0;
         }
-
-        return if upward.angle_between(DVec3::Y) > std::f64::consts::FRAC_PI_3 {
-            None
-        } else {
-            Some(upward.normalize())
-        };
+        upward.normalize()
     }
 
     // whenever not on a ramp, we flatten out, instead of being all wonky
@@ -130,6 +125,44 @@ impl PlayerEntity {
         );
     }
 
+    // given a player and a ramp the player is potentially colliding with,
+    // return whether the player is allowed on  (not allowed on => collision)
+    pub fn is_allowed_onto_ramp(&self, ramp: &Ramp) -> bool {
+        let [[ramp_min_x, ramp_max_x], [ramp_min_z, ramp_max_z]] = ramp.footprint;
+        let x = self.entity_location.position.x;
+        let z = self.entity_location.position.z;
+        let x_vel = self.velocity.x;
+        let z_vel = self.velocity.z;
+
+        // let a player onto the ramp if they're either within the footprint of
+        // the ramp, or in the strip leading out from the ramp face
+        if x >= ramp_min_x && x <= ramp_max_x && z >= ramp_min_z && z <= ramp_max_z {
+            return ramp.get_height_at_coordinates(x, z)
+                - (self.entity_location.position.y - self.size[1] / 2.0)
+                <= 1.0;
+        }
+
+        // to enter the ramp, you must be within the strip leading out from the
+        // low side of the ramp, and have velocity that's pointed along the
+        // incline direction
+        if ramp.incline_direction == DVec2::X {
+            // e.g. if the ramp inclines in the direction of positive x, let em
+            // on if their z is bounded by the ramp's and their x isn't past
+            // ramp's largest x
+            z >= ramp_min_z && z <= ramp_max_z && x <= ramp_max_x && x_vel > 0.0
+        } else if ramp.incline_direction == -1.0 * DVec2::X {
+            z >= ramp_min_z && z <= ramp_max_z && x >= ramp_min_x && x_vel < 0.0
+        } else if ramp.incline_direction == DVec2::Y {
+            // Y means Z :3
+            x >= ramp_min_x && x <= ramp_max_x && z <= ramp_max_z && z_vel > 0.0
+        } else if ramp.incline_direction == -1.0 * DVec2::Y {
+            x >= ramp_min_x && x <= ramp_max_x && z >= ramp_min_z && z_vel < 0.0
+        } else {
+            // figure this out if we ever get non-orthogonal incline directions (unlikely)
+            false
+        }
+    }
+
     pub fn update_upwards_from_ramps(
         &mut self,
         potential_ramps: &Vec<Ramp>,
@@ -154,20 +187,14 @@ impl PlayerEntity {
 
         match index_of_ramp_with_effect {
             Some(index) => {
-                if let Some(upward) =
-                    self.maybe_get_upward_direction_on_ramp(potential_ramps.get(index).unwrap())
-                {
+                let ramp = potential_ramps.get(index).unwrap().clone();
+                let can_get_on = self.is_allowed_onto_ramp(&ramp);
+
+                if can_get_on {
+                    let upward = self.get_upward_direction_on_ramp(&ramp);
                     self.entity_location.unit_upward_direction = upward;
-                    Some(RampCollisionResult {
-                        ramp: potential_ramps.get(index).unwrap().clone(),
-                        can_get_on: true,
-                    })
-                } else {
-                    Some(RampCollisionResult {
-                        ramp: potential_ramps.get(index).unwrap().clone(),
-                        can_get_on: false,
-                    })
                 }
+                Some(RampCollisionResult { ramp, can_get_on })
             }
             None => {
                 self.entity_location.unit_upward_direction = self.get_upward_direction_off_ramp();
@@ -297,13 +324,24 @@ impl PlayerEntity {
             for terrain in &terrain_with_collisions {
                 // We want to "reflect" off of objects: this means negating the
                 // x component of velocity if hitting a face parallel to the
-                // z-axis, and vice versa
-                if self.entity_location.position.x >= terrain.min_x
-                    && self.entity_location.position.x <= terrain.max_x
-                {
-                    new_velocity.z += multiplier * self.velocity.z;
+                // z-axis, and vice versa. But if we're already going away from
+                // an object, we don't want to change that direction of
+                // velocity.
+                let x = self.entity_location.position.x;
+                let z = self.entity_location.position.z;
+
+                if x >= terrain.min_x && x <= terrain.max_x {
+                    if (z < terrain.max_z && self.velocity.z > 0.0)
+                        || (z > terrain.min_z && self.velocity.z < 0.0)
+                    {
+                        new_velocity.z += multiplier * self.velocity.z;
+                    }
                 } else {
-                    new_velocity.x += multiplier * self.velocity.x;
+                    if (x < terrain.max_x && self.velocity.x > 0.0)
+                        || (x > terrain.min_x && self.velocity.x < 0.0)
+                    {
+                        new_velocity.x += multiplier * self.velocity.x;
+                    }
                 }
             }
         }
