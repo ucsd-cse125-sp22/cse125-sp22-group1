@@ -1,8 +1,9 @@
+use std::path::PathBuf;
 use lazy_static::lazy_static;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
-use std::env;
+use crate::GLOBAL_CONFIG;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct QuestionData {
@@ -23,15 +24,7 @@ pub enum AudienceAction {
 
 pub fn load_questions() -> Vec<QuestionData> {
     // get questions file
-    let questions_yaml_path = format!(
-        "{}/chariot-core/questions.yaml",
-        env::current_dir() // gets the path to the root directory for chariot
-            .unwrap()
-            .parent()
-            .unwrap()
-            .to_str()
-            .unwrap()
-    );
+    let questions_yaml_path = PathBuf::from(&GLOBAL_CONFIG.resource_folder).join("questions.yaml");
 
     let f = std::fs::File::open(questions_yaml_path).expect("Should have a questions.yaml file!");
     let q_data: Vec<QuestionData> =
