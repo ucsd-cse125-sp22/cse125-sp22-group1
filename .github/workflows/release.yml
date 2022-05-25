@@ -17,6 +17,8 @@ jobs:
       - name: Install libudev-dev and pkg-config
         run: sudo apt-get install -y libudev-dev pkg-config
       - uses: actions/checkout@v2
+      - name: cd into project
+        run: cd chariot-client
       - uses: actions-rs/toolchain@v1
         with:
           override: true
@@ -44,6 +46,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: cd into project
+        run: cd chariot-client
       - uses: actions-rs/toolchain@v1
         with:
           override: true
