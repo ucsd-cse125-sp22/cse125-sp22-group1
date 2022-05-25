@@ -5,8 +5,8 @@ use glam::Vec2;
 use lazy_static::lazy_static;
 use ordinal::Ordinal;
 
-use crate::ui::string::{StringAlignment, UIStringBuilder};
 use crate::ui::fonts::{PLACEMENT_FONT, PRIMARY_FONT};
+use crate::ui::string::{StringAlignment, UIStringBuilder};
 use crate::{
     drawable::{
         technique::{self, UILayerTechnique},
