@@ -5,7 +5,7 @@ use glam::Vec2;
 use lazy_static::lazy_static;
 use ordinal::Ordinal;
 
-use crate::drawable::string::{StringAlignment, StringBuilder};
+use crate::ui::string::{StringAlignment, UIStringBuilder};
 use crate::ui::fonts::{PLACEMENT_FONT, PRIMARY_FONT};
 use crate::{
     drawable::{
@@ -53,15 +53,15 @@ pub enum UIState {
 // by initializing the builders statically,
 // we can quickly clone then and change their content to regenerate drawables
 lazy_static! {
-    static ref ANNOUNCEMENT_TITLE: StringBuilder = StringBuilder::new(PRIMARY_FONT)
+    static ref ANNOUNCEMENT_TITLE: UIStringBuilder = UIStringBuilder::new(PRIMARY_FONT)
         .alignment(StringAlignment::CENTERED)
         .content("")
         .position(0.50, 0.04);
-    static ref ANNOUNCEMENT_SUBTITLE: StringBuilder = StringBuilder::new(PRIMARY_FONT)
+    static ref ANNOUNCEMENT_SUBTITLE: UIStringBuilder = UIStringBuilder::new(PRIMARY_FONT)
         .alignment(StringAlignment::CENTERED)
         .content("")
         .position(0.50, 0.14);
-    static ref PLACEMENT_TEXT: StringBuilder = StringBuilder::new(PLACEMENT_FONT)
+    static ref PLACEMENT_TEXT: UIStringBuilder = UIStringBuilder::new(PLACEMENT_FONT)
         .alignment(StringAlignment::RIGHT)
         .content("")
         .position(1.0, 0.057);

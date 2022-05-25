@@ -14,7 +14,7 @@ pub enum StringAlignment {
 }
 
 #[derive(Clone)]
-pub struct StringBuilder {
+pub struct UIStringBuilder {
     font_selection: FontSelection,
     screen_position: Vec2,
     alignment: StringAlignment,
@@ -22,9 +22,9 @@ pub struct StringBuilder {
 }
 
 // builder-pattern structure for creating UIDrawables that represent a rendered string
-impl StringBuilder {
-    pub fn new(font_selection: FontSelection) -> StringBuilder {
-        StringBuilder {
+impl UIStringBuilder {
+    pub fn new(font_selection: FontSelection) -> UIStringBuilder {
+        UIStringBuilder {
             font_selection,
             alignment: StringAlignment::LEFT,
             screen_position: Vec2::new(0.0, 0.0),
