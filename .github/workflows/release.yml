@@ -24,6 +24,7 @@ jobs:
           target: x86_64-pc-windows-gnu
       - uses: actions-rs/cargo@v1
         with:
+          use-cross: true
           command: build
           args: --manifest-path chariot-client/Cargo.toml --release --target x86_64-pc-windows-gnu
       - name: Copy build artifacts
@@ -48,6 +49,7 @@ jobs:
           target: x86_64-pc-windows-gnu
       - uses: actions-rs/cargo@v1
         with:
+          use-cross: true
           command: build
           args: --manifest-path chariot-server/Cargo.toml --release --target x86_64-pc-windows-gnu
       - uses: actions/upload-artifact@v3
