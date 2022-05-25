@@ -1,3 +1,4 @@
+use std::borrow::BorrowMut;
 use std::{
     cmp::Eq,
     collections::{HashMap, VecDeque},
@@ -18,6 +19,7 @@ use static_mesh::*;
 use wgpu::util::DeviceExt;
 
 use crate::renderer::*;
+use crate::resources::glyph_cache::{FontSelection, GlyphCache};
 use crate::{drawable::*, scenegraph::components::Modifiers};
 
 // This file has the ResourceManager, which is responsible for loading gltf models and assigning resource handles
@@ -116,6 +118,7 @@ pub struct ResourceManager {
     pub textures: HashMap<TextureHandle, Texture>,
     pub materials: HashMap<MaterialHandle, Material>,
     pub meshes: HashMap<StaticMeshHandle, StaticMesh>,
+    pub glyph_caches: HashMap<FontSelection, GlyphCache>,
 }
 
 impl ResourceManager {
@@ -125,6 +128,7 @@ impl ResourceManager {
             textures: HashMap::new(),
             materials: HashMap::new(),
             meshes: HashMap::new(),
+            glyph_caches: HashMap::new(),
         }
     }
 
@@ -655,5 +659,12 @@ impl ResourceManager {
         let mesh_handle = StaticMeshHandle::unique();
         self.meshes.insert(mesh_handle, mesh);
         mesh_handle
+    }
+
+    // fetch the glyph_cache for a particular font selection
+    pub fn get_glyph_cache(&mut self, font_selection: FontSelection) -> &mut GlyphCache {
+        self.glyph_caches
+            .entry(font_selection)
+            .or_insert_with_key(|selection| GlyphCache::new(selection))
     }
 }
