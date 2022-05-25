@@ -1,6 +1,7 @@
-import type { NextPage } from 'next'
+import type { GetServerSideProps, NextPage } from 'next'
 import Router, { useRouter } from 'next/router'
 import { useContext, useEffect, useState } from 'react'
+import publicIp from 'public-ip';
 import { Button } from '../src/components/Button'
 import { GlobalContext } from '../src/contexts/GlobalContext'
 import { handleSocket } from '../src/utils/networking'
@@ -10,12 +11,6 @@ const Home: NextPage = () => {
 	const router = useRouter();
 	const queryIp = router.query.ip;
 	const context = useContext(GlobalContext);
-
-	useEffect(() => {
-		if (!queryIp) {
-			router.push(`/?ip=127.0.0.1:2334`); // you need an active socket to be here
-		}
-	})
 
 	const connectToWebSocket = () => {
 		const sock = new WebSocket(`ws://${queryIp}`);
@@ -49,4 +44,19 @@ const Home: NextPage = () => {
 	)
 }
 
+export const getServerSideProps: GetServerSideProps = async ({ query }) => {
+	if (!query.ip) {
+		const ip = await publicIp.v4()
+		return {
+			redirect: {
+				permanent: false,
+				destination: `?ip=${ip}:2334`
+			}
+		};
+	}
+	return { props: {} };
+}
+
 export default Home
+
+

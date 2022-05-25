@@ -86,7 +86,6 @@ impl GameServer {
         let max_server_tick_duration = Duration::from_millis(GLOBAL_CONFIG.server_tick_ms);
 
         loop {
-            // self.block_until_minimum_connections();
             self.acquire_any_audience_connections();
 
             let start_time = Instant::now();
