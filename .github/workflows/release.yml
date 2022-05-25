@@ -47,7 +47,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: cd into project
-        run: cd chariot-client
+        run: cd chariot-server
       - uses: actions-rs/toolchain@v1
         with:
           override: true
