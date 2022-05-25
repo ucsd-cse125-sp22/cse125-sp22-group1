@@ -14,8 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # required for gilrs
-      - name: Install libudev-dev and pkg-config
-        run: sudo apt-get install -y libudev-dev pkg-config
+      - name: Install libudev-dev and pkg-config and cross comp linker
+        run: sudo apt-get install -y libudev-dev pkg-config mingw-w64
       - uses: actions/checkout@v2
       - name: cd into project
         run: cd chariot-client
@@ -45,6 +45,8 @@ jobs:
     name: Chariot Server Release Builds
     runs-on: ubuntu-latest
     steps:
+      - name: Install cross comp linker
+        run: sudo apt-get install -y mingw-w64
       - uses: actions/checkout@v2
       - name: cd into project
         run: cd chariot-server
