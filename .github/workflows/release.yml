@@ -1,5 +1,7 @@
 on:
   workflow_dispatch:
+  # TODO: this is here for testing only
+  pull_request:
   push:
     branches:
       - main
@@ -20,14 +22,15 @@ jobs:
         with:
           command: build
           args: --manifest-path chariot-client/Cargo.toml --release
+      - name: gather client resources
+        run: |
+          mkdir release
+          cp chariot-client/target/release/chariot-client.exe release
+          cp resources/* release -Recurse
       - uses: actions/upload-artifact@v3
         with:
           name: chariot-client
-          path: chariot-client/target/release/chariot-client.exe
-      - uses: actions/upload-artifact@v3
-        with:
-          name: chariot-resources
-          path: resources
+          path: release
 
   server_build:
     name: Chariot Server Release Builds
@@ -42,7 +45,12 @@ jobs:
         with:
           command: build
           args: --manifest-path chariot-server/Cargo.toml --release
+      - name: gather server resources
+        run: |
+          mkdir release
+          cp chariot-server/target/release/chariot-server.exe release
+          cp resources/*.yaml release
       - uses: actions/upload-artifact@v3
         with:
           name: chariot-server
-          path: chariot-server/target/release/chariot-server.exe
+          path: release
