@@ -3,7 +3,7 @@ import '../styles/globals.css'
 import styles from '../styles/Defaults.module.scss';
 import type { AppProps } from 'next/app'
 import { VotingGameState, GlobalContext } from '../src/contexts/GlobalContext';
-import { Prompt } from '../src/utils/networking';
+import { Prompt, Standing } from '../src/utils/networking';
 
 function MyApp({ Component, pageProps }: AppProps) {
 	const [statusMessage, setStatusMessage] = useState("i prefer folding");
@@ -12,6 +12,7 @@ function MyApp({ Component, pageProps }: AppProps) {
 	const [prompt, setPrompt] = useState<Prompt | null>(null);
 	const [gameState, setGameState] = useState<VotingGameState>('waiting')
 	const [winner, setWinner] = useState<number | null>(null);
+	const [standings, setStandings] = useState<Standing[]>([]);
 
 	return (
 		<GlobalContext.Provider value={{
@@ -26,7 +27,9 @@ function MyApp({ Component, pageProps }: AppProps) {
 			gameState,
 			setGameState,
 			winner,
-			setWinner
+			setWinner,
+			standings,
+			setStandings
 		}}>
 			<div className={styles.main}>
 				<div className={styles.header}>
