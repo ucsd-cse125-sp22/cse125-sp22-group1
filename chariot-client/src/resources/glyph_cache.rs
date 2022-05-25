@@ -195,7 +195,11 @@ impl GlyphCache {
             .enumerate()
             .map(|(i, pixel)| {
                 if (i + 1) % 4 == 0 {
-                    canvas.pixels[i - 1] & canvas.pixels[i - 2] & canvas.pixels[i - 3]
+                    // take the average value of the three color values
+                    ((canvas.pixels[i - 1] as u32
+                        + canvas.pixels[i - 2] as u32
+                        + canvas.pixels[i - 3] as u32)
+                        / 3) as u8
                 } else {
                     *pixel
                 }

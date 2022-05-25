@@ -64,7 +64,7 @@ lazy_static! {
     static ref PLACEMENT_TEXT: StringBuilder = StringBuilder::new(PLACEMENT_FONT)
         .alignment(StringAlignment::RIGHT)
         .content("")
-        .position(0.905, 0.057);
+        .position(1.0, 0.057);
 }
 
 impl GraphicsManager {
