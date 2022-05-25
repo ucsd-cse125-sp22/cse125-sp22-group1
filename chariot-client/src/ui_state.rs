@@ -196,7 +196,7 @@ impl GraphicsManager {
         self.ui = UIState::MainMenu { background };
 
         // join lobby button
-        let mut join_lobby_button = UIRegion::new(472.0, 452.0, 336.0, 87.0);
+        let mut join_lobby_button = UIRegion::new(472.0, 539.0, 336.0, 87.0);
         join_lobby_button.on_click(|graphics, game| {
             graphics.display_chairacter_select();
             game.pick_chair(Chair::Swivel);
