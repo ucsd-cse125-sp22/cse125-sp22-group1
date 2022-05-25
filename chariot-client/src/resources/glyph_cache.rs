@@ -156,7 +156,7 @@ impl GlyphCache {
         // to convert from grid_coords to pixel coords, we'll need to use...MATH
         // https://freetype.org/freetype2/docs/glyphs/glyphs-2.html
         let origin_pixel = (Vec2::new(
-            type_bounds.origin_x(),
+            -type_bounds.origin_x(),
             // height gets involved because freetype is in the 1st quadrant while our renderer is in the 4th
             type_bounds.origin_y() + type_bounds.height(),
         ) * self.point_size)
