@@ -17,18 +17,13 @@ jobs:
       - name: Install libudev-dev and pkg-config and cross comp linker
         run: sudo apt-get install -y libudev-dev pkg-config mingw-w64
       - uses: actions/checkout@v2
-      - name: cd into project
-        run: cd chariot-client
       - uses: actions-rs/toolchain@v1
         with:
-          override: true
-          default: true
           profile: minimal
           toolchain: stable
           target: x86_64-pc-windows-gnu
       - uses: actions-rs/cargo@v1
         with:
-          use-cross: true
           command: build
           args: --manifest-path chariot-client/Cargo.toml --release --target x86_64-pc-windows-gnu
       - name: Copy build artifacts
@@ -48,18 +43,13 @@ jobs:
       - name: Install cross comp linker
         run: sudo apt-get install -y mingw-w64
       - uses: actions/checkout@v2
-      - name: cd into project
-        run: cd chariot-server
       - uses: actions-rs/toolchain@v1
         with:
-          override: true
-          default: true
           profile: minimal
           toolchain: stable
           target: x86_64-pc-windows-gnu
       - uses: actions-rs/cargo@v1
         with:
-          use-cross: true
           command: build
           args: --manifest-path chariot-server/Cargo.toml --release --target x86_64-pc-windows-gnu
       - uses: actions/upload-artifact@v3
