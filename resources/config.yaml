@@ -1,5 +1,5 @@
 # note: this is a dummy config.yaml that isn't actually used in development,
 # but is zipped up along with the other release assets to provide a sensible default
 resource_folder: "."
-server_address: "0.0.0.0"
+server_address: "127.0.0.1"
 port: "24247"
