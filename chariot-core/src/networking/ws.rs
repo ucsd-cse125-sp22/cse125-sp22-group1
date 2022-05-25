@@ -8,12 +8,22 @@ pub use uuid::Uuid;
 use crate::questions::QuestionData;
 
 #[derive(Serialize, Deserialize, Clone)]
+pub struct Standing {
+    pub name: String,
+    pub chair: String,
+    pub rank: u8,
+    pub lap: u8,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 pub enum WSAudienceBoundMessage {
     Prompt(QuestionData), // Question, 4 Answer Choices
 
     Winner(usize), // The winning choice (tuple index)
 
     Assignment(Uuid), // Sends a uuid that the server will use to identify the client
+
+    Standings([Standing; 4]),
 }
 
 #[derive(Serialize, Deserialize)]
