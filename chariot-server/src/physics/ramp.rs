@@ -15,10 +15,10 @@ pub struct Ramp {
     pub incline_direction: DVec2,
 }
 
-pub struct RampCollisionResult {
-    pub ramp: Ramp,
-    // true: can drive on top of the ramp, false: collides with the ramp and should bounce off
-    pub can_get_on: bool,
+pub enum RampCollisionResult {
+    NoEffect,
+    Collision { ramp: Ramp },
+    Driveable { ramp: Ramp },
 }
 
 impl Ramp {
@@ -222,7 +222,7 @@ impl PlayerEntity {
     pub fn update_upwards_from_ramps(
         &mut self,
         potential_ramps: &Vec<Ramp>,
-    ) -> Option<RampCollisionResult> {
+    ) -> RampCollisionResult {
         match self.get_index_of_ramp_with_potential_effect(&potential_ramps) {
             Some(index) => {
                 let ramp = potential_ramps.get(index).unwrap().clone();
@@ -231,13 +231,15 @@ impl PlayerEntity {
                 if can_get_on {
                     let upward = self.get_upward_direction_on_ramp(&ramp);
                     self.entity_location.unit_upward_direction = upward;
+                    RampCollisionResult::Driveable { ramp }
+                } else {
+                    RampCollisionResult::Collision { ramp }
                 }
-                Some(RampCollisionResult { ramp, can_get_on })
             }
             None => {
                 self.entity_location.unit_upward_direction = self.get_upward_direction_off_ramp();
-                // return None; we don't have anything to do with any ramps
-                None
+                // we don't have anything to do with any ramps
+                RampCollisionResult::NoEffect
             }
         }
     }

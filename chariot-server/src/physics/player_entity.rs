@@ -117,20 +117,17 @@ impl PlayerEntity {
         potential_colliders: Vec<&PlayerEntity>,
         potential_terrain: Vec<BoundingBox>,
         potential_triggers: impl Iterator<Item = &'a mut dyn TriggerEntity>,
-        ramp_collision_result: Option<&RampCollisionResult>,
+        ramp_collision_result: &RampCollisionResult,
     ) -> PlayerEntity {
-        let minimum_player_height = if let Some(result) = ramp_collision_result {
-            if result.can_get_on {
-                result.ramp.get_height_at_coordinates(
-                    self.entity_location.position.x,
-                    self.entity_location.position.z,
-                ) + 1.0
-            } else {
-                1.0
-            }
-        } else {
-            1.0
+        let minimum_player_height = match ramp_collision_result {
+            RampCollisionResult::NoEffect => 1.0,
+            RampCollisionResult::Collision { .. } => 1.0,
+            RampCollisionResult::Driveable { ramp } => ramp.get_height_at_coordinates(
+                self.entity_location.position.x,
+                self.entity_location.position.z,
+            ),
         };
+
         let self_forces = self.sum_of_self_forces(ramp_collision_result);
         let acceleration = self_forces / self.stat(Stat::Mass);
 
@@ -158,8 +155,8 @@ impl PlayerEntity {
 
         let mut terrain_with_collisions = potential_terrain.clone();
         terrain_with_collisions.retain(|terrain| self.bounding_box.is_colliding(terrain));
-        if ramp_collision_result.is_some() && !ramp_collision_result.unwrap().can_get_on {
-            terrain_with_collisions.push(ramp_collision_result.unwrap().ramp.bounding_box());
+        if let RampCollisionResult::Collision { ramp } = ramp_collision_result {
+            terrain_with_collisions.push(ramp.bounding_box());
         }
         let collision_terrain_is_new = terrain_with_collisions != self.current_colliders;
 
@@ -178,18 +175,13 @@ impl PlayerEntity {
         }
 
         // 2. velocity changes from ramp-zooming
-        if ramp_collision_result.is_some()
-            && ramp_collision_result.unwrap().can_get_on
-            && !self.is_aerial(ramp_collision_result)
-        {
-            let ramp_incline = ramp_collision_result
-                .unwrap()
-                .ramp
-                .get_incline_vector()
-                .normalize();
+        if let RampCollisionResult::Driveable { ramp } = ramp_collision_result {
+            if !self.is_aerial(ramp_collision_result) {
+                let ramp_incline = ramp.get_incline_vector().normalize();
 
-            // vroom vroom vroom
-            new_velocity += ramp_incline;
+                // vroom vroom vroom
+                new_velocity += ramp_incline;
+            }
         }
 
         // We only react to colliding with a set of objects if we aren't already
@@ -269,23 +261,21 @@ impl PlayerEntity {
         return new_player;
     }
 
-    fn is_aerial(&self, ramp_collision_result: Option<&RampCollisionResult>) -> bool {
-        let ground_level = if ramp_collision_result.is_some() {
-            ramp_collision_result
-                .unwrap()
-                .ramp
-                .get_height_at_coordinates(
-                    self.entity_location.position[0],
-                    self.entity_location.position[2],
+    fn is_aerial(&self, ramp_collision_result: &RampCollisionResult) -> bool {
+        let ground_level = match ramp_collision_result {
+            RampCollisionResult::NoEffect => 0.0,
+            RampCollisionResult::Collision { ramp } | RampCollisionResult::Driveable { ramp } => {
+                ramp.get_height_at_coordinates(
+                    self.entity_location.position.x,
+                    self.entity_location.position.z,
                 )
-        } else {
-            0.0
+            }
         };
 
         self.entity_location.position[1] - 1.0 > ground_level
     }
 
-    fn sum_of_self_forces(&self, ramp_collision_result: Option<&RampCollisionResult>) -> DVec3 {
+    fn sum_of_self_forces(&self, ramp_collision_result: &RampCollisionResult) -> DVec3 {
         let gravitational_force = self.gravitational_force_on_object();
         let air_forces = gravitational_force
             + self.player_applied_force_on_object()

@@ -402,7 +402,7 @@ impl GameServer {
                     .ramps
                     .clone();
 
-                let mut per_player_current_ramps: Vec<Option<RampCollisionResult>> = vec![];
+                let mut per_player_current_ramps: Vec<RampCollisionResult> = vec![];
 
                 // update bounding box dimensions and temporary physics changes for each player
                 for player in &mut self.game_state.players {
@@ -442,7 +442,7 @@ impl GameServer {
                             .as_mut()
                             .expect("No map loaded in game loop!")
                             .trigger_iter(),
-                        per_player_current_ramps.get(n).unwrap().as_ref(),
+                        per_player_current_ramps.get(n).unwrap(),
                     )
                 });
 
