@@ -176,11 +176,11 @@ impl Map {
                                 );
                                 colliders.push(mesh_bounds);
                             } else {
-                                panic!(
-                                    "Mesh '{}' has unknown purpose '{}'!",
-                                    mesh.name().unwrap_or("<unnamed>"),
-                                    purpose
-                                );
+                                // panic!(
+                                //     "Mesh '{}' has unknown purpose '{}'!",
+                                //     mesh.name().unwrap_or("<unnamed>"),
+                                //     purpose
+                                // );
                             }
 
                             world_bounds = world_bounds.accum(mesh_bounds);
