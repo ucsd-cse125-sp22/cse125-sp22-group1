@@ -92,10 +92,8 @@ impl Settings {
         config.try_deserialize()
     }
 
-    pub fn get_shader_file_path(&self, filename: &str) -> PathBuf {
-        PathBuf::from(&self.resource_folder)
-            .join("shaders")
-            .join(filename)
+    pub fn get_resource_filepath(&self, filepath: &str) -> PathBuf {
+        [&self.resource_folder, filepath].iter().collect()
     }
 }
 

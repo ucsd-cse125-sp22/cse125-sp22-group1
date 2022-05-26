@@ -24,4 +24,9 @@ impl SourceOptions {
             right_ear: [0.0; 3],
         }
     }
+
+    pub fn set_repeat(mut self, repeat: bool) -> Self {
+        self.repeat = repeat;
+        self
+    }
 }

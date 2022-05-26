@@ -1,4 +1,5 @@
-use rodio::{source::Buffered, Decoder, Source};
+use chariot_core::GLOBAL_CONFIG;
+use rodio::{Decoder, Source};
 use std::collections::HashMap;
 use std::fs;
 use std::io::BufReader;
@@ -28,7 +29,8 @@ impl AudioSource {
         let mut tracks = HashMap::new();
         let threads = HashMap::new();
 
-        let paths = fs::read_dir(format!("./{}", path)).expect("Problem reading the directory: ");
+        let paths = fs::read_dir(GLOBAL_CONFIG.get_resource_filepath(&format!("audio/{}", path)))
+            .expect("Problem reading the directory: ");
 
         // Obtains buffers for each audio file in the provided paths
         for path in paths {

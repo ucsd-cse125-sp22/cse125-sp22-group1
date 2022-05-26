@@ -23,7 +23,7 @@ pub fn register_passes(renderer: &mut Renderer) {
     renderer.register_pass(
         "forward",
         &util::indirect_graphics_depth_pass!(
-            GLOBAL_CONFIG.get_shader_file_path("forward.wgsl"),
+            GLOBAL_CONFIG.get_resource_filepath("shaders/forward.wgsl"),
             [
                 wgpu::TextureFormat::Rgba16Float,
                 wgpu::TextureFormat::Rgba8Unorm
@@ -33,22 +33,26 @@ pub fn register_passes(renderer: &mut Renderer) {
 
     renderer.register_pass(
         "shadow",
-        &util::shadow_pass!(GLOBAL_CONFIG.get_shader_file_path("shadow.wgsl")),
+        &util::shadow_pass!(GLOBAL_CONFIG.get_resource_filepath("shaders/shadow.wgsl")),
     );
 
     renderer.register_pass(
         "postprocess",
-        &util::direct_graphics_nodepth_pass!(GLOBAL_CONFIG.get_shader_file_path("postprocess.wgsl")),
+        &util::direct_graphics_nodepth_pass!(
+            GLOBAL_CONFIG.get_resource_filepath("shaders/postprocess.wgsl")
+        ),
     );
 
     renderer.register_pass(
         "ui",
-        &util::direct_graphics_nodepth_pass!(GLOBAL_CONFIG.get_shader_file_path("ui.wgsl")),
+        &util::direct_graphics_nodepth_pass!(GLOBAL_CONFIG.get_resource_filepath("shaders/ui.wgsl")),
     );
 
     renderer.register_pass(
         "particle",
-        &util::direct_graphics_nodepth_pass!(GLOBAL_CONFIG.get_shader_file_path("particle.wgsl")),
+        &util::direct_graphics_nodepth_pass!(
+            GLOBAL_CONFIG.get_resource_filepath("shaders/particle.wgsl")
+        ),
     );
 }
 

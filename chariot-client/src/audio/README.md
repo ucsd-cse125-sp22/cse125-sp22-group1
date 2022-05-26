@@ -67,9 +67,9 @@ By default, it is automatically configured to identify the standard output the d
 3. Create an AudioSource. This manager is a collection of audio threads that is able to be controlled as a group. It's a good idea to separate music, ambient, and SFX tracks via their own audio managers.
 
 ```
-let mut music_manager = AudioSource::new("audio/music");
-let mut amb_manager = AudioSource::new("audio/ambient");
-let mut sfx_manager = AudioSource::new("audio/sfx");
+let mut music_manager = AudioSource::new("music");
+let mut amb_manager = AudioSource::new("ambient");
+let mut sfx_manager = AudioSource::new("sfx");
 ```
 
 4. Define a sound source options and play sounds
