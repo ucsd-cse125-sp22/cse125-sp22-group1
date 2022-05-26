@@ -40,7 +40,7 @@ impl Ramp {
             && z <= self.footprint[1][1]
     }
 
-    fn get_high_and_low_corner(&self) -> (DVec2, DVec2) {
+    fn get_low_and_high_corners(&self) -> (DVec2, DVec2) {
         let [[min_x, max_x], [min_z, max_z]] = self.footprint;
         let incline_x = self.incline_direction.x;
         let incline_z = self.incline_direction.y;
@@ -55,17 +55,17 @@ impl Ramp {
             (lower_left, upper_left)
         } else if incline_x == 0.0 && incline_z < 0.0 {
             (upper_left, lower_left)
-        } else if incline_x > 0.0 && incline_z < 0.0 {
-            (upper_left, lower_right)
+        } else if incline_x < 0.0 && incline_z == 0.0 {
+            (lower_right, lower_left)
         } else if incline_x > 0.0 && incline_z == 0.0 {
             (lower_left, lower_right)
         // rest of these are mostly for completeness
         } else if incline_x > 0.0 && incline_z > 0.0 {
             (lower_left, upper_right)
+        } else if incline_x > 0.0 && incline_z < 0.0 {
+            (upper_left, lower_right)
         } else if incline_x < 0.0 && incline_z < 0.0 {
             (upper_right, lower_left)
-        } else if incline_x < 0.0 && incline_z == 0.0 {
-            (lower_right, lower_left)
         } else if incline_x < 0.0 && incline_z > 0.0 {
             (lower_right, upper_left)
         } else {
@@ -80,7 +80,7 @@ impl Ramp {
 
         let min_x = self.footprint[0][0];
         let min_z = self.footprint[1][0];
-        let (high_corner, low_corner) = self.get_high_and_low_corner();
+        let (low_corner, high_corner) = self.get_low_and_high_corners();
 
         let incline_vector = high_corner - low_corner;
         let ramp_height_proportion = DVec2::new(x - min_x, z - min_z)
@@ -92,10 +92,10 @@ impl Ramp {
     }
 
     pub fn get_incline_vector(&self) -> DVec3 {
-        let (high_corner, low_corner) = self.get_high_and_low_corner();
+        let (low_corner, high_corner) = self.get_low_and_high_corners();
 
-        let incline_vec = DVec3::new(low_corner.x, self.max_height, low_corner.y)
-            - DVec3::new(high_corner.x, self.min_height, high_corner.y);
+        let incline_vec = DVec3::new(high_corner.x, self.max_height, high_corner.y)
+            - DVec3::new(low_corner.x, self.min_height, low_corner.y);
         incline_vec
     }
 }
