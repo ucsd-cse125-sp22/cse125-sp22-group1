@@ -256,6 +256,12 @@ impl<'a> RenderJob<'a> {
             .into_iter()
             .zip(job_root_ids.into_iter())
             .collect();
+
+        // if this render graph is empty, this is a no-op function
+        if stack.is_empty() {
+            return;
+        }
+
         let max_job_id = stack.last().unwrap().1;
         (self.pass_items.len()..max_job_id).for_each(|_| self.pass_items.push(vec![]));
         while !stack.is_empty() {

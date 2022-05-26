@@ -1,9 +1,9 @@
-use glam::Vec3Swizzles;
 use std::num::Wrapping;
 
 pub trait Rng<T> {
     fn next(&mut self) -> T;
 }
+
 pub struct Pcg32Rng {
     state: u64,
     inc: u64,

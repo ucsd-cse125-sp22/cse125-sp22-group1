@@ -1,0 +1,54 @@
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+name: Build Release - Win64
+
+jobs:
+  client_build:
+    name: Chariot Client Release Builds
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --manifest-path chariot-client/Cargo.toml --release
+      - name: gather client resources
+        run: |
+          mkdir release
+          cp chariot-client/target/release/chariot-client.exe release
+          cp resources/* release -Recurse
+      - uses: actions/upload-artifact@v3
+        with:
+          name: chariot-client
+          path: release
+
+  server_build:
+    name: Chariot Server Release Builds
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --manifest-path chariot-server/Cargo.toml --release
+      - name: gather server resources
+        run: |
+          mkdir release
+          cp chariot-server/target/release/chariot-server.exe release
+          cp resources/* release
+      - uses: actions/upload-artifact@v3
+        with:
+          name: chariot-server
+          path: release
