@@ -18,8 +18,25 @@ pub struct QuestionOption {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum AudienceAction {
-    NoLeft,
-    NoRight,
+    Null, // if we want to allow the boring choice ya know
+
+    // For now, we'll only have interactions that are server-side
+    // controls/physics manipulations only (no client-side visual effects)
+    NoLeft,                    // Player can no longer turn left
+    NoRight,                   // Player can no longer turn right
+    InvertControls,            // Brake/accelerate swapped, turn left/right swapped
+    SwapFirstAndLast,          // First and last player switch places
+    ShufflePlayerPositions,    // All players' positions are switched
+    DoubleMaxSpeed,            // Players can go up to double starting maximum speed
+    SuperSpin,                 // Players spin 5 times as fast
+    AutoAccelerate,            // Players accelerate no matter what
+    ShoppingCart,              // Players drift right when not turning
+    MoonGravity,               // Gravity is 0.25 as much
+    IceRink,                   // No more rolling resistance or air resistance
+    ExplosivePlayerCollisions, // Collisions with players have 3x more of an effect
+    SuperBouncyObjects,        // Collisions with objects have 3x more of an effect
+    SpeedBalanceBoost,         // Everyone except the first-place player gets 1.5x speed
+    ResetLapCounter,           // Change everyone's lap counter back to 1
 }
 
 pub fn load_questions() -> Vec<QuestionData> {
