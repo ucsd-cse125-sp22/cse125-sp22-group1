@@ -105,8 +105,6 @@ impl Map {
 
         // Probably better to do this recursively but i didn't wanna change stuff like crazy, not that it really matters since this is just loading anyways
         while let Some((node, parent_transform)) = queue.pop_front() {
-            println!("Processing node '{}'", node.name().unwrap_or("<unnamed>"));
-
             let transform = parent_transform
                 * (match node.transform() {
                     gltf::scene::Transform::Matrix { matrix } => {

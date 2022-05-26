@@ -2,10 +2,13 @@ use glam::{DQuat, DVec2, DVec3};
 
 use super::{bounding_box::BoundingBox, player_entity::PlayerEntity};
 
+// Defines the 2D footprint of a collideable region:
+// [[min_x, max_x]; [min_z, max_z]]
+type Footprint = [[f64; 2]; 2];
+
 #[derive(Clone, Copy, Debug)]
 pub struct Ramp {
-    // [[min_x, max_x]; [min_z, max_z]]
-    pub footprint: [[f64; 2]; 2],
+    pub footprint: Footprint,
     pub min_height: f64,
     pub max_height: f64,
     // points in the direction of the incline
@@ -71,11 +74,12 @@ impl Ramp {
     }
 
     pub fn get_height_at_coordinates(&self, x: f64, z: f64) -> f64 {
-        let [[min_x, max_x], [min_z, max_z]] = self.footprint;
-        if x < min_x || x > max_x || z < min_z || z > max_z {
+        if !self.coordinates_in_footprint(x, z) {
             return 0.0;
         }
 
+        let min_x = self.footprint[0][0];
+        let min_z = self.footprint[1][0];
         let (high_corner, low_corner) = self.get_high_and_low_corner();
 
         let incline_vector = high_corner - low_corner;

@@ -119,19 +119,18 @@ impl PlayerEntity {
         potential_triggers: impl Iterator<Item = &'a mut dyn TriggerEntity>,
         ramp_collision_result: Option<&RampCollisionResult>,
     ) -> PlayerEntity {
-        let minimum_player_height =
-            if ramp_collision_result.is_some() && ramp_collision_result.unwrap().can_get_on {
-                ramp_collision_result
-                    .unwrap()
-                    .ramp
-                    .get_height_at_coordinates(
-                        self.entity_location.position.x,
-                        self.entity_location.position.z,
-                    )
-                    + 1.0
+        let minimum_player_height = if let Some(result) = ramp_collision_result {
+            if result.can_get_on {
+                result.ramp.get_height_at_coordinates(
+                    self.entity_location.position.x,
+                    self.entity_location.position.z,
+                ) + 1.0
             } else {
                 1.0
-            };
+            }
+        } else {
+            1.0
+        };
         let self_forces = self.sum_of_self_forces(ramp_collision_result);
         let acceleration = self_forces / self.stat(Stat::Mass);
 
