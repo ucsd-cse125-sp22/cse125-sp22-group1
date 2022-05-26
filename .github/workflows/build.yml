@@ -13,7 +13,7 @@ jobs:
     steps:
       # required for gilrs
       - name: Install build dependencies
-        run: sudo apt-get install -y libudev-dev pkg-config alsa
+        run: sudo apt-get install -y libudev-dev pkg-config libasound2-dev portaudio19-dev
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
