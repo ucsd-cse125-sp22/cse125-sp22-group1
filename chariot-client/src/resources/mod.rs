@@ -1,3 +1,5 @@
+use image::{ImageFormat, RgbaImage};
+use std::io::{BufReader, Cursor};
 use std::{
     cmp::Eq,
     collections::{HashMap, VecDeque},
@@ -619,26 +621,47 @@ impl ResourceManager {
         self.textures.get(&handle)
     }
 
-    #[allow(dead_code)]
-    pub fn import_texture(&mut self, renderer: &Renderer, filename: &str) -> TextureHandle {
+    fn import_texture(
+        &mut self,
+        renderer: &Renderer,
+        texture_name: &str,
+        image: RgbaImage,
+    ) -> TextureHandle {
+        let texture = renderer.create_texture2d_init(
+            texture_name,
+            winit::dpi::PhysicalSize::<u32> {
+                width: image.width(),
+                height: image.height(),
+            },
+            wgpu::TextureFormat::Rgba8Unorm,
+            wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::STORAGE_BINDING,
+            &image.into_raw(),
+        );
+
+        self.register_texture(texture)
+    }
+
+    pub fn import_texture_embedded(
+        &mut self,
+        renderer: &Renderer,
+        texture_name: &str,
+        data: &[u8],
+        format: ImageFormat,
+    ) -> TextureHandle {
+        let img = image::load(Cursor::new(data), format)
+            .expect("couldn't load embedded image")
+            .into_rgba8();
+        self.import_texture(renderer, texture_name, img)
+    }
+
+    pub fn import_texture_file(&mut self, renderer: &Renderer, filename: &str) -> TextureHandle {
         let tex_name = filename.split(".").next().expect("invalid filename format");
         let resource_path = format!("{}/{}", GLOBAL_CONFIG.resource_folder, filename);
         let img = image::open(resource_path.clone())
             .expect(format!("didn't find {}", resource_path.clone()).as_str());
         let img_rgba8 = img.into_rgba8();
 
-        let texture = renderer.create_texture2d_init(
-            tex_name,
-            winit::dpi::PhysicalSize::<u32> {
-                width: img_rgba8.width(),
-                height: img_rgba8.height(),
-            },
-            wgpu::TextureFormat::Rgba8Unorm,
-            wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::STORAGE_BINDING,
-            &img_rgba8.into_raw(),
-        );
-
-        self.register_texture(texture)
+        self.import_texture(renderer, tex_name, img_rgba8)
     }
 
     // shorthand for registering a texture
