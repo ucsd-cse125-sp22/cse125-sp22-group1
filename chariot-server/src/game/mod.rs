@@ -406,12 +406,12 @@ impl GameServer {
 
                 // update bounding box dimensions and temporary physics changes for each player
                 for player in &mut self.game_state.players {
+                    player.update_bounding_box();
                     player
                         .physics_changes
                         .retain(|change| change.expiration_time > now);
                     let ramp_collision_result = player.update_upwards_from_ramps(ramps);
                     per_player_current_ramps.push(ramp_collision_result);
-                    player.update_bounding_box();
                 }
 
                 let others = |this_index: usize| -> Vec<&PlayerEntity> {
