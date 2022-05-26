@@ -48,8 +48,8 @@ impl Settings {
             .set_default("ws_server_port", "0.0.0.0:2334")?
             .set_default("server_tick_ms", 30)?
             .set_default("player_amount", 4)?
-            // files_and_resources (client)
-            .set_default("resource_folder", "../resources")?
+            // tracks folder (too big to embed)
+            .set_default("tracks_folder", "../tracks")?
             // Gameplay
             .set_default("number_laps", 3)?
             .set_default("powerup_cooldown_time", 10)?
