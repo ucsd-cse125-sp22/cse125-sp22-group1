@@ -6,6 +6,7 @@ use chariot_core::player::choices::Chair;
 use chariot_core::player::choices::PlayerChoices;
 use chariot_core::player::choices::Track;
 use chariot_core::player::PlayerID;
+use chariot_core::GLOBAL_CONFIG;
 use glam::{DVec3, Vec2};
 use image::ImageFormat;
 use std::f64::consts::PI;
@@ -219,7 +220,10 @@ impl GraphicsManager {
         {
             let track_import = self
                 .resources
-                .import_gltf_file(&mut self.renderer, &format!("maps/{}.glb", map.to_string()))
+                .import_gltf_file(
+                    &mut self.renderer,
+                    &format!("{}/{}.glb", GLOBAL_CONFIG.tracks_folder, map.to_string()),
+                )
                 .expect("Unable to load racetrack");
 
             let _track = world

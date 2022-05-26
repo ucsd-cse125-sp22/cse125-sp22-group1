@@ -301,8 +301,7 @@ impl ResourceManager {
             filename
         );
         let _model_name = filename.split(".").next().expect("invalid filename format");
-        let resource_path = format!("{}/{}", GLOBAL_CONFIG.resource_folder, filename);
-        let (document, buffers, images) = gltf::import(resource_path)?;
+        let (document, buffers, images) = gltf::import(filename)?;
         self.import_gltf(renderer, document, buffers, images)
     }
 
@@ -652,16 +651,6 @@ impl ResourceManager {
             .expect("couldn't load embedded image")
             .into_rgba8();
         self.import_texture(renderer, texture_name, img)
-    }
-
-    pub fn import_texture_file(&mut self, renderer: &Renderer, filename: &str) -> TextureHandle {
-        let tex_name = filename.split(".").next().expect("invalid filename format");
-        let resource_path = format!("{}/{}", GLOBAL_CONFIG.resource_folder, filename);
-        let img = image::open(resource_path.clone())
-            .expect(format!("didn't find {}", resource_path.clone()).as_str());
-        let img_rgba8 = img.into_rgba8();
-
-        self.import_texture(renderer, tex_name, img_rgba8)
     }
 
     // shorthand for registering a texture

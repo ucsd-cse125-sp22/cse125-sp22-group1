@@ -1,7 +1,6 @@
 use config::{Config, ConfigError, File};
 use lazy_static::lazy_static;
 use serde::Deserialize;
-use std::path::PathBuf;
 
 #[derive(Deserialize)]
 pub struct Settings {
@@ -13,7 +12,7 @@ pub struct Settings {
     pub ws_server_port: String,
 
     // Resources
-    pub resource_folder: String,
+    pub tracks_folder: String,
 
     // Gameplay
     pub number_laps: u8,
@@ -90,12 +89,6 @@ impl Settings {
             .build()?;
 
         config.try_deserialize()
-    }
-
-    pub fn get_shader_file_path(&self, filename: &str) -> PathBuf {
-        PathBuf::from(&self.resource_folder)
-            .join("shaders")
-            .join(filename)
     }
 }
 
