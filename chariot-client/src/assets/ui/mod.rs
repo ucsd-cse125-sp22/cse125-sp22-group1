@@ -9,7 +9,12 @@ const CHAIR_SELECT_RECT0: &[u8] = include_bytes!("chair-select/select/p0rectangl
 const CHAIR_SELECT_RECT1: &[u8] = include_bytes!("chair-select/select/p1rectangle.png");
 const CHAIR_SELECT_RECT2: &[u8] = include_bytes!("chair-select/select/p2rectangle.png");
 const CHAIR_SELECT_RECT3: &[u8] = include_bytes!("chair-select/select/p3rectangle.png");
-pub const CHAIR_SELECT_RECT: [&[u8]; 4] = [CHAIR_SELECT_RECT0, CHAIR_SELECT_RECT1, CHAIR_SELECT_RECT2, CHAIR_SELECT_RECT3];
+pub const CHAIR_SELECT_RECT: [&[u8]; 4] = [
+    CHAIR_SELECT_RECT0,
+    CHAIR_SELECT_RECT1,
+    CHAIR_SELECT_RECT2,
+    CHAIR_SELECT_RECT3,
+];
 
 // chair images
 const CHAIR_BEANBAG: &[u8] = include_bytes!("chair-select/display/type=beanbag.png");
@@ -24,7 +29,7 @@ pub fn get_chair_image(chair: Chair) -> &'static [u8] {
         Chair::Recliner => CHAIR_RECLINER,
         Chair::Beanbag => CHAIR_BEANBAG,
         Chair::Ergonomic => CHAIR_ERGONOMIC,
-        Chair::Folding => CHAIR_FOLDING
+        Chair::Folding => CHAIR_FOLDING,
     }
 }
 

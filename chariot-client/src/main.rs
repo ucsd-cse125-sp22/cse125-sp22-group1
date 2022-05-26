@@ -5,6 +5,7 @@ use winit::{
 };
 
 mod application;
+mod assets;
 mod drawable;
 mod game;
 mod graphics;
@@ -14,7 +15,6 @@ mod scenegraph;
 mod ui;
 mod ui_state;
 mod util;
-mod assets;
 
 fn main() {
     let event_loop = winit::event_loop::EventLoop::new();
