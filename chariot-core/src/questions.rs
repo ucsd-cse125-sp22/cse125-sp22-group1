@@ -28,6 +28,7 @@ pub enum AudienceAction {
     SwapFirstAndLast,          // First and last player switch places
     ShufflePlayerPositions,    // All players' positions are switched
     DoubleMaxSpeed,            // Players can go up to double starting maximum speed
+    SuperAccelerator,          // Players accelerate 3 times as fast
     SuperSpin,                 // Players spin 5 times as fast
     AutoAccelerate,            // Players accelerate no matter what
     ShoppingCart,              // Players drift right when not turning
@@ -37,6 +38,8 @@ pub enum AudienceAction {
     SuperBouncyObjects,        // Collisions with objects have 3x more of an effect
     SpeedBalanceBoost,         // Everyone except the first-place player gets 1.5x speed
     ResetLapCounter,           // Change everyone's lap counter back to 1
+    TurnOnlyWhenNotMoving,     // Players can't turn when moving at all
+    Backwards,                 // Players instantly rotate 180 degrees and have their speed inverted
 }
 
 pub fn load_questions() -> Vec<QuestionData> {
