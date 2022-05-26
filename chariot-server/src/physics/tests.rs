@@ -4,6 +4,7 @@ use chariot_core::player::choices::Chair;
 use glam::DVec3;
 
 use crate::physics::bounding_box::BoundingBox;
+use crate::physics::ramp::RampCollisionResult;
 use chariot_core::entity_location::EntityLocation;
 use chariot_core::player::{
     lap_info::LapInformation,
@@ -74,12 +75,24 @@ fn test_spinning() {
     let mut props = get_starting_player_props();
     props.velocity = DVec3::ZERO;
     props.player_inputs.rotation_status = RotationStatus::InSpinClockwise(1.0);
-    props = props.do_physics_step(1.0, Vec::new(), Vec::new(), std::iter::empty(), None);
+    props = props.do_physics_step(
+        1.0,
+        Vec::new(),
+        Vec::new(),
+        std::iter::empty(),
+        &RampCollisionResult::NoEffect,
+    );
 
     assert_eq!(props.angular_velocity, GLOBAL_CONFIG.car_spin);
 
     props.player_inputs.rotation_status = RotationStatus::NotInSpin;
-    props = props.do_physics_step(1.0, Vec::new(), Vec::new(), std::iter::empty(), None);
+    props = props.do_physics_step(
+        1.0,
+        Vec::new(),
+        Vec::new(),
+        std::iter::empty(),
+        &RampCollisionResult::NoEffect,
+    );
 
     assert_eq!(
         props.angular_velocity,
