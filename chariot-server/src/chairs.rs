@@ -37,10 +37,10 @@ pub fn get_player_start_physics_properties(chair: &Chair, player_number: PlayerI
             unit_upward_direction: DVec3::Y,
         },
         physics_changes: vec![],
+        stats_changes: vec![],
         current_colliders: vec![],
         lap_info: LapInformation::new(),
         current_powerup: None,
         chair: *chair,
-        stat_modifiers: std::collections::HashMap::new(),
     };
 }

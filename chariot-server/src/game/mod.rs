@@ -23,7 +23,9 @@ use crate::physics::player_entity::PlayerEntity;
 use crate::physics::ramp::RampCollisionResult;
 use crate::progress::get_player_placement_array;
 
-use self::interactions::get_physics_change_from_audience_action;
+use self::interactions::{
+    get_physics_change_from_audience_action, get_stats_change_from_audience_action,
+};
 use self::map::Map;
 use self::phase::*;
 
@@ -408,6 +410,9 @@ impl GameServer {
                     player
                         .physics_changes
                         .retain(|change| change.expiration_time > now);
+                    player
+                        .stats_changes
+                        .retain(|change| change.expiration_time > now);
 
                     player.change_inputs_per_physics_changes();
                     let ramp_collision_result = player.update_upwards_from_ramps(ramps);
@@ -490,6 +495,15 @@ impl GameServer {
                                 self.game_state.players.iter_mut().for_each(|player| {
                                     player.physics_changes.push(change.clone());
                                 });
+                            }
+
+                            if let Some(change) = get_stats_change_from_audience_action(
+                                &decision.action,
+                                effect_end_time,
+                            ) {
+                                self.game_state.players.iter_mut().for_each(|player| {
+                                    player.stats_changes.push(change.clone());
+                                })
                             }
 
                             *voting_game_state = VotingState::VoteResultActive {

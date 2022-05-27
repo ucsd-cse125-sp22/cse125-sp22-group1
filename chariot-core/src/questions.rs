@@ -33,7 +33,7 @@ pub enum AudienceAction {
     SuperSpin,                 // Players spin 5 times as fast
     ShoppingCart,              // Players drift right when not turning
     MoonGravity,               // Gravity is 0.25 as much
-    IceRink,                   // No more rolling resistance or air resistance
+    IceRink,                   // No more rolling resistance
     ExplosivePlayerCollisions, // Collisions with players have 3x more of an effect
     SuperBouncyObjects,        // Collisions with objects have 3x more of an effect
     SpeedBalanceBoost,         // Everyone except the first-place player gets 1.5x speed

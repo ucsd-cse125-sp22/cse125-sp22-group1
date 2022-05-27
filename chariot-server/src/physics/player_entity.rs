@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::game::powerup::PowerUp;
 use crate::physics::bounding_box::BoundingBox;
 use chariot_core::entity_location::EntityLocation;
@@ -8,14 +6,13 @@ use chariot_core::player::{
     lap_info::LapInformation,
     player_inputs::{EngineStatus, PlayerInputs, RotationStatus},
 };
-use chariot_core::GLOBAL_CONFIG;
 use glam::{DMat3, DVec3};
 
 use crate::physics::trigger_entity::TriggerEntity;
 
 use super::physics_changes::PhysicsChange;
-
 use super::ramp::RampCollisionResult;
+use super::stats_changes::StatsChange;
 
 pub struct PlayerEntity {
     pub velocity: DVec3,
@@ -30,12 +27,12 @@ pub struct PlayerEntity {
     pub current_colliders: Vec<BoundingBox>,
 
     pub physics_changes: Vec<PhysicsChange>,
+    pub stats_changes: Vec<StatsChange>,
 
     pub lap_info: LapInformation,
 
     pub current_powerup: Option<PowerUp>,
     pub chair: Chair,
-    pub stat_modifiers: HashMap<Stat, f64>,
 }
 
 impl PlayerEntity {
@@ -94,16 +91,13 @@ impl PlayerEntity {
     }
 
     pub fn get_stat_modifier(&self, name: Stat) -> f64 {
-        *self.stat_modifiers.get(&name).unwrap_or(&1.0)
-    }
-
-    pub fn _mod_stat_modifier(&mut self, name: Stat, value: f64) {
-        self.stat_modifiers
-            .insert(name, self.get_stat_modifier(name) * value);
-    }
-
-    pub fn _reset_stat_modifier(&mut self, name: Stat) {
-        self.stat_modifiers.remove(&name);
+        let mut modifier = 1.0;
+        for change in &self.stats_changes {
+            if change.stat == name {
+                modifier *= change.multiplier;
+            }
+        }
+        modifier
     }
 
     pub fn stat(&self, name: Stat) -> f64 {
@@ -151,7 +145,8 @@ impl PlayerEntity {
         let mut delta_velocity = acceleration * time_step;
 
         for collider in potential_colliders.iter() {
-            delta_velocity += self.delta_v_from_collision_with_player(collider);
+            delta_velocity += self.stat(Stat::PlayerBounciness)
+                * self.delta_v_from_collision_with_player(collider);
         }
 
         let mut terrain_with_collisions = potential_terrain.clone();
@@ -189,7 +184,7 @@ impl PlayerEntity {
         // colliding with them (otherwise, it's super easy to get stuck inside
         // an object)
         if collision_terrain_is_new {
-            let multiplier = -(1.0 + GLOBAL_CONFIG.wall_bounciness);
+            let multiplier = -(1.0 + self.stat(Stat::TerrainBounciness));
             for terrain in &terrain_with_collisions {
                 // We want to "reflect" off of objects: this means negating the
                 // x component of velocity if hitting a face parallel to the
@@ -242,10 +237,10 @@ impl PlayerEntity {
             size: self.size,
             bounding_box: self.bounding_box,
             physics_changes: self.physics_changes.clone(),
+            stats_changes: self.stats_changes.clone(),
             lap_info: self.lap_info,
             current_powerup: self.current_powerup,
             chair: self.chair,
-            stat_modifiers: self.stat_modifiers.to_owned(),
         };
 
         new_player.apply_physics_changes();
