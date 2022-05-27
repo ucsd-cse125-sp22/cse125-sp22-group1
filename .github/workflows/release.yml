@@ -24,7 +24,8 @@ jobs:
         run: |
           mkdir release
           cp chariot-client/target/release/chariot-client.exe release
-          cp resources/* release -Recurse
+          cp config.example.yaml release/config.yaml
+          cp DONT_FORGET_TO_DOWNLOAD_TRACKS.txt release
       - uses: actions/upload-artifact@v3
         with:
           name: chariot-client
@@ -47,7 +48,8 @@ jobs:
         run: |
           mkdir release
           cp chariot-server/target/release/chariot-server.exe release
-          cp resources/* release
+          cp config.example.yaml release/config.yaml
+          cp DONT_FORGET_TO_DOWNLOAD_TRACKS.txt release
       - uses: actions/upload-artifact@v3
         with:
           name: chariot-server

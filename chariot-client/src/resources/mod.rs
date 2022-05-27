@@ -1,4 +1,5 @@
-use std::borrow::BorrowMut;
+use image::{ImageFormat, RgbaImage};
+use std::io::{BufReader, Cursor};
 use std::{
     cmp::Eq,
     collections::{HashMap, VecDeque},
@@ -132,29 +133,15 @@ impl ResourceManager {
         }
     }
 
-    /*
-     * Imports the meshes, textures and (TODO: materials) from a gltf file.
-     * Learn more about the gltf file format here: https://www.khronos.org/gltf/
-     * It's pretty much the hip open source scene format right now right now for games.
-     */
-    pub fn import_gltf(
+    fn import_gltf(
         &mut self,
         renderer: &mut Renderer,
-        filename: String,
+        document: gltf::Document,
+        buffers: Vec<gltf::buffer::Data>,
+        images: Vec<gltf::image::Data>,
     ) -> Result<ImportData, gltf::Error> {
-        println!(
-            "loading {}, please give a sec I swear it's not lagging",
-            filename
-        );
-        let _model_name = filename.split(".").next().expect("invalid filename format");
-        let resource_path = format!("{}/{}", GLOBAL_CONFIG.resource_folder, filename);
-        let (document, buffers, images) = gltf::import(resource_path)?;
         if document.scenes().count() != 1 {
-            panic!(
-                "Document {} has {} scenes!",
-                filename,
-                document.scenes().count()
-            );
+            panic!("Document has {} scenes!", document.scenes().count());
         }
 
         let mut bounds = new_bounds();
@@ -299,6 +286,35 @@ impl ResourceManager {
         })
     }
 
+    /*
+     * Imports the meshes, textures and (TODO: materials) from a gltf file.
+     * Learn more about the gltf file format here: https://www.khronos.org/gltf/
+     * It's pretty much the hip open source scene format right now right now for games.
+     */
+    pub fn import_gltf_file(
+        &mut self,
+        renderer: &mut Renderer,
+        filename: &str,
+    ) -> Result<ImportData, gltf::Error> {
+        println!(
+            "loading {}, please give a sec I swear it's not lagging",
+            filename
+        );
+        let _model_name = filename.split(".").next().expect("invalid filename format");
+        let (document, buffers, images) = gltf::import(filename)?;
+        self.import_gltf(renderer, document, buffers, images)
+    }
+
+    pub fn import_gltf_slice(
+        &mut self,
+        renderer: &mut Renderer,
+        data: &[u8],
+    ) -> Result<ImportData, gltf::Error> {
+        println!("loading gltf, please give a sec I swear it's not lagging",);
+        let (document, buffers, images) = gltf::import_slice(data)?;
+        self.import_gltf(renderer, document, buffers, images)
+    }
+
     fn import_mesh(
         &mut self,
         renderer: &Renderer,
@@ -369,10 +385,7 @@ impl ResourceManager {
             println!("unsupported vertex format, your mesh might look weird");
         }
 
-        let full_range = (
-            std::ops::Bound::<u64>::Unbounded,
-            std::ops::Bound::<u64>::Unbounded,
-        );
+        let full_range = (Bound::<u64>::Unbounded, Bound::<u64>::Unbounded);
         let vertex_ranges = vec![full_range; mesh_builder.vertex_buffers.len()];
         if let Some(indices) = reader.read_indices() {
             let num_elements = match indices {
@@ -607,26 +620,37 @@ impl ResourceManager {
         self.textures.get(&handle)
     }
 
-    #[allow(dead_code)]
-    pub fn import_texture(&mut self, renderer: &Renderer, filename: &str) -> TextureHandle {
-        let tex_name = filename.split(".").next().expect("invalid filename format");
-        let resource_path = format!("{}/{}", GLOBAL_CONFIG.resource_folder, filename);
-        let img = image::open(resource_path.clone())
-            .expect(format!("didn't find {}", resource_path.clone()).as_str());
-        let img_rgba8 = img.into_rgba8();
-
+    fn import_texture(
+        &mut self,
+        renderer: &Renderer,
+        texture_name: &str,
+        image: RgbaImage,
+    ) -> TextureHandle {
         let texture = renderer.create_texture2d_init(
-            tex_name,
+            texture_name,
             winit::dpi::PhysicalSize::<u32> {
-                width: img_rgba8.width(),
-                height: img_rgba8.height(),
+                width: image.width(),
+                height: image.height(),
             },
             wgpu::TextureFormat::Rgba8Unorm,
             wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::STORAGE_BINDING,
-            &img_rgba8.into_raw(),
+            &image.into_raw(),
         );
 
         self.register_texture(texture)
+    }
+
+    pub fn import_texture_embedded(
+        &mut self,
+        renderer: &Renderer,
+        texture_name: &str,
+        data: &[u8],
+        format: ImageFormat,
+    ) -> TextureHandle {
+        let img = image::load(Cursor::new(data), format)
+            .expect("couldn't load embedded image")
+            .into_rgba8();
+        self.import_texture(renderer, texture_name, img)
     }
 
     // shorthand for registering a texture

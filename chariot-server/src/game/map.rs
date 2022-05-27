@@ -72,7 +72,7 @@ impl Map {
             filename
         );
         filename.split(".").next().expect("invalid filename format");
-        let map_path = format!("{}/maps/{}.glb", GLOBAL_CONFIG.resource_folder, filename);
+        let map_path = format!("{}/{}.glb", GLOBAL_CONFIG.tracks_folder, filename);
         let (document, buffers, _) = gltf::import(map_path)?;
         if document.scenes().count() != 1 {
             panic!(
@@ -203,11 +203,11 @@ impl Map {
                                 };
                                 ramps.push(ramp);
                             } else {
-                                panic!(
-                                    "Mesh '{}' has unknown purpose '{}'!",
-                                    mesh.name().unwrap_or("<unnamed>"),
-                                    purpose
-                                );
+                                // panic!(
+                                //     "Mesh '{}' has unknown purpose '{}'!",
+                                //     mesh.name().unwrap_or("<unnamed>"),
+                                //     purpose
+                                // );
                             }
 
                             world_bounds = world_bounds.accum(mesh_bounds);
