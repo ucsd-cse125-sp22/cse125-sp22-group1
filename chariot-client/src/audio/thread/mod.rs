@@ -1,20 +1,16 @@
-use rodio::{source::Buffered, Decoder, Sink, Source, SpatialSink};
-use std::fs::File;
-use std::sync::{Arc, Mutex};
-use std::thread;
-
-use std::io::BufReader;
-
+use std::io::Cursor;
 use std::time::{Duration, SystemTime};
 
-// Buffered Audio Source
-pub type AudioBuffer = Buffered<Decoder<BufReader<File>>>;
-
-pub mod context;
-pub mod options;
+use rodio::{Decoder, Sink, Source, SpatialSink};
 
 use context::AudioCtx;
 use options::SourceOptions;
+
+// Buffered Audio Source
+pub type AudioBuffer = &'static [u8];
+
+pub mod context;
+pub mod options;
 
 enum AudioSinkType {
     Spatial(SpatialSink),
@@ -22,7 +18,6 @@ enum AudioSinkType {
 }
 
 pub struct AudioThread {
-    pub thread_id: u64,
     time_start: SystemTime,
     volume: f32,
     pitch: f32,
@@ -32,12 +27,7 @@ pub struct AudioThread {
 }
 
 impl AudioThread {
-    pub fn new(
-        thread_id: u64,
-        ctx: &AudioCtx,
-        source: Buffered<Decoder<BufReader<File>>>,
-        src_opt: SourceOptions,
-    ) -> Self {
+    pub fn new(ctx: &AudioCtx, source: AudioBuffer, src_opt: SourceOptions) -> Self {
         return if src_opt.emitter_pos != [0.0; 3]
             || src_opt.left_ear != [0.0; 3]
             || src_opt.right_ear != [0.0; 3]
@@ -61,7 +51,6 @@ impl AudioThread {
             };
 
             Self {
-                thread_id,
                 time_start: SystemTime::now(),
                 volume: 1.0,
                 pitch: 1.0,
@@ -81,7 +70,6 @@ impl AudioThread {
             };
 
             Self {
-                thread_id,
                 time_start: SystemTime::now(),
                 volume: 1.0,
                 pitch: 1.0,
@@ -104,7 +92,7 @@ impl AudioThread {
     }
 
     pub fn play(&mut self) {
-        let source = self.source.clone();
+        let source = Decoder::new(Cursor::new(self.source)).expect("failed to decode track");
 
         // Apply Skip Duration
         let skp_src = source.skip_duration(self.src_opt.skip_duration);
@@ -137,40 +125,7 @@ impl AudioThread {
 
     // Fade out the sink
     pub fn fade_out(self, duration: Duration) {
-        // 1 step every 10 ms
-        let steps = duration.as_millis() / 10;
-        let delta_time = duration.as_millis() / steps;
-
-        let x = Arc::new(Mutex::new(self));
-        let alias = x.clone();
-
-        // Spawn a new thread to automate the fade out
-        thread::spawn(move || {
-            let mutref = alias.lock();
-            let mutref = match mutref {
-                Ok(m) => m,
-                Err(err) => {
-                    println!("There was an error while creating the mutref: {}", err);
-                    return;
-                }
-            };
-
-            for n in 1..steps {
-                let volume = (mutref.volume / steps as f32) * (steps - n) as f32;
-
-                match &mutref.sink {
-                    AudioSinkType::Spatial(sink) => sink.set_volume(volume),
-                    AudioSinkType::Standard(sink) => sink.set_volume(volume),
-                }
-
-                thread::sleep(Duration::from_millis(delta_time as u64));
-            }
-
-            match &mutref.sink {
-                AudioSinkType::Spatial(sink) => sink.stop(),
-                AudioSinkType::Standard(sink) => sink.stop(),
-            }
-        });
+        // TODO
     }
 
     // Pause playback

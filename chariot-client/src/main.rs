@@ -5,8 +5,8 @@ use winit::{
 };
 
 mod application;
-mod audio;
 mod assets;
+mod audio;
 mod drawable;
 mod game;
 mod graphics;
