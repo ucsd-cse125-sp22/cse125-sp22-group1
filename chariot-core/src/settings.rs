@@ -58,7 +58,7 @@ impl Settings {
             // little g (whose IRL value is 9.81 meters per second squared, but
             // we are not operating in those units so this is a placeholder
             // value for now).
-            .set_default("gravity_coefficient", 1.0)?
+            .set_default("gravity_coefficient", 0.01)?
             // We model air resistance with a (very) simplified model of
             // `drag_coefficient` times velocity squared. Since drag is
             // quadratic and friction is linear, this coefficient should be much
