@@ -1,0 +1,4 @@
+In development, tracks now need to be stored in the root of the project, under the `./tracks` folder
+In production, tracks can just be dropped into the current folder as long as you have the production `config.yaml`
+
+https://drive.google.com/drive/u/1/folders/12ZkZe1OooCEq68XhsMrLNO-F-1pzzA2-

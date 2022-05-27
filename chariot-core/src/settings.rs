@@ -1,7 +1,6 @@
 use config::{Config, ConfigError, File};
 use lazy_static::lazy_static;
 use serde::Deserialize;
-use std::path::PathBuf;
 
 #[derive(Deserialize)]
 pub struct Settings {
@@ -13,7 +12,7 @@ pub struct Settings {
     pub ws_server_port: String,
 
     // Resources
-    pub resource_folder: String,
+    pub tracks_folder: String,
 
     // Gameplay
     pub number_laps: u8,
@@ -48,8 +47,8 @@ impl Settings {
             .set_default("ws_server_port", "0.0.0.0:2334")?
             .set_default("server_tick_ms", 30)?
             .set_default("player_amount", 4)?
-            // files_and_resources (client)
-            .set_default("resource_folder", "../resources")?
+            // tracks folder (too big to embed)
+            .set_default("tracks_folder", "../tracks")?
             // Gameplay
             .set_default("number_laps", 3)?
             .set_default("powerup_cooldown_time", 10)?
@@ -58,7 +57,7 @@ impl Settings {
             // little g (whose IRL value is 9.81 meters per second squared, but
             // we are not operating in those units so this is a placeholder
             // value for now).
-            .set_default("gravity_coefficient", 1.0)?
+            .set_default("gravity_coefficient", 0.01)?
             // We model air resistance with a (very) simplified model of
             // `drag_coefficient` times velocity squared. Since drag is
             // quadratic and friction is linear, this coefficient should be much
@@ -90,12 +89,6 @@ impl Settings {
             .build()?;
 
         config.try_deserialize()
-    }
-
-    pub fn get_shader_file_path(&self, filename: &str) -> PathBuf {
-        PathBuf::from(&self.resource_folder)
-            .join("shaders")
-            .join(filename)
     }
 }
 

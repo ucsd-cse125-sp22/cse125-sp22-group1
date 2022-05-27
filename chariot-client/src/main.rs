@@ -5,6 +5,7 @@ use winit::{
 };
 
 mod application;
+mod assets;
 mod drawable;
 mod game;
 mod graphics;

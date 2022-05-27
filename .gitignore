@@ -3,5 +3,5 @@
 .idea
 **/Cargo.lock
 .DS_Store
-resources/maps
+tracks
 chariot-server/start-server.bat

@@ -1,13 +1,15 @@
 use std::time::Instant;
 
-use chariot_core::player::choices::Chair;
 use glam::Vec2;
+use image::ImageFormat;
 use lazy_static::lazy_static;
 use ordinal::Ordinal;
 
-use crate::ui::fonts::{PLACEMENT_FONT, PRIMARY_FONT};
+use chariot_core::player::choices::Chair;
+
 use crate::ui::string::{StringAlignment, UIStringBuilder};
 use crate::{
+    assets,
     drawable::{
         technique::{self, UILayerTechnique},
         UIDrawable,
@@ -53,18 +55,21 @@ pub enum UIState {
 // by initializing the builders statically,
 // we can quickly clone then and change their content to regenerate drawables
 lazy_static! {
-    static ref ANNOUNCEMENT_TITLE: UIStringBuilder = UIStringBuilder::new(PRIMARY_FONT)
-        .alignment(StringAlignment::CENTERED)
-        .content("")
-        .position(0.50, 0.04);
-    static ref ANNOUNCEMENT_SUBTITLE: UIStringBuilder = UIStringBuilder::new(PRIMARY_FONT)
-        .alignment(StringAlignment::CENTERED)
-        .content("")
-        .position(0.50, 0.14);
-    static ref PLACEMENT_TEXT: UIStringBuilder = UIStringBuilder::new(PLACEMENT_FONT)
-        .alignment(StringAlignment::RIGHT)
-        .content("")
-        .position(1.0, 0.057);
+    static ref ANNOUNCEMENT_TITLE: UIStringBuilder =
+        UIStringBuilder::new(assets::fonts::PRIMARY_FONT)
+            .alignment(StringAlignment::CENTERED)
+            .content("")
+            .position(0.50, 0.04);
+    static ref ANNOUNCEMENT_SUBTITLE: UIStringBuilder =
+        UIStringBuilder::new(assets::fonts::PRIMARY_FONT)
+            .alignment(StringAlignment::CENTERED)
+            .content("")
+            .position(0.50, 0.14);
+    static ref PLACEMENT_TEXT: UIStringBuilder =
+        UIStringBuilder::new(*assets::fonts::PLACEMENT_FONT_SELECTION)
+            .alignment(StringAlignment::RIGHT)
+            .content("")
+            .position(1.0, 0.057);
 }
 
 impl GraphicsManager {
@@ -195,9 +200,12 @@ impl GraphicsManager {
     }
 
     pub fn display_main_menu(&mut self) {
-        let background_handle = self
-            .resources
-            .import_texture(&self.renderer, "UI/homebackground.png");
+        let background_handle = self.resources.import_texture_embedded(
+            &self.renderer,
+            "homebackground",
+            assets::ui::HOME_BACKGROUND,
+            ImageFormat::Png,
+        );
 
         let background_texture = self
             .resources
@@ -229,9 +237,12 @@ impl GraphicsManager {
     }
 
     pub fn display_chairacter_select(&mut self) {
-        let background_handle = self
-            .resources
-            .import_texture(&self.renderer, "UI/ChairSelect/background.png");
+        let background_handle = self.resources.import_texture_embedded(
+            &self.renderer,
+            "chair-select background",
+            assets::ui::CHAIR_SELECT_BACKGROUND,
+            ImageFormat::Png,
+        );
 
         let background_texture = self
             .resources
@@ -250,9 +261,11 @@ impl GraphicsManager {
 
         let background = UIDrawable { layers: layer_vec };
 
-        let chair_select_box_handle = self.resources.import_texture(
+        let chair_select_box_handle = self.resources.import_texture_embedded(
             &self.renderer,
-            format!("UI/ChairSelect/select/p{}rectangle.png", self.player_num).as_str(),
+            format!("p{}rectangle", self.player_num).as_str(),
+            assets::ui::CHAIR_SELECT_RECT[self.player_num],
+            ImageFormat::Png,
         );
 
         let chair_select_box_texture = self
@@ -309,9 +322,11 @@ impl GraphicsManager {
                 Chair::Folding => glam::vec2(835.0 / 1280.0, 548.0 / 720.0),
             };
             // not sure the best way to change the position; for now, I'm just rerendering completely
-            let chair_select_box_handle = self.resources.import_texture(
+            let chair_select_box_handle = self.resources.import_texture_embedded(
                 &self.renderer,
-                format!("UI/ChairSelect/select/p{}rectangle.png", self.player_num).as_str(),
+                format!("p{}rectangle", self.player_num).as_str(),
+                assets::ui::CHAIR_SELECT_RECT[self.player_num],
+                ImageFormat::Png,
             );
 
             let chair_select_box_texture = self
@@ -343,9 +358,11 @@ impl GraphicsManager {
             ..
         } = &mut self.ui
         {
-            let chair_image = self.resources.import_texture(
+            let chair_image = self.resources.import_texture_embedded(
                 &self.renderer,
-                format!("UI/ChairSelect/display/type={}.png", chair.file()).as_str(),
+                "chair headshot",
+                assets::ui::get_chair_image(chair),
+                ImageFormat::Png,
             );
 
             let chair_texture = self
@@ -389,18 +406,24 @@ impl GraphicsManager {
             .build_drawable(&self.renderer, &mut self.resources);
 
         // minimap
-        let minimap_map_handle = self
-            .resources
-            .import_texture(&self.renderer, "UI/minimap/track_transparent.png");
-        let player_location_handles: Vec<TextureHandle> = [
-            "UI/Map Select/P1Btn.png",
-            "UI/Map Select/P2Btn.png",
-            "UI/Map Select/P3Btn.png",
-            "UI/Map Select/P4Btn.png",
-        ]
-        .iter()
-        .map(|filename| self.resources.import_texture(&self.renderer, filename))
-        .collect();
+        let minimap_map_handle = self.resources.import_texture_embedded(
+            &self.renderer,
+            "track_transparent",
+            assets::ui::TRACK_TRANSPARENT,
+            ImageFormat::Png,
+        );
+
+        let player_location_handles: Vec<TextureHandle> = assets::ui::PLAYER_BUTTONS
+            .iter()
+            .map(|button| {
+                self.resources.import_texture_embedded(
+                    &self.renderer,
+                    "player button",
+                    *button,
+                    ImageFormat::Png,
+                )
+            })
+            .collect();
 
         let minimap_map_texture = self
             .resources
