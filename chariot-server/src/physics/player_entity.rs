@@ -6,13 +6,14 @@ use chariot_core::entity_location::EntityLocation;
 use chariot_core::player::choices::{Chair, Stat};
 use chariot_core::player::{
     lap_info::LapInformation,
-    physics_changes::{PhysicsChange, PhysicsChangeType},
     player_inputs::{EngineStatus, PlayerInputs, RotationStatus},
 };
 use chariot_core::GLOBAL_CONFIG;
 use glam::DVec3;
 
 use crate::physics::trigger_entity::TriggerEntity;
+
+use super::physics_changes::PhysicsChange;
 
 fn get_height_at_coordinates(_x: f64, _z: f64) -> f64 {
     return 0.0;
@@ -322,52 +323,5 @@ impl PlayerEntity {
             * self.stat(Stat::Mass)
             * -1.0
             * self.stat(Stat::RollingResistanceCoefficient);
-    }
-
-    fn apply_physics_changes(&mut self) {
-        for change in &self.physics_changes {
-            match change.change_type {
-                PhysicsChangeType::IAmSpeed => {
-                    let flat_speed_increase = 30.0;
-                    self.velocity = self.velocity * (self.velocity.length() + flat_speed_increase);
-                }
-                PhysicsChangeType::NoTurningRight => {
-                    if matches!(
-                        self.player_inputs.rotation_status,
-                        RotationStatus::InSpinClockwise { .. }
-                    ) {
-                        self.player_inputs.rotation_status = RotationStatus::NotInSpin;
-                        self.angular_velocity -= self.stat(Stat::CarSpin);
-                    }
-                }
-                PhysicsChangeType::NoTurningLeft => {
-                    if matches!(
-                        self.player_inputs.rotation_status,
-                        RotationStatus::InSpinCounterclockwise { .. }
-                    ) {
-                        self.player_inputs.rotation_status = RotationStatus::NotInSpin;
-                        self.angular_velocity += self.stat(Stat::CarSpin);
-                    }
-                }
-                PhysicsChangeType::ShoppingCart => {
-                    self.angular_velocity += self.stat(Stat::CarSpin) / 2.0;
-                }
-                PhysicsChangeType::InSpainButTheAIsSilent => {
-                    match self.player_inputs.rotation_status {
-                        RotationStatus::InSpinClockwise { .. } => {}
-                        RotationStatus::NotInSpin => {
-                            self.player_inputs.rotation_status =
-                                RotationStatus::InSpinClockwise(1.0);
-                            self.angular_velocity += self.stat(Stat::CarSpin);
-                        }
-                        RotationStatus::InSpinCounterclockwise(modifier) => {
-                            self.player_inputs.rotation_status =
-                                RotationStatus::InSpinClockwise(modifier);
-                            self.angular_velocity += 2.0 * self.stat(Stat::CarSpin);
-                        }
-                    }
-                }
-            }
-        }
     }
 }

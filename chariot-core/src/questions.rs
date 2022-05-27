@@ -22,15 +22,19 @@ pub enum AudienceAction {
 
     // For now, we'll only have interactions that are server-side
     // controls/physics manipulations only (no client-side visual effects)
-    NoLeft,                    // Player can no longer turn left
-    NoRight,                   // Player can no longer turn right
-    InvertControls,            // Brake/accelerate swapped, turn left/right swapped
+
+    // Controls
+    NoLeft,                // Player can no longer turn left
+    NoRight,               // Player can no longer turn right
+    InvertControls,        // Brake/accelerate swapped, turn left/right swapped
+    AutoAccelerate,        // Players accelerate no matter what
+    TurnOnlyWhenNotMoving, // Players can't turn when moving at all
+
     SwapFirstAndLast,          // First and last player switch places
     ShufflePlayerPositions,    // All players' positions are switched
     DoubleMaxSpeed,            // Players can go up to double starting maximum speed
     SuperAccelerator,          // Players accelerate 3 times as fast
     SuperSpin,                 // Players spin 5 times as fast
-    AutoAccelerate,            // Players accelerate no matter what
     ShoppingCart,              // Players drift right when not turning
     MoonGravity,               // Gravity is 0.25 as much
     IceRink,                   // No more rolling resistance or air resistance
@@ -38,7 +42,6 @@ pub enum AudienceAction {
     SuperBouncyObjects,        // Collisions with objects have 3x more of an effect
     SpeedBalanceBoost,         // Everyone except the first-place player gets 1.5x speed
     ResetLapCounter,           // Change everyone's lap counter back to 1
-    TurnOnlyWhenNotMoving,     // Players can't turn when moving at all
     Backwards,                 // Players instantly rotate 180 degrees and have their speed inverted
 }
 

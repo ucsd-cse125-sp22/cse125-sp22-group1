@@ -5,12 +5,7 @@ use std::time::{Duration, Instant};
 
 use chariot_core::player::choices::{Chair, PlayerChoices, Track};
 use chariot_core::player::lap_info::Placement;
-use chariot_core::player::{
-    lap_info::LapInformation,
-    physics_changes::{PhysicsChange, PhysicsChangeType},
-    player_inputs::InputEvent,
-    PlayerID,
-};
+use chariot_core::player::{lap_info::LapInformation, player_inputs::InputEvent, PlayerID};
 use glam::DVec3;
 
 use chariot_core::entity_location::EntityLocation;
@@ -23,12 +18,15 @@ use chariot_core::questions::{QuestionData, QUESTIONS};
 use chariot_core::GLOBAL_CONFIG;
 
 use crate::chairs::get_player_start_physics_properties;
+use crate::physics::physics_changes::PhysicsChange;
 use crate::physics::player_entity::PlayerEntity;
 use crate::progress::get_player_placement_array;
 
+use self::interactions::get_physics_change_from_audience_action;
 use self::map::Map;
 use self::phase::*;
 
+mod interactions;
 mod map;
 mod phase;
 pub mod powerup;
@@ -400,6 +398,8 @@ impl GameServer {
                         .retain(|change| change.expiration_time > now);
                     player.update_bounding_box();
                     player.set_upward_direction_from_bounding_box();
+
+                    player.change_inputs_per_physics_changes();
                 }
 
                 let others = |this_index: usize| -> Vec<&PlayerEntity> {
@@ -467,23 +467,16 @@ impl GameServer {
                                 });
                             }
 
-                            match decision.action {
-                                chariot_core::questions::AudienceAction::NoLeft => {
-                                    self.game_state.players.iter_mut().for_each(|playa| {
-                                        playa.physics_changes.push(PhysicsChange {
-                                            change_type: PhysicsChangeType::NoTurningLeft,
-                                            expiration_time: effect_end_time,
-                                        });
-                                    });
-                                }
-                                chariot_core::questions::AudienceAction::NoRight => {
-                                    self.game_state.players.iter_mut().for_each(|playa| {
-                                        playa.physics_changes.push(PhysicsChange {
-                                            change_type: PhysicsChangeType::NoTurningRight,
-                                            expiration_time: effect_end_time,
-                                        });
-                                    });
-                                }
+                            if let Some(change_type) =
+                                get_physics_change_from_audience_action(&decision.action)
+                            {
+                                let change = PhysicsChange {
+                                    change_type,
+                                    expiration_time: effect_end_time,
+                                };
+                                self.game_state.players.iter_mut().for_each(|player| {
+                                    player.physics_changes.push(change.clone());
+                                });
                             }
 
                             *voting_game_state = VotingState::VoteResultActive {
