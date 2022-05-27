@@ -1,3 +1,6 @@
+use crate::assets;
+use crate::assets::models;
+use crate::assets::shaders;
 use chariot_core::entity_location::EntityLocation;
 use chariot_core::player::choices::Chair;
 use chariot_core::player::choices::PlayerChoices;
@@ -5,6 +8,7 @@ use chariot_core::player::choices::Track;
 use chariot_core::player::PlayerID;
 use chariot_core::GLOBAL_CONFIG;
 use glam::{DVec3, Vec2};
+use image::ImageFormat;
 use std::f64::consts::PI;
 
 use crate::drawable::particle::ParticleDrawable;
@@ -23,7 +27,7 @@ pub fn register_passes(renderer: &mut Renderer) {
     renderer.register_pass(
         "forward",
         &util::indirect_graphics_depth_pass!(
-            GLOBAL_CONFIG.get_resource_filepath("shaders/forward.wgsl"),
+            &shaders::FORWARD,
             [
                 wgpu::TextureFormat::Rgba16Float,
                 wgpu::TextureFormat::Rgba8Unorm
@@ -31,28 +35,18 @@ pub fn register_passes(renderer: &mut Renderer) {
         ),
     );
 
-    renderer.register_pass(
-        "shadow",
-        &util::shadow_pass!(GLOBAL_CONFIG.get_resource_filepath("shaders/shadow.wgsl")),
-    );
+    renderer.register_pass("shadow", &util::shadow_pass!(&shaders::SHADOW));
 
     renderer.register_pass(
         "postprocess",
-        &util::direct_graphics_nodepth_pass!(
-            GLOBAL_CONFIG.get_resource_filepath("shaders/postprocess.wgsl")
-        ),
+        &util::direct_graphics_nodepth_pass!(&shaders::POST_PROCESS),
     );
 
-    renderer.register_pass(
-        "ui",
-        &util::direct_graphics_nodepth_pass!(GLOBAL_CONFIG.get_resource_filepath("shaders/ui.wgsl")),
-    );
+    renderer.register_pass("ui", &util::direct_graphics_nodepth_pass!(&shaders::UI));
 
     renderer.register_pass(
         "particle",
-        &util::direct_graphics_nodepth_pass!(
-            GLOBAL_CONFIG.get_resource_filepath("shaders/particle.wgsl")
-        ),
+        &util::direct_graphics_nodepth_pass!(&shaders::PARTICLE),
     );
 }
 
@@ -132,7 +126,12 @@ impl GraphicsManager {
         }
 
         let quad_handle = resources.create_quad_mesh(&renderer);
-        let fire_handle = resources.import_texture(&renderer, "sprites/fire.png");
+        let fire_handle = resources.import_texture_embedded(
+            &renderer,
+            "sprites/fire",
+            assets::sprites::FIRE,
+            ImageFormat::Png,
+        );
         let fire_offset = glam::Vec3::Z * -3.0;
         let fire_particle_system = ParticleSystem::new(
             &renderer,
@@ -150,7 +149,12 @@ impl GraphicsManager {
             },
         );
 
-        let smoke_handle = resources.import_texture(&renderer, "sprites/smoke.png");
+        let smoke_handle = resources.import_texture_embedded(
+            &renderer,
+            "sprites/smoke",
+            assets::sprites::SMOKE,
+            ImageFormat::Png,
+        );
         let smoke_particle_system = ParticleSystem::new(
             &renderer,
             &mut resources,
@@ -216,7 +220,10 @@ impl GraphicsManager {
         {
             let track_import = self
                 .resources
-                .import_gltf(&mut self.renderer, format!("maps/{}.glb", map.to_string()))
+                .import_gltf_file(
+                    &mut self.renderer,
+                    &format!("{}/{}.glb", GLOBAL_CONFIG.tracks_folder, map.to_string()),
+                )
                 .expect("Unable to load racetrack");
 
             let _track = world
@@ -257,10 +264,7 @@ impl GraphicsManager {
 
         let chair_import = self
             .resources
-            .import_gltf(
-                &mut self.renderer,
-                format!("models/{}.glb", choices.chair.file()).to_string(),
-            )
+            .import_gltf_slice(&mut self.renderer, models::get_chair_data(choices.chair))
             .expect("Failed to import chair");
 
         let world_root = self.world.root();

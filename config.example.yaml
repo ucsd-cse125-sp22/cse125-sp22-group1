@@ -1,0 +1,8 @@
+# note: this is a dummy config.yaml that isn't actually used in development,
+# but is zipped up along with the other release assets to provide a sensible default
+tracks_folder: "."
+server_address: "127.0.0.1"
+port: "24247"
+
+# note that during development, in order to have an effect, the config.yaml has to be
+# in the same folder as Cargo.toml
