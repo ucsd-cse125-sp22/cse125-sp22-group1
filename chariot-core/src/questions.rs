@@ -47,17 +47,127 @@ pub enum AudienceAction {
 }
 
 lazy_static! {
-    pub static ref QUESTIONS: Vec<QuestionData> = vec![QuestionData {
-        prompt: "Q1 Turning is overrated. Which direction should we ban?".to_string(),
-        options: vec![
-            QuestionOption {
-                label: "Left".to_string(),
-                action: AudienceAction::NoLeft,
-            },
-            QuestionOption {
-                label: "Right".to_string(),
-                action: AudienceAction::NoRight,
-            },
-        ],
-    }];
+    pub static ref QUESTIONS: Vec<QuestionData> = vec![
+        QuestionData {
+            prompt: "Q1 Turning is overrated. Which direction should we ban?".to_string(),
+            options: vec![
+                QuestionOption {
+                    label: "Left".to_string(),
+                    action: AudienceAction::NoLeft,
+                },
+                QuestionOption {
+                    label: "Right".to_string(),
+                    action: AudienceAction::NoRight,
+                },
+            ],
+        },
+        QuestionData {
+            prompt: "Q2 Let's mess with their controls.".to_string(),
+            options: vec![
+                QuestionOption {
+                    label: "Invert controls".to_string(),
+                    action: AudienceAction::InvertControls,
+                },
+                QuestionOption {
+                    label: "Accelerate no matter what".to_string(),
+                    action: AudienceAction::AutoAccelerate,
+                },
+                QuestionOption {
+                    label: "Only allow turns when not moving".to_string(),
+                    action: AudienceAction::TurnOnlyWhenNotMoving,
+                }
+            ]
+        },
+        QuestionData {
+            prompt: "Q3 Where will we be borrowing some physics from?".to_string(),
+            options: vec![
+                QuestionOption {
+                    label: "Moon gravity (less gravity)".to_string(),
+                    action: AudienceAction::MoonGravity,
+                },
+                QuestionOption {
+                    label: "Ice rink (no friction)".to_string(),
+                    action: AudienceAction::IceRink,
+                }
+            ]
+        },
+        QuestionData {
+            prompt: "Q4 We love equality! How should we equalize players?".to_string(),
+            options: vec![
+                QuestionOption {
+                    label: "Swap first and last place".to_string(),
+                    action: AudienceAction::SwapFirstAndLast,
+                },
+                QuestionOption {
+                    label: "Give a speed boost to everyone except first place".to_string(),
+                    action: AudienceAction::SpeedBalanceBoost,
+                }
+            ]
+        },
+        QuestionData {
+            prompt: "Q5 boing boing boing - what should be super bouncy?".to_string(),
+            options: vec![
+                QuestionOption {
+                    label: "Players".to_string(),
+                    action: AudienceAction::ExplosivePlayerCollisions,
+                },
+                QuestionOption {
+                    label: "Terrain".to_string(),
+                    action: AudienceAction::SuperBouncyObjects,
+                }
+            ]
+        },
+        QuestionData {
+            prompt: "Q6 Time to speed things up a bit. What do we think?".to_string(),
+            options: vec![
+                QuestionOption {
+                    label: "Higher max speed for everyone".to_string(),
+                    action: AudienceAction::DoubleMaxSpeed,
+                },
+                QuestionOption {
+                    label: "Faster acceleration for everyone".to_string(),
+                    action: AudienceAction::SuperAccelerator,
+                }
+            ]
+        },
+        QuestionData {
+            prompt: "Q7 Spinning is a cool trick! What modification will we engage?".to_string(),
+            options: vec![
+                QuestionOption {
+                    label: "Super spin: turn super fast".to_string(),
+                    action: AudienceAction::SuperSpin,
+                },
+                QuestionOption {
+                    label: "Shopping cart mode: perpetual drift to the right".to_string(),
+                    action: AudienceAction::ShoppingCart,
+                }
+            ]
+        },
+        QuestionData {
+            prompt: "Q8 Should we shuffle all player positions?".to_string(),
+            options: vec![
+                QuestionOption {
+                    label: "Yes!".to_string(),
+                    action: AudienceAction::ShufflePlayerPositions,
+                },
+                QuestionOption {
+                    label: "No!".to_string(),
+                    action: AudienceAction::Null,
+                }
+            ]
+        },
+        QuestionData {
+            prompt: "Q9 Throwback time! What should we do?".to_string(),
+            options: vec![
+                QuestionOption {
+                    label: "Reset everyone to lap 1".to_string(),
+                    action: AudienceAction::ResetLapCounter,
+                },
+                QuestionOption {
+                    label: "Flip everyone backwards".to_string(),
+                    action: AudienceAction::Backwards,
+                }
+            ]
+        },
+    ];
 }
