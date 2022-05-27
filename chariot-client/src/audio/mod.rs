@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::io::Cursor;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
@@ -117,7 +116,7 @@ impl AudioManager {
     // Do a fade-out on all currently playing threads in this manager
     pub fn fade_all_threads(&mut self, duration: Duration) {
         // Fade Out All Currently Active Threads
-        self.threads.drain().for_each(|(_id, thread)| {
+        self.threads.iter_mut().for_each(|(_id, thread)| {
             thread.fade_out(duration);
         });
     }

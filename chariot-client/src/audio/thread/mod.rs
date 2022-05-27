@@ -1,8 +1,10 @@
 use std::io::Cursor;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 
-use rodio::{Decoder, Sink, Source, SpatialSink};
+use rodio::{Decoder, Sample, Sink, Source, SpatialSink};
 
+use crate::audio::thread::fade_source::FadeSource;
 use context::AudioCtx;
 use options::SourceOptions;
 
@@ -10,6 +12,7 @@ use options::SourceOptions;
 pub type AudioBuffer = &'static [u8];
 
 pub mod context;
+mod fade_source;
 pub mod options;
 
 enum AudioSinkType {
@@ -23,6 +26,8 @@ pub struct AudioThread {
     pitch: f32,
     source: AudioBuffer,
     sink: AudioSinkType,
+    // basically, a thread safe duration to set as the fade out
+    fade_out: Arc<Mutex<Option<Duration>>>,
     src_opt: SourceOptions,
 }
 
@@ -56,6 +61,7 @@ impl AudioThread {
                 pitch: 1.0,
                 source,
                 sink,
+                fade_out: Arc::new(Mutex::new(None)),
                 src_opt,
             }
         } else {
@@ -75,6 +81,7 @@ impl AudioThread {
                 pitch: 1.0,
                 source,
                 sink,
+                fade_out: Arc::new(Mutex::new(None)),
                 src_opt,
             }
         };
@@ -92,31 +99,50 @@ impl AudioThread {
     }
 
     pub fn play(&mut self) {
-        let source = Decoder::new(Cursor::new(self.source)).expect("failed to decode track");
+        let fade_out = self.fade_out.clone();
 
-        // Apply Skip Duration
-        let skp_src = source.skip_duration(self.src_opt.skip_duration);
+        let source = Decoder::new(Cursor::new(self.source))
+            .expect("failed to decode track")
+            .skip_duration(self.src_opt.skip_duration)
+            .speed(self.src_opt.pitch)
+            .fade_in(self.src_opt.fade_in)
+            .take_duration(self.src_opt.take_duration);
 
-        // Apply Pitch Warp
-        let pitch_src = skp_src.speed(self.src_opt.pitch);
-
-        // Apply Fade
-        let fade_src = pitch_src.fade_in(self.src_opt.fade_in);
-
-        // Apply Take Duration
-        let tk_src = fade_src.take_duration(self.src_opt.take_duration);
-
-        // Apply Repeat
+        // Apply Repeat and fadesource filters
+        // I really shouldn't have to do it this way but when it compiles it'll unroll like this anyways so
         if self.src_opt.repeat {
-            let rpt_src = tk_src.repeat_infinite();
+            let source = FadeSource::new(source.repeat_infinite().buffered()).periodic_access(
+                Duration::from_millis(5),
+                move |src| {
+                    if !src.is_fadeout() {
+                        let fade_out = fade_out.lock().unwrap();
+                        if let Some(requested_duration) = *fade_out {
+                            src.set_fadeout(requested_duration);
+                        }
+                    }
+                },
+            );
+
             match &self.sink {
-                AudioSinkType::Spatial(sink) => sink.append(rpt_src),
-                AudioSinkType::Standard(sink) => sink.append(rpt_src),
+                AudioSinkType::Spatial(sink) => sink.append(source),
+                AudioSinkType::Standard(sink) => sink.append(source),
             }
         } else {
+            let source = FadeSource::new(source.buffered()).periodic_access(
+                Duration::from_millis(5),
+                move |src| {
+                    if !src.is_fadeout() {
+                        let fade_out = fade_out.lock().unwrap();
+                        if let Some(requested_duration) = *fade_out {
+                            src.set_fadeout(requested_duration);
+                        }
+                    }
+                },
+            );
+
             match &self.sink {
-                AudioSinkType::Spatial(sink) => sink.append(tk_src),
-                AudioSinkType::Standard(sink) => sink.append(tk_src),
+                AudioSinkType::Spatial(sink) => sink.append(source),
+                AudioSinkType::Standard(sink) => sink.append(source),
             }
         }
 
@@ -124,8 +150,9 @@ impl AudioThread {
     }
 
     // Fade out the sink
-    pub fn fade_out(self, duration: Duration) {
-        // TODO
+    pub fn fade_out(&mut self, duration: Duration) {
+        let mut fade_out = self.fade_out.lock().unwrap();
+        *fade_out = Some(duration);
     }
 
     // Pause playback
