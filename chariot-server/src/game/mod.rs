@@ -25,6 +25,7 @@ use crate::progress::get_player_placement_array;
 
 use self::interactions::{
     get_physics_change_from_audience_action, get_stats_change_from_audience_action,
+    handle_one_time_audience_action,
 };
 use self::map::Map;
 use self::phase::*;
@@ -505,6 +506,11 @@ impl GameServer {
                                     player.stats_changes.push(change.clone());
                                 })
                             }
+
+                            handle_one_time_audience_action(
+                                &decision.action,
+                                &mut self.game_state.players,
+                            );
 
                             *voting_game_state = VotingState::VoteResultActive {
                                 decision,

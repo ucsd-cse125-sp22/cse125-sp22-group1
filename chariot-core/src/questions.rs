@@ -26,19 +26,24 @@ pub enum AudienceAction {
     AutoAccelerate,        // Players accelerate no matter what
     TurnOnlyWhenNotMoving, // Players can't turn when moving at all
 
-    SwapFirstAndLast,          // First and last player switch places
-    ShufflePlayerPositions,    // All players' positions are switched
+    // Non-stats physics
+    ShoppingCart,      // Players drift right when not turning
+    SpeedBalanceBoost, // Everyone except the first-place player gets 1.5x speed
+
+    // Physics stats
     DoubleMaxSpeed,            // Players can go up to double starting maximum speed
     SuperAccelerator,          // Players accelerate 3 times as fast
     SuperSpin,                 // Players spin 5 times as fast
-    ShoppingCart,              // Players drift right when not turning
     MoonGravity,               // Gravity is 0.25 as much
     IceRink,                   // No more rolling resistance
     ExplosivePlayerCollisions, // Collisions with players have 3x more of an effect
     SuperBouncyObjects,        // Collisions with objects have 3x more of an effect
-    SpeedBalanceBoost,         // Everyone except the first-place player gets 1.5x speed
-    ResetLapCounter,           // Change everyone's lap counter back to 1
-    Backwards,                 // Players instantly rotate 180 degrees and have their speed inverted
+
+    // One-time events
+    SwapFirstAndLast,       // First and last player switch places
+    ShufflePlayerPositions, // All players' positions are switched
+    ResetLapCounter,        // Change everyone's lap counter back to 1
+    Backwards,              // Players instantly rotate 180 degrees and have their speed inverted
 }
 
 lazy_static! {

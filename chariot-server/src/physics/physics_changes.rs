@@ -17,6 +17,7 @@ pub enum PhysicsChangeType {
     TurnOnlyWhenNotMoving,
     IAmSpeed,
     ShoppingCart,
+    SpeedBalanceBoost,
     InSpainButTheAIsSilent,
 }
 
@@ -80,6 +81,12 @@ impl PlayerEntity {
                 PhysicsChangeType::TurnOnlyWhenNotMoving => {
                     if self.velocity != DVec3::ZERO {
                         self.player_inputs.rotation_status = RotationStatus::NotInSpin;
+                    }
+                }
+
+                PhysicsChangeType::SpeedBalanceBoost => {
+                    if self.lap_info.placement != 1 {
+                        self.velocity *= 1.5;
                     }
                 }
                 _ => (),
