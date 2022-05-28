@@ -35,10 +35,10 @@ fn get_starting_player_props() -> PlayerEntity {
         size: DVec3::new(10.0, 10.0, 10.0),
         bounding_box: BoundingBox::new(-5.0, 5.0, -5.0, 5.0, -5.0, 5.0),
         physics_changes: Vec::new(),
+        stats_changes: Vec::new(),
         lap_info: LapInformation::new(),
         current_powerup: None,
         chair: Chair::Swivel,
-        stat_modifiers: HashMap::new(),
     }
 }
 
@@ -63,10 +63,10 @@ fn get_origin_cube() -> PlayerEntity {
         size: DVec3::new(10.0, 10.0, 10.0),
         bounding_box: BoundingBox::new(-5.0, 5.0, -5.0, 5.0, -5.0, 5.0),
         physics_changes: Vec::new(),
+        stats_changes: Vec::new(),
         lap_info: LapInformation::new(),
         current_powerup: None,
         chair: Chair::Swivel,
-        stat_modifiers: HashMap::new(),
     }
 }
 
