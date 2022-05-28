@@ -1,6 +1,6 @@
 use gilrs::{Axis, Button, EventType};
 use std::collections::HashSet;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use std::time::SystemTime;
 
@@ -9,6 +9,8 @@ use chariot_core::player::choices::{Chair, Track};
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, VirtualKeyCode};
 
+use crate::assets::audio::{CYBER_RECLINER, HOLD_ON_TO_YOUR_SEATS};
+use crate::audio::AudioManager;
 use chariot_core::networking::ClientBoundPacket;
 use chariot_core::player::player_inputs::{EngineStatus, InputEvent, RotationStatus};
 use chariot_core::GLOBAL_CONFIG;
@@ -16,10 +18,17 @@ use chariot_core::GLOBAL_CONFIG;
 use crate::game::GameClient;
 use crate::graphics::{register_passes, GraphicsManager};
 
+use crate::audio::thread::context::AudioCtx;
+use crate::audio::thread::options::SourceOptions;
 use crate::ui::ui_region::UIRegion;
 use crate::ui_state::AnnouncementState;
 
 pub struct Application {
+    // audio
+    pub audio_context: AudioCtx,
+    pub music_manager: AudioManager,
+
+    // everything else haha
     pub graphics: GraphicsManager,
     pub game: GameClient,
     pub pressed_keys: HashSet<VirtualKeyCode>,
@@ -34,7 +43,18 @@ impl Application {
         let game = GameClient::new(ip_addr);
         graphics_manager.display_main_menu();
 
+        // create audio resources and play title track
+        let audio_context = AudioCtx::new();
+        let mut music_manager = AudioManager::new();
+        music_manager.play(
+            CYBER_RECLINER,
+            &audio_context,
+            SourceOptions::new().set_repeat(true),
+        );
+
         Self {
+            audio_context,
+            music_manager,
             graphics: graphics_manager,
             game,
             pressed_keys: HashSet::new(),
@@ -106,6 +126,12 @@ impl Application {
                     println!("Loading map {}!", map);
                     self.graphics.load_map(map);
                     self.game.signal_loaded();
+                    self.music_manager.play_cf(
+                        HOLD_ON_TO_YOUR_SEATS,
+                        &self.audio_context,
+                        SourceOptions::new().set_repeat(true),
+                        Duration::new(2, 0),
+                    );
                 }
 
                 ClientBoundPacket::EntityUpdate(locations) => {
