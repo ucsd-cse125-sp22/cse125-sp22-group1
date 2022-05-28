@@ -1,4 +1,6 @@
 use lazy_static::lazy_static;
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -46,8 +48,8 @@ pub enum AudienceAction {
     Backwards,              // Players instantly rotate 180 degrees and have their speed inverted
 }
 
-lazy_static! {
-    pub static ref QUESTIONS: Vec<QuestionData> = vec![
+fn get_shuffled_questions() -> Vec<QuestionData> {
+    let mut questions = vec![
         QuestionData {
             prompt: "Turning is overrated. Which direction should we ban?".to_string(),
             options: vec![
@@ -75,8 +77,8 @@ lazy_static! {
                 QuestionOption {
                     label: "Only allow turns when not moving".to_string(),
                     action: AudienceAction::TurnOnlyWhenNotMoving,
-                }
-            ]
+                },
+            ],
         },
         QuestionData {
             prompt: "Where will we be borrowing some physics from?".to_string(),
@@ -88,8 +90,8 @@ lazy_static! {
                 QuestionOption {
                     label: "Ice rink (no friction)".to_string(),
                     action: AudienceAction::IceRink,
-                }
-            ]
+                },
+            ],
         },
         QuestionData {
             prompt: "We love equality! How should we equalize players?".to_string(),
@@ -101,8 +103,8 @@ lazy_static! {
                 QuestionOption {
                     label: "Give a speed boost to everyone except first place".to_string(),
                     action: AudienceAction::SpeedBalanceBoost,
-                }
-            ]
+                },
+            ],
         },
         QuestionData {
             prompt: "boing boing boing - what should be super bouncy?".to_string(),
@@ -114,8 +116,8 @@ lazy_static! {
                 QuestionOption {
                     label: "Terrain".to_string(),
                     action: AudienceAction::SuperBouncyObjects,
-                }
-            ]
+                },
+            ],
         },
         QuestionData {
             prompt: "Time to speed things up a bit. What do we think?".to_string(),
@@ -127,8 +129,8 @@ lazy_static! {
                 QuestionOption {
                     label: "Faster acceleration for everyone".to_string(),
                     action: AudienceAction::SuperAccelerator,
-                }
-            ]
+                },
+            ],
         },
         QuestionData {
             prompt: "Spinning is a cool trick! What modification will we engage?".to_string(),
@@ -140,8 +142,8 @@ lazy_static! {
                 QuestionOption {
                     label: "Shopping cart mode: perpetual drift to the right".to_string(),
                     action: AudienceAction::ShoppingCart,
-                }
-            ]
+                },
+            ],
         },
         QuestionData {
             prompt: "Should we shuffle all player positions?".to_string(),
@@ -153,8 +155,8 @@ lazy_static! {
                 QuestionOption {
                     label: "No!".to_string(),
                     action: AudienceAction::Null,
-                }
-            ]
+                },
+            ],
         },
         QuestionData {
             prompt: "Throwback time! What should we do?".to_string(),
@@ -166,8 +168,16 @@ lazy_static! {
                 QuestionOption {
                     label: "Flip everyone backwards".to_string(),
                     action: AudienceAction::Backwards,
-                }
-            ]
+                },
+            ],
         },
     ];
+
+    questions.shuffle(&mut thread_rng());
+
+    questions
+}
+
+lazy_static! {
+    pub static ref QUESTIONS: Vec<QuestionData> = get_shuffled_questions();
 }
