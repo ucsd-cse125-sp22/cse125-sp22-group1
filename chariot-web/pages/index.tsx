@@ -17,7 +17,7 @@ const Home: NextPage = () => {
 		sock.onopen = () => {
 			context.setSocket(sock);
 			(window as any).socket = sock;
-			Router.push("/game");
+			Router.push(`/game?ip=${queryIp}`);
 		}
 
 		sock.onerror = (err) => {
@@ -33,11 +33,7 @@ const Home: NextPage = () => {
 
 	return (
 		<>
-			<div className={styles.textBox}>
-				Joining game @ {queryIp}
-			</div>
-
-			<Button text='Join active game' onClick={() => {
+			<Button text='Join Game' onClick={() => {
 				connectToWebSocket();
 			}} />
 		</>
@@ -50,7 +46,7 @@ export const getServerSideProps: GetServerSideProps = async ({ query }) => {
 		return {
 			redirect: {
 				permanent: false,
-				destination: `?ip=${ip}:2334`
+				destination: `/?ip=${ip}:2334`
 			}
 		};
 	}

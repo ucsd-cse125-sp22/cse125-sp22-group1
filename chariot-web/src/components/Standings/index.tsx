@@ -5,14 +5,14 @@ import styles from './Standings.module.scss'
 const Standings: React.FC = () => {
 	const { standings } = useContext(GlobalContext);
 	return <table className={styles.table}>
-		<tr>
-			<th>player</th>
-			<th>rank</th>
-			<th>lap</th>
-			<th>chair</th>
-		</tr>
+		<th>
+			<td>player</td>
+			<td>rank</td>
+			<td>lap</td>
+			<td>chair</td>
+		</th>
 		{standings.map((standing) => (
-			<tr key={standing.name}>
+			<tr className={styles.row} key={standing.name}>
 				<td>{standing.name}</td>
 				<td>{standing.rank}</td>
 				<td>{standing.lap}</td>

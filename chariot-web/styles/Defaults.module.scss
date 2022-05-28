@@ -2,19 +2,29 @@
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
+	background-repeat: no-repeat;
+	background-size: contain;
+	font-family: 'Press Start 2P';
 }
 
 .header {
 	text-align: center;
-	font-family: 'Futura';
-	height: 22vh;
+}
+
+.headerImage {
+	padding-top: 10%;
+	padding-left: 10%;
+	padding-right: 10%;
+	padding-bottom: 1%;
+}
+
+.headerText {
+	width: 100%;
+	padding: 2.5%;
+	background-color: white;
+	box-shadow: 5px 2.5px 5px;
 }
 
 .rest {
-	height: 78vh;
-}
-.headerText {
-	color: #0070f3;
-	line-height: 1.15;
-  	font-size: 4rem;
+	padding-top: 20px;
 }
