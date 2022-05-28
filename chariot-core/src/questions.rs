@@ -49,7 +49,7 @@ pub enum AudienceAction {
 lazy_static! {
     pub static ref QUESTIONS: Vec<QuestionData> = vec![
         QuestionData {
-            prompt: "Q1 Turning is overrated. Which direction should we ban?".to_string(),
+            prompt: "Turning is overrated. Which direction should we ban?".to_string(),
             options: vec![
                 QuestionOption {
                     label: "Left".to_string(),
@@ -62,7 +62,7 @@ lazy_static! {
             ],
         },
         QuestionData {
-            prompt: "Q2 Let's mess with their controls.".to_string(),
+            prompt: "Let's mess with their controls.".to_string(),
             options: vec![
                 QuestionOption {
                     label: "Invert controls".to_string(),
@@ -79,7 +79,7 @@ lazy_static! {
             ]
         },
         QuestionData {
-            prompt: "Q3 Where will we be borrowing some physics from?".to_string(),
+            prompt: "Where will we be borrowing some physics from?".to_string(),
             options: vec![
                 QuestionOption {
                     label: "Moon gravity (less gravity)".to_string(),
@@ -92,7 +92,7 @@ lazy_static! {
             ]
         },
         QuestionData {
-            prompt: "Q4 We love equality! How should we equalize players?".to_string(),
+            prompt: "We love equality! How should we equalize players?".to_string(),
             options: vec![
                 QuestionOption {
                     label: "Swap first and last place".to_string(),
@@ -105,7 +105,7 @@ lazy_static! {
             ]
         },
         QuestionData {
-            prompt: "Q5 boing boing boing - what should be super bouncy?".to_string(),
+            prompt: "boing boing boing - what should be super bouncy?".to_string(),
             options: vec![
                 QuestionOption {
                     label: "Players".to_string(),
@@ -118,7 +118,7 @@ lazy_static! {
             ]
         },
         QuestionData {
-            prompt: "Q6 Time to speed things up a bit. What do we think?".to_string(),
+            prompt: "Time to speed things up a bit. What do we think?".to_string(),
             options: vec![
                 QuestionOption {
                     label: "Higher max speed for everyone".to_string(),
@@ -131,7 +131,7 @@ lazy_static! {
             ]
         },
         QuestionData {
-            prompt: "Q7 Spinning is a cool trick! What modification will we engage?".to_string(),
+            prompt: "Spinning is a cool trick! What modification will we engage?".to_string(),
             options: vec![
                 QuestionOption {
                     label: "Super spin: turn super fast".to_string(),
@@ -144,7 +144,7 @@ lazy_static! {
             ]
         },
         QuestionData {
-            prompt: "Q8 Should we shuffle all player positions?".to_string(),
+            prompt: "Should we shuffle all player positions?".to_string(),
             options: vec![
                 QuestionOption {
                     label: "Yes!".to_string(),
@@ -157,7 +157,7 @@ lazy_static! {
             ]
         },
         QuestionData {
-            prompt: "Q9 Throwback time! What should we do?".to_string(),
+            prompt: "Throwback time! What should we do?".to_string(),
             options: vec![
                 QuestionOption {
                     label: "Reset everyone to lap 1".to_string(),
