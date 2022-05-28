@@ -10,6 +10,7 @@ glam = "0.20.3"
 chariot-core = { path = "../chariot-core" }
 gltf = { version = "1.0.0", features = ["extras"] }
 serde_json = "1.0"
+rand = "0.8.5"
 
 [profile.release]
 lto = "fat"
