@@ -36,6 +36,7 @@ pub struct Application {
     pub pressed_keys: HashSet<VirtualKeyCode>,
     mouse_pos: PhysicalPosition<f64>,
     last_update: SystemTime,
+    game_start_time: SystemTime,
     ui_regions: Vec<UIRegion>,
 }
 
@@ -63,6 +64,7 @@ impl Application {
             game,
             pressed_keys: HashSet::new(),
             mouse_pos: PhysicalPosition::<f64> { x: -1.0, y: -1.0 },
+            game_start_time: SystemTime::now(),
             ui_regions: vec![],
             last_update: SystemTime::now(),
         }
@@ -79,6 +81,9 @@ impl Application {
     pub fn update(&mut self) {
         let delta_time = self.last_update.elapsed().unwrap().as_secs_f32();
         self.graphics.update(delta_time);
+
+        let since_game_started = self.game_start_time.elapsed().unwrap();
+        self.graphics.update_timer(since_game_started);
 
         // TODO: do this for other players
         if self.pressed_keys.contains(&VirtualKeyCode::W) {
@@ -162,6 +167,7 @@ impl Application {
                         &self.audio_context,
                         SourceOptions::new(),
                     );
+                    self.game_start_time = SystemTime::now();
                 }
                 ClientBoundPacket::PowerupPickup => println!("we got a powerup!"),
                 ClientBoundPacket::VotingStarted {
