@@ -110,13 +110,13 @@ impl BoundingBox {
         let (mut x_dist, mut y_dist, mut z_dist) = (0.0, 0.0, 0.0);
         for rotated_corner in corners_coordinates {
             if rotated_corner.x.abs() > x_dist as f32 {
-                x_dist = f64::from(rotated_corner.x);
+                x_dist = f64::from(rotated_corner.x.abs());
             }
             if rotated_corner.y.abs() > y_dist as f32 {
-                y_dist = f64::from(rotated_corner.y);
+                y_dist = f64::from(rotated_corner.y.abs());
             }
             if rotated_corner.z.abs() > z_dist as f32 {
-                z_dist = f64::from(rotated_corner.z);
+                z_dist = f64::from(rotated_corner.z.abs());
             }
         }
 

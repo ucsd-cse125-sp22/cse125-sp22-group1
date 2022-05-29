@@ -134,7 +134,7 @@ impl PlayerEntity {
         // the ramp, or in the strip leading out from the ramp face
         if x >= ramp_min_x && x <= ramp_max_x && z >= ramp_min_z && z <= ramp_max_z {
             return ramp.get_height_at_coordinates(x, z) - (self.entity_location.position.y - 1.0)
-                < 1.0;
+                < 1.5;
         }
 
         // to enter the ramp, you must be within the strip leading out from the
