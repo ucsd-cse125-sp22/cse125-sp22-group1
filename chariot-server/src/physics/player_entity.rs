@@ -6,6 +6,7 @@ use chariot_core::player::{
     lap_info::LapInformation,
     player_inputs::{EngineStatus, PlayerInputs, RotationStatus},
 };
+use chariot_core::sound_effect::SoundEffect;
 use glam::{DMat3, DVec3};
 
 use crate::physics::trigger_entity::TriggerEntity;
@@ -28,6 +29,8 @@ pub struct PlayerEntity {
 
     pub physics_changes: Vec<PhysicsChange>,
     pub stats_changes: Vec<StatsChange>,
+
+    pub sound_effects: Vec<SoundEffect>,
 
     pub lap_info: LapInformation,
 
@@ -114,6 +117,7 @@ impl PlayerEntity {
         potential_triggers: impl Iterator<Item = &'a mut dyn TriggerEntity>,
         ramp_collision_result: &RampCollisionResult,
     ) -> PlayerEntity {
+        let mut has_collided_with_players = false;
         let minimum_player_height = match ramp_collision_result {
             RampCollisionResult::NoEffect => 1.0,
             RampCollisionResult::Collision { .. } => 1.0,
@@ -145,8 +149,11 @@ impl PlayerEntity {
         let mut delta_velocity = acceleration * time_step;
 
         for collider in potential_colliders.iter() {
-            delta_velocity += self.stat(Stat::PlayerBounciness)
-                * self.delta_v_from_collision_with_player(collider);
+            let delta_v = self.delta_v_from_collision_with_player(collider);
+            delta_velocity += self.stat(Stat::PlayerBounciness) * delta_v;
+            if delta_v != DVec3::ZERO {
+                has_collided_with_players = true;
+            }
         }
 
         let mut terrain_with_collisions = potential_terrain.clone();
@@ -218,6 +225,15 @@ impl PlayerEntity {
             new_position.y = minimum_player_height;
         }
 
+        let mut sound_effects = vec![];
+
+        if collision_terrain_is_new {
+            sound_effects.push(SoundEffect::TerrainCollision);
+        }
+        if has_collided_with_players {
+            sound_effects.push(SoundEffect::PlayerCollision);
+        }
+
         let mut new_player = PlayerEntity {
             player_inputs: PlayerInputs {
                 engine_status: self.player_inputs.engine_status,
@@ -238,6 +254,7 @@ impl PlayerEntity {
             bounding_box: self.bounding_box,
             physics_changes: self.physics_changes.clone(),
             stats_changes: self.stats_changes.clone(),
+            sound_effects,
             lap_info: self.lap_info,
             current_powerup: self.current_powerup,
             chair: self.chair,

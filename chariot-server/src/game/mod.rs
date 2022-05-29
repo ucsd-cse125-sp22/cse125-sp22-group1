@@ -605,6 +605,7 @@ impl GameServer {
         }
 
         self.update_and_sync_placement_state();
+        self.sync_sfx_state();
     }
 
     // send placement data to each client, if its changed
@@ -663,6 +664,14 @@ impl GameServer {
             .collect();
         for connection in &mut self.connections {
             connection.push_outgoing(ClientBoundPacket::EntityUpdate(updates.clone()));
+        }
+    }
+
+    fn sync_sfx_state(&mut self) {
+        for (idx, connection) in &mut self.connections.iter_mut().enumerate() {
+            for &effect in &self.game_state.players.get(idx).unwrap().sound_effects {
+                connection.push_outgoing(ClientBoundPacket::SoundEffectEvent(effect));
+            }
         }
     }
 }
