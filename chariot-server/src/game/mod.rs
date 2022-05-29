@@ -6,7 +6,6 @@ use std::time::{Duration, Instant};
 use chariot_core::player::choices::{Chair, PlayerChoices, Track};
 use chariot_core::player::lap_info::Placement;
 use chariot_core::player::{lap_info::LapInformation, player_inputs::InputEvent, PlayerID};
-use chariot_core::sound_effect::SoundEffect;
 use glam::DVec3;
 
 use chariot_core::entity_location::EntityLocation;
@@ -671,7 +670,7 @@ impl GameServer {
     fn sync_sfx_state(&mut self) {
         for (idx, connection) in &mut self.connections.iter_mut().enumerate() {
             for &effect in &self.game_state.players.get(idx).unwrap().sound_effects {
-                connection.push_outgoing(ClientBoundPacket::SoundEffect(effect));
+                connection.push_outgoing(ClientBoundPacket::SoundEffectEvent(effect));
             }
         }
     }

@@ -68,7 +68,7 @@ pub enum ClientBoundPacket {
     LapUpdate(LapNumber),       // What lap are you now on?
     PlacementUpdate(Placement), // What place in the race are you now at?
 
-    SoundEffect(SoundEffect),
+    SoundEffectEvent(SoundEffect),
 
     // After game
     AllDone([Placement; 4]), // All players' final placements

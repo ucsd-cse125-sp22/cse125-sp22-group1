@@ -219,7 +219,7 @@ impl Application {
                         SourceOptions::new(),
                     );
                 }
-                ClientBoundPacket::SoundEffect(effect) => {
+                ClientBoundPacket::SoundEffectEvent(effect) => {
                     self.sfx_manager.play(
                         get_sfx(effect),
                         &self.audio_context,
