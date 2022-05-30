@@ -82,8 +82,9 @@ impl Application {
         let delta_time = self.last_update.elapsed().unwrap().as_secs_f32();
         self.graphics.update(delta_time);
 
-        let since_game_started = self.game_start_time.elapsed().unwrap();
-        self.graphics.update_timer(since_game_started);
+        if let Ok(since_game_started) = self.game_start_time.elapsed() {
+            self.graphics.update_timer(since_game_started);
+        }
 
         // TODO: do this for other players
         if self.pressed_keys.contains(&VirtualKeyCode::W) {
@@ -160,14 +161,14 @@ impl Application {
                         SourceOptions::new(),
                     );
                 }
-                ClientBoundPacket::GameStart(_) => {
+                ClientBoundPacket::GameStart(duration) => {
                     self.graphics.display_hud();
                     self.sfx_manager.play(
                         get_sfx(SoundEffect::GameStart),
                         &self.audio_context,
                         SourceOptions::new(),
                     );
-                    self.game_start_time = SystemTime::now();
+                    self.game_start_time = SystemTime::now() + duration;
                 }
                 ClientBoundPacket::PowerupPickup => println!("we got a powerup!"),
                 ClientBoundPacket::VotingStarted {
