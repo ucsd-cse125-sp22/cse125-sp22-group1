@@ -16,6 +16,9 @@ pub struct Map {
     pub colliders: Vec<BoundingBox>,
     pub ramps: Vec<Ramp>,
 
+    // basically: while you're on the track, you should get a speedup (vroom vroom zoom zoom)
+    pub speedup_zones: Vec<BoundingBox>,
+
     // Map's checkpoints, which track progress through the track
     pub checkpoints: Vec<Checkpoint>,
 
@@ -84,6 +87,8 @@ impl Map {
 
         let mut colliders: Vec<BoundingBox> = Vec::new();
         let mut ramps: Vec<Ramp> = Vec::new();
+
+        let mut speedup_zones: Vec<BoundingBox> = Vec::new();
 
         let mut checkpoints: Vec<Checkpoint> = Vec::new();
         let mut major_zones: Vec<Zone> = Vec::new();
@@ -202,6 +207,8 @@ impl Map {
                                     incline_direction: incline_direction_vec,
                                 };
                                 ramps.push(ramp);
+                            } else if purpose == "speedup" {
+                                speedup_zones.push(mesh_bounds);
                             } else {
                                 // panic!(
                                 //     "Mesh '{}' has unknown purpose '{}'!",
@@ -226,6 +233,7 @@ impl Map {
         core::result::Result::Ok(Self {
             colliders,
             ramps,
+            speedup_zones,
             checkpoints,
             major_zones,
             finish_line: finish_line

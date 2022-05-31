@@ -35,6 +35,8 @@ pub struct Settings {
     pub wall_bounciness: f64,
     pub player_bounciness: f64,
 
+    pub off_track_speed_penalty: f64,
+
     // Voting
     pub audience_vote_time_ms: u64,
 }
@@ -87,6 +89,8 @@ impl Settings {
             .set_default("wall_bounciness", 3.0)?
             // How hard we should bounce off other players (1.0 = real-world physically accurate)
             .set_default("player_bounciness", 3.0)?
+            // How much slower should you go when off-track? (0.20 => 80% of on-track speed when off)
+            .set_default("off_track_speed_penalty", 0.20)?
             .set_default("audience_vote_time_ms", 30000)?
             .add_source(File::with_name("config.yaml").required(false))
             .build()?;
