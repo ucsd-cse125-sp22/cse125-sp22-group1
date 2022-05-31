@@ -10,6 +10,7 @@ pub enum RenderPassDescriptor<'a> {
         push_constant_ranges: &'a [wgpu::PushConstantRange],
         targets: Option<&'a [wgpu::ColorTargetState]>,
         primitive_state: wgpu::PrimitiveState,
+        tests_depth: bool,
         outputs_depth: bool,
         multisample_state: wgpu::MultisampleState,
         multiview: Option<NonZeroU32>,
@@ -68,7 +69,7 @@ pub fn pass_compute_pipeline(pass: &RenderPass) -> Option<&wgpu::ComputePipeline
 pub enum RenderItem<'a> {
     Graphics {
         pass_name: &'a str,
-        framebuffer_name: &'a str,
+        framebuffer_name: String,
         num_elements: u32,
         vertex_buffers: Vec<wgpu::BufferSlice<'a>>,
         index_buffer: Option<wgpu::BufferSlice<'a>>,
@@ -114,7 +115,7 @@ pub fn try_unpack_graphics_item<'a, 'b>(
     item: &'b RenderItem<'a>,
 ) -> Option<(
     &'a str,
-    &'a str,
+    &'b str,
     u32,
     &'b [wgpu::BufferSlice<'a>],
     Option<&'b wgpu::BufferSlice<'a>>,
@@ -133,7 +134,7 @@ pub fn try_unpack_graphics_item<'a, 'b>(
     {
         Some((
             pass_name,
-            framebuffer_name,
+            framebuffer_name.as_str(),
             *num_elements,
             vertex_buffers,
             index_buffer.as_ref(),
@@ -195,7 +196,6 @@ impl<'a> RenderGraphBuilder<'a> {
         }
 
         self.render_graph.nodes.insert(res_id, vec![]);
-
         res_id
     }
 

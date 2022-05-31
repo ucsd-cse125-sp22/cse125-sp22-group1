@@ -92,6 +92,28 @@ impl Camera {
     }
 }
 
+#[derive(Default, Clone, Copy)]
+pub struct FlyCamera {
+    pub angle: glam::Vec2,
+}
+
+impl FlyCamera {
+    pub fn look_dir(&self) -> glam::Vec3 {
+        let look_rot = glam::Quat::from_euler(
+            glam::EulerRot::YXZ,
+            self.angle.x,
+            std::f32::consts::PI - self.angle.y,
+            0.0,
+        );
+        look_rot * glam::Vec3::Z
+    }
+
+    pub fn view_mat4(&self) -> glam::Mat4 {
+        let look_dir = self.look_dir();
+        glam::Mat4::look_at_rh(glam::Vec3::ZERO, look_dir, glam::Vec3::Y)
+    }
+}
+
 #[derive(Default, Clone)]
 pub struct Light {
     pub dir: glam::Vec3,
