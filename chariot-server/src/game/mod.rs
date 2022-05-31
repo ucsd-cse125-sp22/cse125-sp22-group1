@@ -5,6 +5,7 @@ use std::time::{Duration, Instant};
 
 use chariot_core::player::choices::{Chair, PlayerChoices, Track};
 use chariot_core::player::lap_info::Placement;
+use chariot_core::player::player_inputs::PlayerInputs;
 use chariot_core::player::{lap_info::LapInformation, player_inputs::InputEvent, PlayerID};
 use glam::DVec3;
 
@@ -404,6 +405,7 @@ impl GameServer {
                     .clone();
 
                 let mut per_player_current_ramps: Vec<RampCollisionResult> = vec![];
+                let mut original_player_inputs: Vec<PlayerInputs> = vec![];
 
                 // update bounding box dimensions and temporary physics changes for each player
                 for player in &mut self.game_state.players {
@@ -415,6 +417,7 @@ impl GameServer {
                         .stats_changes
                         .retain(|change| change.expiration_time > now);
 
+                    original_player_inputs.push(player.player_inputs);
                     player.change_inputs_per_physics_changes();
                     let ramp_collision_result = player.update_upwards_from_ramps(ramps);
                     per_player_current_ramps.push(ramp_collision_result);
@@ -439,7 +442,7 @@ impl GameServer {
                     .clone();
 
                 self.game_state.players = [0, 1, 2, 3].map(|n| {
-                    self.game_state.players[n].do_physics_step(
+                    let mut player = self.game_state.players[n].do_physics_step(
                         1.0,
                         others(n),
                         colliders.clone(),
@@ -449,7 +452,11 @@ impl GameServer {
                             .expect("No map loaded in game loop!")
                             .trigger_iter(),
                         per_player_current_ramps.get(n).unwrap(),
-                    )
+                    );
+
+                    // Restore original player inputs: without this, the server's inputs can change multiple times per client update
+                    player.player_inputs = original_player_inputs.get(n).unwrap().to_owned();
+                    player
                 });
 
                 match &mut *voting_game_state {
