@@ -441,6 +441,14 @@ impl GameServer {
                     .colliders
                     .clone();
 
+                let speedup_zones = &self
+                    .game_state
+                    .map
+                    .as_ref()
+                    .expect("No map loaded in game loop!")
+                    .speedup_zones
+                    .clone();
+
                 self.game_state.players = [0, 1, 2, 3].map(|n| {
                     let mut player = self.game_state.players[n].do_physics_step(
                         1.0,
@@ -451,6 +459,7 @@ impl GameServer {
                             .as_mut()
                             .expect("No map loaded in game loop!")
                             .trigger_iter(),
+                        speedup_zones,
                         per_player_current_ramps.get(n).unwrap(),
                     );
 

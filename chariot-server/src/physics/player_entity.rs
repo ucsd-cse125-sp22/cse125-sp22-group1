@@ -7,6 +7,7 @@ use chariot_core::player::{
     player_inputs::{EngineStatus, PlayerInputs, RotationStatus},
 };
 use chariot_core::sound_effect::SoundEffect;
+use chariot_core::GLOBAL_CONFIG;
 use glam::{DMat3, DVec3};
 
 use crate::physics::trigger_entity::TriggerEntity;
@@ -115,6 +116,7 @@ impl PlayerEntity {
         potential_colliders: Vec<&PlayerEntity>,
         potential_terrain: Vec<BoundingBox>,
         potential_triggers: impl Iterator<Item = &'a mut dyn TriggerEntity>,
+        speedup_zones: &Vec<BoundingBox>,
         ramp_collision_result: &RampCollisionResult,
     ) -> PlayerEntity {
         let mut has_collided_with_players = false;
@@ -215,6 +217,14 @@ impl PlayerEntity {
                     }
                 }
             }
+        }
+
+        // If not in contact with any speedup zones (= in the air or off-track), apply a speed penalty
+        if speedup_zones
+            .iter()
+            .all(|zone| !zone.is_colliding(&self.bounding_box))
+        {
+            new_velocity *= (1.0 - GLOBAL_CONFIG.off_track_speed_penalty);
         }
 
         let new_steer_direction =
