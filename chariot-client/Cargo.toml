@@ -24,6 +24,7 @@ gilrs = "0.9.0"
 rodio = { version = "0.15.0", default-features = false, features = ["vorbis"] }
 lazy_static = "1.4.0"
 include-flate = { version = "0.1.4", features = ["stable"] }
+backoff = "0.4.0"
 
 [profile.release]
 lto = "fat"
