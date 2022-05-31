@@ -4,10 +4,18 @@ export interface Prompt {
 	prompt: string;
 	options: { label: string, action: string }[]
 }
+
+export interface Standing {
+	name: string,
+	chair: string,
+	rank: number,
+	lap: number,
+}
 export interface WSAudienceBoundMessage {
 	Prompt?: Prompt, // Question, 4 Answer Choices
 	Winner?: number// The winning choice (tuple index)
 	Assignment?: string, // Sends a uuid that the server will use to identify the client
+	Standings?: [Standing]
 }
 
 export interface WSServerBoundMessage {
@@ -24,6 +32,9 @@ export const handleSocket = (context: GlobalContextType, msg: MessageEvent) => {
 	} else if (message.Prompt !== undefined) {
 		context.setPrompt(message.Prompt);
 		context.setStatusMessage(message.Prompt.prompt);
+		context.setWinner(null);
+	} else if (message.Standings !== undefined) {
+		context.setStandings(message.Standings);
 	} else {
 		console.log("new data type");
 		console.log(message);

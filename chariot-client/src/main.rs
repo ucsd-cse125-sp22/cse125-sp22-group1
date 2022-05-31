@@ -5,6 +5,8 @@ use winit::{
 };
 
 mod application;
+mod assets;
+mod audio;
 mod drawable;
 mod game;
 mod graphics;
@@ -12,6 +14,8 @@ mod renderer;
 mod resources;
 mod scenegraph;
 mod ui;
+mod ui_state;
+mod util;
 
 fn main() {
     let event_loop = winit::event_loop::EventLoop::new();
@@ -24,6 +28,8 @@ fn main() {
 
     let graphics_manager = GraphicsManager::new(renderer);
     let mut application = application::Application::new(graphics_manager);
+
+    let mut gamepad_manager = gilrs::Gilrs::new().unwrap();
 
     // Example of main loop deferring to elsewhere
     event_loop.run(move |event, _, control_flow| {
@@ -91,10 +97,17 @@ fn main() {
             _ => {}
         }
 
+        while let Some(event) = gamepad_manager.next_event() {
+            application.handle_gamepad_event(event);
+        }
+
         // Right now update isn't called at even intervals
         // (try moving the mouse around - the helmet spins faster because its getting more updates per frame)
         // This can be fixed by just calling update before render is called (see above) since that event
         // (RedrawRequested) seems to be getting a more even update interval
         application.update();
+
+        // Tell the gamepad manager we have finished an update tick
+        gamepad_manager.inc();
     });
 }

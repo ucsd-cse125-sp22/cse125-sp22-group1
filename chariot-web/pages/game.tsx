@@ -6,6 +6,7 @@ import Grid from "../src/components/Grid/Grid";
 import Standings from "../src/components/Standings";
 import { GlobalContext } from "../src/contexts/GlobalContext";
 import { handleSocket, sendMessage } from "../src/utils/networking";
+import styles from './Game.module.scss';
 
 const Game: NextPage = () => {
 	const [showStandings, setShowStandings] = useState(false);
@@ -16,8 +17,14 @@ const Game: NextPage = () => {
 	const { socket, uuid, prompt, winner } = context;
 
 	useEffect(() => {
+		if (winner !== null) {
+			setSelectedIdx(null);
+		}
+	}, [winner]);
+
+	useEffect(() => {
 		if (socket == null) {
-			router.push("/"); // you need an active socket to be here
+			router.push(`/?ip=${router.query.ip}`); // you need an active socket to be here
 		}
 	})
 
@@ -26,20 +33,19 @@ const Game: NextPage = () => {
 	}
 
 	socket.onerror = (err) => {
-		console.log('re')
 		if (err.type === 'error') {
 			alert("Failed to connect to server. Is it running?");
 		}
 	}
+
 	socket.onmessage = (msg) => {
 		handleSocket(context, msg);
 	}
 
 	return (<>
-		<Button text={showStandings ? "hide standings" : "show standings"} onClick={() => { setShowStandings(!showStandings) }} style='minimal' />
 		<br />
 		{!showStandings && prompt !== null &&
-			<Grid>
+			<div className={styles.buttonLayout}>
 				{prompt.options.map((({ label }, choice) => (
 					<Button state={choice === winner ? 'voted' : choice === selectedIdx ? 'selected' : 'unselected'} key={choice} text={label} onClick={() => {
 						if (winner === null) {
@@ -48,10 +54,16 @@ const Game: NextPage = () => {
 						}
 					}} />
 				)))}
-			</Grid>
+				{prompt.options.length === 0 && <p>New Vote Coming Soon</p>}
+			</div>
 		}
 		{showStandings &&
 			<Standings />}
+
+		<div className={styles.standingsButton}>
+			<Button width="80%" text={showStandings ? "hide standings" : "see standings"} onClick={() => { setShowStandings(!showStandings) }} style='minimal' />
+		</div>
+
 	</>)
 }
 

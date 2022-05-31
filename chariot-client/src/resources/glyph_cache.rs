@@ -1,7 +1,12 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
+use std::rc::Rc;
+use std::sync::Arc;
 
+use chariot_core::GLOBAL_CONFIG;
 use font_kit::canvas::{Canvas, Format, RasterizationOptions};
 use font_kit::font::Font;
+use font_kit::handle::Handle;
 use font_kit::hinting::HintingOptions;
 use font_kit::source::SystemSource;
 use glam::{UVec2, Vec2};
@@ -9,10 +14,23 @@ use pathfinder_geometry::transform2d::Transform2F;
 use wgpu::Texture;
 
 use crate::renderer::Renderer;
-use crate::resources::{ResourceManager, TextureHandle};
+
+#[derive(PartialEq, Eq, Hash, Clone, Copy)]
+pub struct FontSelection {
+    // the only side effect of requiring static here is that all fonts must be hardcoded...
+    // which for our cases is always true
+    pub source: FontSource,
+    pub point_size: i32,
+}
+
+#[derive(PartialEq, Eq, Hash, Clone, Copy)]
+pub enum FontSource {
+    SystemFont { font_name: &'static str },
+    EmbeddedFont { data: &'static [u8] },
+}
 
 pub struct Glyph {
-    texture_handle: TextureHandle,
+    pub texture: Rc<Texture>,
     // 0.0 - 1.0 offset on the texture of the top left corner
     pub texture_offset: Vec2,
     // 0.0 - 1.0 offset of the bottom-right corner of the texture - offset
@@ -24,13 +42,6 @@ pub struct Glyph {
 }
 
 impl Glyph {
-    pub fn get_texture<'a>(&self, resource_manager: &'a ResourceManager) -> &'a Texture {
-        resource_manager
-            .textures
-            .get(&self.texture_handle)
-            .expect("failed to get texture for glyph")
-    }
-
     // returns a UILayerTechnique-friendly 0.0 - 1.0 screen offset that represents
     // the horizontal and vertical offset of this glyph
     pub fn get_origin_surface_offset(&self, renderer: &Renderer) -> Vec2 {
@@ -59,7 +70,7 @@ pub struct GlyphCache {
     point_size: f32,
     hinting_options: HintingOptions,
     cache: HashMap<char, Glyph>,
-    current_texture: Option<TextureHandle>,
+    current_texture: Option<Rc<Texture>>,
     // the size of the wgpu texture in pixels
     texture_size: UVec2,
     // should always point to an offset that HASN'T BEEN USED YET
@@ -68,12 +79,18 @@ pub struct GlyphCache {
 
 impl GlyphCache {
     // creates a new GlyphCache for the named font
-    pub fn new(font_name: &str, point_size: f32) -> GlyphCache {
-        let font = SystemSource::new()
-            .select_by_postscript_name(font_name)
-            .expect("could not find requested font on the system")
-            .load()
-            .expect("could not load font despite finding it");
+    pub fn new(font_selection: &FontSelection) -> GlyphCache {
+        let font = match font_selection.source {
+            FontSource::SystemFont { font_name } => SystemSource::new()
+                .select_by_postscript_name(font_name)
+                .expect("could not find requested font on the system")
+                .load()
+                .expect("could not load font despite finding it"),
+            FontSource::EmbeddedFont { data } => Handle::from_memory(Arc::from(data.to_vec()), 0)
+                .load()
+                .expect("could not find the font defined at that path"),
+        };
+        let point_size = font_selection.point_size as f32;
         GlyphCache {
             font,
             point_size,
@@ -90,27 +107,17 @@ impl GlyphCache {
     // fetches the glyph that corresponds with the given character
     // if the glyph hasn't been rasterized yet, that will happen now
     // i find it annoying that I have to pass the renderer AND resource_manager into this function but here we are
-    pub fn get_glyph(
-        &mut self,
-        character: char,
-        renderer: &Renderer,
-        resource_manager: &mut ResourceManager,
-    ) -> &Glyph {
+    pub fn get_glyph(&mut self, character: char, renderer: &Renderer) -> &Glyph {
         // why do I gotta check the cache this way?
         // ...long story https://stackoverflow.com/questions/42879098/why-are-borrows-of-struct-members-allowed-in-mut-self-but-not-of-self-to-immut
         if self.cache.contains_key(&character) {
             return self.cache.get(&character).unwrap();
         }
 
-        return self.raster_glyph(character, renderer, resource_manager);
+        return self.raster_glyph(character, renderer);
     }
 
-    fn raster_glyph(
-        &mut self,
-        character: char,
-        renderer: &Renderer,
-        resource_manager: &mut ResourceManager,
-    ) -> &Glyph {
+    fn raster_glyph(&mut self, character: char, renderer: &Renderer) -> &Glyph {
         // fetch the glyph_id for this character
         // TODO: rather than CRASH, we should render the "unrecognized character" glyph
         let glyph_id = self
@@ -144,8 +151,8 @@ impl GlyphCache {
         }
 
         // create a new wgpu texture if we need to
-        let texture_handle = self.current_texture.unwrap_or_else(|| {
-            resource_manager.register_texture(renderer.create_texture2d(
+        let texture = self.current_texture.clone().unwrap_or_else(|| {
+            Rc::new(renderer.create_texture2d(
                 "glyph cache texture",
                 winit::dpi::PhysicalSize::<u32> {
                     width: self.texture_size.x,
@@ -172,7 +179,7 @@ impl GlyphCache {
         // to convert from grid_coords to pixel coords, we'll need to use...MATH
         // https://freetype.org/freetype2/docs/glyphs/glyphs-2.html
         let origin_pixel = (Vec2::new(
-            type_bounds.origin_x(),
+            -type_bounds.origin_x(),
             // height gets involved because freetype is in the 1st quadrant while our renderer is in the 4th
             type_bounds.origin_y() + type_bounds.height(),
         ) * self.point_size)
@@ -182,7 +189,7 @@ impl GlyphCache {
 
         // form glyph struct
         let glyph = Glyph {
-            texture_handle,
+            texture,
             texture_offset: self.current_offset.as_vec2() / self.texture_size.as_vec2(),
             texture_size: glyph_size.as_vec2() / self.texture_size.as_vec2(),
             bounds: Vec2::new(bounds.width() as f32, bounds.height() as f32),
@@ -211,7 +218,11 @@ impl GlyphCache {
             .enumerate()
             .map(|(i, pixel)| {
                 if (i + 1) % 4 == 0 {
-                    canvas.pixels[i - 1] & canvas.pixels[i - 2] & canvas.pixels[i - 3]
+                    // take the average value of the three color values
+                    ((canvas.pixels[i - 1] as u32
+                        + canvas.pixels[i - 2] as u32
+                        + canvas.pixels[i - 3] as u32)
+                        / 3) as u8
                 } else {
                     *pixel
                 }
@@ -219,12 +230,8 @@ impl GlyphCache {
             .collect();
 
         // copy glyph to wgpu texture
-        let texture = resource_manager
-            .textures
-            .get(&texture_handle)
-            .expect("couldn't get texture we just created for glyph cache");
         renderer.write_texture2d(
-            texture,
+            &glyph.texture,
             self.current_offset,
             texture_data.as_slice(),
             glyph_size,

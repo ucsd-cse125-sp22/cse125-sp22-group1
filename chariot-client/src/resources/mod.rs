@@ -1,6 +1,9 @@
+use image::{ImageFormat, RgbaImage};
+use std::io::{BufReader, Cursor};
 use std::{
     cmp::Eq,
     collections::{HashMap, VecDeque},
+    ops::Bound,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -16,8 +19,9 @@ use material::*;
 use static_mesh::*;
 use wgpu::util::DeviceExt;
 
-use crate::drawable::*;
 use crate::renderer::*;
+use crate::resources::glyph_cache::{FontSelection, GlyphCache};
+use crate::{drawable::*, scenegraph::components::Modifiers};
 
 // This file has the ResourceManager, which is responsible for loading gltf models and assigning resource handles
 
@@ -74,11 +78,13 @@ pub struct MaterialHandle(usize);
 #[derive(PartialEq, Eq, Hash, Clone, Copy)]
 pub struct StaticMeshHandle(usize);
 
-trait Handle {
+pub trait Handle {
+    const INVALID: Self;
     fn unique() -> Self;
 }
 
 impl Handle for TextureHandle {
+    const INVALID: Self = TextureHandle(usize::MAX);
     fn unique() -> Self {
         static COUNTER: AtomicUsize = AtomicUsize::new(0);
         Self(COUNTER.fetch_add(1, Ordering::Relaxed))
@@ -86,6 +92,7 @@ impl Handle for TextureHandle {
 }
 
 impl Handle for MaterialHandle {
+    const INVALID: Self = MaterialHandle(usize::MAX);
     fn unique() -> Self {
         static COUNTER: AtomicUsize = AtomicUsize::new(0);
         Self(COUNTER.fetch_add(1, Ordering::Relaxed))
@@ -93,6 +100,7 @@ impl Handle for MaterialHandle {
 }
 
 impl Handle for StaticMeshHandle {
+    const INVALID: Self = StaticMeshHandle(usize::MAX);
     fn unique() -> Self {
         static COUNTER: AtomicUsize = AtomicUsize::new(0);
         Self(COUNTER.fetch_add(1, Ordering::Relaxed))
@@ -111,6 +119,7 @@ pub struct ResourceManager {
     pub textures: HashMap<TextureHandle, Texture>,
     pub materials: HashMap<MaterialHandle, Material>,
     pub meshes: HashMap<StaticMeshHandle, StaticMesh>,
+    pub glyph_caches: HashMap<FontSelection, GlyphCache>,
 }
 
 impl ResourceManager {
@@ -120,32 +129,19 @@ impl ResourceManager {
             textures: HashMap::new(),
             materials: HashMap::new(),
             meshes: HashMap::new(),
+            glyph_caches: HashMap::new(),
         }
     }
 
-    /*
-     * Imports the meshes, textures and (TODO: materials) from a gltf file.
-     * Learn more about the gltf file format here: https://www.khronos.org/gltf/
-     * It's pretty much the hip open source scene format right now right now for games.
-     */
-    pub fn import_gltf(
+    fn import_gltf(
         &mut self,
         renderer: &mut Renderer,
-        filename: String,
+        document: gltf::Document,
+        buffers: Vec<gltf::buffer::Data>,
+        images: Vec<gltf::image::Data>,
     ) -> Result<ImportData, gltf::Error> {
-        println!(
-            "loading {}, please give a sec I swear it's not lagging",
-            filename
-        );
-        let _model_name = filename.split(".").next().expect("invalid filename format");
-        let resource_path = format!("{}/{}", GLOBAL_CONFIG.resource_folder, filename);
-        let (document, buffers, images) = gltf::import(resource_path)?;
         if document.scenes().count() != 1 {
-            panic!(
-                "Document {} has {} scenes!",
-                filename,
-                document.scenes().count()
-            );
+            panic!("Document has {} scenes!", document.scenes().count());
         }
 
         let mut bounds = new_bounds();
@@ -170,10 +166,12 @@ impl ResourceManager {
             .map(|n| (n, glam::Mat4::IDENTITY))
             .collect::<VecDeque<(gltf::Node, glam::Mat4)>>();
 
+        let mut n = 0;
         // Probably better to do this recursively but i didn't wanna change stuff like crazy, not that it really matters since this is just loading anyways
         while let Some((node, parent_transform)) = queue.pop_front() {
             println!("Processing node '{}'", node.name().unwrap_or("<unnamed>"));
-
+            println!("#{} out of #{}", n, queue.capacity());
+            n += 1;
             let transform = parent_transform
                 * (match node.transform() {
                     gltf::scene::Transform::Matrix { matrix } => {
@@ -204,7 +202,6 @@ impl ResourceManager {
                     println!("\tprocessing mesh '{}'", mesh.name().unwrap_or("<unnamed>"));
                     for (prim_idx, primitive) in mesh.primitives().enumerate() {
                         //println!("\t\tprocessing prim {}", prim_idx);
-
                         let (mesh_handle, mesh_bounds) =
                             self.import_mesh(renderer, &buffers, &primitive, transform);
 
@@ -240,13 +237,27 @@ impl ResourceManager {
                             );
                         }
 
-                        let drawable = StaticMeshDrawable::new(
+                        let mut modifiers: Modifiers = Default::default();
+                        if let Some(extras) = mesh.extras().as_ref() {
+                            let mesh_data: Value =
+                                serde_json::from_str(extras.as_ref().get()).unwrap();
+                            if mesh_data["spin"] == "none" {
+                                println!(
+                                    "\t\tmesh '{}' will ignore rotation!",
+                                    mesh.name().unwrap_or("<unnamed>")
+                                );
+                                modifiers.absolute_angle = true;
+                            }
+                        }
+
+                        let mut drawable = StaticMeshDrawable::new(
                             renderer,
                             self,
                             *material_handle,
                             mesh_handle,
                             0,
                         );
+                        drawable.modifiers = modifiers;
                         drawables.push(drawable);
 
                         mesh_handles.push(mesh_handle);
@@ -273,6 +284,35 @@ impl ResourceManager {
             drawables,
             bounds,
         })
+    }
+
+    /*
+     * Imports the meshes, textures and (TODO: materials) from a gltf file.
+     * Learn more about the gltf file format here: https://www.khronos.org/gltf/
+     * It's pretty much the hip open source scene format right now right now for games.
+     */
+    pub fn import_gltf_file(
+        &mut self,
+        renderer: &mut Renderer,
+        filename: &str,
+    ) -> Result<ImportData, gltf::Error> {
+        println!(
+            "loading {}, please give a sec I swear it's not lagging",
+            filename
+        );
+        let _model_name = filename.split(".").next().expect("invalid filename format");
+        let (document, buffers, images) = gltf::import(filename)?;
+        self.import_gltf(renderer, document, buffers, images)
+    }
+
+    pub fn import_gltf_slice(
+        &mut self,
+        renderer: &mut Renderer,
+        data: &[u8],
+    ) -> Result<ImportData, gltf::Error> {
+        println!("loading gltf, please give a sec I swear it's not lagging",);
+        let (document, buffers, images) = gltf::import_slice(data)?;
+        self.import_gltf(renderer, document, buffers, images)
     }
 
     fn import_mesh(
@@ -345,10 +385,7 @@ impl ResourceManager {
             println!("unsupported vertex format, your mesh might look weird");
         }
 
-        let full_range = (
-            std::ops::Bound::<u64>::Unbounded,
-            std::ops::Bound::<u64>::Unbounded,
-        );
+        let full_range = (Bound::<u64>::Unbounded, Bound::<u64>::Unbounded);
         let vertex_ranges = vec![full_range; mesh_builder.vertex_buffers.len()];
         if let Some(indices) = reader.read_indices() {
             let num_elements = match indices {
@@ -439,8 +476,9 @@ impl ResourceManager {
             .base_color_texture()
             .map(|info| info.texture().source().index())
             .unwrap_or(0); //"No base color tex for material");
-        let base_color_handle = images[base_color_index];
+
         let base_color_view = if let Some(_tex_info) = pbr_metallic_roughness.base_color_texture() {
+            let base_color_handle = images[base_color_index];
             self.textures
                 .get(&base_color_handle)
                 .expect("Couldn't find base texture")
@@ -582,26 +620,37 @@ impl ResourceManager {
         self.textures.get(&handle)
     }
 
-    #[allow(dead_code)]
-    pub fn import_texture(&mut self, renderer: &Renderer, filename: &str) -> TextureHandle {
-        let tex_name = filename.split(".").next().expect("invalid filename format");
-        let resource_path = format!("{}/{}", GLOBAL_CONFIG.resource_folder, filename);
-        let img = image::open(resource_path.clone())
-            .expect(format!("didn't find {}", resource_path.clone()).as_str());
-        let img_rgba8 = img.into_rgba8();
-
+    fn import_texture(
+        &mut self,
+        renderer: &Renderer,
+        texture_name: &str,
+        image: RgbaImage,
+    ) -> TextureHandle {
         let texture = renderer.create_texture2d_init(
-            tex_name,
+            texture_name,
             winit::dpi::PhysicalSize::<u32> {
-                width: img_rgba8.width(),
-                height: img_rgba8.height(),
+                width: image.width(),
+                height: image.height(),
             },
             wgpu::TextureFormat::Rgba8Unorm,
             wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::STORAGE_BINDING,
-            &img_rgba8.into_raw(),
+            &image.into_raw(),
         );
 
         self.register_texture(texture)
+    }
+
+    pub fn import_texture_embedded(
+        &mut self,
+        renderer: &Renderer,
+        texture_name: &str,
+        data: &[u8],
+        format: ImageFormat,
+    ) -> TextureHandle {
+        let img = image::load(Cursor::new(data), format)
+            .expect("couldn't load embedded image")
+            .into_rgba8();
+        self.import_texture(renderer, texture_name, img)
     }
 
     // shorthand for registering a texture
@@ -609,5 +658,37 @@ impl ResourceManager {
         let handle = TextureHandle::unique();
         self.textures.insert(handle, texture);
         return handle;
+    }
+
+    pub fn register_material(&mut self, material: Material) -> MaterialHandle {
+        let handle = MaterialHandle::unique();
+        self.materials.insert(handle, material);
+        return handle;
+    }
+
+    pub fn create_quad_mesh(&mut self, renderer: &Renderer) -> StaticMeshHandle {
+        let verts_data: [[f32; 2]; 4] = [[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0]];
+        let texcoord_data: [[f32; 2]; 4] = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+        let inds_data: [u16; 6] = [0, 1, 2, 0, 2, 3];
+
+        let full_range = (Bound::<u64>::Unbounded, Bound::<u64>::Unbounded);
+
+        let mesh = MeshBuilder::new(renderer, Some("quad"))
+            .vertex_buffer(&verts_data)
+            .vertex_buffer(&texcoord_data)
+            .index_buffer(&inds_data, wgpu::IndexFormat::Uint16)
+            .indexed_submesh(&[full_range, full_range], full_range, 6)
+            .produce_static_mesh();
+
+        let mesh_handle = StaticMeshHandle::unique();
+        self.meshes.insert(mesh_handle, mesh);
+        mesh_handle
+    }
+
+    // fetch the glyph_cache for a particular font selection
+    pub fn get_glyph_cache(&mut self, font_selection: FontSelection) -> &mut GlyphCache {
+        self.glyph_caches
+            .entry(font_selection)
+            .or_insert_with_key(|selection| GlyphCache::new(selection))
     }
 }

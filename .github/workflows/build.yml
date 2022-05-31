@@ -11,6 +11,9 @@ jobs:
     name: Chariot Client Builds
     runs-on: ubuntu-latest
     steps:
+      # required for gilrs
+      - name: Install build dependencies
+        run: sudo apt-get install -y libudev-dev pkg-config libasound2-dev
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
@@ -43,4 +46,3 @@ jobs:
         with:
           command: build
           args: --manifest-path chariot-server/Cargo.toml
-          

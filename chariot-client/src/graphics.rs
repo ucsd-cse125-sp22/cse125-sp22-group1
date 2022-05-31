@@ -1,23 +1,33 @@
+use crate::assets;
+use crate::assets::models;
+use crate::assets::shaders;
 use chariot_core::entity_location::EntityLocation;
+use chariot_core::player::choices::Chair;
 use chariot_core::player::choices::PlayerChoices;
 use chariot_core::player::choices::Track;
 use chariot_core::player::PlayerID;
+use chariot_core::GLOBAL_CONFIG;
 use glam::{DVec3, Vec2};
+use image::ImageFormat;
 use std::f64::consts::PI;
 
-use crate::drawable::string::StringDrawable;
+use crate::drawable::particle::ParticleDrawable;
 use crate::drawable::technique::Technique;
 use crate::drawable::*;
 use crate::renderer::*;
 use crate::resources::*;
 use crate::scenegraph::components::*;
+use crate::scenegraph::particle_system::*;
 use crate::scenegraph::*;
+use crate::ui::ui_region::UIRegion;
+use crate::ui_state::AnnouncementState;
+use crate::ui_state::UIState;
 
 pub fn register_passes(renderer: &mut Renderer) {
     renderer.register_pass(
         "forward",
         &util::indirect_graphics_depth_pass!(
-            "shaders/forward.wgsl",
+            &shaders::FORWARD,
             [
                 wgpu::TextureFormat::Rgba16Float,
                 wgpu::TextureFormat::Rgba8Unorm
@@ -25,16 +35,18 @@ pub fn register_passes(renderer: &mut Renderer) {
         ),
     );
 
-    renderer.register_pass("shadow", &util::shadow_pass!("shaders/shadow.wgsl"));
+    renderer.register_pass("shadow", &util::shadow_pass!(&shaders::SHADOW));
 
     renderer.register_pass(
         "postprocess",
-        &util::direct_graphics_nodepth_pass!("shaders/postprocess.wgsl"),
+        &util::direct_graphics_nodepth_pass!(&shaders::POST_PROCESS),
     );
 
+    renderer.register_pass("ui", &util::direct_graphics_nodepth_pass!(&shaders::UI));
+
     renderer.register_pass(
-        "ui",
-        &util::direct_graphics_nodepth_pass!("shaders/ui.wgsl"),
+        "particle",
+        &util::direct_graphics_nodepth_pass!(&shaders::PARTICLE),
     );
 }
 
@@ -44,45 +56,11 @@ fn setup_void() -> World {
     world.register::<Vec<StaticMeshDrawable>>();
     world.register::<Bounds>();
     world.register::<Light>();
+
+    ParticleSystem::<0>::register_components(&mut world);
+    ParticleSystem::<1>::register_components(&mut world);
+
     let world_root = world.root();
-
-    {
-        let scene_bounds = world.calc_bounds(world.root());
-        let _light = world
-            .builder()
-            .attach(world_root)
-            .with(Light::new_directional(
-                glam::vec3(-0.5, -1.0, 0.5),
-                scene_bounds,
-            ))
-            .with(Transform::default())
-            .build();
-    }
-
-    world
-}
-
-fn setup_world(resources: &mut ResourceManager, renderer: &mut Renderer, map: Track) -> World {
-    let mut world = World::new();
-    world.register::<Camera>();
-    world.register::<Vec<StaticMeshDrawable>>();
-    world.register::<Bounds>();
-    world.register::<Light>();
-    let world_root = world.root();
-
-    {
-        let track_import = resources
-            .import_gltf(renderer, format!("models/{}.glb", map.to_string()))
-            .expect("Unable to load racetrack");
-
-        let _track = world
-            .builder()
-            .attach(world_root)
-            .with(Transform::default())
-            .with(track_import.drawables)
-            .with(track_import.bounds)
-            .build();
-    }
 
     {
         let scene_bounds = world.calc_bounds(world.root());
@@ -104,12 +82,14 @@ pub struct GraphicsManager {
     pub world: World,
     pub renderer: Renderer,
     pub resources: ResourceManager,
-
-    test_string: StringDrawable,
+    pub ui: UIState,
+    pub ui_regions: Vec<UIRegion>,
     pub player_num: PlayerID,
     pub player_choices: [Option<PlayerChoices>; 4],
+    pub player_entities: [Option<Entity>; 4],
     postprocess: technique::FSQTechnique,
-    player_entities: [Option<Entity>; 4],
+    fire_particle_system: ParticleSystem<0>,
+    smoke_particle_system: ParticleSystem<1>,
     camera_entity: Entity,
 }
 
@@ -145,35 +125,68 @@ impl GraphicsManager {
             renderer.register_framebuffer("shadow_out1", fb_desc);
         }
 
-        let mut test_string = StringDrawable::new("ArialMT", 18.0);
-        test_string.set(
-            "chariot - 0.6.11",
-            Vec2::new(0.005, 0.027),
+        let quad_handle = resources.create_quad_mesh(&renderer);
+        let fire_handle = resources.import_texture_embedded(
+            &renderer,
+            "sprites/fire",
+            assets::sprites::FIRE,
+            ImageFormat::Png,
+        );
+        let fire_offset = glam::Vec3::Z * -3.0;
+        let fire_particle_system = ParticleSystem::new(
             &renderer,
             &mut resources,
+            ParticleSystemParams {
+                texture_handle: fire_handle,
+                mesh_handle: quad_handle,
+                pos_range: (-glam::Vec3::ONE * 0.2, glam::Vec3::ONE * 0.2),
+                size_range: (glam::vec2(0.9, 1.9), glam::vec2(1.1, 2.1)),
+                initial_vel: glam::Vec3::ZERO,
+                spawn_rate: 50.0,
+                lifetime: 1.0,
+                rotation: ParticleRotation::RandomAroundAxis(glam::Vec3::Y),
+                gravity: 0.0,
+            },
         );
 
+        let smoke_handle = resources.import_texture_embedded(
+            &renderer,
+            "sprites/smoke",
+            assets::sprites::SMOKE,
+            ImageFormat::Png,
+        );
+        let smoke_particle_system = ParticleSystem::new(
+            &renderer,
+            &mut resources,
+            ParticleSystemParams {
+                texture_handle: smoke_handle,
+                mesh_handle: quad_handle,
+                pos_range: (-glam::Vec3::ONE * 0.1, glam::Vec3::ONE * 0.1),
+                size_range: (glam::Vec2::ONE, glam::Vec2::ONE * 3.0),
+                initial_vel: glam::Vec3::ZERO,
+                spawn_rate: 50.0,
+                lifetime: 5.0,
+                rotation: ParticleRotation::Billboard,
+                gravity: -0.2,
+            },
+        );
+        let world = setup_void();
         let postprocess = technique::FSQTechnique::new(&renderer, &resources, "postprocess");
 
-        let world = setup_void();
-
         Self {
-            test_string,
+            ui_regions: vec![],
             postprocess,
             world,
             renderer,
             resources,
-
             player_choices: Default::default(),
             player_entities: [None, None, None, None],
-
+            ui: UIState::None,
             player_num: 4,
+            fire_particle_system,
+            smoke_particle_system,
             camera_entity: NULL_ENTITY,
         }
-    }
-
-    pub fn load_menu(&mut self) {
-        println!("Loading main menu!");
     }
 
     pub fn load_pregame(&mut self) {
@@ -192,8 +205,54 @@ impl GraphicsManager {
             .build();
     }
 
+    pub fn setup_world(&mut self, map: Track) -> World {
+        let mut world = World::new();
+        world.register::<Camera>();
+        world.register::<Vec<StaticMeshDrawable>>();
+        world.register::<Bounds>();
+        world.register::<Light>();
+
+        ParticleSystem::<0>::register_components(&mut world);
+        ParticleSystem::<1>::register_components(&mut world);
+
+        let world_root = world.root();
+
+        {
+            let track_import = self
+                .resources
+                .import_gltf_file(
+                    &mut self.renderer,
+                    &format!("{}/{}.glb", GLOBAL_CONFIG.tracks_folder, map.to_string()),
+                )
+                .expect("Unable to load racetrack");
+
+            let _track = world
+                .builder()
+                .attach(world_root)
+                .with(Transform::default())
+                .with(track_import.drawables)
+                .with(track_import.bounds)
+                .build();
+        }
+
+        {
+            let scene_bounds = world.calc_bounds(world.root());
+            let _light = world
+                .builder()
+                .attach(world_root)
+                .with(Light::new_directional(
+                    glam::vec3(-0.5, -1.0, 0.5),
+                    scene_bounds,
+                ))
+                .with(Transform::default())
+                .build();
+        }
+
+        world
+    }
+
     pub fn load_map(&mut self, map: Track) {
-        self.world = setup_world(&mut self.resources, &mut self.renderer, map);
+        self.world = self.setup_world(map);
 
         [0, 1, 2, 3].map(|player_num| self.add_player(player_num));
     }
@@ -205,10 +264,7 @@ impl GraphicsManager {
 
         let chair_import = self
             .resources
-            .import_gltf(
-                &mut self.renderer,
-                format!("models/{}.glb", choices.chair).to_string(),
-            )
+            .import_gltf_slice(&mut self.renderer, models::get_chair_data(choices.chair))
             .expect("Failed to import chair");
 
         let world_root = self.world.root();
@@ -241,6 +297,13 @@ impl GraphicsManager {
         self.player_entities[player_num as usize] = Some(chair);
     }
 
+    pub fn update(&mut self, delta_time: f32) {
+        self.fire_particle_system
+            .update(&mut self.world, delta_time);
+        self.smoke_particle_system
+            .update(&mut self.world, delta_time);
+    }
+
     pub fn update_player_location(
         &mut self,
         location: &EntityLocation,
@@ -256,36 +319,117 @@ impl GraphicsManager {
             .world
             .get_mut::<Transform>(player_entity)
             .expect("Trying to update player location when transform does not exist");
-        *player_transform = Transform::from_entity_location(&location, player_transform.scale);
+        let new_player_transform =
+            Transform::from_entity_location(&location, player_transform.scale);
+        *player_transform = new_player_transform;
 
-        // if this player is the main player, update the camera too (based on velocity)
-        if player_entity == self.camera_entity && *velocity != DVec3::ZERO {
-            if let Some(camera) = self.world.get_mut::<Camera>(self.camera_entity) {
-                // first we have to compensate for the rotation of the chair model
-                let rotation_angle = location.unit_steer_direction.angle_between(DVec3::X);
-                // next, we add the angle of the direction of the velocity
-                let velocity_angle =
-                    DVec3::new(velocity.x, 0.0, velocity.z).angle_between(DVec3::X);
-
-                // there's actually some magic trig cancellations happening here that simplify this calculation
-                let mut orbit_yaw = velocity.z.signum() * velocity_angle
-                    - location.unit_steer_direction.z.signum() * rotation_angle;
-
-                // if the yaw change would be bigger than PI, wrap back around
-                let yaw_difference = orbit_yaw - camera.orbit_angle.x as f64;
-                if yaw_difference.abs() > PI {
-                    orbit_yaw += yaw_difference.signum() * 2.0 * PI;
+        // If we are moving, we might need to rotate the model
+        if velocity.length() > 0.0 {
+            if let Some(Chair::Beanbag) = self.player_choices[player_num].as_ref().map(|c| c.chair)
+            {
+                for drawable in self
+                    .world
+                    .get_mut::<Vec<StaticMeshDrawable>>(player_entity)
+                    .unwrap()
+                    .iter_mut()
+                {
+                    // We need an axis and angle of orientation
+                    // Axis is what we spin on
+                    // Angle is how far we spin
+                    // If we are moving towards velocity, we want to spin "downward" towards it
+                    // Thus, the axis is the "right-left" of velocity
+                    // This is what we get here
+                    let axis = velocity.as_vec3().cross(glam::Vec3::Y).normalize();
+                    drawable.modifiers.rotation = Some(
+                        glam::Quat::from_axis_angle(
+                            axis,
+                            // For the angle, we want to move the velocity's length
+                            // But we could go either + or - that amount
+                            // We want to go "towards the ground"
+                            // So we figure out if the angle between velocity and the Y axis is + or -
+                            // And then go from there!
+                            -(axis.angle_between(-glam::Vec3::Y)).signum()
+                                * velocity.length() as f32,
+                        )
+                        .normalize()
+                        .mul_quat(drawable.modifiers.rotation.unwrap_or_default()),
+                    );
                 }
+            }
+        }
 
-                // set the new orbit angle complete with magic pitch for now
-                camera.orbit_angle =
-                    Vec2::new(orbit_yaw as f32, -0.3).lerp(camera.orbit_angle, 0.5);
+        if player_entity == self.camera_entity {
+            if let Some(camera) = self.world.get_mut::<Camera>(self.camera_entity) {
+                match self.player_choices[player_num]
+                    .as_ref()
+                    .unwrap()
+                    .clone()
+                    .chair
+                    .cam()
+                {
+                    chariot_core::player::choices::CameraType::FaceForwards => {
+                        camera.orbit_angle = Vec2::new(0.0, -0.3).lerp(camera.orbit_angle, 0.5);
+                    }
+                    chariot_core::player::choices::CameraType::FaceVelocity => {
+                        if *velocity != DVec3::ZERO {
+                            // first we have to compensate for the rotation of the chair model
+                            let rotation_angle =
+                                location.unit_steer_direction.angle_between(DVec3::X);
+                            // next, we add the angle of the direction of the velocity
+                            let velocity_angle =
+                                DVec3::new(velocity.x, 0.0, velocity.z).angle_between(DVec3::X);
+
+                            // there's actually some magic trig cancellations happening here that simplify this calculation
+                            let mut orbit_yaw = velocity.z.signum() * velocity_angle
+                                - location.unit_steer_direction.z.signum() * rotation_angle;
+
+                            // if the yaw change would be bigger than PI, wrap back around
+                            let yaw_difference = orbit_yaw - camera.orbit_angle.x as f64;
+                            if yaw_difference.abs() > PI {
+                                orbit_yaw += yaw_difference.signum() * 2.0 * PI;
+                            }
+
+                            // set the new orbit angle complete with magic pitch for now
+                            camera.orbit_angle =
+                                Vec2::new(orbit_yaw as f32, -0.3).lerp(camera.orbit_angle, 0.5);
+                        }
+                    }
+                };
             }
         }
     }
 
+    pub fn add_fire_to_player(&mut self, player_num: PlayerID, delta_time: f32) {
+        let player_entity = self.player_entities[player_num as usize].unwrap();
+        let player_transform = *self.world.get::<Transform>(player_entity).unwrap();
+        let world_root = self.world.root();
+
+        let fire_rot = glam::Quat::from_axis_angle(glam::Vec3::X, std::f32::consts::FRAC_PI_2);
+        let fire_transform = Transform {
+            translation: glam::Vec3::Z * -3.0,
+            rotation: fire_rot,
+            scale: glam::Vec3::ONE,
+        };
+        self.fire_particle_system.spawn(
+            &self.renderer,
+            &mut self.world,
+            &fire_transform,
+            player_entity,
+            delta_time,
+        );
+
+        self.smoke_particle_system.spawn(
+            &self.renderer,
+            &mut self.world,
+            &player_transform,
+            world_root,
+            delta_time,
+        );
+    }
+
     pub fn render(&mut self) {
-        //let world_bounds = self.world.root().calc_bounds();
+        self.update_voting_announcements();
+
         let world_root = self.world.root();
         let root_xform = self
             .world
@@ -370,21 +514,63 @@ impl GraphicsManager {
             .map(|l| l.calc_view_proj(&view_bounds))
             .collect();
 
+        let default_translation = Transform::default();
         let mut render_job = render_job::RenderJob::default();
         self.world.dfs_acc(self.world.root(), root_xform, |e, acc| {
-            let cur_model = self
+            let cur_transform = self
                 .world
                 .get::<Transform>(e)
-                .unwrap_or(&Transform::default())
-                .to_mat4();
+                .unwrap_or(&default_translation);
+            let cur_model = cur_transform.to_mat4();
             let acc_model = *acc * cur_model;
 
             if let Some(drawables) = self.world.get::<Vec<StaticMeshDrawable>>(e) {
                 for drawable in drawables.iter() {
+                    let mut acc_model = acc_model;
+
+                    if drawable.modifiers.absolute_angle {
+                        acc_model = *acc
+                            * Transform {
+                                translation: cur_transform.translation,
+                                rotation: glam::Quat::IDENTITY,
+                                scale: cur_transform.scale,
+                            }
+                            .to_mat4();
+                    } else if let Some(rotation) = drawable.modifiers.rotation {
+                        acc_model = *acc
+                            * Transform {
+                                translation: cur_transform.translation,
+                                rotation: rotation,
+                                scale: cur_transform.scale,
+                            }
+                            .to_mat4();
+                    }
+
                     drawable.update_xforms(&self.renderer, proj, view, acc_model);
                     drawable.update_lights(&self.renderer, acc_model, &lights);
                     let render_graph = drawable.render_graph(&self.resources);
                     render_job.merge_graph(render_graph);
+                }
+            }
+
+            if let Some(drawable) = self
+                .world
+                .get::<Option<ParticleDrawable>>(e)
+                .filter(|d| d.is_some())
+                .map(|d| d.as_ref().unwrap())
+            {
+                if let Some(particle_model) =
+                    self.fire_particle_system
+                        .calc_particle_model(&self.world, e, view)
+                {
+                    drawable.update_mvp(&self.renderer, acc_model * particle_model, view, proj);
+                }
+
+                if let Some(particle_model) =
+                    self.smoke_particle_system
+                        .calc_particle_model(&self.world, e, view)
+                {
+                    drawable.update_mvp(&self.renderer, acc_model * particle_model, view, proj);
                 }
             }
 
@@ -401,8 +587,59 @@ impl GraphicsManager {
         let postprocess_graph = self.postprocess.render_item(&self.resources).to_graph();
         render_job.merge_graph_after("forward", postprocess_graph);
 
-        let text_graph = self.test_string.render_graph(&self.resources);
-        render_job.merge_graph_after("postprocess", text_graph);
+        if let Some(drawables) = self.world.storage::<Option<ParticleDrawable>>() {
+            for maybe_drawable in drawables.iter() {
+                if let Some(drawable) = maybe_drawable {
+                    let graph = drawable.render_graph(&self.resources);
+                    render_job.merge_graph_after("postprocess", graph);
+                }
+            }
+        }
+
+        match &self.ui {
+            UIState::None => {}
+            UIState::ChairacterSelect {
+                background,
+                chair_select_box,
+                player_chair_images,
+            } => {
+                let background_graph = background.render_graph(&self.resources);
+                render_job.merge_graph_after("postprocess", background_graph);
+
+                let chair_select_box_graph = chair_select_box.render_graph(&self.resources);
+                render_job.merge_graph_after("postprocess", chair_select_box_graph);
+
+                for chair_image in player_chair_images.iter().flatten() {
+                    let chair_graph = chair_image.render_graph(&self.resources);
+                    render_job.merge_graph_after("postprocess", chair_graph);
+                }
+            }
+            UIState::InGameHUD {
+                place_position_text,
+                game_announcement_title,
+                game_announcement_subtitle,
+                announcement_state,
+                minimap_ui,
+            } => {
+                let text_graph = place_position_text.render_graph(&self.resources);
+                render_job.merge_graph_after("postprocess", text_graph);
+
+                if let AnnouncementState::None = announcement_state {
+                } else {
+                    let text_graph = game_announcement_title.render_graph(&self.resources);
+                    render_job.merge_graph_after("postprocess", text_graph);
+
+                    let text_graph = game_announcement_subtitle.render_graph(&self.resources);
+                    render_job.merge_graph_after("postprocess", text_graph);
+                }
+                let ui_graph = minimap_ui.render_graph(&self.resources);
+                render_job.merge_graph_after("postprocess", ui_graph);
+            }
+            UIState::MainMenu { background } => {
+                let ui_graph = background.render_graph(&self.resources);
+                render_job.merge_graph_after("postprocess", ui_graph);
+            }
+        }
 
         self.renderer.render(&render_job);
     }

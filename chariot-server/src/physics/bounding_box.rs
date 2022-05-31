@@ -110,13 +110,13 @@ impl BoundingBox {
         let (mut x_dist, mut y_dist, mut z_dist) = (0.0, 0.0, 0.0);
         for rotated_corner in corners_coordinates {
             if rotated_corner.x.abs() > x_dist as f32 {
-                x_dist = f64::from(rotated_corner.x);
+                x_dist = f64::from(rotated_corner.x.abs());
             }
             if rotated_corner.y.abs() > y_dist as f32 {
-                y_dist = f64::from(rotated_corner.y);
+                y_dist = f64::from(rotated_corner.y.abs());
             }
             if rotated_corner.z.abs() > z_dist as f32 {
-                z_dist = f64::from(rotated_corner.z);
+                z_dist = f64::from(rotated_corner.z.abs());
             }
         }
 
@@ -126,5 +126,18 @@ impl BoundingBox {
         self.max_y = pos.y + y_dist;
         self.min_z = pos.z - z_dist;
         self.max_z = pos.z + z_dist;
+    }
+}
+
+impl Eq for BoundingBox {}
+
+impl PartialEq for BoundingBox {
+    fn eq(&self, other: &Self) -> bool {
+        self.min_x == other.min_x
+            && self.max_x == other.max_x
+            && self.min_y == other.min_y
+            && self.max_y == other.max_y
+            && self.min_z == other.min_z
+            && self.max_z == other.max_z
     }
 }
