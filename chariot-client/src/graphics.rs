@@ -10,6 +10,7 @@ use chariot_core::GLOBAL_CONFIG;
 use glam::{DVec3, Vec2};
 use image::ImageFormat;
 use std::f64::consts::PI;
+use std::time::Duration;
 
 use crate::drawable::particle::ParticleDrawable;
 use crate::drawable::technique::Technique;
@@ -620,6 +621,7 @@ impl GraphicsManager {
                 game_announcement_subtitle,
                 announcement_state,
                 minimap_ui,
+                timer_ui,
             } => {
                 let text_graph = place_position_text.render_graph(&self.resources);
                 render_job.merge_graph_after("postprocess", text_graph);
@@ -632,8 +634,11 @@ impl GraphicsManager {
                     let text_graph = game_announcement_subtitle.render_graph(&self.resources);
                     render_job.merge_graph_after("postprocess", text_graph);
                 }
-                let ui_graph = minimap_ui.render_graph(&self.resources);
-                render_job.merge_graph_after("postprocess", ui_graph);
+                let minimap_ui_graph = minimap_ui.render_graph(&self.resources);
+                render_job.merge_graph_after("postprocess", minimap_ui_graph);
+
+                let timer_ui_graph = timer_ui.render_graph(&self.resources);
+                render_job.merge_graph_after("postprocess", timer_ui_graph);
             }
             UIState::MainMenu { background } => {
                 let ui_graph = background.render_graph(&self.resources);
