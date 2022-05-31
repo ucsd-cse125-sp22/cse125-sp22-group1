@@ -1,0 +1,11 @@
+.buttonLayout {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+
+.standingsButton {
+	position: fixed;
+	bottom: 20px;
+	width: 100%;
+}
