@@ -17,6 +17,12 @@ const Game: NextPage = () => {
 	const { socket, uuid, prompt, winner } = context;
 
 	useEffect(() => {
+		if (winner !== null) {
+			setSelectedIdx(null);
+		}
+	}, [winner]);
+
+	useEffect(() => {
 		if (socket == null) {
 			router.push(`/?ip=${router.query.ip}`); // you need an active socket to be here
 		}

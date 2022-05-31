@@ -32,6 +32,7 @@ export const handleSocket = (context: GlobalContextType, msg: MessageEvent) => {
 	} else if (message.Prompt !== undefined) {
 		context.setPrompt(message.Prompt);
 		context.setStatusMessage(message.Prompt.prompt);
+		context.setWinner(null);
 	} else if (message.Standings !== undefined) {
 		context.setStandings(message.Standings);
 	} else {
