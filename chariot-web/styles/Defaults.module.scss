@@ -18,7 +18,6 @@ $biggest-height: 50vh;
 
 .header {
   text-align: center;
-  //   @include setHeight($desktop-height);
 }
 
 .headerImage {
@@ -37,7 +36,6 @@ $biggest-height: 50vh;
 
 .rest {
   padding-top: 20px;
-  //   @include setHeight(6(100vh - $desktop-height));
 }
 
 /* for the big screens, make sure we have the biggest header*/
