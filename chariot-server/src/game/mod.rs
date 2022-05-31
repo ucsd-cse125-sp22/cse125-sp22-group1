@@ -25,7 +25,7 @@ use crate::physics::ramp::RampCollisionResult;
 use crate::progress::get_player_placement_array;
 
 use self::interactions::{
-    get_physics_change_from_audience_action, get_stats_change_from_audience_action,
+    get_physics_change_from_audience_action, get_stats_changes_from_audience_action,
     handle_one_time_audience_action,
 };
 use self::map::Map;
@@ -514,7 +514,7 @@ impl GameServer {
                                 });
                             }
 
-                            if let Some(change) = get_stats_change_from_audience_action(
+                            for change in get_stats_changes_from_audience_action(
                                 &decision.action,
                                 effect_end_time,
                             ) {

@@ -225,7 +225,7 @@ impl PlayerEntity {
                 .iter()
                 .all(|zone| !zone.is_colliding(&self.bounding_box))
         {
-            new_velocity *= (1.0 - GLOBAL_CONFIG.off_track_speed_penalty);
+            new_velocity *= 1.0 - GLOBAL_CONFIG.off_track_speed_penalty;
         }
 
         let new_steer_direction =

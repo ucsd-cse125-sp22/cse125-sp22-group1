@@ -29,31 +29,34 @@ pub fn get_physics_change_from_audience_action(
     }
 }
 
-pub fn get_stats_change_from_audience_action(
+pub fn get_stats_changes_from_audience_action(
     audience_action: &AudienceAction,
     expiration_time: Instant,
-) -> Option<StatsChange> {
-    let stat_and_multiplier: Option<(Stat, f64)> = match audience_action {
-        AudienceAction::DoubleMaxSpeed => Some((Stat::MaxCarSpeed, 2.0)),
-        AudienceAction::SuperAccelerator => Some((Stat::CarAccelerator, 3.0)),
-        AudienceAction::SuperSpin => Some((Stat::CarSpin, 5.0)),
-        AudienceAction::MoonGravity => Some((Stat::GravityCoefficient, 0.25)),
-        AudienceAction::IceRink => Some((Stat::RollingResistanceCoefficient, 0.0)),
-        AudienceAction::ExplosivePlayerCollisions => Some((Stat::PlayerBounciness, 3.0)),
-        AudienceAction::SuperBouncyObjects => Some((Stat::TerrainBounciness, 3.0)),
+) -> Vec<StatsChange> {
+    let stats_and_multipliers: Vec<(Stat, f64)> = match audience_action {
+        AudienceAction::DoubleMaxSpeed => vec![(Stat::MaxCarSpeed, 2.0)],
+        AudienceAction::SuperAccelerator => vec![(Stat::CarAccelerator, 3.0)],
+        AudienceAction::SuperSpin => vec![
+            (Stat::CarSpin, 2.5),
+            (Stat::MaxCarSpin, 7.5),
+            (Stat::RotationReductionCoefficient, 2.0),
+        ],
+        AudienceAction::MoonGravity => vec![(Stat::GravityCoefficient, 0.25)],
+        AudienceAction::IceRink => vec![(Stat::RollingResistanceCoefficient, 0.0)],
+        AudienceAction::ExplosivePlayerCollisions => vec![(Stat::PlayerBounciness, 3.0)],
+        AudienceAction::SuperBouncyObjects => vec![(Stat::TerrainBounciness, 3.0)],
 
-        _ => None,
+        _ => vec![],
     };
 
-    if let Some((stat, multiplier)) = stat_and_multiplier {
-        Some(StatsChange {
-            stat,
-            multiplier,
+    stats_and_multipliers
+        .iter()
+        .map(|(stat, multiplier)| StatsChange {
+            stat: *stat,
+            multiplier: *multiplier,
             expiration_time,
         })
-    } else {
-        None
-    }
+        .collect()
 }
 
 pub fn handle_one_time_audience_action(
