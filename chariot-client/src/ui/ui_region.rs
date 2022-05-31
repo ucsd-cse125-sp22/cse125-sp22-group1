@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::{game::GameClient, graphics::GraphicsManager};
 
 pub struct UIRegion {

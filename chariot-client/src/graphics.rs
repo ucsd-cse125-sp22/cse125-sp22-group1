@@ -1,16 +1,18 @@
-use crate::assets;
-use crate::assets::models;
-use crate::assets::shaders;
+use std::f64::consts::PI;
+
+use glam::{DVec3, Vec2};
+use image::ImageFormat;
+
 use chariot_core::entity_location::EntityLocation;
 use chariot_core::player::choices::Chair;
 use chariot_core::player::choices::PlayerChoices;
 use chariot_core::player::choices::Track;
 use chariot_core::player::PlayerID;
 use chariot_core::GLOBAL_CONFIG;
-use glam::{DVec3, Vec2};
-use image::ImageFormat;
-use std::f64::consts::PI;
 
+use crate::assets;
+use crate::assets::models;
+use crate::assets::shaders;
 use crate::drawable::particle::ParticleDrawable;
 use crate::drawable::technique::Technique;
 use crate::drawable::*;
@@ -132,7 +134,6 @@ impl GraphicsManager {
             assets::sprites::FIRE,
             ImageFormat::Png,
         );
-        let fire_offset = glam::Vec3::Z * -3.0;
         let fire_particle_system = ParticleSystem::new(
             &renderer,
             &mut resources,
@@ -162,7 +163,7 @@ impl GraphicsManager {
                 texture_handle: smoke_handle,
                 mesh_handle: quad_handle,
                 pos_range: (-glam::Vec3::ONE * 0.1, glam::Vec3::ONE * 0.1),
-                size_range: (glam::Vec2::ONE, glam::Vec2::ONE * 3.0),
+                size_range: (Vec2::ONE, Vec2::ONE * 3.0),
                 initial_vel: glam::Vec3::ZERO,
                 spawn_rate: 50.0,
                 lifetime: 5.0,
@@ -199,7 +200,7 @@ impl GraphicsManager {
             .builder()
             .attach(root)
             .with(Camera {
-                orbit_angle: glam::Vec2::ZERO,
+                orbit_angle: Vec2::ZERO,
                 distance: 3.0,
             })
             .build();
@@ -286,7 +287,7 @@ impl GraphicsManager {
             self.world.insert(
                 chair,
                 Camera {
-                    orbit_angle: glam::Vec2::ZERO,
+                    orbit_angle: Vec2::ZERO,
                     distance: 3.0,
                 },
             );
@@ -540,7 +541,7 @@ impl GraphicsManager {
                         acc_model = *acc
                             * Transform {
                                 translation: cur_transform.translation,
-                                rotation: rotation,
+                                rotation,
                                 scale: cur_transform.scale,
                             }
                             .to_mat4();

@@ -92,39 +92,36 @@ impl GraphicsManager {
     }
 
     pub fn update_voting_announcements(&mut self) {
-        if let UIState::InGameHUD {
+        if let Some((title, subtitle)) = if let UIState::InGameHUD {
             ref announcement_state,
             ..
         } = &self.ui
         {
             match announcement_state {
-                AnnouncementState::VotingInProgress { vote_end_time, .. } => {
-                    self.make_announcement(
-                        "The audience is deciding your fate",
-                        format!(
-                            "They decide in {} seconds",
-                            (*vote_end_time - Instant::now()).as_secs()
-                        )
-                        .as_str(),
-                    );
-                }
+                AnnouncementState::VotingInProgress { vote_end_time, .. } => Some((
+                    String::from("The audience is deciding your fate"),
+                    format!(
+                        "They decide in {} seconds",
+                        (*vote_end_time - Instant::now()).as_secs()
+                    ),
+                )),
                 AnnouncementState::VoteActiveTime {
                     prompt: _,
                     decision,
                     effect_end_time,
-                } => {
-                    let effect_end_time = effect_end_time;
-                    self.make_announcement(
-                        format!("{} was chosen!", decision).as_str(),
-                        format!(
-                            "Effects will last for another {} seconds",
-                            (*effect_end_time - Instant::now()).as_secs()
-                        )
-                        .as_str(),
-                    );
-                }
-                AnnouncementState::None => {}
+                } => Some((
+                    format!("{} was chosen!", decision),
+                    format!(
+                        "Effects will last for another {} seconds",
+                        (*effect_end_time - Instant::now()).as_secs()
+                    ),
+                )),
+                AnnouncementState::None => None,
             }
+        } else {
+            None
+        } {
+            self.make_announcement(&title, &subtitle);
         }
     }
 
@@ -213,7 +210,7 @@ impl GraphicsManager {
             .get(&background_handle)
             .expect("main menu background doesn't exist!");
 
-        let layer_vec = vec![technique::UILayerTechnique::new(
+        let layer_vec = vec![UILayerTechnique::new(
             &self.renderer,
             glam::vec2(0.0, 0.0),
             glam::vec2(1.0, 1.0),
@@ -250,7 +247,7 @@ impl GraphicsManager {
             .get(&background_handle)
             .expect("background doesn't exist!");
 
-        let layer_vec = vec![technique::UILayerTechnique::new(
+        let layer_vec = vec![UILayerTechnique::new(
             &self.renderer,
             glam::vec2(0.0, 0.0),
             glam::vec2(1.0, 1.0),

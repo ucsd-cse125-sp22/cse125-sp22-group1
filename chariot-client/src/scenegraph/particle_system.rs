@@ -1,15 +1,11 @@
-use std::ops::Bound;
-
+#![allow(dead_code)]
 use super::{Entity, Transform, World};
 use crate::drawable::particle::ParticleDrawable;
-use crate::drawable::Drawable;
-use crate::renderer::render_job::RenderGraph;
 use crate::renderer::Renderer;
 use crate::resources::Handle;
 use crate::resources::{
     material::MaterialBuilder, MaterialHandle, ResourceManager, StaticMeshHandle, TextureHandle,
 };
-use crate::scenegraph::NULL_ENTITY;
 use crate::util::{Pcg32Rng, Rng};
 
 // Two types of particles:
@@ -289,7 +285,7 @@ impl<const ID: u32> ParticleSystem<ID> {
         view: glam::Mat4,
     ) -> Option<glam::Mat4> {
         // TODO (maybe): not the fastest thing in the world
-        let (view_scale, view_rot, view_trans) = view.inverse().to_scale_rotation_translation();
+        let (_view_scale, view_rot, _view_trans) = view.inverse().to_scale_rotation_translation();
 
         if let Some(particle) = world.get::<BillboardParticle<ID>>(entity) {
             Some(glam::Mat4::from_scale_rotation_translation(

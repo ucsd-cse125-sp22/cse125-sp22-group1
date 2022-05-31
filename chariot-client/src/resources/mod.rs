@@ -1,5 +1,5 @@
 use image::{ImageFormat, RgbaImage};
-use std::io::{BufReader, Cursor};
+use std::io::Cursor;
 use std::{
     cmp::Eq,
     collections::{HashMap, VecDeque},
@@ -14,7 +14,6 @@ pub mod glyph_cache;
 pub mod material;
 pub mod static_mesh;
 
-use chariot_core::GLOBAL_CONFIG;
 use material::*;
 use static_mesh::*;
 use wgpu::util::DeviceExt;
