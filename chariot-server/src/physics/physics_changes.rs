@@ -9,6 +9,7 @@ use super::player_entity::PlayerEntity;
 use std::time::Instant;
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub enum PhysicsChangeType {
     NoTurningRight,
     NoTurningLeft,
