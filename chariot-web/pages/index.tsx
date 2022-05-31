@@ -6,6 +6,7 @@ import { Button } from '../src/components/Button'
 import { GlobalContext } from '../src/contexts/GlobalContext'
 import { handleSocket } from '../src/utils/networking'
 import styles from '../styles/Index.module.scss';
+import { internalIpV4 } from 'internal-ip';
 
 const Home: NextPage = () => {
 	const router = useRouter();
@@ -40,13 +41,14 @@ const Home: NextPage = () => {
 	)
 }
 
-export const getServerSideProps: GetServerSideProps = async ({ query }) => {
+export const getServerSideProps: GetServerSideProps = async ({ query, req }) => {
 	if (!query.ip) {
-		const ip = await publicIp.v4()
+		const port = req.headers.host?.split(":")[1] || 80
+		const ip = await internalIpV4()
 		return {
 			redirect: {
 				permanent: false,
-				destination: `/?ip=${ip}:2334`
+				destination: `http://${ip}:${port}/?ip=${ip}:2334`
 			}
 		};
 	}

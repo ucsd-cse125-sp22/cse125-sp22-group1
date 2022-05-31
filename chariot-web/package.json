@@ -12,6 +12,7 @@
 		"lint": "next lint"
 	},
 	"dependencies": {
+		"internal-ip": "^7.0.0",
 		"next": "12.1.5",
 		"public-ip": "^5.0.0",
 		"react": "17.0.2",
