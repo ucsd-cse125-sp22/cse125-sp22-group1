@@ -46,9 +46,11 @@ impl GameServer {
             if let Ok(stream) = stream_result {
                 let id = Uuid::new_v4();
                 let connection = WebSocketConnection::new(stream);
-                self.ws_connections.insert(id, connection);
-                new_uuids.push(id);
-                println!("acquired an audience connection!");
+                if let Some(connection) = connection {
+                    self.ws_connections.insert(id, connection);
+                    new_uuids.push(id);
+                    println!("acquired an audience connection!");
+                }
             }
         }
 
