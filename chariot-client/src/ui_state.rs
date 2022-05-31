@@ -74,7 +74,7 @@ lazy_static! {
     static ref TIMER_TEXT: UIStringBuilder = UIStringBuilder::new(assets::fonts::PRIMARY_FONT)
         .alignment(StringAlignment::RIGHT)
         .content("00:00:000")
-        .position(1.0, 0.9);
+        .position(0.95, 0.9);
 }
 
 impl GraphicsManager {
