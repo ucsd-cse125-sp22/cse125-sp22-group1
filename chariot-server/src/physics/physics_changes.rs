@@ -37,7 +37,6 @@ impl PlayerEntity {
                         RotationStatus::InSpinClockwise { .. }
                     ) {
                         self.player_inputs.rotation_status = RotationStatus::NotInSpin;
-                        self.angular_velocity -= self.stat(Stat::CarSpin);
                     }
                 }
 
@@ -47,7 +46,6 @@ impl PlayerEntity {
                         RotationStatus::InSpinCounterclockwise { .. }
                     ) {
                         self.player_inputs.rotation_status = RotationStatus::NotInSpin;
-                        self.angular_velocity -= self.stat(Stat::CarSpin);
                     }
                 }
 
