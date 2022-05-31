@@ -16,6 +16,7 @@ use crate::player::{
     PlayerID,
 };
 use crate::questions::{QuestionData, QuestionOption};
+use crate::sound_effect::SoundEffect;
 
 #[derive(Serialize, Deserialize)]
 pub enum ServerBoundPacket {
@@ -66,6 +67,8 @@ pub enum ClientBoundPacket {
 
     LapUpdate(LapNumber),       // What lap are you now on?
     PlacementUpdate(Placement), // What place in the race are you now at?
+
+    SoundEffectEvent(SoundEffect),
 
     // After game
     AllDone([Placement; 4]), // All players' final placements

@@ -39,6 +39,7 @@ pub fn get_player_start_physics_properties(chair: &Chair, player_number: PlayerI
         physics_changes: vec![],
         stats_changes: vec![],
         current_colliders: vec![],
+        sound_effects: vec![],
         lap_info: LapInformation::new(),
         current_powerup: None,
         chair: *chair,

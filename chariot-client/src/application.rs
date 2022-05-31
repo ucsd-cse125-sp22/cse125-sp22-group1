@@ -1,3 +1,4 @@
+use chariot_core::sound_effect::SoundEffect;
 use gilrs::{Axis, Button, EventType};
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
@@ -9,7 +10,7 @@ use chariot_core::player::choices::{Chair, Track};
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, VirtualKeyCode};
 
-use crate::assets::audio::{CYBER_RECLINER, HOLD_ON_TO_YOUR_SEATS};
+use crate::assets::audio::{get_sfx, CYBER_RECLINER, HOLD_ON_TO_YOUR_SEATS};
 use crate::audio::AudioManager;
 use chariot_core::networking::ClientBoundPacket;
 use chariot_core::player::player_inputs::{EngineStatus, InputEvent, RotationStatus};
@@ -27,6 +28,7 @@ pub struct Application {
     // audio
     pub audio_context: AudioCtx,
     pub music_manager: AudioManager,
+    pub sfx_manager: AudioManager,
 
     // everything else haha
     pub graphics: GraphicsManager,
@@ -51,10 +53,12 @@ impl Application {
             &audio_context,
             SourceOptions::new().set_repeat(true),
         );
+        let sfx_manager = AudioManager::new();
 
         Self {
             audio_context,
             music_manager,
+            sfx_manager,
             graphics: graphics_manager,
             game,
             pressed_keys: HashSet::new(),
@@ -145,9 +149,19 @@ impl Application {
                 }
                 ClientBoundPacket::LapUpdate(lap_num) => {
                     println!("I am now on lap {}!", lap_num);
+                    self.sfx_manager.play(
+                        get_sfx(SoundEffect::NextLap),
+                        &self.audio_context,
+                        SourceOptions::new(),
+                    );
                 }
                 ClientBoundPacket::GameStart(_) => {
                     self.graphics.display_hud();
+                    self.sfx_manager.play(
+                        get_sfx(SoundEffect::GameStart),
+                        &self.audio_context,
+                        SourceOptions::new(),
+                    );
                 }
                 ClientBoundPacket::PowerupPickup => println!("we got a powerup!"),
                 ClientBoundPacket::VotingStarted {
@@ -169,6 +183,12 @@ impl Application {
                             prompt: question.prompt,
                             vote_end_time,
                         },
+                    );
+
+                    self.sfx_manager.play(
+                        get_sfx(SoundEffect::InteractionVoteStart),
+                        &self.audio_context,
+                        SourceOptions::new(),
                     );
                 }
                 ClientBoundPacket::InteractionActivate {
@@ -192,8 +212,26 @@ impl Application {
                             decision: decision.label,
                             effect_end_time,
                         });
+
+                    self.sfx_manager.play(
+                        get_sfx(SoundEffect::InteractionChosen),
+                        &self.audio_context,
+                        SourceOptions::new(),
+                    );
+                }
+                ClientBoundPacket::SoundEffectEvent(effect) => {
+                    self.sfx_manager.play(
+                        get_sfx(effect),
+                        &self.audio_context,
+                        SourceOptions::new(),
+                    );
                 }
                 ClientBoundPacket::AllDone(final_placements) => {
+                    self.sfx_manager.play(
+                        get_sfx(SoundEffect::GameEnd),
+                        &self.audio_context,
+                        SourceOptions::new(),
+                    );
                     println!(
                         "This game is over! Results:\n{}",
                         final_placements

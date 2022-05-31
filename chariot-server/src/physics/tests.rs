@@ -36,6 +36,7 @@ fn get_starting_player_props() -> PlayerEntity {
         bounding_box: BoundingBox::new(-5.0, 5.0, -5.0, 5.0, -5.0, 5.0),
         physics_changes: Vec::new(),
         stats_changes: Vec::new(),
+        sound_effects: Vec::new(),
         lap_info: LapInformation::new(),
         current_powerup: None,
         chair: Chair::Swivel,
@@ -64,6 +65,7 @@ fn get_origin_cube() -> PlayerEntity {
         bounding_box: BoundingBox::new(-5.0, 5.0, -5.0, 5.0, -5.0, 5.0),
         physics_changes: Vec::new(),
         stats_changes: Vec::new(),
+        sound_effects: Vec::new(),
         lap_info: LapInformation::new(),
         current_powerup: None,
         chair: Chair::Swivel,
@@ -80,6 +82,7 @@ fn test_spinning() {
         Vec::new(),
         Vec::new(),
         std::iter::empty(),
+        &Vec::new(),
         &RampCollisionResult::NoEffect,
     );
 
@@ -91,6 +94,7 @@ fn test_spinning() {
         Vec::new(),
         Vec::new(),
         std::iter::empty(),
+        &Vec::new(),
         &RampCollisionResult::NoEffect,
     );
 
