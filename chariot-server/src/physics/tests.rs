@@ -82,6 +82,7 @@ fn test_spinning() {
         Vec::new(),
         Vec::new(),
         std::iter::empty(),
+        &Vec::new(),
         &RampCollisionResult::NoEffect,
     );
 
@@ -93,6 +94,7 @@ fn test_spinning() {
         Vec::new(),
         Vec::new(),
         std::iter::empty(),
+        &Vec::new(),
         &RampCollisionResult::NoEffect,
     );
 
