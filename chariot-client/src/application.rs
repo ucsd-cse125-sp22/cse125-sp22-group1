@@ -413,8 +413,10 @@ impl Application {
                     }
                     Button::RightTrigger2 => Some(InputEvent::Engine(EngineStatus::Neutral)),
                     // Brake
-                    Button::LeftTrigger2 => None,
-
+                    Button::LeftTrigger2 if value > 0.0 => {
+                        Some(InputEvent::Engine(EngineStatus::Braking))
+                    }
+                    Button::LeftTrigger2 => Some(InputEvent::Engine(EngineStatus::Neutral)),
                     /***** MENU *****/ // TODO: this is temporary. we need a real way to handle menu input w controllers
                     // Force-start
                     Button::Start if value == 1.0 => {
