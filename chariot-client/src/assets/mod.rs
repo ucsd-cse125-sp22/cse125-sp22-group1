@@ -1,3 +1,4 @@
+pub mod audio;
 pub mod fonts;
 pub mod models;
 pub mod shaders;
