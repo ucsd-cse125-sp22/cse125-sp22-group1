@@ -20,7 +20,6 @@ use crate::resources::*;
 use crate::scenegraph::components::*;
 use crate::scenegraph::particle_system::*;
 use crate::scenegraph::*;
-use crate::ui::ui_region::UIRegion;
 use crate::ui_state::AnnouncementState;
 use crate::ui_state::UIState;
 
@@ -84,7 +83,6 @@ pub struct GraphicsManager {
     pub renderer: Renderer,
     pub resources: ResourceManager,
     pub ui: UIState,
-    pub ui_regions: Vec<UIRegion>,
     pub player_num: PlayerID,
     pub player_choices: [Option<PlayerChoices>; 4],
     pub player_entities: [Option<Entity>; 4],
@@ -175,7 +173,6 @@ impl GraphicsManager {
         let postprocess = technique::FSQTechnique::new(&renderer, &resources, "postprocess");
 
         Self {
-            ui_regions: vec![],
             postprocess,
             world,
             renderer,

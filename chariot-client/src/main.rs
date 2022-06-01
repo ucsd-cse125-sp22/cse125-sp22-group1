@@ -10,6 +10,7 @@ mod audio;
 mod drawable;
 mod game;
 mod graphics;
+mod menu_input;
 mod renderer;
 mod resources;
 mod scenegraph;
@@ -72,24 +73,6 @@ fn main() {
                         ElementState::Released => application.on_key_up(key),
                     }
                 }
-            }
-
-            // Mouse input
-            Event::WindowEvent {
-                event: WindowEvent::MouseInput { button, state, .. },
-                ..
-            } => match button {
-                MouseButton::Left => application.on_left_mouse(state),
-                MouseButton::Right => application.on_right_mouse(state),
-                _ => (),
-            },
-
-            // Mouse moved
-            Event::WindowEvent {
-                event: WindowEvent::CursorMoved { position, .. },
-                ..
-            } => {
-                application.on_mouse_move(position.x, position.y);
             }
 
             // If there's an event to detect loss/gain of focus, we will need to clear our pressed keys just in case

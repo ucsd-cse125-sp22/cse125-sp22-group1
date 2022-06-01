@@ -21,7 +21,6 @@ use crate::graphics::{register_passes, GraphicsManager};
 
 use crate::audio::thread::context::AudioCtx;
 use crate::audio::thread::options::SourceOptions;
-use crate::ui::ui_region::UIRegion;
 use crate::ui_state::AnnouncementState;
 
 pub struct Application {
@@ -34,10 +33,8 @@ pub struct Application {
     pub graphics: GraphicsManager,
     pub game: GameClient,
     pub pressed_keys: HashSet<VirtualKeyCode>,
-    mouse_pos: PhysicalPosition<f64>,
     last_update: SystemTime,
     game_start_time: SystemTime,
-    ui_regions: Vec<UIRegion>,
 }
 
 impl Application {
@@ -63,19 +60,13 @@ impl Application {
             graphics: graphics_manager,
             game,
             pressed_keys: HashSet::new(),
-            mouse_pos: PhysicalPosition::<f64> { x: -1.0, y: -1.0 },
             game_start_time: SystemTime::now(),
-            ui_regions: vec![],
             last_update: SystemTime::now(),
         }
     }
 
     pub fn render(&mut self) {
         self.graphics.render();
-        let ui_regions = self.graphics.get_ui_regions();
-        if ui_regions.len() > 0 {
-            self.ui_regions = ui_regions;
-        }
     }
 
     pub fn update(&mut self) {
@@ -257,261 +248,5 @@ impl Application {
             }
         }
         self.graphics.update_minimap();
-    }
-
-    // Input configuration
-    fn get_input_event(&self, key: VirtualKeyCode) -> Option<InputEvent> {
-        match key {
-            // Forwards
-            VirtualKeyCode::W => Some(InputEvent::Engine(EngineStatus::Accelerating(1.0))),
-            // Backwards
-            VirtualKeyCode::S => Some(InputEvent::Engine(EngineStatus::Braking)),
-            // Left
-            VirtualKeyCode::A => Some(InputEvent::Rotation(
-                RotationStatus::InSpinCounterclockwise(1.0),
-            )),
-            // Right
-            VirtualKeyCode::D => Some(InputEvent::Rotation(RotationStatus::InSpinClockwise(1.0))),
-            // Right
-            _ => None,
-        }
-    }
-
-    fn invert_event(&self, event: Option<InputEvent>) -> Option<InputEvent> {
-        Some(match event {
-            Some(InputEvent::Engine(EngineStatus::Accelerating(_))) => {
-                InputEvent::Engine(EngineStatus::Neutral)
-            }
-            Some(InputEvent::Engine(EngineStatus::Braking)) => {
-                InputEvent::Engine(EngineStatus::Neutral)
-            }
-            Some(InputEvent::Rotation(RotationStatus::InSpinClockwise(_))) => {
-                InputEvent::Rotation(RotationStatus::NotInSpin)
-            }
-            Some(InputEvent::Rotation(RotationStatus::InSpinCounterclockwise(_))) => {
-                InputEvent::Rotation(RotationStatus::NotInSpin)
-            }
-            _ => return None,
-        })
-    }
-
-    // Input Handlers
-    pub fn on_key_down(&mut self, key: VirtualKeyCode) {
-        // winit sends duplicate keydown events, so we will just make sure we don't already have this processed
-        if self.pressed_keys.contains(&key) {
-            return;
-        };
-
-        self.pressed_keys.insert(key);
-
-        if let Some(event) = self.get_input_event(key) {
-            self.game.send_input_event(event);
-        };
-
-        if key == VirtualKeyCode::R {
-            println!("Reloading shaders");
-            register_passes(&mut self.graphics.renderer);
-        } else if key == VirtualKeyCode::Apostrophe {
-            println!("Picking map");
-            self.game.pick_map(Track::Track);
-        } else if key == VirtualKeyCode::Semicolon {
-            println!("Setting ready");
-            self.game.signal_ready_status(true);
-        } else if key == VirtualKeyCode::L {
-            println!("Forcing a start!");
-            self.game.force_start();
-        } else if key == VirtualKeyCode::P {
-            println!("Starting next game!");
-            self.game.next_game();
-        } else if key == VirtualKeyCode::Right {
-            let new_chair = match self.graphics.player_choices[self.graphics.player_num]
-                .as_ref()
-                .unwrap()
-                .chair
-            {
-                Chair::Swivel => Chair::Recliner,
-                Chair::Recliner => Chair::Beanbag,
-                Chair::Beanbag => Chair::Ergonomic,
-                Chair::Ergonomic => Chair::Folding,
-                Chair::Folding => Chair::Swivel,
-            };
-            self.game.pick_chair(new_chair);
-            self.graphics.maybe_select_chair(new_chair);
-        } else if key == VirtualKeyCode::Left {
-            let new_chair = match self.graphics.player_choices[self.graphics.player_num]
-                .as_ref()
-                .unwrap()
-                .chair
-            {
-                Chair::Swivel => Chair::Folding,
-                Chair::Recliner => Chair::Swivel,
-                Chair::Beanbag => Chair::Recliner,
-                Chair::Ergonomic => Chair::Beanbag,
-                Chair::Folding => Chair::Ergonomic,
-            };
-            self.graphics.maybe_select_chair(new_chair);
-            self.game.pick_chair(new_chair);
-        }
-    }
-
-    pub fn on_key_up(&mut self, key: VirtualKeyCode) {
-        self.pressed_keys.remove(&key);
-
-        if let Some(event) = self.invert_event(self.get_input_event(key)) {
-            self.game.send_input_event(event);
-        };
-    }
-
-    pub fn on_mouse_move(&mut self, x: f64, y: f64) {
-        self.mouse_pos.x = x;
-        self.mouse_pos.y = y;
-
-        let regions = &mut self.ui_regions;
-        regions
-            .iter_mut()
-            .for_each(|reg| reg.set_hovering(x, y, &mut self.graphics, &mut self.game));
-    }
-
-    pub fn on_left_mouse(&mut self, state: ElementState) {
-        let x = self.mouse_pos.x;
-        let y = self.mouse_pos.y;
-
-        match state {
-            ElementState::Pressed => self
-                .ui_regions
-                .iter_mut()
-                .for_each(|reg| reg.set_active(x, y, &mut self.graphics, &mut self.game)),
-            ElementState::Released => self
-                .ui_regions
-                .iter_mut()
-                .for_each(|reg| reg.set_inactive(&mut self.graphics, &mut self.game)),
-        }
-    }
-
-    pub fn on_right_mouse(&mut self, state: ElementState) {
-        let _x = self.mouse_pos.x;
-        let _y = self.mouse_pos.y;
-
-        if let ElementState::Released = state {
-            // println!("Mouse right clicked @ ({}, {})!", x, y);
-        }
-    }
-
-    pub fn _print_keys(&self) {
-        println!("Pressed keys: {:?}", self.pressed_keys)
-    }
-
-    fn get_input_event_gamepad(
-        &mut self,
-        event: Result<(Button, f32), (Axis, f32)>,
-    ) -> Option<InputEvent> {
-        match event {
-            // Button (value: [0, 1])
-            Ok((button, value)) => {
-                match button {
-                    /***** GAMEPLAY *****/
-                    // Item?
-                    Button::South => None,
-
-                    /***** CONTROLS *****/
-                    // Accelerator
-                    Button::RightTrigger2 if value > 0.0 => {
-                        Some(InputEvent::Engine(EngineStatus::Accelerating(value)))
-                    }
-                    Button::RightTrigger2 => Some(InputEvent::Engine(EngineStatus::Neutral)),
-                    // Brake
-                    Button::LeftTrigger2 if value > 0.0 => {
-                        Some(InputEvent::Engine(EngineStatus::Braking))
-                    }
-                    Button::LeftTrigger2 => Some(InputEvent::Engine(EngineStatus::Neutral)),
-                    /***** MENU *****/ // TODO: this is temporary. we need a real way to handle menu input w controllers
-                    // Force-start
-                    Button::Start if value == 1.0 => {
-                        self.game.force_start();
-                        None
-                    }
-                    // Ready up
-                    Button::Select if value == 1.0 => {
-                        self.game.signal_ready_status(true);
-                        None
-                    }
-                    Button::DPadLeft if value == 1.0 => {
-                        let new_chair = match self.graphics.player_choices[self.graphics.player_num]
-                            .as_ref()
-                            .unwrap()
-                            .chair
-                        {
-                            Chair::Swivel => Chair::Folding,
-                            Chair::Recliner => Chair::Swivel,
-                            Chair::Ergonomic => Chair::Recliner,
-                            Chair::Beanbag => Chair::Ergonomic,
-                            Chair::Folding => Chair::Beanbag,
-                        };
-                        self.game.pick_chair(new_chair);
-                        None
-                    }
-                    Button::DPadRight if value == 1.0 => {
-                        let new_chair = match self.graphics.player_choices[self.graphics.player_num]
-                            .as_ref()
-                            .unwrap()
-                            .chair
-                        {
-                            Chair::Swivel => Chair::Recliner,
-                            Chair::Recliner => Chair::Ergonomic,
-                            Chair::Ergonomic => Chair::Beanbag,
-                            Chair::Beanbag => Chair::Folding,
-                            Chair::Folding => Chair::Swivel,
-                        };
-                        self.game.pick_chair(new_chair);
-                        None
-                    }
-                    _ => None,
-                }
-            }
-            // Axis (value: [-1, 1])
-            Err((axis, value)) => match axis {
-                /***** MOVEMENT *****/
-                // Turn right
-                Axis::LeftStickX if value > 0.0 => {
-                    Some(InputEvent::Rotation(RotationStatus::InSpinClockwise(value)))
-                }
-                // Turn left
-                Axis::LeftStickX if value < 0.0 => Some(InputEvent::Rotation(
-                    RotationStatus::InSpinCounterclockwise(-value),
-                )),
-                // No turn
-                Axis::LeftStickX => Some(InputEvent::Rotation(RotationStatus::NotInSpin)),
-
-                /***** CAMERA *****/
-                // TODO?
-                Axis::RightStickX => None,
-                Axis::RightStickY => None,
-                _ => None,
-            },
-        }
-    }
-
-    pub fn handle_gamepad_event(&mut self, event: gilrs::Event) {
-        let input_event = match event.event {
-            EventType::ButtonChanged(button, value, _) => {
-                self.get_input_event_gamepad(Ok((button, value)))
-            }
-            EventType::AxisChanged(axis, value, _) => {
-                self.get_input_event_gamepad(Err((axis, value)))
-            }
-            EventType::Connected => {
-                println!("Connected new gamepad #{}!", event.id);
-                None
-            }
-            EventType::Disconnected => {
-                println!("Gamepad #{} disconnected!", event.id);
-                None
-            }
-            _ => None,
-        };
-
-        if let Some(valid_input_event) = input_event {
-            self.game.send_input_event(valid_input_event);
-        }
     }
 }
