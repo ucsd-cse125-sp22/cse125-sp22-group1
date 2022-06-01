@@ -1,11 +1,7 @@
-use std::ops::Bound;
-
 pub mod bloom;
-pub mod composite;
 pub mod downsample;
 pub mod geometry;
-pub mod hibl;
-pub mod probe;
+pub mod hbil;
 pub mod shade;
 pub mod shadow;
 pub mod simple_fsq;
@@ -13,11 +9,9 @@ pub mod skybox;
 pub mod ui_layer;
 
 pub use bloom::*;
-pub use composite::*;
 pub use downsample::*;
 pub use geometry::*;
-pub use hibl::*;
-pub use probe::*;
+pub use hbil::*;
 pub use shade::*;
 pub use shadow::*;
 pub use simple_fsq::*;

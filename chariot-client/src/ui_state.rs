@@ -1,13 +1,15 @@
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
-use chariot_core::player::choices::Chair;
 use glam::Vec2;
+use image::ImageFormat;
 use lazy_static::lazy_static;
 use ordinal::Ordinal;
 
-use crate::ui::fonts::{PLACEMENT_FONT, PRIMARY_FONT};
+use chariot_core::player::choices::Chair;
+
 use crate::ui::string::{StringAlignment, UIStringBuilder};
 use crate::{
+    assets,
     drawable::{
         technique::{self, UILayerTechnique},
         UIDrawable,
@@ -15,7 +17,6 @@ use crate::{
     graphics::GraphicsManager,
     resources::TextureHandle,
     scenegraph::components::Transform,
-    ui::ui_region::UIRegion,
 };
 
 pub enum AnnouncementState {
@@ -47,27 +48,51 @@ pub enum UIState {
         game_announcement_subtitle: UIDrawable,
         announcement_state: AnnouncementState,
         minimap_ui: UIDrawable,
+        timer_ui: UIDrawable,
     },
 }
 
 // by initializing the builders statically,
 // we can quickly clone then and change their content to regenerate drawables
 lazy_static! {
-    static ref ANNOUNCEMENT_TITLE: UIStringBuilder = UIStringBuilder::new(PRIMARY_FONT)
-        .alignment(StringAlignment::CENTERED)
-        .content("")
-        .position(0.50, 0.04);
-    static ref ANNOUNCEMENT_SUBTITLE: UIStringBuilder = UIStringBuilder::new(PRIMARY_FONT)
-        .alignment(StringAlignment::CENTERED)
-        .content("")
-        .position(0.50, 0.14);
-    static ref PLACEMENT_TEXT: UIStringBuilder = UIStringBuilder::new(PLACEMENT_FONT)
+    static ref ANNOUNCEMENT_TITLE: UIStringBuilder =
+        UIStringBuilder::new(assets::fonts::PRIMARY_FONT)
+            .alignment(StringAlignment::CENTERED)
+            .content("")
+            .position(0.50, 0.04);
+    static ref ANNOUNCEMENT_SUBTITLE: UIStringBuilder =
+        UIStringBuilder::new(assets::fonts::PRIMARY_FONT)
+            .alignment(StringAlignment::CENTERED)
+            .content("")
+            .position(0.50, 0.14);
+    static ref PLACEMENT_TEXT: UIStringBuilder =
+        UIStringBuilder::new(*assets::fonts::PLACEMENT_FONT_SELECTION)
+            .alignment(StringAlignment::RIGHT)
+            .content("")
+            .position(1.0, 0.057);
+    static ref TIMER_TEXT: UIStringBuilder = UIStringBuilder::new(assets::fonts::PRIMARY_FONT)
         .alignment(StringAlignment::RIGHT)
-        .content("")
-        .position(1.0, 0.057);
+        .content("00:00:000")
+        .position(0.95, 0.9);
 }
 
 impl GraphicsManager {
+    pub fn update_timer(&mut self, time_elapsed: Duration) {
+        if let UIState::InGameHUD {
+            ref mut timer_ui, ..
+        } = self.ui
+        {
+            let minutes = time_elapsed.as_secs() / 60;
+            let seconds = time_elapsed.as_secs() % 60;
+            let millis = time_elapsed.subsec_millis();
+            let time = format!("{:02}:{:02}:{:03}", minutes, seconds, millis);
+            *timer_ui = TIMER_TEXT
+                .clone()
+                .content(&time)
+                .build_drawable(&self.renderer, &mut self.resources);
+        }
+    }
+
     pub fn make_announcement(&mut self, title: &str, subtitle: &str) {
         if let UIState::InGameHUD {
             ref mut game_announcement_subtitle,
@@ -195,9 +220,12 @@ impl GraphicsManager {
     }
 
     pub fn display_main_menu(&mut self) {
-        let background_handle = self
-            .resources
-            .import_texture(&self.renderer, "UI/homebackground.png");
+        let background_handle = self.resources.import_texture_embedded(
+            &self.renderer,
+            "homebackground",
+            assets::ui::HOME_BACKGROUND,
+            ImageFormat::Png,
+        );
 
         let background_texture = self
             .resources
@@ -217,21 +245,15 @@ impl GraphicsManager {
         let background = UIDrawable { layers: layer_vec };
 
         self.ui = UIState::MainMenu { background };
-
-        // join lobby button
-        let mut join_lobby_button = UIRegion::new(472.0, 539.0, 336.0, 87.0);
-        join_lobby_button.on_click(|graphics, game| {
-            graphics.display_chairacter_select();
-            game.pick_chair(Chair::Swivel);
-        });
-
-        self.ui_regions = vec![join_lobby_button];
     }
 
     pub fn display_chairacter_select(&mut self) {
-        let background_handle = self
-            .resources
-            .import_texture(&self.renderer, "UI/ChairSelect/background.png");
+        let background_handle = self.resources.import_texture_embedded(
+            &self.renderer,
+            "chair-select background",
+            assets::ui::CHAIR_SELECT_BACKGROUND,
+            ImageFormat::Png,
+        );
 
         let background_texture = self
             .resources
@@ -250,9 +272,11 @@ impl GraphicsManager {
 
         let background = UIDrawable { layers: layer_vec };
 
-        let chair_select_box_handle = self.resources.import_texture(
+        let chair_select_box_handle = self.resources.import_texture_embedded(
             &self.renderer,
-            format!("UI/ChairSelect/select/p{}rectangle.png", self.player_num).as_str(),
+            format!("p{}rectangle", self.player_num).as_str(),
+            assets::ui::CHAIR_SELECT_RECT[self.player_num],
+            ImageFormat::Png,
         );
 
         let chair_select_box_texture = self
@@ -276,24 +300,6 @@ impl GraphicsManager {
             chair_select_box,
             player_chair_images: vec![None, None, None, None],
         };
-
-        // buttons
-        let mut main_menu_button = UIRegion::new(40.0, 587.0, 224.0, 64.0);
-        main_menu_button.on_click(|graphics, _game_client| {
-            graphics.display_main_menu();
-        });
-
-        let mut ready_button = UIRegion::new(999.0, 587.0, 225.0, 64.0);
-        ready_button.on_click(|_graphics, game_client| {
-            game_client.signal_ready_status(true);
-        });
-
-        let mut force_start_button = UIRegion::new(999.0, 637.0, 225.0, 31.0);
-        force_start_button.on_click(|_graphics, game_client| {
-            game_client.force_start();
-        });
-
-        self.ui_regions = vec![main_menu_button, ready_button, force_start_button];
     }
 
     pub fn maybe_select_chair(&mut self, chair: Chair) {
@@ -309,9 +315,11 @@ impl GraphicsManager {
                 Chair::Folding => glam::vec2(835.0 / 1280.0, 548.0 / 720.0),
             };
             // not sure the best way to change the position; for now, I'm just rerendering completely
-            let chair_select_box_handle = self.resources.import_texture(
+            let chair_select_box_handle = self.resources.import_texture_embedded(
                 &self.renderer,
-                format!("UI/ChairSelect/select/p{}rectangle.png", self.player_num).as_str(),
+                format!("p{}rectangle", self.player_num).as_str(),
+                assets::ui::CHAIR_SELECT_RECT[self.player_num],
+                ImageFormat::Png,
             );
 
             let chair_select_box_texture = self
@@ -343,9 +351,11 @@ impl GraphicsManager {
             ..
         } = &mut self.ui
         {
-            let chair_image = self.resources.import_texture(
+            let chair_image = self.resources.import_texture_embedded(
                 &self.renderer,
-                format!("UI/ChairSelect/display/type={}.png", chair.file()).as_str(),
+                "chair headshot",
+                assets::ui::get_chair_image(chair),
+                ImageFormat::Png,
             );
 
             let chair_texture = self
@@ -388,19 +398,29 @@ impl GraphicsManager {
             .clone()
             .build_drawable(&self.renderer, &mut self.resources);
 
+        let timer_ui = TIMER_TEXT
+            .clone()
+            .build_drawable(&self.renderer, &mut self.resources);
+
         // minimap
-        let minimap_map_handle = self
-            .resources
-            .import_texture(&self.renderer, "UI/minimap/track_transparent.png");
-        let player_location_handles: Vec<TextureHandle> = [
-            "UI/Map Select/P1Btn.png",
-            "UI/Map Select/P2Btn.png",
-            "UI/Map Select/P3Btn.png",
-            "UI/Map Select/P4Btn.png",
-        ]
-        .iter()
-        .map(|filename| self.resources.import_texture(&self.renderer, filename))
-        .collect();
+        let minimap_map_handle = self.resources.import_texture_embedded(
+            &self.renderer,
+            "track_transparent",
+            assets::ui::TRACK_TRANSPARENT,
+            ImageFormat::Png,
+        );
+
+        let player_location_handles: Vec<TextureHandle> = assets::ui::PLAYER_BUTTONS
+            .iter()
+            .map(|button| {
+                self.resources.import_texture_embedded(
+                    &self.renderer,
+                    "player button",
+                    *button,
+                    ImageFormat::Png,
+                )
+            })
+            .collect();
 
         let minimap_map_texture = self
             .resources
@@ -441,10 +461,7 @@ impl GraphicsManager {
             game_announcement_subtitle,
             announcement_state: AnnouncementState::None,
             minimap_ui,
+            timer_ui,
         }
-    }
-
-    pub fn get_ui_regions(&mut self) -> Vec<UIRegion> {
-        std::mem::replace(&mut self.ui_regions, vec![])
     }
 }

@@ -1,10 +1,8 @@
 use super::RenderContext;
 use super::Technique;
+use crate::assets::shaders;
 use crate::drawable::util::TransformUniform;
 use crate::renderer::util;
-
-use chariot_core::GLOBAL_CONFIG;
-use wgpu::util::DeviceExt;
 
 use crate::renderer::render_job::RenderItem;
 use crate::renderer::Renderer;
@@ -13,20 +11,20 @@ use crate::resources::material::MaterialBuilder;
 use crate::resources::ResourceManager;
 use crate::resources::StaticMeshHandle;
 
-mod hibl_technique {
+mod HBIL_technique {
     use crate::drawable::util::TransformUniform;
     use once_cell::sync::OnceCell;
 
     pub static INV_VIEW_PROJ: OnceCell<TransformUniform<2>> = OnceCell::new();
 }
 
-pub struct HIBLTechnique {
+pub struct HBILTechnique {
     quad_handle: StaticMeshHandle,
     material: Material,
 }
 
-impl HIBLTechnique {
-    const FRAMEBUFFER_NAME: &'static str = "hibl_out";
+impl HBILTechnique {
+    const FRAMEBUFFER_NAME: &'static str = "hbil_out";
     pub fn new(
         renderer: &Renderer,
         resources: &ResourceManager,
@@ -45,25 +43,25 @@ impl HIBLTechnique {
     }
 }
 
-impl Technique for HIBLTechnique {
-    const PASS_NAME: &'static str = "hibl";
+impl Technique for HBILTechnique {
+    const PASS_NAME: &'static str = "hbil";
 
     fn register(renderer: &mut Renderer) {
         renderer.register_pass(
             Self::PASS_NAME,
             &util::indirect_graphics_nodepth_pass!(
-                GLOBAL_CONFIG.get_shader_file_path("hibl.wgsl"),
+                &shaders::HBIL,
                 false,
                 [wgpu::TextureFormat::Rgba8Unorm],
                 [Some(wgpu::BlendState::REPLACE)]
             ),
         );
 
-        hibl_technique::INV_VIEW_PROJ.set(TransformUniform::new(renderer, Self::PASS_NAME, 1));
+        HBIL_technique::INV_VIEW_PROJ.set(TransformUniform::new(renderer, Self::PASS_NAME, 1));
     }
 
     fn update_once(renderer: &Renderer, context: &RenderContext) {
-        let view_ufm = hibl_technique::INV_VIEW_PROJ.get().unwrap();
+        let view_ufm = HBIL_technique::INV_VIEW_PROJ.get().unwrap();
 
         let inv_view = context.view.inverse();
         let inv_proj = context.proj.inverse();
@@ -72,7 +70,7 @@ impl Technique for HIBLTechnique {
 
     fn render_item<'a>(&'a self, context: &RenderContext<'a>) -> RenderItem<'a> {
         let static_mesh = context.resources.meshes.get(&self.quad_handle).unwrap();
-        let view_bind_group = &hibl_technique::INV_VIEW_PROJ.get().unwrap().bind_group;
+        let view_bind_group = &HBIL_technique::INV_VIEW_PROJ.get().unwrap().bind_group;
 
         let bind_groups = self
             .material
@@ -93,20 +91,20 @@ impl Technique for HIBLTechnique {
     }
 }
 
-pub struct HIBLDebayerTechnique {
+pub struct HBILDebayerTechnique {
     quad_handle: StaticMeshHandle,
     material: Material,
 }
 
-impl HIBLDebayerTechnique {
-    const FRAMEBUFFER_NAME: &'static str = "hibl_debayer_out";
+impl HBILDebayerTechnique {
+    const FRAMEBUFFER_NAME: &'static str = "hbil_debayer_out";
     pub fn new(
         renderer: &Renderer,
         resources: &ResourceManager,
         quad_handle: StaticMeshHandle,
     ) -> Self {
         let material = MaterialBuilder::new(renderer, resources, Self::PASS_NAME)
-            .framebuffer_texture_resource(0, 0, "hibl_out", 0, false)
+            .framebuffer_texture_resource(0, 0, "hbil_out", 0, false)
             .produce();
 
         Self {
@@ -116,14 +114,14 @@ impl HIBLDebayerTechnique {
     }
 }
 
-impl Technique for HIBLDebayerTechnique {
-    const PASS_NAME: &'static str = "hibl_debayer";
+impl Technique for HBILDebayerTechnique {
+    const PASS_NAME: &'static str = "hbil_debayer";
 
     fn register(renderer: &mut Renderer) {
         renderer.register_pass(
             Self::PASS_NAME,
             &util::indirect_graphics_nodepth_pass!(
-                GLOBAL_CONFIG.get_shader_file_path("hibl_debayer.wgsl"),
+                &shaders::HBIL_DEBAYER,
                 false,
                 [wgpu::TextureFormat::Rgba8Unorm],
                 [Some(wgpu::BlendState::REPLACE)]

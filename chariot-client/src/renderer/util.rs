@@ -1,11 +1,9 @@
 // For directly drawing to the surface
 #[macro_export]
 macro_rules! direct_graphics_depth_pass {
-    ( $filename: expr, $outputs_depth: expr ) => {
+    ( $shadertext: expr, $outputs_depth: expr ) => {
         crate::renderer::render_job::RenderPassDescriptor::Graphics {
-            source: std::fs::read_to_string($filename)
-                .expect("Unable to open shader file")
-                .as_str(),
+            source: $shadertext,
             push_constant_ranges: &[],
             targets: None,
             primitive_state: wgpu::PrimitiveState {
@@ -21,16 +19,15 @@ macro_rules! direct_graphics_depth_pass {
     };
 }
 
-pub(crate) use direct_graphics_depth_pass;
+// not used now
+//pub(crate) use direct_graphics_depth_pass;
 
 // For drawing to an arbitary framebuffer
 #[macro_export]
 macro_rules! indirect_graphics_depth_pass {
-    ( $filename: expr, $outputs_depth: expr, $formats: expr, $blend_states: expr ) => {
+    ( $shadertext: expr, $outputs_depth: expr, $formats: expr, $blend_states: expr ) => {
         crate::renderer::render_job::RenderPassDescriptor::Graphics {
-            source: std::fs::read_to_string($filename)
-                .expect("Unable to open shader file")
-                .as_str(),
+            source: $shadertext,
             push_constant_ranges: &[],
             targets: Some(
                 &$formats
@@ -60,11 +57,9 @@ pub(crate) use indirect_graphics_depth_pass;
 
 #[macro_export]
 macro_rules! indirect_graphics_nodepth_pass {
-    ( $filename: expr, $outputs_depth: expr, $formats: expr, $blend_states: expr ) => {
+    ( $shadertext: expr, $outputs_depth: expr, $formats: expr, $blend_states: expr ) => {
         crate::renderer::render_job::RenderPassDescriptor::Graphics {
-            source: std::fs::read_to_string($filename)
-                .expect("Unable to open shader file")
-                .as_str(),
+            source: $shadertext,
             push_constant_ranges: &[],
             targets: Some(
                 &$formats
@@ -94,11 +89,9 @@ pub(crate) use indirect_graphics_nodepth_pass;
 
 #[macro_export]
 macro_rules! direct_graphics_nodepth_pass {
-    ( $filename: expr ) => {
+    ( $shadertext: expr ) => {
         crate::renderer::render_job::RenderPassDescriptor::Graphics {
-            source: std::fs::read_to_string($filename)
-                .expect("Unable to open shader file")
-                .as_str(),
+            source: $shadertext,
             push_constant_ranges: &[],
             targets: None,
             primitive_state: wgpu::PrimitiveState {
@@ -118,11 +111,9 @@ pub(crate) use direct_graphics_nodepth_pass;
 
 #[macro_export]
 macro_rules! shadow_pass {
-    ( $filename: expr ) => {
+    ( $shadertext: expr ) => {
         crate::renderer::render_job::RenderPassDescriptor::Graphics {
-            source: std::fs::read_to_string($filename)
-                .expect("Unable to open shader file")
-                .as_str(),
+            source: $shadertext,
             push_constant_ranges: &[],
             targets: Some(&[]),
             primitive_state: wgpu::PrimitiveState {
@@ -143,11 +134,9 @@ pub(crate) use shadow_pass;
 
 #[macro_export]
 macro_rules! indirect_surfel_pass {
-    ( $filename: expr, $formats: expr ) => {
+    ( $shadertext: expr, $formats: expr ) => {
         crate::renderer::render_job::RenderPassDescriptor::Graphics {
-            source: std::fs::read_to_string($filename)
-                .expect("Unable to open shader file")
-                .as_str(),
+            source: $shadertext,
             push_constant_ranges: &[],
             targets: Some(
                 &$formats

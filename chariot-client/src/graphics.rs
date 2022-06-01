@@ -1,3 +1,6 @@
+use crate::assets;
+use crate::assets::models;
+use crate::assets::shaders;
 use chariot_core::entity_location::EntityLocation;
 use chariot_core::player::choices::Chair;
 use chariot_core::player::choices::PlayerChoices;
@@ -5,17 +8,17 @@ use chariot_core::player::choices::Track;
 use chariot_core::player::PlayerID;
 use chariot_core::GLOBAL_CONFIG;
 use glam::{DVec3, Vec2};
+use image::ImageFormat;
 use std::f64::consts::PI;
 
 use crate::drawable::particle::ParticleDrawable;
 use crate::drawable::technique;
 use crate::drawable::technique::CompositeBloomTechnique;
-use crate::drawable::technique::CompositeParticlesTechnique;
 use crate::drawable::technique::DownsampleBloomTechnique;
 use crate::drawable::technique::DownsampleTechnique;
 use crate::drawable::technique::GeometryDrawTechnique;
-use crate::drawable::technique::HIBLDebayerTechnique;
-use crate::drawable::technique::HIBLTechnique;
+use crate::drawable::technique::HBILDebayerTechnique;
+use crate::drawable::technique::HBILTechnique;
 use crate::drawable::technique::KawaseBlurDownTechnique;
 use crate::drawable::technique::KawaseBlurUpTechnique;
 use crate::drawable::technique::ShadeDirectTechnique;
@@ -31,7 +34,6 @@ use crate::resources::*;
 use crate::scenegraph::components::*;
 use crate::scenegraph::particle_system::*;
 use crate::scenegraph::*;
-use crate::ui::ui_region::UIRegion;
 use crate::ui_state::AnnouncementState;
 use crate::ui_state::UIState;
 
@@ -45,8 +47,8 @@ pub fn register_passes(renderer: &mut Renderer) {
 
     DownsampleTechnique::register(renderer);
 
-    HIBLTechnique::register(renderer);
-    HIBLDebayerTechnique::register(renderer);
+    HBILTechnique::register(renderer);
+    HBILDebayerTechnique::register(renderer);
 
     DownsampleBloomTechnique::register(renderer);
     KawaseBlurDownTechnique::register(renderer);
@@ -57,16 +59,13 @@ pub fn register_passes(renderer: &mut Renderer) {
 
     renderer.register_pass(
         "init_probes",
-        &util::indirect_surfel_pass!(
-            GLOBAL_CONFIG.get_shader_file_path("init_probes.wgsl"),
-            [wgpu::TextureFormat::Rgba16Float]
-        ),
+        &util::indirect_surfel_pass!(&shaders::INIT_PROBES, [wgpu::TextureFormat::Rgba16Float]),
     );
 
     renderer.register_pass(
         "temporal_acc_probes",
         &util::indirect_surfel_pass!(
-            GLOBAL_CONFIG.get_shader_file_path("temporal_acc_probes.wgsl"),
+            &shaders::TEMPORAL_ACC_PROBES,
             [wgpu::TextureFormat::Rgba16Float]
         ),
     );
@@ -74,7 +73,7 @@ pub fn register_passes(renderer: &mut Renderer) {
     renderer.register_pass(
         "geometry_acc_probes",
         &util::indirect_surfel_pass!(
-            GLOBAL_CONFIG.get_shader_file_path("geometry_acc_probes.wgsl"),
+            &shaders::GEOMETRY_ACC_PROBES,
             [wgpu::TextureFormat::Rgba16Float]
         ),
     );
@@ -114,15 +113,14 @@ pub struct GraphicsManager {
     pub renderer: Renderer,
     pub resources: ResourceManager,
     pub ui: UIState,
-    pub ui_regions: Vec<UIRegion>,
     pub player_num: PlayerID,
     pub player_choices: [Option<PlayerChoices>; 4],
     pub player_entities: [Option<Entity>; 4],
     shade_direct: technique::ShadeDirectTechnique,
     skybox: technique::SkyboxTechnique,
     downsample: technique::DownsampleTechnique,
-    hibl: technique::HIBLTechnique,
-    hibl_debayer: technique::HIBLDebayerTechnique,
+    hibl: technique::HBILTechnique,
+    hibl_debayer: technique::HBILDebayerTechnique,
     downsample_bloom: technique::DownsampleBloomTechnique,
     kawase_blur_down: technique::KawaseBlurDownTechnique,
     kawase_blur_up: technique::KawaseBlurUpTechnique,
@@ -205,7 +203,7 @@ impl GraphicsManager {
         );
 
         resources.register_surface_framebuffer(
-            "hibl_out",
+            "hbil_out",
             &mut renderer,
             &[wgpu::TextureFormat::Rgba8Unorm],
             Some(wgpu::Color::TRANSPARENT),
@@ -213,7 +211,7 @@ impl GraphicsManager {
         );
 
         resources.register_surface_framebuffer(
-            "hibl_debayer_out",
+            "hbil_debayer_out",
             &mut renderer,
             &[wgpu::TextureFormat::Rgba8Unorm],
             Some(wgpu::Color::TRANSPARENT),
@@ -268,8 +266,13 @@ impl GraphicsManager {
         );*/
 
         let quad_handle = resources.create_quad_mesh(&renderer);
-        let fire_handle = resources.import_texture(&renderer, "sprites/fire.png");
-        let fire_offset = glam::Vec3::Z * -3.0;
+        let fire_handle = resources.import_texture_embedded(
+            &renderer,
+            "sprites/fire",
+            assets::sprites::FIRE,
+            ImageFormat::Png,
+        );
+        //let fire_offset = glam::Vec3::Z * -3.0;
         let fire_particle_system = ParticleSystem::new(
             &renderer,
             &mut resources,
@@ -286,7 +289,12 @@ impl GraphicsManager {
             },
         );
 
-        let smoke_handle = resources.import_texture(&renderer, "sprites/smoke.png");
+        let smoke_handle = resources.import_texture_embedded(
+            &renderer,
+            "sprites/smoke",
+            assets::sprites::SMOKE,
+            ImageFormat::Png,
+        );
         let smoke_particle_system = ParticleSystem::new(
             &renderer,
             &mut resources,
@@ -312,8 +320,8 @@ impl GraphicsManager {
             0,
             quad_handle,
         );
-        let hibl = technique::HIBLTechnique::new(&renderer, &resources, quad_handle);
-        let hibl_debayer = technique::HIBLDebayerTechnique::new(&renderer, &resources, quad_handle);
+        let hibl = technique::HBILTechnique::new(&renderer, &resources, quad_handle);
+        let hibl_debayer = technique::HBILDebayerTechnique::new(&renderer, &resources, quad_handle);
         let downsample_bloom =
             technique::DownsampleBloomTechnique::new(&renderer, &resources, quad_handle);
         let kawase_blur_down =
@@ -331,7 +339,6 @@ impl GraphicsManager {
         );
 
         Self {
-            ui_regions: vec![],
             world,
             renderer,
             resources,
@@ -390,7 +397,10 @@ impl GraphicsManager {
         {
             let track_import = self
                 .resources
-                .import_gltf(&mut self.renderer, format!("maps/{}.glb", map.to_string()))
+                .import_gltf_file(
+                    &mut self.renderer,
+                    &format!("{}/{}.glb", GLOBAL_CONFIG.tracks_folder, map.to_string()),
+                )
                 .expect("Unable to load racetrack");
 
             let _track = world
@@ -444,10 +454,7 @@ impl GraphicsManager {
 
         let chair_import = self
             .resources
-            .import_gltf(
-                &mut self.renderer,
-                format!("models/{}.glb", "swivel").to_string(),
-            )
+            .import_gltf_slice(&mut self.renderer, models::get_chair_data(Chair::Swivel))
             .expect("Failed to import chair");
 
         let world_root = self.world.root();
@@ -474,10 +481,7 @@ impl GraphicsManager {
 
         let chair_import = self
             .resources
-            .import_gltf(
-                &mut self.renderer,
-                format!("models/{}.glb", choices.chair.file()).to_string(),
-            )
+            .import_gltf_slice(&mut self.renderer, models::get_chair_data(choices.chair))
             .expect("Failed to import chair");
 
         let world_root = self.world.root();
@@ -642,7 +646,12 @@ impl GraphicsManager {
     }
 
     pub fn add_fire_to_player(&mut self, player_num: PlayerID, delta_time: f32) {
-        let player_entity = self.player_entities[player_num as usize].unwrap();
+        let maybe_player_entity = self.player_entities[player_num as usize];
+        if maybe_player_entity.is_none() {
+            return;
+        }
+
+        let player_entity = maybe_player_entity.unwrap();
         let player_transform = *self.world.get::<Transform>(player_entity).unwrap();
         let world_root = self.world.root();
 
@@ -769,7 +778,7 @@ impl GraphicsManager {
         ParticleDrawable::update_once(&self.renderer, &render_context);
         ShadeDirectTechnique::update_once(&self.renderer, &render_context);
         SkyboxTechnique::update_once(&self.renderer, &render_context);
-        HIBLTechnique::update_once(&self.renderer, &render_context);
+        HBILTechnique::update_once(&self.renderer, &render_context);
 
         let mut render_job = render_job::RenderJob::default();
         self.world.dfs_acc(self.world.root(), root_xform, |e, acc| {
@@ -827,9 +836,6 @@ impl GraphicsManager {
                 {
                     drawable.update_model(&self.renderer, acc_model * particle_model);
                 }
-
-                let graph = drawable.render_graph(&render_context);
-                //render_job.merge_graph(graph);
             }
 
             acc_model
@@ -857,7 +863,7 @@ impl GraphicsManager {
         render_job.merge_graph_after(DownsampleTechnique::PASS_NAME, hibl_graph);
 
         let hibl_debayer_graph = self.hibl_debayer.render_item(&render_context).to_graph();
-        render_job.merge_graph_after(HIBLTechnique::PASS_NAME, hibl_debayer_graph);
+        render_job.merge_graph_after(HBILTechnique::PASS_NAME, hibl_debayer_graph);
 
         let downsample_bloom_graph = self
             .downsample_bloom
@@ -888,14 +894,14 @@ impl GraphicsManager {
                 player_chair_images,
             } => {
                 let background_graph = background.render_graph(&render_context);
-                render_job.merge_graph_after("postprocess", background_graph);
+                render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, background_graph);
 
                 let chair_select_box_graph = chair_select_box.render_graph(&render_context);
-                render_job.merge_graph_after("postprocess", chair_select_box_graph);
+                render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, chair_select_box_graph);
 
                 for chair_image in player_chair_images.iter().flatten() {
                     let chair_graph = chair_image.render_graph(&render_context);
-                    render_job.merge_graph_after("postprocess", chair_graph);
+                    render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, chair_graph);
                 }
             }
             UIState::InGameHUD {
@@ -904,24 +910,28 @@ impl GraphicsManager {
                 game_announcement_subtitle,
                 announcement_state,
                 minimap_ui,
+                timer_ui,
             } => {
                 let text_graph = place_position_text.render_graph(&render_context);
-                render_job.merge_graph_after("postprocess", text_graph);
+                render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, text_graph);
 
                 if let AnnouncementState::None = announcement_state {
                 } else {
                     let text_graph = game_announcement_title.render_graph(&render_context);
-                    render_job.merge_graph_after("postprocess", text_graph);
+                    render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, text_graph);
 
                     let text_graph = game_announcement_subtitle.render_graph(&render_context);
-                    render_job.merge_graph_after("postprocess", text_graph);
+                    render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, text_graph);
                 }
-                let ui_graph = minimap_ui.render_graph(&render_context);
-                render_job.merge_graph_after("postprocess", ui_graph);
+                let minimap_ui_graph = minimap_ui.render_graph(&render_context);
+                render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, minimap_ui_graph);
+
+                let timer_ui_graph = timer_ui.render_graph(&render_context);
+                render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, timer_ui_graph);
             }
             UIState::MainMenu { background } => {
                 let ui_graph = background.render_graph(&render_context);
-                render_job.merge_graph_after("postprocess", ui_graph);
+                render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, ui_graph);
             }
         }
 

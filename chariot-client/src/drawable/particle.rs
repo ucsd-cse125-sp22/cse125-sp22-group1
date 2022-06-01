@@ -1,12 +1,11 @@
-use chariot_core::GLOBAL_CONFIG;
-
 use super::Drawable;
 use super::RenderContext;
+use crate::assets::shaders;
 use crate::drawable::util::TransformUniform;
 use crate::renderer::render_job;
 use crate::renderer::util;
 use crate::renderer::Renderer;
-use crate::resources::{MaterialHandle, ResourceManager, StaticMeshHandle};
+use crate::resources::{MaterialHandle, StaticMeshHandle};
 
 // TODO: merge this with the forward pass and make this write depth. I got it to work but it was weird since on certain frames
 // the particles wouldn't show up and the outline effect was being applied to the quads
@@ -51,7 +50,7 @@ impl Drawable for ParticleDrawable {
         renderer.register_pass(
             Self::PASS_NAME,
             &util::indirect_graphics_depth_pass!(
-                GLOBAL_CONFIG.get_shader_file_path("particle.wgsl"),
+                &shaders::PARTICLE,
                 false,
                 [
                     wgpu::TextureFormat::Rgba16Float,

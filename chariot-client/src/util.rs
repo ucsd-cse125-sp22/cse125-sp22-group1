@@ -1,7 +1,5 @@
 use std::num::Wrapping;
 
-use crate::drawable::util::TransformUniform;
-
 pub trait Rng<T> {
     fn next(&mut self) -> T;
 }

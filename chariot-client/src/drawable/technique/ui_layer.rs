@@ -1,16 +1,13 @@
 use super::RenderContext;
 use super::Technique;
-use crate::drawable::util::TransformUniform;
+use crate::assets::shaders;
 use crate::renderer::util;
-
-use chariot_core::GLOBAL_CONFIG;
 use wgpu::util::DeviceExt;
 
 use crate::renderer::render_job::RenderItem;
 use crate::renderer::Renderer;
 use crate::resources::material::Material;
 use crate::resources::material::MaterialBuilder;
-use crate::resources::ResourceManager;
 
 pub struct UILayerTechnique {
     pub vertex_buffer: wgpu::Buffer,
@@ -98,7 +95,7 @@ impl Technique for UILayerTechnique {
     fn register(renderer: &mut Renderer) {
         renderer.register_pass(
             Self::PASS_NAME,
-            &util::direct_graphics_nodepth_pass!(GLOBAL_CONFIG.get_shader_file_path("ui.wgsl")),
+            &util::direct_graphics_nodepth_pass!(&shaders::UI),
         );
     }
 
@@ -107,7 +104,7 @@ impl Technique for UILayerTechnique {
 
         RenderItem::Graphics {
             pass_name: Self::PASS_NAME,
-            framebuffer_name: context.framebuffer_name(Self::FRAMEBUFFER_NAME),
+            framebuffer_name: Self::FRAMEBUFFER_NAME.to_string(),
             num_elements: 6,
             vertex_buffers: vec![self.vertex_buffer.slice(..), self.texcoord_buffer.slice(..)],
             index_buffer: Some(self.index_buffer.slice(..)),

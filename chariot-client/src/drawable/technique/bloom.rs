@@ -1,10 +1,7 @@
 use super::RenderContext;
 use super::Technique;
-use crate::drawable::util::TransformUniform;
+use crate::assets::shaders;
 use crate::renderer::util;
-
-use chariot_core::GLOBAL_CONFIG;
-use wgpu::util::DeviceExt;
 
 use crate::renderer::render_job::RenderItem;
 use crate::renderer::Renderer;
@@ -56,7 +53,7 @@ impl Technique for DownsampleBloomTechnique {
         renderer.register_pass(
             Self::PASS_NAME,
             &util::indirect_graphics_nodepth_pass!(
-                GLOBAL_CONFIG.get_shader_file_path("downsample_bloom.wgsl"),
+                &shaders::DOWNSAMPLE_BLOOM,
                 false,
                 [wgpu::TextureFormat::Rgba8Unorm],
                 [Some(wgpu::BlendState::REPLACE)]
@@ -120,7 +117,7 @@ impl Technique for KawaseBlurDownTechnique {
         renderer.register_pass(
             Self::PASS_NAME,
             &util::indirect_graphics_nodepth_pass!(
-                GLOBAL_CONFIG.get_shader_file_path("kawase_blur_down.wgsl"),
+                &shaders::KAWASE_BLUR_DOWN,
                 false,
                 [wgpu::TextureFormat::Rgba8Unorm],
                 [Some(wgpu::BlendState::REPLACE)]
@@ -185,7 +182,7 @@ impl Technique for KawaseBlurUpTechnique {
         renderer.register_pass(
             Self::PASS_NAME,
             &util::indirect_graphics_nodepth_pass!(
-                GLOBAL_CONFIG.get_shader_file_path("kawase_blur_up.wgsl"),
+                &shaders::KAWASE_BLUR_UP,
                 false,
                 [wgpu::TextureFormat::Rgba8Unorm],
                 [Some(wgpu::BlendState::REPLACE)]
@@ -234,7 +231,7 @@ impl CompositeBloomTechnique {
         let material = MaterialBuilder::new(renderer, resources, Self::PASS_NAME)
             .framebuffer_texture_resource(0, 0, "shade_direct_out", 0, false)
             .framebuffer_texture_resource(0, 1, "kawase_blur_up_out", 0, false)
-            .framebuffer_texture_resource(0, 2, "hibl_debayer_out", 0, false)
+            .framebuffer_texture_resource(0, 2, "hbil_debayer_out", 0, false)
             .sampler_resource(0, 3, sampler)
             .produce();
 
@@ -251,7 +248,7 @@ impl Technique for CompositeBloomTechnique {
         renderer.register_pass(
             Self::PASS_NAME,
             &util::indirect_graphics_nodepth_pass!(
-                GLOBAL_CONFIG.get_shader_file_path("composite_bloom.wgsl"),
+                &shaders::COMPOSITE_BLOOM,
                 false,
                 [wgpu::TextureFormat::Rgba8Unorm],
                 [Some(wgpu::BlendState::REPLACE)]

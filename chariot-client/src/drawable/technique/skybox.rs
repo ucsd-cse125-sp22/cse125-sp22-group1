@@ -1,7 +1,6 @@
-use chariot_core::GLOBAL_CONFIG;
-
 use super::RenderContext;
 use super::Technique;
+use crate::assets::shaders;
 use crate::drawable::util::TransformUniform;
 
 use crate::renderer::render_job::RenderItem;
@@ -39,7 +38,7 @@ impl Technique for SkyboxTechnique {
         renderer.register_pass(
             Self::PASS_NAME,
             &util::indirect_graphics_nodepth_pass!(
-                GLOBAL_CONFIG.get_shader_file_path("skybox.wgsl"),
+                &shaders::SKYBOX,
                 false,
                 [wgpu::TextureFormat::Rgba16Float],
                 [Some(wgpu::BlendState::ALPHA_BLENDING)]

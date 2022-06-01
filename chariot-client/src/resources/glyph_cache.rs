@@ -1,8 +1,7 @@
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::Arc;
 
-use chariot_core::GLOBAL_CONFIG;
 use font_kit::canvas::{Canvas, Format, RasterizationOptions};
 use font_kit::font::Font;
 use font_kit::handle::Handle;
@@ -25,7 +24,7 @@ pub struct FontSelection {
 #[derive(PartialEq, Eq, Hash, Clone, Copy)]
 pub enum FontSource {
     SystemFont { font_name: &'static str },
-    FileFont { file_path: &'static str },
+    EmbeddedFont { data: &'static [u8] },
 }
 
 pub struct Glyph {
@@ -85,14 +84,9 @@ impl GlyphCache {
                 .expect("could not find requested font on the system")
                 .load()
                 .expect("could not load font despite finding it"),
-            FontSource::FileFont { file_path } => Handle::from_path(
-                PathBuf::from(&GLOBAL_CONFIG.resource_folder)
-                    .join("fonts")
-                    .join(file_path),
-                0,
-            )
-            .load()
-            .expect("could not find the font defined at that path"),
+            FontSource::EmbeddedFont { data } => Handle::from_memory(Arc::from(data.to_vec()), 0)
+                .load()
+                .expect("could not find the font defined at that path"),
         };
         let point_size = font_selection.point_size as f32;
         GlyphCache {

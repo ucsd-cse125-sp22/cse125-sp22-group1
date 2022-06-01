@@ -1,10 +1,11 @@
 use std::collections::VecDeque;
 
+use glam::DVec2;
 use serde_json::Value;
 
 use crate::{
     checkpoints::*,
-    physics::{bounding_box::BoundingBox, trigger_entity::TriggerEntity},
+    physics::{bounding_box::BoundingBox, ramp::Ramp, trigger_entity::TriggerEntity},
 };
 use chariot_core::{player::lap_info::ZoneID, GLOBAL_CONFIG};
 
@@ -13,6 +14,10 @@ use super::powerup::pickups::ItemBox;
 pub struct Map {
     // Something you cannot pass through/has collision
     pub colliders: Vec<BoundingBox>,
+    pub ramps: Vec<Ramp>,
+
+    // basically: while you're on the track, you should get a speedup (vroom vroom zoom zoom)
+    pub speedup_zones: Vec<BoundingBox>,
 
     // Map's checkpoints, which track progress through the track
     pub checkpoints: Vec<Checkpoint>,
@@ -70,7 +75,7 @@ impl Map {
             filename
         );
         filename.split(".").next().expect("invalid filename format");
-        let map_path = format!("{}/maps/{}.glb", GLOBAL_CONFIG.resource_folder, filename);
+        let map_path = format!("{}/{}.glb", GLOBAL_CONFIG.tracks_folder, filename);
         let (document, buffers, _) = gltf::import(map_path)?;
         if document.scenes().count() != 1 {
             panic!(
@@ -81,6 +86,9 @@ impl Map {
         }
 
         let mut colliders: Vec<BoundingBox> = Vec::new();
+        let mut ramps: Vec<Ramp> = Vec::new();
+
+        let mut speedup_zones: Vec<BoundingBox> = Vec::new();
 
         let mut checkpoints: Vec<Checkpoint> = Vec::new();
         let mut major_zones: Vec<Zone> = Vec::new();
@@ -102,8 +110,6 @@ impl Map {
 
         // Probably better to do this recursively but i didn't wanna change stuff like crazy, not that it really matters since this is just loading anyways
         while let Some((node, parent_transform)) = queue.pop_front() {
-            //println!("Processing node '{}'", node.name().unwrap_or("<unnamed>"));
-
             let transform = parent_transform
                 * (match node.transform() {
                     gltf::scene::Transform::Matrix { matrix } => {
@@ -175,12 +181,40 @@ impl Map {
                                     mesh.name().unwrap_or("<unnamed>")
                                 );
                                 colliders.push(mesh_bounds);
+                            } else if purpose == "ramp" {
+                                let incline_direction: String = mesh_data
+                                    .get("incline_direction")
+                                    .expect("Ramps should have an incline direction!")
+                                    .to_string();
+
+                                let incline_direction_vec = if incline_direction == "pos_x" {
+                                    -1.0 * DVec2::X
+                                } else if incline_direction == "neg_x" {
+                                    DVec2::X
+                                } else if incline_direction == "pos_z" {
+                                    -1.0 * DVec2::Y
+                                } else {
+                                    DVec2::Y
+                                };
+
+                                let ramp = Ramp {
+                                    footprint: [
+                                        [mesh_bounds.min_x, mesh_bounds.max_x],
+                                        [mesh_bounds.min_z, mesh_bounds.max_z],
+                                    ],
+                                    min_height: mesh_bounds.min_y,
+                                    max_height: mesh_bounds.max_y,
+                                    incline_direction: incline_direction_vec,
+                                };
+                                ramps.push(ramp);
+                            } else if purpose == "speedup" {
+                                speedup_zones.push(mesh_bounds);
                             } else {
-                                panic!(
-                                    "Mesh '{}' has unknown purpose '{}'!",
-                                    mesh.name().unwrap_or("<unnamed>"),
-                                    purpose
-                                );
+                                // panic!(
+                                //     "Mesh '{}' has unknown purpose '{}'!",
+                                //     mesh.name().unwrap_or("<unnamed>"),
+                                //     purpose
+                                // );
                             }
 
                             world_bounds = world_bounds.accum(mesh_bounds);
@@ -198,6 +232,8 @@ impl Map {
 
         core::result::Result::Ok(Self {
             colliders,
+            ramps,
+            speedup_zones,
             checkpoints,
             major_zones,
             finish_line: finish_line

@@ -6,6 +6,7 @@ import { Button } from '../src/components/Button'
 import { GlobalContext } from '../src/contexts/GlobalContext'
 import { handleSocket } from '../src/utils/networking'
 import styles from '../styles/Index.module.scss';
+import { internalIpV4 } from 'internal-ip';
 
 const Home: NextPage = () => {
 	const router = useRouter();
@@ -17,7 +18,7 @@ const Home: NextPage = () => {
 		sock.onopen = () => {
 			context.setSocket(sock);
 			(window as any).socket = sock;
-			Router.push("/game");
+			Router.push(`/game?ip=${queryIp}`);
 		}
 
 		sock.onerror = (err) => {
@@ -32,25 +33,22 @@ const Home: NextPage = () => {
 	}
 
 	return (
-		<>
-			<div className={styles.textBox}>
-				Joining game @ {queryIp}
-			</div>
-
-			<Button text='Join active game' onClick={() => {
+		<div className={styles.container}>
+			<Button text='Join Game' onClick={() => {
 				connectToWebSocket();
 			}} />
-		</>
+		</div>
 	)
 }
 
-export const getServerSideProps: GetServerSideProps = async ({ query }) => {
+export const getServerSideProps: GetServerSideProps = async ({ query, req }) => {
 	if (!query.ip) {
-		const ip = await publicIp.v4()
+		const port = req.headers.host?.split(":")[1] || 80
+		const ip = await internalIpV4()
 		return {
 			redirect: {
 				permanent: false,
-				destination: `?ip=${ip}:2334`
+				destination: `http://${ip}:${port}/?ip=${ip}:2334`
 			}
 		};
 	}

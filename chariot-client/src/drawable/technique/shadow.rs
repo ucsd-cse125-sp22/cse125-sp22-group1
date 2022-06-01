@@ -1,7 +1,6 @@
-use chariot_core::GLOBAL_CONFIG;
-
 use super::RenderContext;
 use super::Technique;
+use crate::assets::shaders;
 use crate::drawable::util::TransformUniform;
 use crate::renderer::*;
 use crate::resources::*;
@@ -41,10 +40,7 @@ impl ShadowDrawTechnique {
 impl Technique for ShadowDrawTechnique {
     const PASS_NAME: &'static str = "shadow";
     fn register(renderer: &mut Renderer) {
-        renderer.register_pass(
-            Self::PASS_NAME,
-            &util::shadow_pass!(GLOBAL_CONFIG.get_shader_file_path("shadow.wgsl")),
-        );
+        renderer.register_pass(Self::PASS_NAME, &util::shadow_pass!(&shaders::SHADOW));
     }
 
     fn update_once(renderer: &Renderer, context: &RenderContext) {

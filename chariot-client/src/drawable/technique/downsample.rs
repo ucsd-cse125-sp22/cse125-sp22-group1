@@ -1,10 +1,7 @@
 use super::RenderContext;
 use super::Technique;
-use crate::drawable::util::TransformUniform;
+use crate::assets::shaders;
 use crate::renderer::util;
-
-use chariot_core::GLOBAL_CONFIG;
-use wgpu::util::DeviceExt;
 
 use crate::renderer::render_job::RenderItem;
 use crate::renderer::Renderer;
@@ -48,7 +45,7 @@ impl Technique for DownsampleTechnique {
         renderer.register_pass(
             Self::PASS_NAME,
             &util::indirect_graphics_nodepth_pass!(
-                GLOBAL_CONFIG.get_shader_file_path("downsample_mitchell.wgsl"),
+                &shaders::DOWNSAMPLE_MITCHELL,
                 false,
                 [wgpu::TextureFormat::Rgba16Float],
                 [Some(wgpu::BlendState::ALPHA_BLENDING)]

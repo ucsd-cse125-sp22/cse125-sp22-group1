@@ -7,7 +7,6 @@ use crate::resources::*;
 use crate::scenegraph::components::Modifiers;
 use technique::ui_layer::UILayerTechnique;
 use technique::*;
-use wgpu::RenderBundle;
 
 pub struct RenderContext<'a> {
     pub resources: &'a ResourceManager,

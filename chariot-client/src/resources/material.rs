@@ -234,7 +234,8 @@ impl<'a> MaterialBuilder<'a> {
             .iter()
             .filter(|(group, resource_map)| {
                 resource_map.iter().any(|(binding, resource_idx)| {
-                    resource_idx.is_fb_texture_with_alt(self.resources.unwrap())
+                    self.resources.is_some()
+                        && resource_idx.is_fb_texture_with_alt(self.resources.unwrap())
                 })
             })
             .map(create_alt_bind_group)

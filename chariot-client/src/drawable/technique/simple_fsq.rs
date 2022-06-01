@@ -1,12 +1,9 @@
 use super::RenderContext;
 use super::Technique;
-use crate::drawable::util::TransformUniform;
-use crate::renderer::util;
-
-use chariot_core::GLOBAL_CONFIG;
-use wgpu::util::DeviceExt;
+use crate::assets::shaders;
 
 use crate::renderer::render_job::RenderItem;
+use crate::renderer::util;
 use crate::renderer::Renderer;
 use crate::resources::material::Material;
 use crate::resources::material::MaterialBuilder;
@@ -44,9 +41,7 @@ impl Technique for SimpleFSQTechnique {
     fn register(renderer: &mut Renderer) {
         renderer.register_pass(
             Self::PASS_NAME,
-            &util::direct_graphics_nodepth_pass!(
-                GLOBAL_CONFIG.get_shader_file_path("simple_fsq.wgsl")
-            ),
+            &util::direct_graphics_nodepth_pass!(&shaders::SIMPLE_FSQ),
         );
     }
 

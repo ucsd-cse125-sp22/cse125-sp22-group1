@@ -1,7 +1,6 @@
-use chariot_core::GLOBAL_CONFIG;
-
 use super::RenderContext;
 use super::Technique;
+use crate::assets::shaders;
 use crate::drawable::util::TransformUniform;
 use crate::renderer::*;
 use crate::resources::*;
@@ -50,7 +49,7 @@ impl Technique for GeometryDrawTechnique {
         renderer.register_pass(
             Self::PASS_NAME,
             &util::indirect_graphics_depth_pass!(
-                GLOBAL_CONFIG.get_shader_file_path("geometry.wgsl"),
+                &shaders::GEOMETRY,
                 true,
                 [
                     wgpu::TextureFormat::Rgba16Float,
@@ -140,7 +139,7 @@ impl Technique for SurfelGeometryDrawTechnique {
         renderer.register_pass(
             Self::PASS_NAME,
             &util::indirect_surfel_pass!(
-                GLOBAL_CONFIG.get_shader_file_path("surfel_geometry.wgsl"),
+                &shaders::SURFEL_GEOMETRY,
                 [
                     wgpu::TextureFormat::Rgba16Float,
                     wgpu::TextureFormat::Rgba8Unorm

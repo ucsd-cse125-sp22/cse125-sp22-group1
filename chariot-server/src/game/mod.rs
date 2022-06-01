@@ -5,12 +5,8 @@ use std::time::{Duration, Instant};
 
 use chariot_core::player::choices::{Chair, PlayerChoices, Track};
 use chariot_core::player::lap_info::Placement;
-use chariot_core::player::{
-    lap_info::LapInformation,
-    physics_changes::{PhysicsChange, PhysicsChangeType},
-    player_inputs::InputEvent,
-    PlayerID,
-};
+use chariot_core::player::player_inputs::PlayerInputs;
+use chariot_core::player::{lap_info::LapInformation, player_inputs::InputEvent, PlayerID};
 use glam::DVec3;
 
 use chariot_core::entity_location::EntityLocation;
@@ -23,12 +19,19 @@ use chariot_core::questions::{QuestionData, QUESTIONS};
 use chariot_core::GLOBAL_CONFIG;
 
 use crate::chairs::get_player_start_physics_properties;
+use crate::physics::physics_changes::PhysicsChange;
 use crate::physics::player_entity::PlayerEntity;
+use crate::physics::ramp::RampCollisionResult;
 use crate::progress::get_player_placement_array;
 
+use self::interactions::{
+    get_physics_change_from_audience_action, get_stats_changes_from_audience_action,
+    handle_one_time_audience_action,
+};
 use self::map::Map;
 use self::phase::*;
 
+mod interactions;
 mod map;
 mod phase;
 pub mod powerup;
@@ -111,9 +114,7 @@ impl GameServer {
                 .iter_mut()
                 .for_each(|con| con.sync_outgoing());
 
-            self.ws_connections
-                .iter_mut()
-                .for_each(|(_, con)| con.sync_outgoing());
+            self.ws_connections.retain(|_, con| con.sync_outgoing());
 
             // wait until server tick time has elapsed
             if let Some(remaining_tick_duration) =
@@ -365,7 +366,11 @@ impl GameServer {
             GamePhase::CountingDownToGameStart(countdown_end_time) => {
                 if now > *countdown_end_time {
                     println!("Go!!!");
-                    let player_placement = [0, 1, 2, 3].map(|_| LapInformation::new());
+                    let player_placement = [0, 1, 2, 3].map(|i| {
+                        let mut info = LapInformation::new();
+                        info.placement = i + 1;
+                        info
+                    });
                     // transition to playing game after countdown
                     self.game_state.phase = GamePhase::PlayingGame {
                         // start off with 10 seconds of vote free gameplay
@@ -393,13 +398,31 @@ impl GameServer {
                 question_idx,
                 ..
             } => {
+                let ramps = &self
+                    .game_state
+                    .map
+                    .as_ref()
+                    .expect("No map loaded in game loop!")
+                    .ramps
+                    .clone();
+
+                let mut per_player_current_ramps: Vec<RampCollisionResult> = vec![];
+                let mut original_player_inputs: Vec<PlayerInputs> = vec![];
+
                 // update bounding box dimensions and temporary physics changes for each player
                 for player in &mut self.game_state.players {
+                    player.update_bounding_box();
                     player
                         .physics_changes
                         .retain(|change| change.expiration_time > now);
-                    player.update_bounding_box();
-                    player.set_upward_direction_from_bounding_box();
+                    player
+                        .stats_changes
+                        .retain(|change| change.expiration_time > now);
+
+                    original_player_inputs.push(player.player_inputs);
+                    player.change_inputs_per_physics_changes();
+                    let ramp_collision_result = player.update_upwards_from_ramps(ramps);
+                    per_player_current_ramps.push(ramp_collision_result);
                 }
 
                 let others = |this_index: usize| -> Vec<&PlayerEntity> {
@@ -420,8 +443,16 @@ impl GameServer {
                     .colliders
                     .clone();
 
+                let speedup_zones = &self
+                    .game_state
+                    .map
+                    .as_ref()
+                    .expect("No map loaded in game loop!")
+                    .speedup_zones
+                    .clone();
+
                 self.game_state.players = [0, 1, 2, 3].map(|n| {
-                    self.game_state.players[n].do_physics_step(
+                    let mut player = self.game_state.players[n].do_physics_step(
                         1.0,
                         others(n),
                         colliders.clone(),
@@ -430,7 +461,13 @@ impl GameServer {
                             .as_mut()
                             .expect("No map loaded in game loop!")
                             .trigger_iter(),
-                    )
+                        speedup_zones,
+                        per_player_current_ramps.get(n).unwrap(),
+                    );
+
+                    // Restore original player inputs: without this, the server's inputs can change multiple times per client update
+                    player.player_inputs = original_player_inputs.get(n).unwrap().to_owned();
+                    player
                 });
 
                 match &mut *voting_game_state {
@@ -450,14 +487,17 @@ impl GameServer {
                                 .map(|(vote, _c)| vote)
                                 .unwrap_or(&&mut (0));
 
-                            GameServer::broadcast_ws(
-                                &mut self.ws_connections,
-                                WSAudienceBoundMessage::Winner(winner),
-                            );
-
                             let decision = current_question.options[winner].clone();
                             let time_effect_is_live = Duration::new(30, 0);
                             let effect_end_time = now + time_effect_is_live;
+
+                            GameServer::broadcast_ws(
+                                &mut self.ws_connections,
+                                WSAudienceBoundMessage::Winner {
+                                    choice: winner,
+                                    vote_effect_time: effect_end_time,
+                                },
+                            );
 
                             for client in self.connections.iter_mut() {
                                 client.push_outgoing(ClientBoundPacket::InteractionActivate {
@@ -467,24 +507,31 @@ impl GameServer {
                                 });
                             }
 
-                            match decision.action {
-                                chariot_core::questions::AudienceAction::NoLeft => {
-                                    self.game_state.players.iter_mut().for_each(|playa| {
-                                        playa.physics_changes.push(PhysicsChange {
-                                            change_type: PhysicsChangeType::NoTurningLeft,
-                                            expiration_time: effect_end_time,
-                                        });
-                                    });
-                                }
-                                chariot_core::questions::AudienceAction::NoRight => {
-                                    self.game_state.players.iter_mut().for_each(|playa| {
-                                        playa.physics_changes.push(PhysicsChange {
-                                            change_type: PhysicsChangeType::NoTurningRight,
-                                            expiration_time: effect_end_time,
-                                        });
-                                    });
-                                }
+                            if let Some(change_type) =
+                                get_physics_change_from_audience_action(&decision.action)
+                            {
+                                let change = PhysicsChange {
+                                    change_type,
+                                    expiration_time: effect_end_time,
+                                };
+                                self.game_state.players.iter_mut().for_each(|player| {
+                                    player.physics_changes.push(change.clone());
+                                });
                             }
+
+                            for change in get_stats_changes_from_audience_action(
+                                &decision.action,
+                                effect_end_time,
+                            ) {
+                                self.game_state.players.iter_mut().for_each(|player| {
+                                    player.stats_changes.push(change.clone());
+                                })
+                            }
+
+                            handle_one_time_audience_action(
+                                &decision.action,
+                                &mut self.game_state.players,
+                            );
 
                             *voting_game_state = VotingState::VoteResultActive {
                                 decision,
@@ -523,7 +570,10 @@ impl GameServer {
 
                             GameServer::broadcast_ws(
                                 &mut self.ws_connections,
-                                WSAudienceBoundMessage::Prompt(question.clone()),
+                                WSAudienceBoundMessage::Prompt {
+                                    vote_close_time: vote_end_time,
+                                    question: question.clone(),
+                                },
                             );
                         }
                     }
@@ -579,6 +629,7 @@ impl GameServer {
         }
 
         self.update_and_sync_placement_state();
+        self.sync_sfx_state();
     }
 
     // send placement data to each client, if its changed
@@ -637,6 +688,14 @@ impl GameServer {
             .collect();
         for connection in &mut self.connections {
             connection.push_outgoing(ClientBoundPacket::EntityUpdate(updates.clone()));
+        }
+    }
+
+    fn sync_sfx_state(&mut self) {
+        for (idx, connection) in &mut self.connections.iter_mut().enumerate() {
+            for &effect in &self.game_state.players.get(idx).unwrap().sound_effects {
+                connection.push_outgoing(ClientBoundPacket::SoundEffectEvent(effect));
+            }
         }
     }
 }

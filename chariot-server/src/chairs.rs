@@ -17,7 +17,7 @@ use crate::physics::player_entity::PlayerEntity;
 
 // These numbers are completely random guesses btw
 fn get_starting_position_from_player_number(player_number: PlayerID) -> DVec3 {
-    return DVec3::new(0.0, 1.0, 20.0 * (1.5 - player_number as f64));
+    return DVec3::new(21.5 + 2.0 * (1.5 - player_number as f64), 1.0, 65.0);
 }
 
 // Get the initial physics properties of a player (i.e. at the race start, before anyone starts going)
@@ -37,10 +37,11 @@ pub fn get_player_start_physics_properties(chair: &Chair, player_number: PlayerI
             unit_upward_direction: DVec3::Y,
         },
         physics_changes: vec![],
+        stats_changes: vec![],
         current_colliders: vec![],
+        sound_effects: vec![],
         lap_info: LapInformation::new(),
         current_powerup: None,
         chair: *chair,
-        stat_modifiers: std::collections::HashMap::new(),
     };
 }

@@ -2,8 +2,6 @@ use wgpu::util::DeviceExt;
 
 use crate::renderer::Renderer;
 
-use super::Bounds;
-
 pub type IndexRange = (std::ops::Bound<u64>, std::ops::Bound<u64>);
 
 /*

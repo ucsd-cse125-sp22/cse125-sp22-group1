@@ -43,7 +43,9 @@ lazy_static! {
         (Stat::CarSpin, GLOBAL_CONFIG.car_spin),
         (Stat::MaxCarSpeed, GLOBAL_CONFIG.max_car_speed),
         (Stat::MaxCarSpin, GLOBAL_CONFIG.max_car_spin),
-        (Stat::Mass, 10.0),
+        (Stat::Mass, GLOBAL_CONFIG.gravity_coefficient),
+        (Stat::TerrainBounciness, GLOBAL_CONFIG.wall_bounciness),
+        (Stat::PlayerBounciness, GLOBAL_CONFIG.player_bounciness),
     ]
     .iter()
     .map(|(k, v)| (*k, *v))
@@ -62,6 +64,8 @@ pub enum Stat {
     MaxCarSpeed,
     MaxCarSpin,
     Mass,
+    PlayerBounciness,
+    TerrainBounciness,
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize, Debug)]
