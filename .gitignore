@@ -5,3 +5,4 @@
 .DS_Store
 tracks
 chariot-server/start-server.bat
+config.yaml
