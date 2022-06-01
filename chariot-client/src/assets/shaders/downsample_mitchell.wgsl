@@ -23,7 +23,7 @@ fn mitchell_filter(offset: vec2<i32>) -> f32
 
 [[stage(fragment)]]
 fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
-	let tc = vec2<i32>(in.xy) * 2; // 2x downsample
+	let tc = vec2<i32>(in.xy) * vec2<i32>(2, 2); // 2x downsample
 
 	let dir_axis1 = vec2<i32>(-1, 0);
 	let dir_axis2 = vec2<i32>(0, 1);

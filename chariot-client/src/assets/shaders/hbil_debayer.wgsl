@@ -12,7 +12,7 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 	let surface_sizef = vec2<f32>(surface_size);
 
 	let tc = vec2<i32>(in.xy);
-	let hibl_tc = tc * 4;
+	let hibl_tc = tc * vec2<i32>(4, 4);
 
 	// simple 4x4 average
 	var total_color = vec3<f32>(0.0, 0.0, 0.0);

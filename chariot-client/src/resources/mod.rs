@@ -512,13 +512,13 @@ impl ResourceManager {
         material: &gltf::Material,
     ) -> (MaterialHandle, BaseColorData) {
         let pbr_metallic_roughness = material.pbr_metallic_roughness();
-        let base_color_index = pbr_metallic_roughness
-            .base_color_texture()
-            .map(|info| info.texture().source().index())
-            .unwrap_or(0); //"No base color tex for material");
-        let base_color_handle = images[base_color_index];
         let (base_color_view, base_color_data) =
             if let Some(_) = pbr_metallic_roughness.base_color_texture() {
+                let base_color_index = pbr_metallic_roughness
+                    .base_color_texture()
+                    .map(|info| info.texture().source().index())
+                    .unwrap_or(0); //"No base color tex for material");
+                let base_color_handle = images[base_color_index];
                 (
                     self.textures
                         .get(&base_color_handle)
