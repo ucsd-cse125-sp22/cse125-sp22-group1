@@ -43,7 +43,7 @@ pub enum UIState {
         player_chair_images: Vec<Option<UIDrawable>>,
     },
     InGameHUD {
-        place_position_text: UIDrawable,
+        place_position_image: UIDrawable,
         game_announcement_title: UIDrawable,
         game_announcement_subtitle: UIDrawable,
         announcement_state: AnnouncementState,
@@ -208,14 +208,40 @@ impl GraphicsManager {
 
     pub fn maybe_update_place(&mut self, position: u8) {
         if let UIState::InGameHUD {
-            ref mut place_position_text,
+            ref mut place_position_image,
             ..
         } = self.ui
         {
-            *place_position_text = PLACEMENT_TEXT
-                .clone()
-                .content(Ordinal(position).to_string().as_str())
-                .build_drawable(&self.renderer, &mut self.resources);
+            let texture_name = match position {
+                1 => "1st",
+                2 => "2nd",
+                3 => "3rd",
+                4 => "4th",
+                _ => "1st",
+            };
+            let placement_handle = self.resources.import_texture_embedded(
+                &self.renderer,
+                texture_name,
+                assets::ui::PLACE_IMAGES[position as usize - 1],
+                ImageFormat::Png,
+            );
+
+            let place_position_texture = self
+                .resources
+                .textures
+                .get(&placement_handle)
+                .expect("Expected placement text image!");
+
+            *place_position_image = UIDrawable {
+                layers: vec![technique::UILayerTechnique::new(
+                    &self.renderer,
+                    glam::vec2(0.85, 0.05),
+                    glam::vec2(0.1, 0.15),
+                    glam::vec2(0.0, 0.0),
+                    glam::vec2(1.0, 1.0),
+                    &place_position_texture,
+                )],
+            };
         }
     }
 
@@ -386,9 +412,29 @@ impl GraphicsManager {
     }
 
     pub fn display_hud(&mut self) {
-        let place_position_text = PLACEMENT_TEXT
-            .clone()
-            .build_drawable(&self.renderer, &mut self.resources);
+        let place_1st_handle = self.resources.import_texture_embedded(
+            &self.renderer,
+            "1st",
+            assets::ui::PLACE_IMAGES[0],
+            ImageFormat::Png,
+        );
+
+        let place_position_texture = self
+            .resources
+            .textures
+            .get(&place_1st_handle)
+            .expect("Expected placement text image!");
+
+        let place_position_image = UIDrawable {
+            layers: vec![technique::UILayerTechnique::new(
+                &self.renderer,
+                glam::vec2(0.85, 0.05),
+                glam::vec2(0.1, 0.1),
+                glam::vec2(0.0, 0.0),
+                glam::vec2(1.0, 1.0),
+                &place_position_texture,
+            )],
+        };
 
         let game_announcement_title = ANNOUNCEMENT_TITLE
             .clone()
@@ -456,7 +502,7 @@ impl GraphicsManager {
         let minimap_ui = UIDrawable { layers: layer_vec };
 
         self.ui = UIState::InGameHUD {
-            place_position_text,
+            place_position_image,
             game_announcement_title,
             game_announcement_subtitle,
             announcement_state: AnnouncementState::None,
