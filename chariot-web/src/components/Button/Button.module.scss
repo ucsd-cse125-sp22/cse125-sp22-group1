@@ -37,7 +37,7 @@
   transition-duration: 0.1s;
 }
 
-.button:after {
+.clickable:after {
   content: "";
   display: block;
   position: absolute;
@@ -50,7 +50,7 @@
   box-shadow: 0 0 10px 40px black;
 }
 
-.button:active:after {
+.clickable:active:after {
   box-shadow: 0 0 0 0 black;
   position: absolute;
   left: 0;
@@ -59,6 +59,6 @@
   transition: 0s;
 }
 
-.button:active {
+.clickable:active {
   top: 1px;
 }

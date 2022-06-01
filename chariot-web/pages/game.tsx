@@ -16,7 +16,7 @@ const Game: NextPage = () => {
 	const context = useContext(GlobalContext);
 	const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
-	const { socket, uuid, prompt, winner } = context;
+	const { socket, uuid, prompt, winner, totalConnected } = context;
 
 	useEffect(() => {
 		if (winner !== null) {
@@ -51,7 +51,7 @@ const Game: NextPage = () => {
 		{!showStandings && prompt !== null &&
 			<div className={styles.buttonLayout}>
 				{prompt.options.map((({ label }, choice) => (
-					<Button width="100%" state={choice === winner ? 'voted' : choice === selectedIdx ? 'selected' : 'unselected'} key={choice} text={label} onClick={() => {
+					<Button width="100%" clickable={winner === null} state={choice === winner ? 'voted' : choice === selectedIdx ? 'selected' : 'unselected'} key={choice} text={label} onClick={() => {
 						if (winner === null) {
 							sendMessage(context, { Vote: [uuid, choice] })
 							setSelectedIdx(choice);
@@ -68,7 +68,7 @@ const Game: NextPage = () => {
 			<Button width="80%" text={showStandings ? "hide standings" : "see standings"} onClick={() => { setShowStandings(!showStandings) }} style='minimal' />
 			<div className={styles.liveAudience}>
 				<Image src={AudienceIcon} height="32.56" alt="audience icon" />
-				<p>999 Others Online</p>
+				<p>{totalConnected} Other{totalConnected !== 1 && 's'} Online</p>
 			</div>
 		</div>
 

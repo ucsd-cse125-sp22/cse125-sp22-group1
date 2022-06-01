@@ -24,6 +24,9 @@ export type GlobalContextType = {
 
 	standings: Standing[],
 	setStandings: React.Dispatch<React.SetStateAction<Standing[]>>;
+
+	totalConnected: number;
+	setTotalConnected: React.Dispatch<React.SetStateAction<number>>;
 };
 
 export const GlobalContext = React.createContext<GlobalContextType>(null as any);
