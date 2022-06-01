@@ -43,7 +43,7 @@ impl<T: Component> VecStorage<T> {
         self.dense.iter()
     }
 
-    pub fn iter_with_entity(
+    pub fn _iter_with_entity(
         &self,
     ) -> std::iter::Zip<std::slice::Iter<Entity>, std::slice::Iter<T>> {
         self.entities.iter().zip(self.dense.iter())

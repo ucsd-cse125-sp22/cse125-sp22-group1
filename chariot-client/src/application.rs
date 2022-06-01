@@ -1,23 +1,18 @@
 use chariot_core::sound_effect::SoundEffect;
-use gilrs::{Axis, Button, EventType};
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
 
 use std::time::SystemTime;
 
-use chariot_core::player::choices::{Chair, Track};
-
-use winit::dpi::PhysicalPosition;
-use winit::event::{ElementState, VirtualKeyCode};
+use winit::event::VirtualKeyCode;
 
 use crate::assets::audio::{get_sfx, CYBER_RECLINER, HOLD_ON_TO_YOUR_SEATS};
 use crate::audio::AudioManager;
 use chariot_core::networking::ClientBoundPacket;
-use chariot_core::player::player_inputs::{EngineStatus, InputEvent, RotationStatus};
 use chariot_core::GLOBAL_CONFIG;
 
 use crate::game::GameClient;
-use crate::graphics::{register_passes, GraphicsManager};
+use crate::graphics::GraphicsManager;
 
 use crate::audio::thread::context::AudioCtx;
 use crate::audio::thread::options::SourceOptions;
