@@ -40,3 +40,10 @@ const P2_BUTTON: &[u8] = include_bytes!("map-select/P2Btn.png");
 const P3_BUTTON: &[u8] = include_bytes!("map-select/P3Btn.png");
 const P4_BUTTON: &[u8] = include_bytes!("map-select/P4Btn.png");
 pub const PLAYER_BUTTONS: [&[u8]; 4] = [P1_BUTTON, P2_BUTTON, P3_BUTTON, P4_BUTTON];
+
+// placement
+const FIRST_PLACE: &[u8] = include_bytes!("placement/1st.png");
+const SECOND_PLACE: &[u8] = include_bytes!("placement/2nd.png");
+const THIRD_PLACE: &[u8] = include_bytes!("placement/3rd.png");
+const FOURTH_PLACE: &[u8] = include_bytes!("placement/4th.png");
+pub const PLACE_IMAGES: [&[u8]; 4] = [FIRST_PLACE, SECOND_PLACE, THIRD_PLACE, FOURTH_PLACE];

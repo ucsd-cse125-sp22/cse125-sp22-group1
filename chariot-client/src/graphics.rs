@@ -905,15 +905,15 @@ impl GraphicsManager {
                 }
             }
             UIState::InGameHUD {
-                place_position_text,
+                place_position_image,
                 game_announcement_title,
                 game_announcement_subtitle,
                 announcement_state,
                 minimap_ui,
                 timer_ui,
             } => {
-                let text_graph = place_position_text.render_graph(&render_context);
-                render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, text_graph);
+                let position_graph = place_position_image.render_graph(&render_context);
+                render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, position_graph);
 
                 if let AnnouncementState::None = announcement_state {
                 } else {
