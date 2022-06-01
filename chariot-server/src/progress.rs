@@ -24,7 +24,7 @@ impl PlayerEntity {
                 .get(checkpoint_number as usize)
                 .expect("Invalid current checkpoint number");
             let next_checkpoint = checkpoints
-                .get(checkpoint_number as usize + 1)
+                .get((checkpoint_number as usize + 1) % checkpoints.len())
                 .expect("Invalid next checkpoint number");
 
             let trackline = next_checkpoint.pos() - current_checkpoint.pos();
