@@ -41,6 +41,7 @@ impl<const NUM_ELEMS: usize> TransformUniform<NUM_ELEMS> {
     }
 }
 
+#[allow(dead_code)] // may be used in the future
 pub struct StructUniform<T> {
     pub buffer: wgpu::Buffer,
     pub bind_group: wgpu::BindGroup,
@@ -48,6 +49,7 @@ pub struct StructUniform<T> {
 }
 
 impl<T> StructUniform<T> {
+    #[allow(dead_code)]
     pub fn new(renderer: &Renderer, pass_name: &str, group: u32, init: &T) -> Self {
         let init_slice = std::slice::from_ref(init);
         let buffer = renderer
@@ -73,6 +75,7 @@ impl<T> StructUniform<T> {
         };
     }
 
+    #[allow(dead_code)]
     pub fn update(&self, renderer: &Renderer, data: &T) {
         let data_slice = std::slice::from_ref(data);
         renderer.write_buffer(&self.buffer, data_slice);

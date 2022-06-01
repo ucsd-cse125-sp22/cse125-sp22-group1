@@ -28,7 +28,7 @@ impl<'a> RenderContext<'a> {
  */
 pub trait Drawable {
     fn register(renderer: &mut Renderer);
-    fn update_once(renderer: &Renderer, context: &RenderContext) {}
+    fn update_once(_: &Renderer, _: &RenderContext) {}
     fn render_graph<'a>(&'a self, context: &RenderContext<'a>) -> render_job::RenderGraph<'a>;
 }
 
@@ -48,7 +48,6 @@ pub struct StaticMeshDrawable {
 impl StaticMeshDrawable {
     pub fn new(
         renderer: &Renderer,
-        resources: &ResourceManager,
         material: MaterialHandle,
         static_mesh: StaticMeshHandle,
         submesh_idx: usize,
@@ -61,18 +60,16 @@ impl StaticMeshDrawable {
         )];
         Self {
             shadow_draws,
-            geometry_draw: GeometryDrawTechnique::new(
-                renderer,
-                resources,
-                material,
-                static_mesh,
-                submesh_idx,
-            ),
+            geometry_draw: GeometryDrawTechnique::new(renderer, material, static_mesh, submesh_idx),
             modifiers: Default::default(),
         }
     }
 
     pub fn update_model(&self, renderer: &Renderer, model: glam::Mat4, view: glam::Mat4) {
+        for shadow_draw in self.shadow_draws.iter() {
+            shadow_draw.model_xform.update(renderer, &[model]);
+        }
+
         let normal_to_global = (view * model).inverse().transpose();
         self.geometry_draw
             .model_xforms

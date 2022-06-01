@@ -22,17 +22,10 @@ pub struct GeometryDrawTechnique {
 impl GeometryDrawTechnique {
     pub fn new(
         renderer: &Renderer,
-        resources: &ResourceManager,
         material: MaterialHandle,
         static_mesh: StaticMeshHandle,
         submesh_idx: usize,
     ) -> Self {
-        let pass_name = &resources
-            .materials
-            .get(&material)
-            .expect("invalid material handle")
-            .pass_name;
-
         Self {
             material: material,
             static_mesh: static_mesh,
@@ -62,7 +55,15 @@ impl Technique for GeometryDrawTechnique {
             ),
         );
 
-        geometry_draw_technique::VIEW_PROJ.set(TransformUniform::new(renderer, Self::PASS_NAME, 0));
+        let res = geometry_draw_technique::VIEW_PROJ.set(TransformUniform::new(
+            renderer,
+            Self::PASS_NAME,
+            0,
+        ));
+
+        if res.is_err() {
+            panic!("Can't register this technique twice!");
+        }
     }
 
     fn update_once(renderer: &Renderer, context: &RenderContext) {
@@ -104,19 +105,19 @@ impl Technique for GeometryDrawTechnique {
 pub struct SurfelGeometryDrawTechnique {
     material: MaterialHandle,
     static_mesh: StaticMeshHandle,
-    submesh_idx: usize,
     pub(super) mvp_xform: TransformUniform<3>,
 }
 
-// For debugging:
+// For debugging, not used in prod
 impl SurfelGeometryDrawTechnique {
     const FRAMEBUFFER_NAME: &'static str = "geometry_out";
+
+    #[allow(dead_code)]
     pub fn new(
         renderer: &Renderer,
         resources: &ResourceManager,
         material: MaterialHandle,
         static_mesh: StaticMeshHandle,
-        submesh_idx: usize,
     ) -> Self {
         let pass_name = &resources
             .materials
@@ -127,7 +128,6 @@ impl SurfelGeometryDrawTechnique {
         Self {
             material: material,
             static_mesh: static_mesh,
-            submesh_idx: submesh_idx,
             mvp_xform: TransformUniform::new(renderer, pass_name, 0),
         }
     }

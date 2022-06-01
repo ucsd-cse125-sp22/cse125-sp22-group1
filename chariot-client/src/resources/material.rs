@@ -43,7 +43,7 @@ enum MatResourceIdx {
 }
 
 impl MatResourceIdx {
-    fn is_fb_texture_with_alt(&self, resources: &ResourceManager) -> bool {
+    fn is_fb_texture_with_alt(&self, _: &ResourceManager) -> bool {
         if let MatResourceIdx::FbTexture(idx, alt_idx) = self {
             idx != alt_idx
         } else {
@@ -232,8 +232,8 @@ impl<'a> MaterialBuilder<'a> {
         let alt_bind_groups = self
             .bind_group_resources
             .iter()
-            .filter(|(group, resource_map)| {
-                resource_map.iter().any(|(binding, resource_idx)| {
+            .filter(|(_, resource_map)| {
+                resource_map.iter().any(|(_, resource_idx)| {
                     self.resources.is_some()
                         && resource_idx.is_fb_texture_with_alt(self.resources.unwrap())
                 })

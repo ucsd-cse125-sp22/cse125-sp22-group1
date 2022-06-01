@@ -22,11 +22,7 @@ pub struct SkyboxTechnique {
 
 impl SkyboxTechnique {
     const FRAMEBUFFER_NAME: &'static str = "shade_direct_out";
-    pub fn new(
-        renderer: &Renderer,
-        resources: &ResourceManager,
-        quad_handle: StaticMeshHandle,
-    ) -> Self {
+    pub fn new(_: &Renderer, _: &ResourceManager, quad_handle: StaticMeshHandle) -> Self {
         Self { quad_handle }
     }
 }
@@ -45,7 +41,15 @@ impl Technique for SkyboxTechnique {
             ),
         );
 
-        skybox_technique::INV_VIEW_PROJ.set(TransformUniform::new(renderer, Self::PASS_NAME, 0));
+        let res = skybox_technique::INV_VIEW_PROJ.set(TransformUniform::new(
+            renderer,
+            Self::PASS_NAME,
+            0,
+        ));
+
+        if res.is_err() {
+            panic!("Can't register this technique twice!");
+        }
     }
 
     fn update_once(renderer: &Renderer, context: &RenderContext) {

@@ -26,9 +26,6 @@ impl ShadeDirectTechnique {
         resources: &ResourceManager,
         quad_handle: StaticMeshHandle,
     ) -> Self {
-        let view_xform = TransformUniform::<2>::new(renderer, Self::PASS_NAME, 1);
-        let light_xform = TransformUniform::<1>::new(renderer, Self::PASS_NAME, 2);
-
         let material = material::MaterialBuilder::new(renderer, resources, Self::PASS_NAME)
             .framebuffer_texture_resource(0, 0, "geometry_out", 0, false)
             .framebuffer_texture_resource(0, 1, "geometry_out", 1, false)
@@ -57,11 +54,15 @@ impl Technique for ShadeDirectTechnique {
             ),
         );
 
-        shade_direct_technique::INV_VIEW_PROJ.set(TransformUniform::new(
+        let res = shade_direct_technique::INV_VIEW_PROJ.set(TransformUniform::new(
             renderer,
             Self::PASS_NAME,
             1,
         ));
+
+        if res.is_err() {
+            panic!("Can't register this technique twice!");
+        }
     }
 
     fn update_once(renderer: &Renderer, context: &RenderContext) {

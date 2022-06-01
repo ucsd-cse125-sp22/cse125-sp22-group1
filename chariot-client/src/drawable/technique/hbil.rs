@@ -11,7 +11,7 @@ use crate::resources::material::MaterialBuilder;
 use crate::resources::ResourceManager;
 use crate::resources::StaticMeshHandle;
 
-mod HBIL_technique {
+mod hbil_technique {
     use crate::drawable::util::TransformUniform;
     use once_cell::sync::OnceCell;
 
@@ -57,11 +57,16 @@ impl Technique for HBILTechnique {
             ),
         );
 
-        HBIL_technique::INV_VIEW_PROJ.set(TransformUniform::new(renderer, Self::PASS_NAME, 1));
+        let res =
+            hbil_technique::INV_VIEW_PROJ.set(TransformUniform::new(renderer, Self::PASS_NAME, 1));
+
+        if res.is_err() {
+            panic!("Can't register this technique twice!");
+        }
     }
 
     fn update_once(renderer: &Renderer, context: &RenderContext) {
-        let view_ufm = HBIL_technique::INV_VIEW_PROJ.get().unwrap();
+        let view_ufm = hbil_technique::INV_VIEW_PROJ.get().unwrap();
 
         let inv_view = context.view.inverse();
         let inv_proj = context.proj.inverse();
@@ -70,7 +75,7 @@ impl Technique for HBILTechnique {
 
     fn render_item<'a>(&'a self, context: &RenderContext<'a>) -> RenderItem<'a> {
         let static_mesh = context.resources.meshes.get(&self.quad_handle).unwrap();
-        let view_bind_group = &HBIL_technique::INV_VIEW_PROJ.get().unwrap().bind_group;
+        let view_bind_group = &hbil_technique::INV_VIEW_PROJ.get().unwrap().bind_group;
 
         let bind_groups = self
             .material

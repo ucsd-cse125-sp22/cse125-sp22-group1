@@ -31,10 +31,6 @@ impl ShadowDrawTechnique {
             model_xform: TransformUniform::new(renderer, Self::PASS_NAME, 0),
         }
     }
-
-    fn update_model_xform(&self, renderer: &Renderer, model: glam::Mat4) {
-        self.model_xform.update(renderer, &[model]);
-    }
 }
 
 impl Technique for ShadowDrawTechnique {

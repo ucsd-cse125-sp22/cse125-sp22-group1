@@ -63,7 +63,12 @@ impl Drawable for ParticleDrawable {
             ),
         );
 
-        particle_drawable::VIEW_PROJ.set(TransformUniform::new(renderer, Self::PASS_NAME, 0));
+        let res =
+            particle_drawable::VIEW_PROJ.set(TransformUniform::new(renderer, Self::PASS_NAME, 0));
+
+        if res.is_err() {
+            panic!("Can't register this technique twice!");
+        }
     }
 
     fn update_once(renderer: &Renderer, context: &RenderContext) {
