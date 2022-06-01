@@ -6,14 +6,17 @@ interface ButtonProps {
 	onClick: () => void,
 	state?: 'unselected' | 'selected' | 'voted';
 	style?: 'boxy' | 'minimal',
+	clickable?: boolean,
 	width?: string
 }
 
-export const Button: React.FC<ButtonProps> = ({ text, onClick, state = 'unselected', style = 'boxy', width }) => {
+export const Button: React.FC<ButtonProps> = ({ text, onClick, state = 'unselected', style = 'boxy', width, clickable = true }) => {
+	` ${state === 'selected' ? styles.selected : (state === 'voted' ? styles.voted : '')}`
 	return (
 		<div
 			className={
-				`${styles.button} ${style === 'boxy' ? styles.full : ""} ${state === 'selected' ? styles.selected : (state === 'voted' ? styles.voted : '')}`
+				[styles.button, ...clickable ? [styles.clickable] : [], ...style === 'boxy' ? [styles.full] : [], ...state === 'selected' ? [styles.selected] : (state === 'voted' ? [styles.voted] : [])].join(" ")
+
 			}
 			style={{
 				width

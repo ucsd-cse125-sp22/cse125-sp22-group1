@@ -114,9 +114,7 @@ impl GameServer {
                 .iter_mut()
                 .for_each(|con| con.sync_outgoing());
 
-            self.ws_connections
-                .iter_mut()
-                .for_each(|(_, con)| con.sync_outgoing());
+            self.ws_connections.retain(|_, con| con.sync_outgoing());
 
             // wait until server tick time has elapsed
             if let Some(remaining_tick_duration) =
@@ -368,7 +366,11 @@ impl GameServer {
             GamePhase::CountingDownToGameStart(countdown_end_time) => {
                 if now > *countdown_end_time {
                     println!("Go!!!");
-                    let player_placement = [0, 1, 2, 3].map(|_| LapInformation::new());
+                    let player_placement = [0, 1, 2, 3].map(|i| {
+                        let mut info = LapInformation::new();
+                        info.placement = i + 1;
+                        info
+                    });
                     // transition to playing game after countdown
                     self.game_state.phase = GamePhase::PlayingGame {
                         // start off with 10 seconds of vote free gameplay
@@ -485,14 +487,17 @@ impl GameServer {
                                 .map(|(vote, _c)| vote)
                                 .unwrap_or(&&mut (0));
 
-                            GameServer::broadcast_ws(
-                                &mut self.ws_connections,
-                                WSAudienceBoundMessage::Winner(winner),
-                            );
-
                             let decision = current_question.options[winner].clone();
                             let time_effect_is_live = Duration::new(30, 0);
                             let effect_end_time = now + time_effect_is_live;
+
+                            GameServer::broadcast_ws(
+                                &mut self.ws_connections,
+                                WSAudienceBoundMessage::Winner {
+                                    choice: winner,
+                                    vote_effect_time: effect_end_time,
+                                },
+                            );
 
                             for client in self.connections.iter_mut() {
                                 client.push_outgoing(ClientBoundPacket::InteractionActivate {
@@ -565,7 +570,10 @@ impl GameServer {
 
                             GameServer::broadcast_ws(
                                 &mut self.ws_connections,
-                                WSAudienceBoundMessage::Prompt(question.clone()),
+                                WSAudienceBoundMessage::Prompt {
+                                    vote_close_time: vote_end_time,
+                                    question: question.clone(),
+                                },
                             );
                         }
                     }

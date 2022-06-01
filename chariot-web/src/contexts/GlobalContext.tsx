@@ -24,6 +24,12 @@ export type GlobalContextType = {
 
 	standings: Standing[],
 	setStandings: React.Dispatch<React.SetStateAction<Standing[]>>;
+
+	totalConnected: number;
+	setTotalConnected: React.Dispatch<React.SetStateAction<number>>;
+
+	countdownTime: Date | null;
+	setCountdownTime: React.Dispatch<React.SetStateAction<Date | null>>;
 };
 
 export const GlobalContext = React.createContext<GlobalContextType>(null as any);
