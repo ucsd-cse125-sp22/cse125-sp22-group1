@@ -33,11 +33,11 @@ const Home: NextPage = () => {
 	}
 
 	return (
-		<>
+		<div className={styles.container}>
 			<Button text='Join Game' onClick={() => {
 				connectToWebSocket();
 			}} />
-		</>
+		</div>
 	)
 }
 

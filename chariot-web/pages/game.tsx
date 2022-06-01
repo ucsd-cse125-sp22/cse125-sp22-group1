@@ -7,9 +7,11 @@ import Standings from "../src/components/Standings";
 import { GlobalContext } from "../src/contexts/GlobalContext";
 import { handleSocket, sendMessage } from "../src/utils/networking";
 import styles from './Game.module.scss';
+import AudienceIcon from '../src/assets/Audience.png'
+import Image from 'next/image';
 
 const Game: NextPage = () => {
-	const [showStandings, setShowStandings] = useState(false);
+	const [showStandings, setShowStandings] = useState(true);
 	const router = useRouter();
 	const context = useContext(GlobalContext);
 	const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
@@ -42,12 +44,14 @@ const Game: NextPage = () => {
 		handleSocket(context, msg);
 	}
 
-	return (<>
-		<br />
+	return (<div className={styles.container}>
+		<div className={styles.blockText}>
+			<p>{showStandings ? "Standings" : "Time Left: 10"}</p>
+		</div>
 		{!showStandings && prompt !== null &&
 			<div className={styles.buttonLayout}>
 				{prompt.options.map((({ label }, choice) => (
-					<Button state={choice === winner ? 'voted' : choice === selectedIdx ? 'selected' : 'unselected'} key={choice} text={label} onClick={() => {
+					<Button width="100%" state={choice === winner ? 'voted' : choice === selectedIdx ? 'selected' : 'unselected'} key={choice} text={label} onClick={() => {
 						if (winner === null) {
 							sendMessage(context, { Vote: [uuid, choice] })
 							setSelectedIdx(choice);
@@ -62,9 +66,13 @@ const Game: NextPage = () => {
 
 		<div className={styles.standingsButton}>
 			<Button width="80%" text={showStandings ? "hide standings" : "see standings"} onClick={() => { setShowStandings(!showStandings) }} style='minimal' />
+			<div className={styles.liveAudience}>
+				<Image src={AudienceIcon} height="32.56" alt="audience icon" />
+				<p>999 Others Online</p>
+			</div>
 		</div>
 
-	</>)
+	</div>)
 }
 
 export default Game;

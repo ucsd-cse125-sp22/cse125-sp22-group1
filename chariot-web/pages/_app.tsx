@@ -49,25 +49,29 @@ function MyApp({ Component, pageProps }: AppProps) {
 			standings,
 			setStandings
 		}}>
-			<div className={styles.main} style={{ backgroundImage: `url(${BG.src})` }}>
-				<div className={styles.header}>
-					<div className={styles.headerImage}>
-						<Image alt="Chairot" src={Logo} height="200" width={`${ratio * 200}`} />
-					</div>
-					<NoSsr>
-						<div className={styles.headerText}>
-							<Typewriter options={{
-								strings: displayStatusMessage ? statusMessage : funnyPhrases,
-								autoStart: true,
-								loop: !displayStatusMessage,
-								delay: 60,
-							}
-							} />
+			<div className={styles.backgroundImage} style={{ backgroundImage: `url(${BG.src})` }}>
+				<div className={styles.main}>
+					<div className={styles.header}>
+						<div className={styles.headerImage}>
+							<Image alt="Chairot" src={Logo} />
 						</div>
-					</NoSsr>
-				</div>
-				<div className={styles.rest}>
-					<Component {...pageProps} />
+						<NoSsr>
+							<div className={styles.headerContainer}>
+								<div className={styles.headerText}>
+									<Typewriter options={{
+										strings: displayStatusMessage ? statusMessage : funnyPhrases,
+										autoStart: true,
+										loop: !displayStatusMessage,
+										delay: 60,
+									}
+									} />
+								</div>
+							</div>
+						</NoSsr>
+					</div>
+					<div className={styles.rest}>
+						<Component {...pageProps} />
+					</div>
 				</div>
 			</div>
 		</GlobalContext.Provider>
