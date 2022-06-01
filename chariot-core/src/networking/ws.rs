@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Error;
-use std::collections::VecDeque;
 use std::net::TcpStream;
+use std::{collections::VecDeque, time::Instant};
 pub use tungstenite::{accept, Message, WebSocket};
 pub use uuid::Uuid;
 
@@ -17,14 +17,25 @@ pub struct Standing {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub enum WSAudienceBoundMessage {
-    Prompt(QuestionData), // QuestionData, Time Until Vote Close
+    Prompt {
+        question: QuestionData,
+        #[serde(with = "serde_millis")]
+        vote_close_time: Instant,
+    }, // QuestionData, Time Until Vote Close
 
-    Winner(usize), // The winning choice (tuple index)
+    Winner {
+        choice: usize,
+        #[serde(with = "serde_millis")]
+        vote_effect_time: Instant,
+    }, // The winning choice (tuple index)
 
     Assignment(Uuid), // Sends a uuid that the server will use to identify the client
 
     Standings([Standing; 4]),
-
+    Countdown {
+        #[serde(with = "serde_millis")]
+        time: Instant,
+    },
     AudienceCount(usize), // The number of connections to the audience
 }
 

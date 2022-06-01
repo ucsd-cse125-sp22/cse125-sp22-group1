@@ -476,14 +476,17 @@ impl GameServer {
                                 .map(|(vote, _c)| vote)
                                 .unwrap_or(&&mut (0));
 
-                            GameServer::broadcast_ws(
-                                &mut self.ws_connections,
-                                WSAudienceBoundMessage::Winner(winner),
-                            );
-
                             let decision = current_question.options[winner].clone();
                             let time_effect_is_live = Duration::new(30, 0);
                             let effect_end_time = now + time_effect_is_live;
+
+                            GameServer::broadcast_ws(
+                                &mut self.ws_connections,
+                                WSAudienceBoundMessage::Winner {
+                                    choice: winner,
+                                    vote_effect_time: effect_end_time,
+                                },
+                            );
 
                             for client in self.connections.iter_mut() {
                                 client.push_outgoing(ClientBoundPacket::InteractionActivate {
@@ -556,7 +559,10 @@ impl GameServer {
 
                             GameServer::broadcast_ws(
                                 &mut self.ws_connections,
-                                WSAudienceBoundMessage::Prompt(question.clone()),
+                                WSAudienceBoundMessage::Prompt {
+                                    vote_close_time: vote_end_time,
+                                    question: question.clone(),
+                                },
                             );
                         }
                     }

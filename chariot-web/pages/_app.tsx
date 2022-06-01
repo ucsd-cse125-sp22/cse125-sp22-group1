@@ -20,6 +20,7 @@ function MyApp({ Component, pageProps }: AppProps) {
 	const [winner, setWinner] = useState<number | null>(null);
 	const [standings, setStandings] = useState<Standing[]>([]);
 	const [totalConnected, setTotalConnected] = useState(1);
+	const [countdownTime, setCountdownTime] = useState<Date | null>(null);
 
 	const funnyPhrases = ["I prefer folding",
 		"Hold onto your seats",
@@ -50,7 +51,9 @@ function MyApp({ Component, pageProps }: AppProps) {
 			standings,
 			setStandings,
 			totalConnected,
-			setTotalConnected
+			setTotalConnected,
+			countdownTime,
+			setCountdownTime
 		}}>
 			<div className={styles.backgroundImage} style={{ backgroundImage: `url(${BG.src})` }}>
 				<div className={styles.main}>

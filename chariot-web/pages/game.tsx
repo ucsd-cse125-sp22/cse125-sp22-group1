@@ -16,7 +16,7 @@ const Game: NextPage = () => {
 	const context = useContext(GlobalContext);
 	const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
-	const { socket, uuid, prompt, winner, totalConnected } = context;
+	const { socket, uuid, prompt, winner, totalConnected, countdownTime, gameState } = context;
 
 	useEffect(() => {
 		if (winner !== null) {
@@ -44,9 +44,12 @@ const Game: NextPage = () => {
 		handleSocket(context, msg);
 	}
 
+	const timeLeft = countdownTime ? countdownTime.getSeconds() - new Date().getSeconds() : -1;
+	const timeLeftText = gameState === 'voting' ? `Voting ends in ${timeLeft}s` : `${timeLeft}s until next vote`
+
 	return (<div className={styles.container}>
 		<div className={styles.blockText}>
-			<p>{showStandings ? "Standings" : "Time Left: 10"}</p>
+			<p>{showStandings ? "Standings" : (timeLeft >= 0) ? timeLeftText : "Waiting for Next Vote"}</p>
 		</div>
 		{!showStandings && prompt !== null &&
 			<div className={styles.buttonLayout}>

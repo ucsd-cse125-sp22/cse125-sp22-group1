@@ -81,12 +81,23 @@ impl GameServer {
                 )));
 
                 if let VotingState::WaitingForVotes {
-                    current_question, ..
+                    current_question,
+                    vote_close_time,
+                    ..
                 } = voting_game_state
                 {
-                    conn.push_outgoing_message(WSAudienceBoundMessage::Prompt(
-                        current_question.clone(),
-                    ))
+                    conn.push_outgoing_message(WSAudienceBoundMessage::Prompt {
+                        question: current_question.clone(),
+                        vote_close_time: vote_close_time.clone(),
+                    })
+                } else if let VotingState::VoteResultActive {
+                    decision,
+                    decision_end_time,
+                } = voting_game_state
+                {
+                    conn.push_outgoing_message(WSAudienceBoundMessage::Countdown {
+                        time: decision_end_time.clone(),
+                    });
                 }
             } else {
                 conn.push_outgoing_message(WSAudienceBoundMessage::Standings([0, 1, 2, 3].map(
