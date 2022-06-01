@@ -33,7 +33,6 @@ pub struct Application {
     pub graphics: GraphicsManager,
     pub game: GameClient,
     pub pressed_keys: HashSet<VirtualKeyCode>,
-    mouse_pos: PhysicalPosition<f64>,
     last_update: SystemTime,
     game_start_time: SystemTime,
 }
@@ -61,7 +60,6 @@ impl Application {
             graphics: graphics_manager,
             game,
             pressed_keys: HashSet::new(),
-            mouse_pos: PhysicalPosition::<f64> { x: -1.0, y: -1.0 },
             game_start_time: SystemTime::now(),
             last_update: SystemTime::now(),
         }
@@ -353,25 +351,6 @@ impl Application {
         if let Some(event) = self.invert_event(self.get_input_event(key)) {
             self.game.send_input_event(event);
         };
-    }
-
-    pub fn on_mouse_move(&mut self, x: f64, y: f64) {
-        self.mouse_pos.x = x;
-        self.mouse_pos.y = y;
-    }
-
-    pub fn on_left_mouse(&mut self, state: ElementState) {
-        let x = self.mouse_pos.x;
-        let y = self.mouse_pos.y;
-    }
-
-    pub fn on_right_mouse(&mut self, state: ElementState) {
-        let _x = self.mouse_pos.x;
-        let _y = self.mouse_pos.y;
-
-        if let ElementState::Released = state {
-            // println!("Mouse right clicked @ ({}, {})!", x, y);
-        }
     }
 
     pub fn _print_keys(&self) {
