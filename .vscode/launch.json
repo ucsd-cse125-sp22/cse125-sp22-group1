@@ -9,9 +9,7 @@
 			"request": "launch",
 			"name": "Debug",
 			"program": "${workspaceFolder}/chariot-client/target/debug/chariot-client.exe",
-			"args": [
-				" d"
-			],
+			"args": [],
 			"cwd": "${workspaceFolder}"
 		}
 	]

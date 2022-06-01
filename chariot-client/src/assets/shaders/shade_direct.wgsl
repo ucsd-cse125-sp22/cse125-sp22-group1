@@ -147,7 +147,7 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 	//let world_pos = world_pos_from_depth(tcn, depth);
 	let light_pos = world_pos_to_light_pos(world_pos);
 	
-	var light_depth: f32 = 100.0;
+	var light_depth: f32 = 1000.0;
 	if (light_pos.x > 0.0 && light_pos.x < 1.0 && light_pos.y > 0.0 && light_pos.y < 1.0) {
 		light_depth = textureLoad(t_shadow, vec2<i32>(light_pos.xy * shadow_sizef), 0).r;
 	}

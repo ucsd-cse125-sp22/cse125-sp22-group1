@@ -38,7 +38,6 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 
 	let alpha = blur_color.a;
 	let alpha_out = alpha + color.a * (1.0 - alpha);
-	//let color_out = vec4<f32>((1.0 - alpha) * color.rgb + alpha * blur_color.rgb, alpha_out);
 
 	let hibl_tc = tc;
 	let hibl_tcn = vec2<f32>(hibl_tc) / (4.0 * surface_sizef);

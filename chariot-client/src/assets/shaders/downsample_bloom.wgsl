@@ -20,21 +20,20 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 
 	let tc = vec2<f32>(in.xy) * 2.0 / surface_sizef;
 	let pixel_size = 1.0 / surface_sizef;
-	//let color = textureLoad(t_color, tc, 0);
-	
-	var out_color: vec3<f32>;
-    var color = vec3<f32>(0.0, 0.0, 0.0);
 
-    // 4 central samples
-    color = color + textureSample(t_color, s_color, tc + pixel_size * vec2<f32>(-1.0, 1.0)).rgb;
+	var out_color: vec3<f32>;
+	var color = vec3<f32>(0.0, 0.0, 0.0);
+
+	// 4 central samples
+	color = color + textureSample(t_color, s_color, tc + pixel_size * vec2<f32>(-1.0, 1.0)).rgb;
 	color = color + textureSample(t_color, s_color, tc + pixel_size * vec2<f32>(1.0, 1.0)).rgb;
 	color = color + textureSample(t_color, s_color, tc + pixel_size * vec2<f32>(-1.0, -1.0)).rgb;
 	color = color + textureSample(t_color, s_color, tc + pixel_size * vec2<f32>(1.0, -1.0)).rgb;
 
-    out_color = (color / 4.0) * 0.5;
+	out_color = (color / 4.0) * 0.5;
 
-    // 3 row samples
-    color = vec3<f32>(0.0, 0.0, 0.0);
+	// 3 row samples
+	color = vec3<f32>(0.0, 0.0, 0.0);
 
 	color = color + textureSample(t_color, s_color, tc + pixel_size * vec2<f32>(-2.0, 2.0)).rgb;
 	color = color + textureSample(t_color, s_color, tc + pixel_size * vec2<f32>(0.0, 2.0)).rgb;
@@ -47,17 +46,17 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 	color = color + textureSample(t_color, s_color, tc + pixel_size * vec2<f32>(-2.0, -2.0)).rgb;
 	color = color + textureSample(t_color, s_color, tc + pixel_size * vec2<f32>(0.0, 2.0)).rgb;
 	color = color + textureSample(t_color, s_color, tc + pixel_size * vec2<f32>(2.0, -2.0)).rgb;
-    
-    out_color = out_color + (color / 9.0) * 0.5;
 
-    // Threshold
+	out_color = out_color + (color / 9.0) * 0.5;
+
+	// Threshold
 	let threshold_level = 1.8;
 	let threshold_range = 1.0;
 
-    let luminance = dot(out_color, vec3<f32>(1.0, 1.0, 1.0));
-    let threshold_scale = clamp((luminance - threshold_level) / threshold_range, 0.0, 1.0);
+	let luminance = dot(out_color, vec3<f32>(1.0, 1.0, 1.0));
+	let threshold_scale = clamp((luminance - threshold_level) / threshold_range, 0.0, 1.0);
 
-    out_color = out_color * threshold_scale;
+	out_color = out_color * threshold_scale;
 
 	return vec4<f32>(out_color, 1.0);
 }

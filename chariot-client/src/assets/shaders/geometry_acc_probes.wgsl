@@ -33,7 +33,6 @@ fn oct_wrap(v: vec2<f32>) -> vec2<f32>
 	}
 
 	return res;
-    //return (1.0 - abs(v.yx)) * sign(v.xy);
 }
 
 // outputs in (-1, 1)
