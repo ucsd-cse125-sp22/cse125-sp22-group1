@@ -13,7 +13,7 @@ use std::f64::consts::PI;
 use std::time::Duration;
 
 use crate::drawable::particle::ParticleDrawable;
-use crate::drawable::technique::Technique;
+use crate::drawable::technique::{Technique, UILayerTechnique};
 use crate::drawable::*;
 use crate::renderer::*;
 use crate::resources::*;
@@ -92,6 +92,7 @@ pub struct GraphicsManager {
     fire_particle_system: ParticleSystem<0>,
     smoke_particle_system: ParticleSystem<1>,
     camera_entity: Entity,
+    pub test_ui: UIDrawable,
 }
 
 impl GraphicsManager {
@@ -187,6 +188,7 @@ impl GraphicsManager {
             fire_particle_system,
             smoke_particle_system,
             camera_entity: NULL_ENTITY,
+            test_ui: UIDrawable { layers: vec![] },
         }
     }
 
@@ -204,6 +206,26 @@ impl GraphicsManager {
                 distance: 3.0,
             })
             .build();
+
+        let t_handle = self.resources.import_texture_embedded(
+            &self.renderer,
+            "box.png",
+            assets::ui::WHITE_TEXTURE,
+            ImageFormat::Png,
+        );
+
+        let tex = self.resources.textures.get(&t_handle).unwrap();
+
+        let a_box = UILayerTechnique::new(
+            &self.renderer,
+            glam::vec2(0.0, 0.0),
+            glam::vec2(1.0, 1.0),
+            glam::vec2(0.0, 0.0),
+            glam::vec2(1.0, 1.0),
+            tex,
+        );
+
+        self.test_ui.layers.push(a_box);
     }
 
     pub fn setup_world(&mut self, map: Track) -> World {
@@ -645,6 +667,10 @@ impl GraphicsManager {
                 render_job.merge_graph_after("postprocess", ui_graph);
             }
         }
+
+        // TODO this is temp testing
+        let test_graph = self.test_ui.render_graph(&self.resources);
+        render_job.merge_graph_after("postprocess", test_graph);
 
         self.renderer.render(&render_job);
     }

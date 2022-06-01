@@ -12,8 +12,15 @@ fn vs_main([[location(0)]] position: vec2<f32>, [[location(1)]] tex_coords: vec2
     return out;
 }
 
+struct colorHolder {
+    [[location(0)]] col: vec4<f32>;
+};
+
 [[group(0), binding(0)]]
 var texture: texture_2d<f32>;
+
+[[group(0), binding(1)]]
+var<uniform> color: colorHolder;
 
 [[stage(fragment)]]
 fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
@@ -21,7 +28,7 @@ fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
 	let diffuse_sizef = vec2<f32>(diffuse_size);
 	let tc = vec2<i32>(in.tex_coords * diffuse_sizef);
 
-	let color = textureLoad(texture, tc, 0);
+	let color = color.col;
 
 	return color;
 }

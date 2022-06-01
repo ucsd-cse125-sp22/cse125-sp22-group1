@@ -338,6 +338,17 @@ impl UILayerTechnique {
                 0,
                 texture.create_view(&wgpu::TextureViewDescriptor::default()),
             )
+            .buffer_resource(
+                0,
+                1,
+                renderer
+                    .device
+                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("ui_color"),
+                        contents: bytemuck::cast_slice(&[10.0, 0.0, .0, 1.0]),
+                        usage: wgpu::BufferUsages::UNIFORM,
+                    }),
+            )
             .produce();
 
         Self {

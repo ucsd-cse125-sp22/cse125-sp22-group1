@@ -40,3 +40,6 @@ const P2_BUTTON: &[u8] = include_bytes!("map-select/P2Btn.png");
 const P3_BUTTON: &[u8] = include_bytes!("map-select/P3Btn.png");
 const P4_BUTTON: &[u8] = include_bytes!("map-select/P4Btn.png");
 pub const PLAYER_BUTTONS: [&[u8]; 4] = [P1_BUTTON, P2_BUTTON, P3_BUTTON, P4_BUTTON];
+
+// blank ui helper
+pub const WHITE_TEXTURE: &[u8] = include_bytes!("box.png");
