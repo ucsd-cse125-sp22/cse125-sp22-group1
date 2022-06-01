@@ -91,6 +91,26 @@ fn linear_to_srgb_color(x: vec3<f32>) -> vec3<f32> {
 	);
 }
 
+fn oct_decode(f: vec2<f32>) -> vec3<f32> {
+    // https://twitter.com/Stubbesaurus/status/937994790553227264
+    var n = vec3<f32>(f.x, f.y, 1.0 - abs(f.x) - abs(f.y));
+    let t = clamp(-n.z, 0.0, 1.0);
+
+	if (n.x >= 0.0) {
+		n.x = n.x - t;
+	} else {
+		n.x = n.x + t;
+	}
+
+	if (n.y >= 0.0) {
+		n.y = n.y - t;
+	} else {
+		n.y = n.y + t;
+	}
+
+    return normalize(n);
+}
+
 [[stage(fragment)]]
 fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 	let surface_size = textureDimensions(t_depth);
@@ -104,14 +124,22 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 
 	let tc_shadow = vec2<i32>(tcn * shadow_sizef);
 
-	let light_dir = vec3<f32>(-0.5, -1.0, 0.5);
-	let world_normal = textureLoad(t_normal, tc, 0).xyz * 2.0 - 1.0;
+	let light_dir = normalize(vec3<f32>(-1.0, -0.5, 0.0)); //vec3<f32>(-0.5, -1.0, 0.5);
+	let oct_normal_matid = textureLoad(t_normal, tc, 0).xyz;
+	let mat_id = oct_normal_matid.z;
+	let oct_normal = oct_normal_matid.xy * 2.0 - 1.0;
+	let view_normal = oct_decode(oct_normal);
+	let world_normal = normalize((view.inv_view * vec4<f32>(view_normal, 0.0)).xyz);
 
 	//let world_normal = normalize((view.normal_to_world * vec4<f32>(local_normal, 0.0)).xyz);
 	let color_alpha = textureLoad(t_color, tc, 0);
 	let color = linear_to_srgb_color(color_alpha.rgb);
 	//let color = textureLoad(t_color, tc, 0).rgb;
-	let diffuse = max(dot(world_normal, -light_dir), 0.0);
+	var diffuse = max(dot(world_normal, -light_dir), 0.0);
+	if (mat_id > 0.1) {
+		diffuse = 1.0;
+	}
+
 
 	let depth = textureLoad(t_depth, tc, 0).r;
 	let view_pos = view_pos_from_depth(tcn, depth);
@@ -125,14 +153,23 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 	}
 	
 	var shadow = 1.0; 
-	if (light_pos.z > light_depth - 0.00004) {
+	if (light_pos.z > light_depth - 0.00004 && mat_id < 0.5) {
 		shadow = 0.0; 
 	}
 
 	let light_color = vec3<f32>(1.0, 0.584, 0.521);
 	let ambient_color = vec3<f32>(0.39, 0.57, 1.0);
-	let ambient = vec3<f32>(0.06);
+	let fog_color = vec3<f32>(1.0, 0.384, 0.221) * 0.8;
+
+	var fog_factor = exp(-0.004 * length(view_pos));
+	if (mat_id > 0.5) {
+		fog_factor = 1.0;
+	}
+
+	let ambient = vec3<f32>(0.1);
 	let shaded = (shadow * diffuse * light_color + ambient * ambient_color) * color;
 
-	return vec4<f32>(shaded * 0.7, color_alpha.a);
+	let fog_shaded = fog_factor * shaded + (1.0 - fog_factor) * fog_color;
+
+	return vec4<f32>(fog_shaded * 0.7, color_alpha.a);
 }

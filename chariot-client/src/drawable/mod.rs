@@ -73,8 +73,8 @@ impl StaticMeshDrawable {
         }
     }
 
-    pub fn update_model(&self, renderer: &Renderer, model: glam::Mat4) {
-        let normal_to_global = model.inverse().transpose();
+    pub fn update_model(&self, renderer: &Renderer, model: glam::Mat4, view: glam::Mat4) {
+        let normal_to_global = (view * model).inverse().transpose();
         self.geometry_draw
             .model_xforms
             .update(renderer, &[model, normal_to_global]);

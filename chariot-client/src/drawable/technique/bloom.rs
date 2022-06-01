@@ -38,7 +38,7 @@ impl DownsampleBloomTechnique {
         });
 
         let material = MaterialBuilder::new(renderer, resources, Self::PASS_NAME)
-            .framebuffer_texture_resource(0, 0, "composite_particles_out_0_ds", 0, false)
+            .framebuffer_texture_resource(0, 0, "shade_direct_out_0_ds", 0, false)
             .sampler_resource(0, 1, sampler)
             .produce();
 
@@ -232,9 +232,10 @@ impl CompositeBloomTechnique {
         });
 
         let material = MaterialBuilder::new(renderer, resources, Self::PASS_NAME)
-            .framebuffer_texture_resource(0, 0, "composite_particles_out", 0, false)
+            .framebuffer_texture_resource(0, 0, "shade_direct_out", 0, false)
             .framebuffer_texture_resource(0, 1, "kawase_blur_up_out", 0, false)
-            .sampler_resource(0, 2, sampler)
+            .framebuffer_texture_resource(0, 2, "hibl_debayer_out", 0, false)
+            .sampler_resource(0, 3, sampler)
             .produce();
 
         Self {

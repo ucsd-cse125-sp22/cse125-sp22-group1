@@ -25,8 +25,8 @@ pub struct ParticleDrawable {
 }
 
 impl ParticleDrawable {
-    const PASS_NAME: &'static str = "particle";
-    const FRAMEBUFFER_NAME: &'static str = "particles_out";
+    pub const PASS_NAME: &'static str = "particle";
+    const FRAMEBUFFER_NAME: &'static str = "geometry_out";
     pub fn new(
         renderer: &Renderer,
         static_mesh_handle: StaticMeshHandle,
@@ -50,11 +50,17 @@ impl Drawable for ParticleDrawable {
     fn register(renderer: &mut Renderer) {
         renderer.register_pass(
             Self::PASS_NAME,
-            &util::indirect_graphics_nodepth_pass!(
+            &util::indirect_graphics_depth_pass!(
                 GLOBAL_CONFIG.get_shader_file_path("particle.wgsl"),
-                true,
-                [wgpu::TextureFormat::Rgba8Unorm],
-                [Some(wgpu::BlendState::ALPHA_BLENDING)]
+                false,
+                [
+                    wgpu::TextureFormat::Rgba16Float,
+                    wgpu::TextureFormat::Rgba8Unorm
+                ],
+                [
+                    Some(wgpu::BlendState::ALPHA_BLENDING),
+                    Some(wgpu::BlendState::ALPHA_BLENDING)
+                ]
             ),
         );
 

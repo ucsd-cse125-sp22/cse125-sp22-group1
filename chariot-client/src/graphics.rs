@@ -13,6 +13,9 @@ use crate::drawable::technique::CompositeBloomTechnique;
 use crate::drawable::technique::CompositeParticlesTechnique;
 use crate::drawable::technique::DownsampleBloomTechnique;
 use crate::drawable::technique::DownsampleTechnique;
+use crate::drawable::technique::GeometryDrawTechnique;
+use crate::drawable::technique::HIBLDebayerTechnique;
+use crate::drawable::technique::HIBLTechnique;
 use crate::drawable::technique::KawaseBlurDownTechnique;
 use crate::drawable::technique::KawaseBlurUpTechnique;
 use crate::drawable::technique::ShadeDirectTechnique;
@@ -38,11 +41,12 @@ pub fn register_passes(renderer: &mut Renderer) {
     ParticleDrawable::register(renderer);
 
     ShadeDirectTechnique::register(renderer);
-
     SkyboxTechnique::register(renderer);
-    CompositeParticlesTechnique::register(renderer);
 
     DownsampleTechnique::register(renderer);
+
+    HIBLTechnique::register(renderer);
+    HIBLDebayerTechnique::register(renderer);
 
     DownsampleBloomTechnique::register(renderer);
     KawaseBlurDownTechnique::register(renderer);
@@ -116,8 +120,9 @@ pub struct GraphicsManager {
     pub player_entities: [Option<Entity>; 4],
     shade_direct: technique::ShadeDirectTechnique,
     skybox: technique::SkyboxTechnique,
-    composite_particles: technique::CompositeParticlesTechnique,
     downsample: technique::DownsampleTechnique,
+    hibl: technique::HIBLTechnique,
+    hibl_debayer: technique::HIBLDebayerTechnique,
     downsample_bloom: technique::DownsampleBloomTechnique,
     kawase_blur_down: technique::KawaseBlurDownTechnique,
     kawase_blur_up: technique::KawaseBlurUpTechnique,
@@ -136,13 +141,6 @@ impl GraphicsManager {
         let mut resources = ResourceManager::new();
 
         register_passes(&mut renderer);
-
-        let sky_color = wgpu::Color {
-            r: 0.517,
-            g: 0.780,
-            b: 0.980,
-            a: 1.0,
-        };
 
         resources.register_depth_surface_framebuffer(
             "geometry_out",
@@ -193,23 +191,31 @@ impl GraphicsManager {
             false,
         );
 
-        resources.register_surface_framebuffer(
-            "composite_particles_out",
-            &mut renderer,
-            &[wgpu::TextureFormat::Rgba16Float],
-            Some(wgpu::Color::TRANSPARENT),
-            false,
-        );
-
         let surface_size = renderer.surface_size();
         let downsample2_size =
             winit::dpi::PhysicalSize::<u32>::new(surface_size.width / 2, surface_size.height / 2);
 
         resources.register_framebuffer(
-            "composite_particles_out_0_ds",
+            "shade_direct_out_0_ds",
             &mut renderer,
             downsample2_size,
             &[wgpu::TextureFormat::Rgba16Float],
+            Some(wgpu::Color::TRANSPARENT),
+            false,
+        );
+
+        resources.register_surface_framebuffer(
+            "hibl_out",
+            &mut renderer,
+            &[wgpu::TextureFormat::Rgba8Unorm],
+            Some(wgpu::Color::TRANSPARENT),
+            false,
+        );
+
+        resources.register_surface_framebuffer(
+            "hibl_debayer_out",
+            &mut renderer,
+            &[wgpu::TextureFormat::Rgba8Unorm],
             Some(wgpu::Color::TRANSPARENT),
             false,
         );
@@ -299,15 +305,15 @@ impl GraphicsManager {
         let world = setup_void();
         let shade_direct = technique::ShadeDirectTechnique::new(&renderer, &resources, quad_handle);
         let skybox = technique::SkyboxTechnique::new(&renderer, &resources, quad_handle);
-        let composite_particles =
-            technique::CompositeParticlesTechnique::new(&renderer, &resources, quad_handle);
         let downsample = technique::DownsampleTechnique::new(
             &renderer,
             &resources,
-            "composite_particles_out",
+            "shade_direct_out",
             0,
             quad_handle,
         );
+        let hibl = technique::HIBLTechnique::new(&renderer, &resources, quad_handle);
+        let hibl_debayer = technique::HIBLDebayerTechnique::new(&renderer, &resources, quad_handle);
         let downsample_bloom =
             technique::DownsampleBloomTechnique::new(&renderer, &resources, quad_handle);
         let kawase_blur_down =
@@ -335,8 +341,9 @@ impl GraphicsManager {
             iteration: 0,
             shade_direct,
             skybox,
-            composite_particles,
             downsample,
+            hibl,
+            hibl_debayer,
             downsample_bloom,
             kawase_blur_down,
             kawase_blur_up,
@@ -401,7 +408,7 @@ impl GraphicsManager {
                 .builder()
                 .attach(world_root)
                 .with(Light::new_directional(
-                    glam::vec3(-0.5, -1.0, 0.5),
+                    glam::vec3(-1.0, -0.5, 0.0),
                     scene_bounds,
                 ))
                 .with(Transform::default())
@@ -762,6 +769,7 @@ impl GraphicsManager {
         ParticleDrawable::update_once(&self.renderer, &render_context);
         ShadeDirectTechnique::update_once(&self.renderer, &render_context);
         SkyboxTechnique::update_once(&self.renderer, &render_context);
+        HIBLTechnique::update_once(&self.renderer, &render_context);
 
         let mut render_job = render_job::RenderJob::default();
         self.world.dfs_acc(self.world.root(), root_xform, |e, acc| {
@@ -794,7 +802,7 @@ impl GraphicsManager {
                             .to_mat4();
                     }
 
-                    drawable.update_model(&self.renderer, acc_model);
+                    drawable.update_model(&self.renderer, acc_model, view);
                     let render_graph = drawable.render_graph(&render_context);
                     render_job.merge_graph(render_graph);
                 }
@@ -821,47 +829,56 @@ impl GraphicsManager {
                 }
 
                 let graph = drawable.render_graph(&render_context);
-                render_job.merge_graph(graph);
+                //render_job.merge_graph(graph);
             }
 
             acc_model
         });
 
-        let shade_direct_graph = self.shade_direct.render_item(&render_context).to_graph();
-        render_job.merge_graph_after("geometry", shade_direct_graph);
+        if let Some(drawables) = self.world.storage::<Option<ParticleDrawable>>() {
+            for maybe_drawable in drawables.iter() {
+                if let Some(drawable) = maybe_drawable {
+                    let graph = drawable.render_graph(&render_context);
+                    render_job.merge_graph_after(GeometryDrawTechnique::PASS_NAME, graph);
+                }
+            }
+        }
 
         let skybox_graph = self.skybox.render_item(&render_context).to_graph();
-        render_job.merge_graph_after("shade_direct", skybox_graph);
+        render_job.merge_graph_after(ParticleDrawable::PASS_NAME, skybox_graph);
 
-        let composite_graph = self
-            .composite_particles
-            .render_item(&render_context)
-            .to_graph();
-        render_job.merge_graph_after("skybox", composite_graph);
+        let shade_direct_graph = self.shade_direct.render_item(&render_context).to_graph();
+        render_job.merge_graph_after(SkyboxTechnique::PASS_NAME, shade_direct_graph);
 
         let downsample_graph = self.downsample.render_item(&render_context).to_graph();
-        render_job.merge_graph_after("composite_particles", downsample_graph);
+        render_job.merge_graph_after(ShadeDirectTechnique::PASS_NAME, downsample_graph);
+
+        let hibl_graph = self.hibl.render_item(&render_context).to_graph();
+        render_job.merge_graph_after(DownsampleTechnique::PASS_NAME, hibl_graph);
+
+        let hibl_debayer_graph = self.hibl_debayer.render_item(&render_context).to_graph();
+        render_job.merge_graph_after(HIBLTechnique::PASS_NAME, hibl_debayer_graph);
 
         let downsample_bloom_graph = self
             .downsample_bloom
             .render_item(&render_context)
             .to_graph();
-        render_job.merge_graph_after("downsample", downsample_bloom_graph);
+        render_job.merge_graph_after(DownsampleTechnique::PASS_NAME, downsample_bloom_graph);
 
         let kawase_down_graph = self
             .kawase_blur_down
             .render_item(&render_context)
             .to_graph();
-        render_job.merge_graph_after("downsample_bloom", kawase_down_graph);
+        render_job.merge_graph_after(DownsampleBloomTechnique::PASS_NAME, kawase_down_graph);
 
         let kawase_up_graph = self.kawase_blur_up.render_item(&render_context).to_graph();
-        render_job.merge_graph_after("kawase_blur_down", kawase_up_graph);
+        render_job.merge_graph_after(KawaseBlurDownTechnique::PASS_NAME, kawase_up_graph);
 
         let composite_bloom_graph = self.composite_bloom.render_item(&render_context).to_graph();
-        render_job.merge_graph_after("kawase_blur_up", composite_bloom_graph);
+        render_job.merge_graph_after(KawaseBlurUpTechnique::PASS_NAME, composite_bloom_graph);
 
         let fsq_graph = self.simple_fsq.render_item(&render_context).to_graph();
-        render_job.merge_graph_after("composite_bloom", fsq_graph);
+        render_job.merge_graph_after(CompositeBloomTechnique::PASS_NAME, fsq_graph);
 
         match &self.ui {
             UIState::None => {}

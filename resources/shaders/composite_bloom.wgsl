@@ -10,6 +10,9 @@ var t_color: texture_2d<f32>;
 var t_blur_color: texture_2d<f32>;
 
 [[group(0), binding(2)]]
+var t_hibl_debayer: texture_2d<f32>;
+
+[[group(0), binding(3)]]
 var s_color: sampler;
 
 fn aces_film(x: vec3<f32>) -> vec3<f32>
@@ -37,8 +40,11 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 	let alpha_out = alpha + color.a * (1.0 - alpha);
 	//let color_out = vec4<f32>((1.0 - alpha) * color.rgb + alpha * blur_color.rgb, alpha_out);
 
+	let hibl_tc = tc;
+	let hibl_tcn = vec2<f32>(hibl_tc) / (4.0 * surface_sizef);
+	let irradiance = textureSample(t_hibl_debayer, s_color, hibl_tcn).rgb;
 
-	let color_out = color.rgb + blur_color.rgb;
+	let color_out = (color.rgb + blur_color.rgb) * irradiance;
 
 	return vec4<f32>(color_out, 1.0);
 }

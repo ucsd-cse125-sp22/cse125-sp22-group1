@@ -4,7 +4,7 @@ struct ViewData {
 
 struct ModelData {
     model: mat4x4<f32>;
-	normal_to_global: mat4x4<f32>;
+	normal_to_view: mat4x4<f32>;
 };
 
 [[group(0), binding(0)]]
@@ -13,17 +13,38 @@ var<uniform> view: ViewData;
 [[group(1), binding(0)]]
 var<uniform> model: ModelData;
 
+fn oct_wrap(v: vec2<f32>) -> vec2<f32>
+{
+    return (1.0 - abs(v.yx)) * sign(v.xy);
+}
+
+// outputs in (-1, 1)
+// https://knarkowicz.wordpress.com/2014/04/16/octahedron-normal-vector-encoding/
+fn oct_encode(n: vec3<f32>) -> vec2<f32> {
+	var nn = n / (abs(n.x) + abs(n.y) + abs(n.z));
+	if (nn.z < 0.0) {
+		let wrapped = oct_wrap(nn.xy);
+		nn.x = wrapped.x;
+		nn.y = wrapped.y;
+	}
+
+	return nn.xy;
+}
+
 struct VertexOutput {
 	[[builtin(position)]] position : vec4<f32>;
-	[[location(0)]] normal : vec3<f32>;
+	[[location(0)]] normal : vec2<f32>;
 	[[location(1)]] tex_coords : vec2<f32>;
 };
 
 [[stage(vertex)]]
 fn vs_main([[location(0)]] position: vec3<f32>, [[location(1)]] normal: vec3<f32>, [[location(2)]] tex_coords: vec2<f32>) -> VertexOutput {
+	let view_normal = normalize((model.normal_to_view * vec4<f32>(normal, 0.0)).xyz);
+	let oct_normal = oct_encode(view_normal);
+
 	var out : VertexOutput;
-	out.position =  view.proj_view * model.model * vec4<f32>(position, 1.0);
-	out.normal = normalize((model.normal_to_global * vec4<f32>(normal, 0.0)).xyz);
+	out.position = view.proj_view * model.model * vec4<f32>(position, 1.0);
+	out.normal = oct_normal * 0.5 + 0.5;
 	out.tex_coords = tex_coords;
     return out;
 }
@@ -71,6 +92,6 @@ fn fs_main(in: VertexOutput) -> FramebufferData {
 
 	var data : FramebufferData;
 	data.color = srgb_color;
-	data.normal = vec4<f32>(in.normal * 0.5 + 0.5, f32(material.id) * 5.0);
+	data.normal = vec4<f32>(in.normal, 0.0, 1.0);
 	return data;
 }

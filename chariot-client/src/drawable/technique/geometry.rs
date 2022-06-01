@@ -58,7 +58,7 @@ impl Technique for GeometryDrawTechnique {
                 ],
                 [
                     Some(wgpu::BlendState::ALPHA_BLENDING),
-                    Some(wgpu::BlendState::REPLACE)
+                    Some(wgpu::BlendState::ALPHA_BLENDING)
                 ]
             ),
         );

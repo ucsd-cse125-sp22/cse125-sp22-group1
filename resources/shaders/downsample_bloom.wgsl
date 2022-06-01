@@ -51,7 +51,7 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
     out_color = out_color + (color / 9.0) * 0.5;
 
     // Threshold
-	let threshold_level = 2.1;
+	let threshold_level = 1.8;
 	let threshold_range = 1.0;
 
     let luminance = dot(out_color, vec3<f32>(1.0, 1.0, 1.0));

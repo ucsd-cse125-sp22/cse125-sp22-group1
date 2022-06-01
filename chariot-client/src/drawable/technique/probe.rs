@@ -5,6 +5,7 @@ use crate::drawable::util::TransformUniform;
 use crate::renderer::*;
 use crate::resources::*;
 
+// commented out for now because i'm not doing probes and I would have to update all these to conform with the new Technique trait
 /*pub struct InitProbesTechnique {
     static_mesh: StaticMeshHandle,
     material: material::Material,

@@ -22,7 +22,7 @@ pub struct SkyboxTechnique {
 }
 
 impl SkyboxTechnique {
-    const FRAMEBUFFER_NAME: &'static str = "composite_particles_out";
+    const FRAMEBUFFER_NAME: &'static str = "shade_direct_out";
     pub fn new(
         renderer: &Renderer,
         resources: &ResourceManager,
