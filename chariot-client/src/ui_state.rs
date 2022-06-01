@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use glam::Vec2;
 use image::ImageFormat;
@@ -49,6 +49,7 @@ pub enum UIState {
         game_announcement_subtitle: UIDrawable,
         announcement_state: AnnouncementState,
         minimap_ui: UIDrawable,
+        timer_ui: UIDrawable,
     },
 }
 
@@ -70,9 +71,29 @@ lazy_static! {
             .alignment(StringAlignment::RIGHT)
             .content("")
             .position(1.0, 0.057);
+    static ref TIMER_TEXT: UIStringBuilder = UIStringBuilder::new(assets::fonts::PRIMARY_FONT)
+        .alignment(StringAlignment::RIGHT)
+        .content("00:00:000")
+        .position(0.95, 0.9);
 }
 
 impl GraphicsManager {
+    pub fn update_timer(&mut self, time_elapsed: Duration) {
+        if let UIState::InGameHUD {
+            ref mut timer_ui, ..
+        } = self.ui
+        {
+            let minutes = time_elapsed.as_secs() / 60;
+            let seconds = time_elapsed.as_secs() % 60;
+            let millis = time_elapsed.subsec_millis();
+            let time = format!("{:02}:{:02}:{:03}", minutes, seconds, millis);
+            *timer_ui = TIMER_TEXT
+                .clone()
+                .content(&time)
+                .build_drawable(&self.renderer, &mut self.resources);
+        }
+    }
+
     pub fn make_announcement(&mut self, title: &str, subtitle: &str) {
         if let UIState::InGameHUD {
             ref mut game_announcement_subtitle,
@@ -405,6 +426,10 @@ impl GraphicsManager {
             .clone()
             .build_drawable(&self.renderer, &mut self.resources);
 
+        let timer_ui = TIMER_TEXT
+            .clone()
+            .build_drawable(&self.renderer, &mut self.resources);
+
         // minimap
         let minimap_map_handle = self.resources.import_texture_embedded(
             &self.renderer,
@@ -464,6 +489,7 @@ impl GraphicsManager {
             game_announcement_subtitle,
             announcement_state: AnnouncementState::None,
             minimap_ui,
+            timer_ui,
         }
     }
 

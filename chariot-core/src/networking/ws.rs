@@ -38,7 +38,7 @@ pub struct WSConnection {
 }
 
 impl WSConnection {
-    pub fn new(tcp_stream: TcpStream) -> WSConnection {
+    pub fn new(tcp_stream: TcpStream) -> Option<WSConnection> {
         tcp_stream
             .set_nonblocking(false)
             .expect("expected to be able to set tcp nonblocking to false");
@@ -48,14 +48,15 @@ impl WSConnection {
                     .get_ref()
                     .set_nonblocking(true)
                     .expect("expected to be able to set tcp nonblocking to true");
-                return WSConnection {
+                return Some(WSConnection {
                     socket,
                     incoming_packets: VecDeque::new(),
                     outgoing_packets: VecDeque::new(),
-                };
+                });
             }
             Err(err) => {
-                panic!("problem — {:?}", err);
+                println!("something weird happened re web sockets; we don't really care though — error: {err}");
+                None
             }
         }
     }
