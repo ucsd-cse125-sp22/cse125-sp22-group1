@@ -10,6 +10,7 @@ mod audio;
 mod drawable;
 mod game;
 mod graphics;
+mod menu_input;
 mod renderer;
 mod resources;
 mod scenegraph;
