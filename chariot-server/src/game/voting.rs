@@ -105,7 +105,7 @@ impl GameServer {
                         Standing {
                             name: idx.to_string(),
                             chair: self.game_state.players[idx].chair.to_string(),
-                            rank: idx as u8,
+                            rank: (idx as u8) + 1,
                             lap: 0,
                         }
                     },

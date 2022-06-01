@@ -366,7 +366,11 @@ impl GameServer {
             GamePhase::CountingDownToGameStart(countdown_end_time) => {
                 if now > *countdown_end_time {
                     println!("Go!!!");
-                    let player_placement = [0, 1, 2, 3].map(|_| LapInformation::new());
+                    let player_placement = [0, 1, 2, 3].map(|i| {
+                        let mut info = LapInformation::new();
+                        info.placement = i + 1;
+                        info
+                    });
                     // transition to playing game after countdown
                     self.game_state.phase = GamePhase::PlayingGame {
                         // start off with 10 seconds of vote free gameplay

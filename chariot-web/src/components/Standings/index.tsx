@@ -9,12 +9,14 @@ const Standings: React.FC = () => {
 			<tr>
 				<th>player</th>
 				<th>rank</th>
+				<th>lap</th>
 				<th>chair</th>
 			</tr>
 			{standings.sort(((a, b) => a.rank - b.rank)).map((standing) => (
 				<tr key={standing.name}>
 					<td>{standing.name}</td>
 					<td>{standing.rank}</td>
+					<td>{standing.lap}</td>
 					<td>{standing.chair}</td>
 				</tr>
 			))}
