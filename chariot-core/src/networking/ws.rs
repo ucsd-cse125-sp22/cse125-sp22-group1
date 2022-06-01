@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Error;
-use std::collections::VecDeque;
 use std::net::TcpStream;
+use std::{collections::VecDeque, time::Instant};
 pub use tungstenite::{accept, Message, WebSocket};
 pub use uuid::Uuid;
 
@@ -17,13 +17,26 @@ pub struct Standing {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub enum WSAudienceBoundMessage {
-    Prompt(QuestionData), // Question, 4 Answer Choices
+    Prompt {
+        question: QuestionData,
+        #[serde(with = "serde_millis")]
+        vote_close_time: Instant,
+    }, // QuestionData, Time Until Vote Close
 
-    Winner(usize), // The winning choice (tuple index)
+    Winner {
+        choice: usize,
+        #[serde(with = "serde_millis")]
+        vote_effect_time: Instant,
+    }, // The winning choice (tuple index)
 
     Assignment(Uuid), // Sends a uuid that the server will use to identify the client
 
     Standings([Standing; 4]),
+    Countdown {
+        #[serde(with = "serde_millis")]
+        time: Instant,
+    },
+    AudienceCount(usize), // The number of connections to the audience
 }
 
 #[derive(Serialize, Deserialize)]
@@ -99,7 +112,8 @@ impl WSConnection {
     }
 
     // send packets on this connection until exhausted
-    pub fn sync_outgoing(&mut self) {
+    pub fn sync_outgoing(&mut self) -> bool {
+        let mut could_send_messages = true;
         while let Some(msg) = self.outgoing_packets.pop_front() {
             if self.socket.can_write() {
                 let result = self.socket.write_message(msg);
@@ -108,8 +122,13 @@ impl WSConnection {
                         "failed to write to socket because of {}",
                         result.unwrap_err()
                     );
+                    could_send_messages = false;
                 }
+            } else {
+                println!("couldn't write? :thinking_emoji");
+                could_send_messages = false;
             }
         }
+        could_send_messages
     }
 }
