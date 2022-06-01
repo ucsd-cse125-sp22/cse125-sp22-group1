@@ -12,10 +12,11 @@ export interface Standing {
 	lap: number,
 }
 export interface WSAudienceBoundMessage {
-	Prompt?: Prompt, // Question, 4 Answer Choices
+	Prompt?: { question: Prompt, time_until_vote_end: number }, // Question, 4 Answer Choices
 	Winner?: number// The winning choice (tuple index)
 	Assignment?: string, // Sends a uuid that the server will use to identify the client
-	Standings?: [Standing]
+	Standings?: [Standing], // state of the game
+	AudienceCount: number, // the number of audience members connected
 }
 
 export interface WSServerBoundMessage {
@@ -30,11 +31,14 @@ export const handleSocket = (context: GlobalContextType, msg: MessageEvent) => {
 	} else if (message.Winner !== undefined) {
 		context.setWinner(message.Winner);
 	} else if (message.Prompt !== undefined) {
-		context.setPrompt(message.Prompt);
-		context.setStatusMessage(message.Prompt.prompt);
+		context.setPrompt(message.Prompt.question);
+		context.setStatusMessage(message.Prompt.question.prompt);
+		console.log(message.Prompt.time_until_vote_end);
 		context.setWinner(null);
 	} else if (message.Standings !== undefined) {
 		context.setStandings(message.Standings);
+	} else if (message.AudienceCount !== undefined) {
+		context.setTotalConnected(message.AudienceCount);
 	} else {
 		console.log("new data type");
 		console.log(message);

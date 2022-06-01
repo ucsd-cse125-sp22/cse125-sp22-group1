@@ -17,13 +17,15 @@ pub struct Standing {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub enum WSAudienceBoundMessage {
-    Prompt(QuestionData), // Question, 4 Answer Choices
+    Prompt(QuestionData), // QuestionData, Time Until Vote Close
 
     Winner(usize), // The winning choice (tuple index)
 
     Assignment(Uuid), // Sends a uuid that the server will use to identify the client
 
     Standings([Standing; 4]),
+
+    AudienceCount(usize), // The number of connections to the audience
 }
 
 #[derive(Serialize, Deserialize)]
@@ -99,7 +101,8 @@ impl WSConnection {
     }
 
     // send packets on this connection until exhausted
-    pub fn sync_outgoing(&mut self) {
+    pub fn sync_outgoing(&mut self) -> bool {
+        let mut could_send_messages = true;
         while let Some(msg) = self.outgoing_packets.pop_front() {
             if self.socket.can_write() {
                 let result = self.socket.write_message(msg);
@@ -108,8 +111,13 @@ impl WSConnection {
                         "failed to write to socket because of {}",
                         result.unwrap_err()
                     );
+                    could_send_messages = false;
                 }
+            } else {
+                println!("couldn't write? :thinking_emoji");
+                could_send_messages = false;
             }
         }
+        could_send_messages
     }
 }

@@ -113,9 +113,7 @@ impl GameServer {
                 .iter_mut()
                 .for_each(|con| con.sync_outgoing());
 
-            self.ws_connections
-                .iter_mut()
-                .for_each(|(_, con)| con.sync_outgoing());
+            self.ws_connections.retain(|_, con| con.sync_outgoing());
 
             // wait until server tick time has elapsed
             if let Some(remaining_tick_duration) =

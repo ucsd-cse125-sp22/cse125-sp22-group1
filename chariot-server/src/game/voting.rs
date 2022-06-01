@@ -101,5 +101,11 @@ impl GameServer {
                 )));
             }
         }
+
+        let total_connections = self.ws_connections.len();
+        GameServer::broadcast_ws(
+            &mut self.ws_connections,
+            WSAudienceBoundMessage::AudienceCount(total_connections),
+        )
     }
 }
