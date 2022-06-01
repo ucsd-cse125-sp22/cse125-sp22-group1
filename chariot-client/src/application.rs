@@ -21,7 +21,6 @@ use crate::graphics::{register_passes, GraphicsManager};
 
 use crate::audio::thread::context::AudioCtx;
 use crate::audio::thread::options::SourceOptions;
-use crate::ui::ui_region::UIRegion;
 use crate::ui_state::AnnouncementState;
 
 pub struct Application {
@@ -37,7 +36,6 @@ pub struct Application {
     mouse_pos: PhysicalPosition<f64>,
     last_update: SystemTime,
     game_start_time: SystemTime,
-    ui_regions: Vec<UIRegion>,
 }
 
 impl Application {
@@ -65,17 +63,12 @@ impl Application {
             pressed_keys: HashSet::new(),
             mouse_pos: PhysicalPosition::<f64> { x: -1.0, y: -1.0 },
             game_start_time: SystemTime::now(),
-            ui_regions: vec![],
             last_update: SystemTime::now(),
         }
     }
 
     pub fn render(&mut self) {
         self.graphics.render();
-        let ui_regions = self.graphics.get_ui_regions();
-        if ui_regions.len() > 0 {
-            self.ui_regions = ui_regions;
-        }
     }
 
     pub fn update(&mut self) {
@@ -365,27 +358,11 @@ impl Application {
     pub fn on_mouse_move(&mut self, x: f64, y: f64) {
         self.mouse_pos.x = x;
         self.mouse_pos.y = y;
-
-        let regions = &mut self.ui_regions;
-        regions
-            .iter_mut()
-            .for_each(|reg| reg.set_hovering(x, y, &mut self.graphics, &mut self.game));
     }
 
     pub fn on_left_mouse(&mut self, state: ElementState) {
         let x = self.mouse_pos.x;
         let y = self.mouse_pos.y;
-
-        match state {
-            ElementState::Pressed => self
-                .ui_regions
-                .iter_mut()
-                .for_each(|reg| reg.set_active(x, y, &mut self.graphics, &mut self.game)),
-            ElementState::Released => self
-                .ui_regions
-                .iter_mut()
-                .for_each(|reg| reg.set_inactive(&mut self.graphics, &mut self.game)),
-        }
     }
 
     pub fn on_right_mouse(&mut self, state: ElementState) {

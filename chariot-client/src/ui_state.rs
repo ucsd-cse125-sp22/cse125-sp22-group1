@@ -17,7 +17,6 @@ use crate::{
     graphics::GraphicsManager,
     resources::TextureHandle,
     scenegraph::components::Transform,
-    ui::ui_region::UIRegion,
 };
 
 pub enum AnnouncementState {
@@ -246,15 +245,6 @@ impl GraphicsManager {
         let background = UIDrawable { layers: layer_vec };
 
         self.ui = UIState::MainMenu { background };
-
-        // join lobby button
-        let mut join_lobby_button = UIRegion::new(472.0, 539.0, 336.0, 87.0);
-        join_lobby_button.on_click(|graphics, game| {
-            graphics.display_chairacter_select();
-            game.pick_chair(Chair::Swivel);
-        });
-
-        self.ui_regions = vec![join_lobby_button];
     }
 
     pub fn display_chairacter_select(&mut self) {
@@ -310,24 +300,6 @@ impl GraphicsManager {
             chair_select_box,
             player_chair_images: vec![None, None, None, None],
         };
-
-        // buttons
-        let mut main_menu_button = UIRegion::new(40.0, 587.0, 224.0, 64.0);
-        main_menu_button.on_click(|graphics, _game_client| {
-            graphics.display_main_menu();
-        });
-
-        let mut ready_button = UIRegion::new(999.0, 587.0, 225.0, 64.0);
-        ready_button.on_click(|_graphics, game_client| {
-            game_client.signal_ready_status(true);
-        });
-
-        let mut force_start_button = UIRegion::new(999.0, 637.0, 225.0, 31.0);
-        force_start_button.on_click(|_graphics, game_client| {
-            game_client.force_start();
-        });
-
-        self.ui_regions = vec![main_menu_button, ready_button, force_start_button];
     }
 
     pub fn maybe_select_chair(&mut self, chair: Chair) {
@@ -491,9 +463,5 @@ impl GraphicsManager {
             minimap_ui,
             timer_ui,
         }
-    }
-
-    pub fn get_ui_regions(&mut self) -> Vec<UIRegion> {
-        std::mem::replace(&mut self.ui_regions, vec![])
     }
 }
