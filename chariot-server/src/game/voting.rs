@@ -91,8 +91,7 @@ impl GameServer {
                         vote_close_time: vote_close_time.clone(),
                     })
                 } else if let VotingState::VoteResultActive {
-                    decision,
-                    decision_end_time,
+                    decision_end_time, ..
                 } = voting_game_state
                 {
                     conn.push_outgoing_message(WSAudienceBoundMessage::Countdown {
