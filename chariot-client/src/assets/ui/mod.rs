@@ -1,10 +1,13 @@
 use chariot_core::player::choices::Chair;
 
-// backgrounds
+// main menu
 pub const HOME_BACKGROUND: &[u8] = include_bytes!("homebackground.png");
-pub const CHAIR_SELECT_BACKGROUND: &[u8] = include_bytes!("chair-select/background.png");
+pub const MAIN_MENU_BACKGROUND: &[u8] = include_bytes!("main-menu/BG.png");
+pub const MAIN_MENU_FOREGROUND: &[u8] = include_bytes!("main-menu/Chars.png");
+pub const MAIN_MENU_TITLE: &[u8] = include_bytes!("main-menu/Title.png");
 
 // chair select rectangles
+pub const CHAIR_SELECT_BACKGROUND: &[u8] = include_bytes!("chair-select/background.png");
 const CHAIR_SELECT_RECT0: &[u8] = include_bytes!("chair-select/select/p0rectangle.png");
 const CHAIR_SELECT_RECT1: &[u8] = include_bytes!("chair-select/select/p1rectangle.png");
 const CHAIR_SELECT_RECT2: &[u8] = include_bytes!("chair-select/select/p2rectangle.png");
