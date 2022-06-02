@@ -63,11 +63,11 @@ impl<T: Packet, V: Packet> Connection<T, V> {
             // if we parsed a packet size, let's go ahead and read that amount,
             // this time blocking until we've parsed the entire thing
             self.set_blocking();
-            let packet =
+            if let Ok(packet) =
                 T::parse_packet(&mut Read::by_ref(&mut self.tcp_stream).take(packet_size as u64))
-                    .expect("Failed to deserialize packet");
-
-            self.incoming_packets.push_back(packet);
+            {
+                self.incoming_packets.push_back(packet);
+            }
         }
     }
 

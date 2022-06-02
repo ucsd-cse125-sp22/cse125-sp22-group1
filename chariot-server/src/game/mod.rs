@@ -63,8 +63,8 @@ impl GameServer {
             .set_nonblocking(true)
             .expect("Couldn't set the listener to be non-blocking!");
         println!("game server now listening on {}", ip_addr);
-        let ws_server = TcpListener::bind(GLOBAL_CONFIG.ws_server_port.clone())
-            .expect("could not bind to ws server");
+        let ws_server =
+            TcpListener::bind(&GLOBAL_CONFIG.ws_server_port).expect("could not bind to ws server");
 
         GameServer {
             listener,
