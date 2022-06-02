@@ -40,6 +40,7 @@ pub enum UIState {
     ChairacterSelect {
         background: UIDrawable,
         chair_select_box: UIDrawable,
+        chair_description: UIDrawable,
         player_chair_images: Vec<Option<UIDrawable>>,
     },
     InGameHUD {
@@ -305,40 +306,68 @@ impl GraphicsManager {
             ImageFormat::Png,
         );
 
+        let chair_description_handle = self.resources.import_texture_embedded(
+            &self.renderer,
+            "swivel_description",
+            assets::ui::get_chair_description(Chair::Swivel),
+            ImageFormat::Png,
+        );
+
         let chair_select_box_texture = self
             .resources
             .textures
             .get(&chair_select_box_handle)
             .expect("background doesn't exist!");
 
+        let chair_description_texture = self
+            .resources
+            .textures
+            .get(&chair_description_handle)
+            .expect("description doesn't exist!");
+
         let layer_vec = vec![technique::UILayerTechnique::new(
             &self.renderer,
-            glam::vec2(304.0 / 1280.0, 548.0 / 720.0),
-            glam::vec2(141.0 / 1280.0, 134.0 / 720.0),
+            glam::vec2(343.0 / 1280.0, 565.0 / 720.0),
+            glam::vec2(128.0 / 1280.0, 122.0 / 720.0),
             glam::vec2(0.0, 0.0),
             glam::vec2(1.0, 1.0),
             &chair_select_box_texture,
         )];
 
         let chair_select_box = UIDrawable { layers: layer_vec };
+
+        let layer_vec = vec![technique::UILayerTechnique::new(
+            &self.renderer,
+            glam::vec2(317.0 / 1280.0, 433.0 / 720.0),
+            glam::vec2(640.0 / 1280.0, 117.0 / 720.0),
+            glam::vec2(0.0, 0.0),
+            glam::vec2(1.0, 1.0),
+            &chair_description_texture,
+        )];
+
+        let chair_description = UIDrawable { layers: layer_vec };
+
         self.ui = UIState::ChairacterSelect {
             background,
             chair_select_box,
+            chair_description,
             player_chair_images: vec![None, None, None, None],
         };
     }
 
     pub fn maybe_select_chair(&mut self, chair: Chair) {
         if let UIState::ChairacterSelect {
-            chair_select_box, ..
+            chair_select_box,
+            chair_description,
+            ..
         } = &mut self.ui
         {
             let position = match chair {
-                Chair::Swivel => glam::vec2(304.0 / 1280.0, 548.0 / 720.0),
-                Chair::Recliner => glam::vec2(437.0 / 1280.0, 548.0 / 720.0),
-                Chair::Beanbag => glam::vec2(570.0 / 1280.0, 548.0 / 720.0),
-                Chair::Ergonomic => glam::vec2(703.0 / 1280.0, 548.0 / 720.0),
-                Chair::Folding => glam::vec2(835.0 / 1280.0, 548.0 / 720.0),
+                Chair::Swivel => glam::vec2(343.0 / 1280.0, 565.0 / 720.0),
+                Chair::Recliner => glam::vec2(460.0 / 1280.0, 565.0 / 720.0),
+                Chair::Beanbag => glam::vec2(576.0 / 1280.0, 565.0 / 720.0),
+                Chair::Ergonomic => glam::vec2(693.0 / 1280.0, 565.0 / 720.0),
+                Chair::Folding => glam::vec2(809.0 / 1280.0, 565.0 / 720.0),
             };
             // not sure the best way to change the position; for now, I'm just rerendering completely
             let chair_select_box_handle = self.resources.import_texture_embedded(
@@ -348,22 +377,46 @@ impl GraphicsManager {
                 ImageFormat::Png,
             );
 
+            let chair_description_handle = self.resources.import_texture_embedded(
+                &self.renderer,
+                format!("{}_description", chair.file()).as_str(),
+                assets::ui::get_chair_description(chair),
+                ImageFormat::Png,
+            );
+
             let chair_select_box_texture = self
                 .resources
                 .textures
                 .get(&chair_select_box_handle)
                 .expect("chair select box doesn't exist!");
 
+            let chair_description_texture = self
+                .resources
+                .textures
+                .get(&chair_description_handle)
+                .expect("description doesn't exist!");
+
             let layer_vec = vec![technique::UILayerTechnique::new(
                 &self.renderer,
                 position,
-                glam::vec2(141.0 / 1280.0, 134.0 / 720.0),
+                glam::vec2(127.0 / 1280.0, 121.0 / 720.0),
                 glam::vec2(0.0, 0.0),
                 glam::vec2(1.0, 1.0),
                 &chair_select_box_texture,
             )];
 
             *chair_select_box = UIDrawable { layers: layer_vec };
+
+            let layer_vec = vec![technique::UILayerTechnique::new(
+                &self.renderer,
+                glam::vec2(317.0 / 1280.0, 433.0 / 720.0),
+                glam::vec2(640.0 / 1280.0, 117.0 / 720.0),
+                glam::vec2(0.0, 0.0),
+                glam::vec2(1.0, 1.0),
+                &chair_description_texture,
+            )];
+
+            *chair_description = UIDrawable { layers: layer_vec };
 
             for (player_id, choice) in self.player_choices.clone().iter().flatten().enumerate() {
                 self.maybe_display_chair(choice.chair, player_id);
