@@ -4,6 +4,10 @@
  * TODO: Maybe in the future I'll add initial width and height paramters.
  */
 
+use chariot_core::GLOBAL_CONFIG;
+use Fullscreen::Borderless;
+use winit::window::Fullscreen;
+
 #[allow(dead_code)] // instance is just here to be kept alive
 pub struct Context {
     pub(super) window: winit::window::Window,
@@ -18,8 +22,13 @@ impl Context {
         size: winit::dpi::PhysicalSize<u32>,
     ) -> Self {
         let window = winit::window::Window::new(&event_loop).unwrap();
+
         window.set_inner_size(size);
         window.set_resizable(false);
+
+        if GLOBAL_CONFIG.start_fullscreen {
+            window.set_fullscreen(Some(Borderless(window.current_monitor())));
+        }
 
         let instance = wgpu::Instance::new(wgpu::Backends::all());
         let surface = unsafe { instance.create_surface(&window) };
