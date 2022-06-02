@@ -63,7 +63,7 @@ const Game: NextPage = () => {
 		{!showStandings && prompt !== null &&
 			<div className={styles.buttonLayout}>
 				{prompt.options.map((({ label }, choice) => {
-					const labelText = `${label}${(gameState === 'winner' && optionResults?.length > 0) ? " " + toPercentage(optionResults[choice].percentage) : ""}`
+					const labelText = `${label}${(gameState === 'winner' && optionResults?.length === prompt.options.length) ? " " + toPercentage(optionResults[choice].percentage) : ""}`
 					return (
 						<Button width="100%" clickable={winner === null} state={choice === winner ? 'voted' : choice === selectedIdx ? 'selected' : 'unselected'} key={choice} text={labelText} onClick={() => {
 							if (winner === null) {

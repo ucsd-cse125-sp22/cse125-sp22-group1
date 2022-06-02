@@ -506,10 +506,22 @@ impl GameServer {
                                 .options
                                 .iter()
                                 .enumerate()
-                                .map(|(idx, q)| QuestionResult {
-                                    label: q.label.clone(),
-                                    percentage: (*counts.get(&idx).unwrap_or(&0) as f32
-                                        / total_vote_count as f32),
+                                .map(|(idx, q)| {
+                                    let percentage: f32 = if total_vote_count == 0 {
+                                        if idx == winner {
+                                            1.0 // default to 100% for the winning vote
+                                        } else {
+                                            0.0
+                                        }
+                                    } else {
+                                        *counts.get(&idx).unwrap_or(&0) as f32
+                                            / total_vote_count as f32
+                                    };
+
+                                    QuestionResult {
+                                        label: q.label.clone(),
+                                        percentage,
+                                    }
                                 })
                                 .collect();
 
