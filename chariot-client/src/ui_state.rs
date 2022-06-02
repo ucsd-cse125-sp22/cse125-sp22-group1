@@ -184,7 +184,7 @@ impl GraphicsManager {
                 let player_layer = minimap_ui.layers.get_mut(player_index + 1).unwrap();
 
                 let raw_verts_data = UILayerTechnique::create_verts_data(
-                    Vec2::new(0.2 * location.0, 0.2 * location.1),
+                    Vec2::new(0.2 * location.0, 0.3 * location.1),
                     Vec2::new(0.02, 0.02),
                 );
                 let verts_data: &[u8] = bytemuck::cast_slice(&raw_verts_data);
@@ -539,10 +539,10 @@ impl GraphicsManager {
             })
             .collect();
 
-        let mut layer_vec = vec![technique::UILayerTechnique::new(
+        let mut layer_vec = vec![UILayerTechnique::new(
             &self.renderer,
             glam::vec2(0.0, 0.0),
-            glam::vec2(0.2, 0.2),
+            glam::vec2(0.2, 0.3),
             glam::vec2(0.0, 0.0),
             glam::vec2(1.0, 1.0),
             &minimap_map_texture,
