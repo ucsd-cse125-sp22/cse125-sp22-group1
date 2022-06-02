@@ -51,17 +51,17 @@ pub enum AudienceAction {
 impl AudienceAction {
     pub fn get_description(&self) -> &str {
         match self {
-            AudienceAction::Null => "The audience has decided to do nothing",
+            AudienceAction::Null => "The audience has decided to do nothing. booooo",
             AudienceAction::NoLeft => {
                 "If you're nothing without turning left, then you shouldn't have it"
             }
             AudienceAction::NoRight => {
                 "If you're nothing without turning left, then you shouldn't have it"
             }
-            AudienceAction::InvertControls => "Switch your hands, the controls are inverted!",
-            AudienceAction::AutoAccelerate => "Car Go Brrrrrr!! (Now with more brrr)",
+            AudienceAction::InvertControls => "Switch your hands, controls are inverted!",
+            AudienceAction::AutoAccelerate => "chair go brrrrrr!! (now with more brrr)",
             AudienceAction::TurnOnlyWhenNotMoving => "You can only turn when you stop moving!",
-            AudienceAction::ShoppingCart => "Don't you just how shopping carts drift?",
+            AudienceAction::ShoppingCart => "Don't you just love how shopping carts drift?",
             AudienceAction::SpeedBalanceBoost => "Everyone but first place: FULL SPEED AHEAD",
             AudienceAction::DoubleMaxSpeed => "You can go faster now :O",
             AudienceAction::SuperAccelerator => "You can accelerate faster now B)",
@@ -70,10 +70,10 @@ impl AudienceAction {
             AudienceAction::IceRink => "It's a great time to go ice skating!",
             AudienceAction::ExplosivePlayerCollisions => "Make sure to practice social distancing!",
             AudienceAction::SuperBouncyObjects => "What if we made everything bouncy?",
-            AudienceAction::SwapFirstAndLast => "First = Last",
-            AudienceAction::ShufflePlayerPositions => "Oops, we seem to have misplaced you!",
-            AudienceAction::ResetLapCounter => "Everyone is now on lap 0!",
-            AudienceAction::Backwards => "Drive backwards now!",
+            AudienceAction::SwapFirstAndLast => "first and last have been swapped!",
+            AudienceAction::ShufflePlayerPositions => "Oops, we seem to have misplaced you all!",
+            AudienceAction::ResetLapCounter => "Everyone is now on lap 1!",
+            AudienceAction::Backwards => "Whoops! Drive backwards now!",
         }
     }
 }
