@@ -5,8 +5,8 @@
  */
 
 use chariot_core::GLOBAL_CONFIG;
-use Fullscreen::Borderless;
 use winit::window::Fullscreen;
+use Fullscreen::Borderless;
 
 #[allow(dead_code)] // instance is just here to be kept alive
 pub struct Context {
