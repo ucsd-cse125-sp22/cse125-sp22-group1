@@ -938,6 +938,10 @@ impl GraphicsManager {
                 let ui_graph = background.render_graph(&render_context);
                 render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, ui_graph);
             }
+            UIState::FinalStandings { final_standings_ui } => {
+                let ui_graph = final_standings_ui.render_graph(&render_context);
+                render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, ui_graph);
+            }
         }
 
         self.renderer.render(&render_job);

@@ -7,6 +7,7 @@ use ordinal::Ordinal;
 
 use chariot_core::player::choices::Chair;
 
+use crate::assets::ui::get_chair_icon;
 use crate::ui::string::{StringAlignment, UIStringBuilder};
 use crate::{
     assets,
@@ -50,6 +51,9 @@ pub enum UIState {
         announcement_state: AnnouncementState,
         minimap_ui: UIDrawable,
         timer_ui: UIDrawable,
+    },
+    FinalStandings {
+        final_standings_ui: UIDrawable,
     },
 }
 
@@ -562,5 +566,71 @@ impl GraphicsManager {
             minimap_ui,
             timer_ui,
         }
+    }
+
+    pub fn display_final_standings(&mut self, positions: [u8; 4], chairs: [Chair; 4]) {
+        let mut layer_vec = vec![];
+
+        let mut player_nums: Vec<usize> = vec![0, 1, 2, 3];
+        player_nums.sort_by(|&a, &b| positions[a].cmp(&positions[b]));
+
+        for (placement_index, &player_index) in player_nums.iter().enumerate() {
+            let placement_card_handle = self.resources.import_texture_embedded(
+                &self.renderer,
+                format!("placement-{}", player_index + 1).as_str(),
+                assets::ui::PLACEMENT_CARDS[player_index],
+                ImageFormat::Png,
+            );
+
+            let chair_handle = self.resources.import_texture_embedded(
+                &self.renderer,
+                format!("{}-icon", chairs[player_index].file()).as_str(),
+                get_chair_icon(chairs[player_index]),
+                ImageFormat::Png,
+            );
+
+            let placement_card_texture = self
+                .resources
+                .textures
+                .get(&placement_card_handle)
+                .expect("placement card doesn't exist!");
+
+            let chair_texture = self
+                .resources
+                .textures
+                .get(&chair_handle)
+                .expect("chair doesn't exist!");
+
+            // placement_index is usually (but not always) placement - this
+            // should be resilient to ties
+            let position = match placement_index {
+                0 => glam::vec2(167.0 / 1280.0, 148.0 / 720.0),
+                1 => glam::vec2(167.0 / 1280.0, 248.0 / 720.0),
+                2 => glam::vec2(167.0 / 1280.0, 348.0 / 720.0),
+                3 => glam::vec2(167.0 / 1280.0, 448.0 / 720.0),
+                _ => glam::vec2(167.0 / 1280.0, 148.0 / 720.0), // shouldn't happen :p
+            };
+            layer_vec.push(UILayerTechnique::new(
+                &self.renderer,
+                position,
+                glam::vec2(939.0 / 1280.0, 120.0 / 720.0),
+                glam::vec2(0.0, 0.0),
+                glam::vec2(1.0, 1.0),
+                &placement_card_texture,
+            ));
+
+            layer_vec.push(UILayerTechnique::new(
+                &self.renderer,
+                position + glam::vec2(752.0 / 1280.0, 12.0 / 720.0),
+                glam::vec2(108.0 / 1280.0, 102.0 / 720.0),
+                glam::vec2(0.0, 0.0),
+                glam::vec2(1.0, 1.0),
+                &chair_texture,
+            ));
+        }
+
+        let final_standings_ui = UIDrawable { layers: layer_vec };
+
+        self.ui = UIState::FinalStandings { final_standings_ui }
     }
 }

@@ -1,3 +1,4 @@
+use chariot_core::player::choices::Chair;
 use chariot_core::sound_effect::SoundEffect;
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
@@ -25,6 +26,7 @@ pub struct Application {
     pub sfx_manager: AudioManager,
 
     // everything else haha
+    pub chairs: [Chair; 4],
     pub graphics: GraphicsManager,
     pub game: GameClient,
     pub pressed_keys: HashSet<VirtualKeyCode>,
@@ -52,6 +54,7 @@ impl Application {
             audio_context,
             music_manager,
             sfx_manager,
+            chairs: [Chair::Swivel, Chair::Swivel, Chair::Swivel, Chair::Swivel],
             graphics: graphics_manager,
             game,
             pressed_keys: HashSet::new(),
@@ -102,6 +105,7 @@ impl Application {
                         .expect("Attempted to set chair on player we don't know about!")
                         .chair = chair;
                     self.graphics.maybe_display_chair(chair, player_num);
+                    self.chairs[player_num] = chair;
                 }
                 ClientBoundPacket::PlayerMapChoice(player_num, map) => {
                     println!("Player #{} has voted for map {}!", player_num, map.clone());
@@ -236,6 +240,9 @@ impl Application {
                             ))
                             .collect::<String>()
                     );
+
+                    self.graphics
+                        .display_final_standings(final_placements, self.chairs);
                 }
                 ClientBoundPacket::StartNextGame => {
                     self.graphics.load_pregame();

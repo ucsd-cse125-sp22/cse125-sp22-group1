@@ -202,6 +202,26 @@ impl Application {
         };
     }
 
+    fn input_gamepad_final_standings(&mut self, event: Result<(Button, f32), (Axis, f32)>) {
+        if let Ok(_) = event {
+            self.graphics.display_chairacter_select();
+            self.sfx_manager.play(
+                get_sfx(chariot_core::sound_effect::SoundEffect::ReadyUp),
+                &self.audio_context,
+                SourceOptions::new(),
+            );
+        }
+    }
+
+    fn input_keyboard_final_standings(&mut self, _: VirtualKeyCode) {
+        self.graphics.display_chairacter_select();
+        self.sfx_manager.play(
+            get_sfx(chariot_core::sound_effect::SoundEffect::ReadyUp),
+            &self.audio_context,
+            SourceOptions::new(),
+        );
+    }
+
     pub fn handle_gamepad_event(&mut self, event: Event) {
         let input_event = match event.event {
             EventType::ButtonChanged(button, value, _) => Some(Ok((button, value))),
@@ -224,9 +244,8 @@ impl Application {
                 UIState::ChairacterSelect { .. } => {
                     self.input_gamepad_chairacter_select(input_event)
                 }
-                UIState::InGameHUD { .. } => {
-                    self.input_gamepad_in_game(input_event);
-                }
+                UIState::InGameHUD { .. } => self.input_gamepad_in_game(input_event),
+                UIState::FinalStandings { .. } => self.input_gamepad_final_standings(input_event),
             }
         }
     }
@@ -253,15 +272,10 @@ impl Application {
 
         match self.graphics.ui {
             UIState::None => {}
-            UIState::MainMenu { .. } => {
-                self.input_keyboard_main_menu(key);
-            }
-            UIState::ChairacterSelect { .. } => {
-                self.input_keyboard_chairacter_select(key);
-            }
-            UIState::InGameHUD { .. } => {
-                self.input_keyboard_in_game(key);
-            }
+            UIState::MainMenu { .. } => self.input_keyboard_main_menu(key),
+            UIState::ChairacterSelect { .. } => self.input_keyboard_chairacter_select(key),
+            UIState::InGameHUD { .. } => self.input_keyboard_in_game(key),
+            UIState::FinalStandings { .. } => self.input_keyboard_final_standings(key),
         }
     }
 
