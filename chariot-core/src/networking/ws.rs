@@ -16,6 +16,12 @@ pub struct Standing {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+pub struct QuestionResult {
+    pub label: String,
+    pub percentage: f32,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 pub enum WSAudienceBoundMessage {
     Prompt {
         question: QuestionData,
@@ -25,6 +31,7 @@ pub enum WSAudienceBoundMessage {
 
     Winner {
         choice: usize,
+        option_results: Vec<QuestionResult>, // percentages of all the winners
         #[serde(with = "serde_millis")]
         vote_effect_time: Instant,
     }, // The winning choice (tuple index)

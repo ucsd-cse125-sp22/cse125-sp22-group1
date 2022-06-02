@@ -10,7 +10,7 @@ use chariot_core::player::{lap_info::LapInformation, player_inputs::InputEvent, 
 use glam::DVec3;
 
 use chariot_core::entity_location::EntityLocation;
-use chariot_core::networking::ws::{Standing, WSAudienceBoundMessage};
+use chariot_core::networking::ws::{QuestionResult, Standing, WSAudienceBoundMessage};
 use chariot_core::networking::Uuid;
 use chariot_core::networking::{
     ClientBoundPacket, ClientConnection, ServerBoundPacket, WebSocketConnection,
@@ -372,9 +372,10 @@ impl GameServer {
                         info
                     });
                     // transition to playing game after countdown
+                    let vote_cooldown_time = now + Duration::new(10, 0);
                     self.game_state.phase = GamePhase::PlayingGame {
                         // start off with 10 seconds of vote free gameplay
-                        voting_game_state: VotingState::VoteCooldown(now + Duration::new(10, 0)),
+                        voting_game_state: VotingState::VoteCooldown(vote_cooldown_time),
                         player_placement: player_placement.clone(),
                         question_idx: 0,
                     };
@@ -390,6 +391,12 @@ impl GameServer {
                             }
                         })),
                     );
+                    GameServer::broadcast_ws(
+                        &mut self.ws_connections,
+                        WSAudienceBoundMessage::Countdown {
+                            time: vote_cooldown_time,
+                        },
+                    )
                 }
             }
 
@@ -478,9 +485,13 @@ impl GameServer {
                     } => {
                         if *vote_close_time < now {
                             let mut counts = HashMap::new();
+
+                            let total_vote_count = audience_votes.len();
+
                             for vote in audience_votes {
                                 *counts.entry(vote.1).or_insert(0) += 1;
                             }
+
                             let winner: usize = **counts
                                 .iter()
                                 .max_by(|a, b| a.1.cmp(&b.1))
@@ -488,14 +499,38 @@ impl GameServer {
                                 .unwrap_or(&&mut (0));
 
                             let decision = current_question.options[winner].clone();
-                            let time_effect_is_live = Duration::new(30, 0);
+                            let time_effect_is_live = Duration::new(15, 0);
                             let effect_end_time = now + time_effect_is_live;
+
+                            let option_results = current_question
+                                .options
+                                .iter()
+                                .enumerate()
+                                .map(|(idx, q)| {
+                                    let percentage: f32 = if total_vote_count == 0 {
+                                        if idx == winner {
+                                            1.0 // default to 100% for the winning vote
+                                        } else {
+                                            0.0
+                                        }
+                                    } else {
+                                        *counts.get(&idx).unwrap_or(&0) as f32
+                                            / total_vote_count as f32
+                                    };
+
+                                    QuestionResult {
+                                        label: q.label.clone(),
+                                        percentage,
+                                    }
+                                })
+                                .collect();
 
                             GameServer::broadcast_ws(
                                 &mut self.ws_connections,
                                 WSAudienceBoundMessage::Winner {
                                     choice: winner,
                                     vote_effect_time: effect_end_time,
+                                    option_results,
                                 },
                             );
 
@@ -550,7 +585,7 @@ impl GameServer {
                     }
                     VotingState::VoteCooldown(cooldown) => {
                         if *cooldown < now {
-                            let time_until_vote_end = Duration::new(30, 0);
+                            let time_until_vote_end = Duration::new(15, 0);
                             let vote_end_time = now + time_until_vote_end;
                             let question: QuestionData = QUESTIONS[*question_idx].clone();
                             *question_idx = (*question_idx + 1) % QUESTIONS.len();

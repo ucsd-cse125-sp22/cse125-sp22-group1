@@ -3,7 +3,7 @@ import '../styles/globals.css'
 import styles from '../styles/Defaults.module.scss';
 import type { AppProps } from 'next/app'
 import { VotingGameState, GlobalContext } from '../src/contexts/GlobalContext';
-import { Prompt, Standing } from '../src/utils/networking';
+import { Prompt, QuestionResult, Standing } from '../src/utils/networking';
 import Logo from '../src/assets/Logo.png'
 import BG from '../src/assets/BG.png'
 import Image from 'next/image'
@@ -21,6 +21,7 @@ function MyApp({ Component, pageProps }: AppProps) {
 	const [standings, setStandings] = useState<Standing[]>([]);
 	const [totalConnected, setTotalConnected] = useState(1);
 	const [countdownTime, setCountdownTime] = useState<Date | null>(null);
+	const [optionResults, setOptionResults] = useState<QuestionResult[]>([]);
 
 	const funnyPhrases = ["I prefer folding",
 		"Hold onto your seats",
@@ -53,7 +54,9 @@ function MyApp({ Component, pageProps }: AppProps) {
 			totalConnected,
 			setTotalConnected,
 			countdownTime,
-			setCountdownTime
+			setCountdownTime,
+			optionResults,
+			setOptionResults
 		}}>
 			<div className={styles.backgroundImage} style={{ backgroundImage: `url(${BG.src})` }}>
 				<div className={styles.main}>
