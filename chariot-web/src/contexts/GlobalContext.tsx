@@ -22,8 +22,8 @@ export type GlobalContextType = {
 	winner: number | null;
 	setWinner: React.Dispatch<React.SetStateAction<number | null>>;
 
-	optionResults: QuestionResult[] | null;
-	setOptionResults: React.Dispatch<React.SetStateAction<QuestionResult[] | null>>;
+	optionResults: QuestionResult[];
+	setOptionResults: React.Dispatch<React.SetStateAction<QuestionResult[]>>;
 
 
 	standings: Standing[],

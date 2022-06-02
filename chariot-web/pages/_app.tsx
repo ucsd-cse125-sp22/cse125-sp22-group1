@@ -21,7 +21,7 @@ function MyApp({ Component, pageProps }: AppProps) {
 	const [standings, setStandings] = useState<Standing[]>([]);
 	const [totalConnected, setTotalConnected] = useState(1);
 	const [countdownTime, setCountdownTime] = useState<Date | null>(null);
-	const [optionResults, setOptionResults] = useState<QuestionResult[] | null>(null);
+	const [optionResults, setOptionResults] = useState<QuestionResult[]>([]);
 
 	const funnyPhrases = ["I prefer folding",
 		"Hold onto your seats",

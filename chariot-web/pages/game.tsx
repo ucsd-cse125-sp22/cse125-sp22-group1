@@ -38,7 +38,15 @@ const Game: NextPage = () => {
 	socket.onerror = (err) => {
 		if (err.type === 'error') {
 			alert("Failed to connect to server. Is it running?");
+			router.push(`/?ip=${router.query.ip}`);
+			context.setStatusMessage("");
 		}
+	}
+
+	socket.onclose = () => {
+		alert("you lost connection!");
+		router.push(`/?ip=${router.query.ip}`);
+		context.setStatusMessage("");
 	}
 
 	socket.onmessage = (msg) => {
@@ -55,7 +63,7 @@ const Game: NextPage = () => {
 		{!showStandings && prompt !== null &&
 			<div className={styles.buttonLayout}>
 				{prompt.options.map((({ label }, choice) => {
-					const labelText = `${label}${optionResults && toPercentage(optionResults[choice].percentage)}`
+					const labelText = `${label}${(gameState === 'winner' && optionResults?.length > 0) ? " " + toPercentage(optionResults[choice].percentage) : ""}`
 					return (
 						<Button width="100%" clickable={winner === null} state={choice === winner ? 'voted' : choice === selectedIdx ? 'selected' : 'unselected'} key={choice} text={labelText} onClick={() => {
 							if (winner === null) {
