@@ -92,7 +92,8 @@ pub struct GraphicsManager {
     fire_particle_system: ParticleSystem<0>,
     smoke_particle_system: ParticleSystem<1>,
     camera_entity: Entity,
-    pub test_ui: UIDrawable,
+    pub test_ui: AnimatedUIDrawable,
+    pub white_box_tex: TextureHandle,
 }
 
 impl GraphicsManager {
@@ -175,6 +176,13 @@ impl GraphicsManager {
         let world = setup_void();
         let postprocess = technique::FSQTechnique::new(&renderer, &resources, "postprocess");
 
+        let white_box_tex = resources.import_texture_embedded(
+            &renderer,
+            "box.png",
+            assets::ui::WHITE_TEXTURE,
+            ImageFormat::Png,
+        );
+
         Self {
             ui_regions: vec![],
             postprocess,
@@ -188,7 +196,8 @@ impl GraphicsManager {
             fire_particle_system,
             smoke_particle_system,
             camera_entity: NULL_ENTITY,
-            test_ui: UIDrawable { layers: vec![] },
+            test_ui: AnimatedUIDrawable::new(),
+            white_box_tex,
         }
     }
 
@@ -206,26 +215,6 @@ impl GraphicsManager {
                 distance: 3.0,
             })
             .build();
-
-        let t_handle = self.resources.import_texture_embedded(
-            &self.renderer,
-            "box.png",
-            assets::ui::WHITE_TEXTURE,
-            ImageFormat::Png,
-        );
-
-        let tex = self.resources.textures.get(&t_handle).unwrap();
-
-        let a_box = UILayerTechnique::new(
-            &self.renderer,
-            glam::vec2(0.0, 0.0),
-            glam::vec2(1.0, 1.0),
-            glam::vec2(0.0, 0.0),
-            glam::vec2(1.0, 1.0),
-            tex,
-        );
-
-        self.test_ui.layers.push(a_box);
     }
 
     pub fn setup_world(&mut self, map: Track) -> World {
@@ -452,6 +441,7 @@ impl GraphicsManager {
 
     pub fn render(&mut self) {
         self.update_voting_announcements();
+        self.update_dynamic_ui();
 
         let world_root = self.world.root();
         let root_xform = self
@@ -644,6 +634,7 @@ impl GraphicsManager {
                 announcement_state,
                 minimap_ui,
                 timer_ui,
+                interaction_ui,
             } => {
                 let text_graph = place_position_text.render_graph(&self.resources);
                 render_job.merge_graph_after("postprocess", text_graph);
@@ -661,16 +652,15 @@ impl GraphicsManager {
 
                 let timer_ui_graph = timer_ui.render_graph(&self.resources);
                 render_job.merge_graph_after("postprocess", timer_ui_graph);
+
+                let interaction_ui_graph = interaction_ui.render_graph(&self.resources);
+                render_job.merge_graph_after("postprocess", interaction_ui_graph);
             }
             UIState::MainMenu { background } => {
                 let ui_graph = background.render_graph(&self.resources);
                 render_job.merge_graph_after("postprocess", ui_graph);
             }
         }
-
-        // TODO this is temp testing
-        let test_graph = self.test_ui.render_graph(&self.resources);
-        render_job.merge_graph_after("postprocess", test_graph);
 
         self.renderer.render(&render_job);
     }
