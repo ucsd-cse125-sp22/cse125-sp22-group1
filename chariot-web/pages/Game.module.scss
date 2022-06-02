@@ -14,8 +14,11 @@
 }
 
 .standingsButton {
-  position: fixed;
-  bottom: 20px;
+  //   position: fixed;
+  //   bottom: 20px;
+  //   justify-self: end;
+  margin-top: auto;
+  padding-bottom: 20px;
   width: 100%;
   display: flex;
   flex-direction: column;

@@ -10,7 +10,7 @@ use chariot_core::player::{lap_info::LapInformation, player_inputs::InputEvent, 
 use glam::DVec3;
 
 use chariot_core::entity_location::EntityLocation;
-use chariot_core::networking::ws::{Standing, WSAudienceBoundMessage};
+use chariot_core::networking::ws::{QuestionResult, Standing, WSAudienceBoundMessage};
 use chariot_core::networking::Uuid;
 use chariot_core::networking::{
     ClientBoundPacket, ClientConnection, ServerBoundPacket, WebSocketConnection,
@@ -491,11 +491,23 @@ impl GameServer {
                             let time_effect_is_live = Duration::new(30, 0);
                             let effect_end_time = now + time_effect_is_live;
 
+                            let option_results = current_question
+                                .options
+                                .iter()
+                                .enumerate()
+                                .map(|(idx, q)| QuestionResult {
+                                    label: q.label.clone(),
+                                    percentage: (*counts.get(&idx).unwrap_or(&0) as f32
+                                        / counts.len() as f32),
+                                })
+                                .collect();
+
                             GameServer::broadcast_ws(
                                 &mut self.ws_connections,
                                 WSAudienceBoundMessage::Winner {
                                     choice: winner,
                                     vote_effect_time: effect_end_time,
+                                    option_results,
                                 },
                             );
 
