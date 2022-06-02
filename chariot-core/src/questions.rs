@@ -48,6 +48,36 @@ pub enum AudienceAction {
     Backwards,              // Players instantly rotate 180 degrees and have their speed inverted
 }
 
+impl AudienceAction {
+    pub fn get_description(&self) -> &str {
+        match self {
+            AudienceAction::Null => "The audience has decided to do nothing",
+            AudienceAction::NoLeft => {
+                "If you're nothing without turning left, then you shouldn't have it"
+            }
+            AudienceAction::NoRight => {
+                "If you're nothing without turning left, then you shouldn't have it"
+            }
+            AudienceAction::InvertControls => "Switch your hands, the controls are inverted!",
+            AudienceAction::AutoAccelerate => "Car Go Brrrrrr!! (Now with more brrr)",
+            AudienceAction::TurnOnlyWhenNotMoving => "You can only turn when you stop moving!",
+            AudienceAction::ShoppingCart => "Don't you just how shopping carts drift?",
+            AudienceAction::SpeedBalanceBoost => "Everyone but first place: FULL SPEED AHEAD",
+            AudienceAction::DoubleMaxSpeed => "You can go faster now :O",
+            AudienceAction::SuperAccelerator => "You can accelerate faster now B)",
+            AudienceAction::SuperSpin => "I'll try spinning, that's a cool trick!",
+            AudienceAction::MoonGravity => "Fly me to the moon!",
+            AudienceAction::IceRink => "It's a great time to go ice skating!",
+            AudienceAction::ExplosivePlayerCollisions => "Make sure to practice social distancing!",
+            AudienceAction::SuperBouncyObjects => "What if we made everything bouncy?",
+            AudienceAction::SwapFirstAndLast => "First = Last",
+            AudienceAction::ShufflePlayerPositions => "Oops, we seem to have misplaced you!",
+            AudienceAction::ResetLapCounter => "Everyone is now on lap 0!",
+            AudienceAction::Backwards => "Drive backwards now!",
+        }
+    }
+}
+
 fn get_shuffled_questions() -> Vec<QuestionData> {
     let mut questions = vec![
         QuestionData {
