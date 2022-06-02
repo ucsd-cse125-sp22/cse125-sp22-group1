@@ -4,12 +4,12 @@
  * TODO: Maybe in the future I'll add initial width and height paramters.
  */
 
-use std::io::Cursor;
-use chariot_core::GLOBAL_CONFIG;
-use Fullscreen::Borderless;
-use image::ImageFormat;
-use winit::window::{Fullscreen, Icon};
 use crate::assets::ui::ICON;
+use chariot_core::GLOBAL_CONFIG;
+use image::ImageFormat;
+use std::io::Cursor;
+use winit::window::{Fullscreen, Icon};
+use Fullscreen::Borderless;
 
 #[allow(dead_code)] // instance is just here to be kept alive
 pub struct Context {
@@ -17,7 +17,7 @@ pub struct Context {
     pub(super) instance: wgpu::Instance,
     pub(super) surface: wgpu::Surface,
     pub(super) adapter: wgpu::Adapter,
-    is_fullscreen: bool
+    is_fullscreen: bool,
 }
 
 impl Context {
@@ -55,7 +55,7 @@ impl Context {
             instance,
             surface,
             adapter,
-            is_fullscreen: false
+            is_fullscreen: false,
         };
 
         if GLOBAL_CONFIG.start_fullscreen {
@@ -74,7 +74,8 @@ impl Context {
     pub fn toggle_fullscreen(&mut self) {
         self.is_fullscreen = !self.is_fullscreen;
         if self.is_fullscreen {
-            self.window.set_fullscreen(Some(Borderless(self.window.current_monitor())));
+            self.window
+                .set_fullscreen(Some(Borderless(self.window.current_monitor())));
         } else {
             self.window.set_fullscreen(None);
         }
