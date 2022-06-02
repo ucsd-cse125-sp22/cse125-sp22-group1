@@ -220,9 +220,10 @@ impl PlayerEntity {
         }
 
         // If not in contact with any speedup zones (= in the air or off-track), apply a speed penalty
-        if speedup_zones
-            .iter()
-            .all(|zone| !zone.is_colliding(&self.bounding_box))
+        if !self.is_aerial(ramp_collision_result)
+            && speedup_zones
+                .iter()
+                .all(|zone| !zone.is_colliding(&self.bounding_box))
         {
             new_velocity *= 1.0 - GLOBAL_CONFIG.off_track_speed_penalty;
         }

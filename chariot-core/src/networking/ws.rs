@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Error;
-use std::collections::VecDeque;
 use std::net::TcpStream;
+use std::{collections::VecDeque, time::Instant};
 pub use tungstenite::{accept, Message, WebSocket};
 pub use uuid::Uuid;
 
@@ -16,14 +16,34 @@ pub struct Standing {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub enum WSAudienceBoundMessage {
-    Prompt(QuestionData), // Question, 4 Answer Choices
+pub struct QuestionResult {
+    pub label: String,
+    pub percentage: f32,
+}
 
-    Winner(usize), // The winning choice (tuple index)
+#[derive(Serialize, Deserialize, Clone)]
+pub enum WSAudienceBoundMessage {
+    Prompt {
+        question: QuestionData,
+        #[serde(with = "serde_millis")]
+        vote_close_time: Instant,
+    }, // QuestionData, Time Until Vote Close
+
+    Winner {
+        choice: usize,
+        option_results: Vec<QuestionResult>, // percentages of all the winners
+        #[serde(with = "serde_millis")]
+        vote_effect_time: Instant,
+    }, // The winning choice (tuple index)
 
     Assignment(Uuid), // Sends a uuid that the server will use to identify the client
 
     Standings([Standing; 4]),
+    Countdown {
+        #[serde(with = "serde_millis")]
+        time: Instant,
+    },
+    AudienceCount(usize), // The number of connections to the audience
 }
 
 #[derive(Serialize, Deserialize)]
@@ -38,7 +58,7 @@ pub struct WSConnection {
 }
 
 impl WSConnection {
-    pub fn new(tcp_stream: TcpStream) -> WSConnection {
+    pub fn new(tcp_stream: TcpStream) -> Option<WSConnection> {
         tcp_stream
             .set_nonblocking(false)
             .expect("expected to be able to set tcp nonblocking to false");
@@ -48,14 +68,15 @@ impl WSConnection {
                     .get_ref()
                     .set_nonblocking(true)
                     .expect("expected to be able to set tcp nonblocking to true");
-                return WSConnection {
+                return Some(WSConnection {
                     socket,
                     incoming_packets: VecDeque::new(),
                     outgoing_packets: VecDeque::new(),
-                };
+                });
             }
             Err(err) => {
-                panic!("problem — {:?}", err);
+                println!("something weird happened re web sockets; we don't really care though — error: {err}");
+                None
             }
         }
     }
@@ -98,7 +119,8 @@ impl WSConnection {
     }
 
     // send packets on this connection until exhausted
-    pub fn sync_outgoing(&mut self) {
+    pub fn sync_outgoing(&mut self) -> bool {
+        let mut could_send_messages = true;
         while let Some(msg) = self.outgoing_packets.pop_front() {
             if self.socket.can_write() {
                 let result = self.socket.write_message(msg);
@@ -107,8 +129,13 @@ impl WSConnection {
                         "failed to write to socket because of {}",
                         result.unwrap_err()
                     );
+                    could_send_messages = false;
                 }
+            } else {
+                println!("couldn't write? :thinking_emoji");
+                could_send_messages = false;
             }
         }
+        could_send_messages
     }
 }

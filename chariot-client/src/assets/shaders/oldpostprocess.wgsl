@@ -196,7 +196,7 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 	//let world_normal = normalize((view.normal_to_world * vec4<f32>(local_normal, 0.0)).xyz);
 	let color = linear_to_srgb_color(textureLoad(t_forward, tc, 0)).rgb;
 	//let color = textureLoad(t_forward, tc, 0).rgb;
-	let diffuse = max(dot(world_normal, -light_dir), 0.0);
+	var diffuse = max(dot(world_normal, -light_dir), 0.0);
 
 	//return vec4<f32>(variance) + diffuse;
 	let depth = textureLoad(t_depth, tc, 0).r;

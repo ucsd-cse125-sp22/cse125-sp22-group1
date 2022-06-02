@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use super::{Entity, Transform, World};
 use crate::drawable::particle::ParticleDrawable;
 use crate::renderer::Renderer;
@@ -58,6 +57,7 @@ where
     (high - low.clone()) * rng.next() + low.clone()
 }
 
+#[allow(dead_code)] // Random and Constant aren't used but might in the future
 pub enum ParticleRotation {
     Billboard,
     Random,
@@ -129,8 +129,8 @@ impl<const ID: u32> ParticleSystem<ID> {
             .unwrap()
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        let material = MaterialBuilder::new(renderer, "particle")
-            .texture_resource(1, 0, texture_view)
+        let material = MaterialBuilder::new(renderer, resources, "particle")
+            .texture_resource(2, 0, texture_view)
             .produce();
         let material_handle = resources.register_material(material);
         Self {

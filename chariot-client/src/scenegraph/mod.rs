@@ -43,8 +43,7 @@ impl<T: Component> VecStorage<T> {
         self.dense.iter()
     }
 
-    #[allow(dead_code)]
-    pub fn iter_with_entity(
+    pub fn _iter_with_entity(
         &self,
     ) -> std::iter::Zip<std::slice::Iter<Entity>, std::slice::Iter<T>> {
         self.entities.iter().zip(self.dense.iter())
@@ -191,9 +190,9 @@ impl dyn Resource {
     #[inline]
     pub fn _downcast_ref<T: Resource>(&self) -> Option<&T> {
         if self.is::<T>() {
-            unsafe { Some(self.downcast_ref_unchecked()) }
+            unsafe { Option::Some(self.downcast_ref_unchecked()) }
         } else {
-            None
+            Option::None
         }
     }
 
@@ -205,9 +204,9 @@ impl dyn Resource {
     #[inline]
     pub fn _downcast_mut<T: Resource>(&mut self) -> Option<&mut T> {
         if self.is::<T>() {
-            unsafe { Some(self.downcast_mut_unchecked()) }
+            unsafe { Option::Some(self.downcast_mut_unchecked()) }
         } else {
-            None
+            Option::None
         }
     }
 
