@@ -55,7 +55,7 @@ pub struct FramebufferDescriptor {
 }
 
 pub struct Renderer {
-    context: Context,
+    pub context: Context,
     pub device: wgpu::Device,
     queue: wgpu::Queue,
     passes: HashMap<String, RenderPass>,

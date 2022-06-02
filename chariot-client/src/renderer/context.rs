@@ -13,10 +13,11 @@ use crate::assets::ui::ICON;
 
 #[allow(dead_code)] // instance is just here to be kept alive
 pub struct Context {
-    pub(super) window: winit::window::Window,
+    pub(crate) window: winit::window::Window,
     pub(super) instance: wgpu::Instance,
     pub(super) surface: wgpu::Surface,
     pub(super) adapter: wgpu::Adapter,
+    is_fullscreen: bool
 }
 
 impl Context {
@@ -28,10 +29,6 @@ impl Context {
 
         window.set_inner_size(size);
         window.set_resizable(false);
-
-        if GLOBAL_CONFIG.start_fullscreen {
-            window.set_fullscreen(Some(Borderless(window.current_monitor())));
-        }
 
         // set title and icon
         window.set_title("Chairiot");
@@ -53,17 +50,33 @@ impl Context {
         }))
         .expect("Failed to find an appropriate adapter");
 
-        Context {
+        let mut context = Context {
             window,
             instance,
             surface,
             adapter,
+            is_fullscreen: false
+        };
+
+        if GLOBAL_CONFIG.start_fullscreen {
+            context.toggle_fullscreen();
         }
+
+        context
     }
 
     // this does a lot for playability
     pub fn _capture_cursor(&self) {
         self.window.set_cursor_visible(false);
         let _ = self.window.set_cursor_grab(true);
+    }
+
+    pub fn toggle_fullscreen(&mut self) {
+        self.is_fullscreen = !self.is_fullscreen;
+        if self.is_fullscreen {
+            self.window.set_fullscreen(Some(Borderless(self.window.current_monitor())));
+        } else {
+            self.window.set_fullscreen(None);
+        }
     }
 }
