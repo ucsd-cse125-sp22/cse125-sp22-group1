@@ -891,6 +891,7 @@ impl GraphicsManager {
             UIState::ChairacterSelect {
                 background,
                 chair_select_box,
+                chair_description,
                 player_chair_images,
             } => {
                 let background_graph = background.render_graph(&render_context);
@@ -903,6 +904,10 @@ impl GraphicsManager {
                     let chair_graph = chair_image.render_graph(&render_context);
                     render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, chair_graph);
                 }
+
+                let chair_description_box_graph = chair_description.render_graph(&render_context);
+                render_job
+                    .merge_graph_after(SimpleFSQTechnique::PASS_NAME, chair_description_box_graph);
             }
             UIState::InGameHUD {
                 place_position_image,
