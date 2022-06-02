@@ -4,9 +4,12 @@
  * TODO: Maybe in the future I'll add initial width and height paramters.
  */
 
+use std::io::Cursor;
 use chariot_core::GLOBAL_CONFIG;
 use Fullscreen::Borderless;
-use winit::window::Fullscreen;
+use image::ImageFormat;
+use winit::window::{Fullscreen, Icon};
+use crate::assets::ui::ICON;
 
 #[allow(dead_code)] // instance is just here to be kept alive
 pub struct Context {
@@ -29,6 +32,16 @@ impl Context {
         if GLOBAL_CONFIG.start_fullscreen {
             window.set_fullscreen(Some(Borderless(window.current_monitor())));
         }
+
+        // set title and icon
+        window.set_title("Chairiot");
+        let img = image::load(Cursor::new(ICON), ImageFormat::Png)
+            .expect("couldn't load embedded icon")
+            .into_rgba8();
+
+        let width = img.width();
+        let height = img.height();
+        window.set_window_icon(Some(Icon::from_rgba(img.to_vec(), width, height).unwrap()));
 
         let instance = wgpu::Instance::new(wgpu::Backends::all());
         let surface = unsafe { instance.create_surface(&window) };

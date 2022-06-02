@@ -4,6 +4,9 @@ use chariot_core::player::choices::Chair;
 pub const HOME_BACKGROUND: &[u8] = include_bytes!("homebackground.png");
 pub const CHAIR_SELECT_BACKGROUND: &[u8] = include_bytes!("chair-select/background.png");
 
+// icon
+pub const ICON: &[u8] = include_bytes!("icon.png");
+
 // chair select rectangles
 const CHAIR_SELECT_RECT0: &[u8] = include_bytes!("chair-select/select/p0rectangle.png");
 const CHAIR_SELECT_RECT1: &[u8] = include_bytes!("chair-select/select/p1rectangle.png");
