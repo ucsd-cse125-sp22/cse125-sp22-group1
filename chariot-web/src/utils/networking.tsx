@@ -61,6 +61,7 @@ export const handleSocket = (context: GlobalContextType, msg: MessageEvent) => {
 		context.setTotalConnected(message.AudienceCount);
 	} else if (message.Countdown !== undefined) {
 		context.setCountdownTime(new Date(message.Countdown.time));
+		context.setGameState('waiting');
 	} else {
 		console.log("new data type");
 		console.log(message);
