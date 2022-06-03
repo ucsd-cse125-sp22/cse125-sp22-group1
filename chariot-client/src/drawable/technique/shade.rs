@@ -20,7 +20,7 @@ pub struct ShadeDirectTechnique {
 }
 
 impl ShadeDirectTechnique {
-    const FRAMEBUFFER_NAME: &'static str = "shade_direct_out";
+    const FRAMEBUFFER_NAME: &'static str = "shade_direct_out_us";
     pub fn new(
         renderer: &Renderer,
         resources: &ResourceManager,
@@ -61,7 +61,7 @@ impl Technique for ShadeDirectTechnique {
         ));
 
         if res.is_err() {
-            panic!("Can't register this technique twice!");
+            println!("Re-registering technique but not resetting static uniforms");
         }
     }
 

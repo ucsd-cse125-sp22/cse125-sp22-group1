@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use chariot_core::networking::ws::{Standing, WSAudienceBoundMessage, WSServerBoundMessage};
 use chariot_core::networking::Uuid;
 use chariot_core::networking::WebSocketConnection;
@@ -117,5 +119,58 @@ impl GameServer {
             &mut self.ws_connections,
             WSAudienceBoundMessage::AudienceCount(total_connections),
         )
+    }
+
+    // depending on the game state, this function will maybe get the voting state
+    pub fn get_vote_counts(&self) -> Vec<u32> {
+        if let GamePhase::PlayingGame {
+            voting_game_state, ..
+        } = &self.game_state.phase
+        {
+            if let VotingState::WaitingForVotes {
+                audience_votes,
+                current_question,
+                ..
+            } = voting_game_state
+            {
+                let mut counts = HashMap::new();
+
+                for vote in audience_votes {
+                    *counts.entry(vote.1).or_insert(0) += 1;
+                }
+
+                let winner: usize = **counts
+                    .iter()
+                    .max_by(|a, b| a.1.cmp(&b.1))
+                    .map(|(vote, _c)| vote)
+                    .unwrap_or(&&(0 as usize));
+
+                let option_results: Vec<u32> = current_question
+                    .options
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, _q)| {
+                        if idx == winner {
+                            1
+                        } else {
+                            *counts.get(&idx).unwrap_or(&0) as u32
+                        }
+                    })
+                    .collect();
+
+                println!("game results!");
+                println!("{:?}", option_results);
+                return option_results;
+            }
+        }
+
+        let counts: Vec<u32> = vec![
+            rand::random::<u32>() % 50,
+            rand::random::<u32>() % 50,
+            rand::random::<u32>() % 50,
+            rand::random::<u32>() % 50,
+        ];
+
+        return counts;
     }
 }

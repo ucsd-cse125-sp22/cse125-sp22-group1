@@ -48,7 +48,7 @@ impl GameClient {
         self.send_packet(ServerBoundPacket::ChairSelect(chair));
     }
 
-    pub fn pick_map(&mut self, map: Track) {
+    pub fn _pick_map(&mut self, map: Track) {
         self.send_packet(ServerBoundPacket::MapSelect(map));
     }
 

@@ -1,28 +1,99 @@
-use include_flate::flate;
+use core::ops::Deref;
+use std::mem::MaybeUninit;
 
-flate!(pub static GEOMETRY: str from "src/assets/shaders/geometry.wgsl");
-flate!(pub static PARTICLE: str from "src/assets/shaders/particle.wgsl");
-flate!(pub static SHADE_DIRECT: str from "src/assets/shaders/shade_direct.wgsl");
-flate!(pub static SHADOW: str from "src/assets/shaders/shadow.wgsl");
-flate!(pub static SKYBOX: str from "src/assets/shaders/skybox.wgsl");
-flate!(pub static UI: str from "src/assets/shaders/ui.wgsl");
+#[macro_export(local_inner_macros)]
+#[doc(hidden)]
+macro_rules! nicks_static_internal {
+    ($(#[$attr:meta])* ($($vis:tt)*) static ref $N:ident : $T:ty = $e:expr; $($t:tt)*) => {
+        nicks_static_internal!(@MAKE TY, $(#[$attr])*, ($($vis)*), $N);
+        nicks_static_internal!(@TAIL, $N : $T = $e);
+        nicks_static!($($t)*);
+    };
+    (@TAIL, $N:ident : $T:ty = $e:expr) => {
+        impl Deref for $N {
+            type Target = $T;
+            fn deref(&self) -> &$T {
+                #[inline(always)]
+                fn __static_ref_initialize() -> $T { $e }
+
+				static mut RES: MaybeUninit<$T> = MaybeUninit::uninit();
+				unsafe {
+					RES.write(__static_ref_initialize());
+					RES.assume_init_ref()
+				}
+            }
+        }
+    };
+    (@MAKE TY, $(#[$attr:meta])*, ($($vis:tt)*), $N:ident) => {
+        #[allow(missing_copy_implementations)]
+        #[allow(non_camel_case_types)]
+        #[allow(dead_code)]
+        $(#[$attr])*
+        $($vis)* struct $N {__private_field: ()}
+        #[doc(hidden)]
+        #[allow(non_upper_case_globals)]
+        $($vis)* static $N: $N = $N {__private_field: ()};
+    };
+    () => ()
+}
+
+#[macro_export(local_inner_macros)]
+macro_rules! nicks_static {
+    ($(#[$attr:meta])* static ref $N:ident : $T:ty = $e:expr; $($t:tt)*) => {
+        nicks_static_internal!($(#[$attr])* () static ref $N : $T = $e; $($t)*);
+    };
+    ($(#[$attr:meta])* pub static ref $N:ident : $T:ty = $e:expr; $($t:tt)*) => {
+        nicks_static_internal!($(#[$attr])* (pub) static ref $N : $T = $e; $($t)*);
+    };
+    ($(#[$attr:meta])* pub ($($vis:tt)+) static ref $N:ident : $T:ty = $e:expr; $($t:tt)*) => {
+        nicks_static_internal!($(#[$attr])* (pub ($($vis)+)) static ref $N : $T = $e; $($t)*);
+    };
+    () => ()
+}
+
+#[cfg(debug_assertions)]
+macro_rules! shader {
+    ($name:ident => $filename:literal) => {
+        nicks_static! {
+            pub static ref $name: String =
+                std::fs::read_to_string($filename).expect("Unable to open shader file");
+        }
+    };
+    () => {};
+}
+
+#[cfg(not(debug_assertions))]
+macro_rules! shader {
+    ($name:ident => $filename:literal) => {
+        flate!(pub static $name: str from $filename);
+    };
+    () => {};
+}
+
+shader!(GEOMETRY => "src/assets/shaders/geometry.wgsl");
+shader!(PARTICLE => "src/assets/shaders/particle.wgsl");
+shader!(SHADE_DIRECT => "src/assets/shaders/shade_direct.wgsl");
+shader!(SHADOW => "src/assets/shaders/shadow.wgsl");
+shader!(SKYBOX => "src/assets/shaders/skybox.wgsl");
+shader!(UI => "src/assets/shaders/ui.wgsl");
 
 // bloom stuff
-flate!(pub static DOWNSAMPLE_BLOOM: str from "src/assets/shaders/downsample_bloom.wgsl");
-flate!(pub static KAWASE_BLUR_DOWN: str from "src/assets/shaders/kawase_blur_down.wgsl");
-flate!(pub static KAWASE_BLUR_UP: str from "src/assets/shaders/kawase_blur_up.wgsl");
-flate!(pub static COMPOSITE_BLOOM: str from "src/assets/shaders/composite_bloom.wgsl");
+shader!(DOWNSAMPLE_BLOOM => "src/assets/shaders/downsample_bloom.wgsl");
+shader!(KAWASE_BLUR_DOWN => "src/assets/shaders/kawase_blur_down.wgsl");
+shader!(KAWASE_BLUR_UP => "src/assets/shaders/kawase_blur_up.wgsl");
+shader!(COMPOSITE_BLOOM => "src/assets/shaders/composite_bloom.wgsl");
 
 // hbil stuff (more simillar to hbao for now)
-flate!(pub static HBIL: str from "src/assets/shaders/hbil.wgsl");
-flate!(pub static HBIL_DEBAYER: str from "src/assets/shaders/hbil_debayer.wgsl");
+shader!(HBIL => "src/assets/shaders/hbil.wgsl");
+shader!(HBIL_DEBAYER => "src/assets/shaders/hbil_debayer.wgsl");
 
 // probes (unused for now)
-flate!(pub static INIT_PROBES: str from "src/assets/shaders/init_probes.wgsl");
-flate!(pub static GEOMETRY_ACC_PROBES: str from "src/assets/shaders/geometry_acc_probes.wgsl");
-flate!(pub static TEMPORAL_ACC_PROBES: str from "src/assets/shaders/geometry_acc_probes.wgsl");
+shader!(INIT_PROBES => "src/assets/shaders/init_probes.wgsl");
+shader!(GEOMETRY_ACC_PROBES => "src/assets/shaders/geometry_acc_probes.wgsl");
+shader!(TEMPORAL_ACC_PROBES => "src/assets/shaders/geometry_acc_probes.wgsl");
 
 // util
-flate!(pub static DOWNSAMPLE_MITCHELL: str from "src/assets/shaders/downsample_mitchell.wgsl");
-flate!(pub static SIMPLE_FSQ: str from "src/assets/shaders/simple_fsq.wgsl");
-flate!(pub static SURFEL_GEOMETRY: str from "src/assets/shaders/surfel_geometry.wgsl");
+shader!(WRONSKI_AA => "src/assets/shaders/wronski_aa.wgsl");
+shader!(DOWNSAMPLE_MITCHELL => "src/assets/shaders/downsample_mitchell.wgsl");
+shader!(SIMPLE_FSQ => "src/assets/shaders/simple_fsq.wgsl");
+shader!(SURFEL_GEOMETRY => "src/assets/shaders/surfel_geometry.wgsl");

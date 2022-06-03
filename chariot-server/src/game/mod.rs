@@ -43,6 +43,7 @@ pub struct GameServer {
     connections: Vec<ClientConnection>,
     ws_connections: HashMap<Uuid, WebSocketConnection>,
     game_state: ServerGameState,
+    tick_counter: u128,
 }
 
 pub struct ServerGameState {
@@ -81,6 +82,7 @@ impl GameServer {
                     .map(|num| get_player_start_physics_properties(&Chair::Swivel, num)),
                 map: None,
             },
+            tick_counter: 0,
         }
     }
 
@@ -128,6 +130,8 @@ impl GameServer {
                     _ => println!("server tick took longer than configured length"),
                 }
             }
+
+            self.tick_counter += 1;
         }
     }
 
@@ -539,6 +543,7 @@ impl GameServer {
                                     question: current_question.clone(),
                                     decision: decision.clone(),
                                     time_effect_is_live,
+                                    winner_idx: winner,
                                 });
                             }
 
@@ -572,6 +577,11 @@ impl GameServer {
                                 decision,
                                 decision_end_time: effect_end_time,
                             };
+                        } else if self.tick_counter % 10 == 0 {
+                            let counts = self.get_vote_counts();
+                            for conn in self.connections.iter_mut() {
+                                conn.push_outgoing(ClientBoundPacket::VotingUpdate(counts.clone()));
+                            }
                         }
                     }
                     VotingState::VoteResultActive {
