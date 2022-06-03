@@ -1,4 +1,5 @@
 use core::ops::Deref;
+use include_flate::flate;
 use std::mem::MaybeUninit;
 
 #[macro_export(local_inner_macros)]
