@@ -140,7 +140,13 @@ impl Application {
                             .update_player_location(&update.0, &update.1, i)
                     });
                 }
-                ClientBoundPacket::PlacementUpdate(position) => {
+                ClientBoundPacket::PlacementUpdate(given_position) => {
+                    let position = if given_position > 4 {
+                        1
+                    } else {
+                        given_position
+                    };
+
                     self.graphics.maybe_update_place(position);
                 }
                 ClientBoundPacket::LapUpdate(lap_num) => {

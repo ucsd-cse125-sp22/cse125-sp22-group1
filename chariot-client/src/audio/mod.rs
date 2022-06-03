@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
@@ -14,7 +16,6 @@ pub mod thread;
 pub struct AudioThreadHandle(usize);
 
 impl AudioThreadHandle {
-    const INVALID: Self = AudioThreadHandle(usize::MAX);
     fn unique() -> Self {
         static COUNTER: AtomicUsize = AtomicUsize::new(0);
         Self(COUNTER.fetch_add(1, Ordering::Relaxed))

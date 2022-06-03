@@ -268,6 +268,9 @@ impl Application {
         } else if key == VirtualKeyCode::P {
             println!("Starting next game!");
             self.game.next_game();
+        } else if key == VirtualKeyCode::F11 {
+            println!("toggling fullscreen");
+            self.graphics.renderer.context.toggle_fullscreen();
         }
 
         match self.graphics.ui {

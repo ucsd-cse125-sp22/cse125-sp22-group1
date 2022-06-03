@@ -11,6 +11,8 @@ pub struct Settings {
     pub player_amount: usize,
     pub ws_server_port: String,
 
+    pub start_fullscreen: bool,
+
     // Resources
     pub tracks_folder: String,
 
@@ -50,6 +52,8 @@ impl Settings {
             .set_default("ws_server_port", "0.0.0.0:2334")?
             .set_default("server_tick_ms", 30)?
             .set_default("player_amount", 4)?
+            // display settings
+            .set_default("start_fullscreen", true)?
             // tracks folder (too big to embed)
             .set_default("tracks_folder", "../tracks")?
             // Gameplay

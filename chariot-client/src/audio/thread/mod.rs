@@ -1,8 +1,10 @@
+#![allow(dead_code)]
+
 use std::io::Cursor;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 
-use rodio::{Decoder, Sample, Sink, Source, SpatialSink};
+use rodio::{Decoder, Sink, Source, SpatialSink};
 
 use crate::audio::thread::fade_source::FadeSource;
 use context::AudioCtx;
@@ -156,6 +158,7 @@ impl AudioThread {
     }
 
     // Pause playback
+
     pub fn pause(&mut self) {
         match &self.sink {
             AudioSinkType::Spatial(sink) => sink.pause(),
