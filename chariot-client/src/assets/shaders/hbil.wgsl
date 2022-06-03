@@ -159,7 +159,7 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 
 	var total_irradiance = vec3<f32>(0.0, 0.0, 0.0);
 
-	var cos_theta_front = t / sqrt(1.0 + t * t);
+	var cos_theta_front = 0.0; //t / sqrt(1.0 + t * t);
 	var screen_pos_front = in.xy;
 	for(var i: i32 = 0; i < num_samples; i = i + 1) {
 		screen_pos_front = screen_pos_front + slice_dir;
@@ -168,7 +168,7 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 	}
 
 	let cos_sin_alpha_back = vec2<f32>(cos_sin_alpha.x, cos_sin_alpha.y);
-	var cos_theta_back = t / sqrt(1.0 + t * t);
+	var cos_theta_back = 0.0; //t / sqrt(1.0 + t * t);
 	var screen_pos_back = in.xy;
 	for(var i: i32 = 0; i < num_samples; i = i + 1) {
 		screen_pos_back = screen_pos_back - slice_dir;
