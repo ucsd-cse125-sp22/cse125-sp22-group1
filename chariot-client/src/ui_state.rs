@@ -502,10 +502,7 @@ impl GraphicsManager {
         None
     }
 
-    pub fn display_finished_text(
-        &mut self,
-        placement: u8,
-    ) {
+    pub fn display_finished_text(&mut self, placement: u8) {
         if let UIState::InGameHUD {
             ref mut finished_text,
             ..
@@ -519,7 +516,10 @@ impl GraphicsManager {
                 _ => "Race Finished",
             };
 
-            *finished_text = FINISHED_TEXT.clone().content(message).build_drawable(&self.renderer, &mut self.resources);
+            *finished_text = FINISHED_TEXT
+                .clone()
+                .content(message)
+                .build_drawable(&self.renderer, &mut self.resources);
         }
     }
 
@@ -867,7 +867,7 @@ impl GraphicsManager {
             interaction_ui: AnimatedUIDrawable::new(),
             interaction_text: UIDrawable { layers: vec![] },
             interaction_state: InteractionState::None,
-            finished_text: UIDrawable { layers: vec![] }
+            finished_text: UIDrawable { layers: vec![] },
         }
     }
 

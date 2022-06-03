@@ -2,7 +2,7 @@ use crate::{
     checkpoints::Checkpoint,
     physics::{player_entity::PlayerEntity, trigger_entity::TriggerEntity},
 };
-use chariot_core::player::{lap_info::*};
+use chariot_core::player::lap_info::*;
 use std::cmp::Ordering;
 use std::time::Duration;
 

@@ -68,7 +68,7 @@ pub enum ClientBoundPacket {
     VotingCooldown,
     LapUpdate(LapNumber),       // What lap are you now on?
     PlacementUpdate(Placement), // What place in the race are you now at?
-    FinishedLaps(Placement), // You completed all laps, what place are you?
+    FinishedLaps(Placement),    // You completed all laps, what place are you?
 
     SoundEffectEvent(SoundEffect),
 
