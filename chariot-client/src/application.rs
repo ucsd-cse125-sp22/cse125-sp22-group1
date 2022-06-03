@@ -72,6 +72,14 @@ impl Application {
             self.graphics.update_timer(since_game_started);
         }
 
+        // update countdown, potentially
+        self.graphics.maybe_update_countdown(&self.game_start_time);
+
+        // TODO: do this for other players
+        if self.pressed_keys.contains(&VirtualKeyCode::W) {
+            self.graphics.add_fire_to_player(0, delta_time);
+        }
+
         self.last_update = SystemTime::now();
 
         self.game.fetch_incoming_packets();

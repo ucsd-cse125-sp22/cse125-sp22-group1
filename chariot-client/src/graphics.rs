@@ -35,8 +35,8 @@ use crate::resources::*;
 use crate::scenegraph::components::*;
 use crate::scenegraph::particle_system::*;
 use crate::scenegraph::*;
-use crate::ui_state::AnnouncementState;
 use crate::ui_state::UIState;
+use crate::ui_state::{AnnouncementState, CountdownState};
 
 pub fn register_passes(renderer: &mut Renderer) {
     StaticMeshDrawable::register(renderer);
@@ -117,16 +117,16 @@ pub struct GraphicsManager {
     pub player_num: PlayerID,
     pub player_choices: [Option<PlayerChoices>; 4],
     pub player_entities: [Option<Entity>; 4],
-    shade_direct: technique::ShadeDirectTechnique,
-    skybox: technique::SkyboxTechnique,
-    downsample: technique::DownsampleTechnique,
-    hibl: technique::HBILTechnique,
-    hibl_debayer: technique::HBILDebayerTechnique,
-    downsample_bloom: technique::DownsampleBloomTechnique,
-    kawase_blur_down: technique::KawaseBlurDownTechnique,
-    kawase_blur_up: technique::KawaseBlurUpTechnique,
-    composite_bloom: technique::CompositeBloomTechnique,
-    simple_fsq: technique::SimpleFSQTechnique,
+    shade_direct: ShadeDirectTechnique,
+    skybox: SkyboxTechnique,
+    downsample: DownsampleTechnique,
+    hibl: HBILTechnique,
+    hibl_debayer: HBILDebayerTechnique,
+    downsample_bloom: DownsampleBloomTechnique,
+    kawase_blur_down: KawaseBlurDownTechnique,
+    kawase_blur_up: KawaseBlurUpTechnique,
+    composite_bloom: CompositeBloomTechnique,
+    simple_fsq: SimpleFSQTechnique,
     fire_particle_system: ParticleSystem<0>,
     smoke_particle_system: ParticleSystem<1>,
     prev_view: glam::Mat4,
@@ -314,32 +314,18 @@ impl GraphicsManager {
             },
         );
         let world = setup_void();
-        let shade_direct = technique::ShadeDirectTechnique::new(&renderer, &resources, quad_handle);
-        let skybox = technique::SkyboxTechnique::new(&renderer, &resources, quad_handle);
-        let downsample = technique::DownsampleTechnique::new(
-            &renderer,
-            &resources,
-            "shade_direct_out",
-            0,
-            quad_handle,
-        );
-        let hibl = technique::HBILTechnique::new(&renderer, &resources, quad_handle);
-        let hibl_debayer = technique::HBILDebayerTechnique::new(&renderer, &resources, quad_handle);
-        let downsample_bloom =
-            technique::DownsampleBloomTechnique::new(&renderer, &resources, quad_handle);
-        let kawase_blur_down =
-            technique::KawaseBlurDownTechnique::new(&renderer, &resources, quad_handle);
-        let kawase_blur_up =
-            technique::KawaseBlurUpTechnique::new(&renderer, &resources, quad_handle);
-        let composite_bloom =
-            technique::CompositeBloomTechnique::new(&renderer, &resources, quad_handle);
-        let simple_fsq = technique::SimpleFSQTechnique::new(
-            &renderer,
-            &resources,
-            "composite_bloom_out",
-            0,
-            quad_handle,
-        );
+        let shade_direct = ShadeDirectTechnique::new(&renderer, &resources, quad_handle);
+        let skybox = SkyboxTechnique::new(&renderer, &resources, quad_handle);
+        let downsample =
+            DownsampleTechnique::new(&renderer, &resources, "shade_direct_out", 0, quad_handle);
+        let hibl = HBILTechnique::new(&renderer, &resources, quad_handle);
+        let hibl_debayer = HBILDebayerTechnique::new(&renderer, &resources, quad_handle);
+        let downsample_bloom = DownsampleBloomTechnique::new(&renderer, &resources, quad_handle);
+        let kawase_blur_down = KawaseBlurDownTechnique::new(&renderer, &resources, quad_handle);
+        let kawase_blur_up = KawaseBlurUpTechnique::new(&renderer, &resources, quad_handle);
+        let composite_bloom = CompositeBloomTechnique::new(&renderer, &resources, quad_handle);
+        let simple_fsq =
+            SimpleFSQTechnique::new(&renderer, &resources, "composite_bloom_out", 0, quad_handle);
 
         let white_box_tex = resources.import_texture_embedded(
             &renderer,
@@ -930,6 +916,8 @@ impl GraphicsManager {
                 timer_ui,
                 lap_ui,
                 interaction_ui,
+                countdown_ui,
+                ..
             } => {
                 let position_graph = place_position_image.render_graph(&render_context);
                 render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, position_graph);
@@ -950,6 +938,11 @@ impl GraphicsManager {
 
                 let timer_ui_graph = timer_ui.render_graph(&render_context);
                 render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, timer_ui_graph);
+
+                if let Some(countdown_ui) = countdown_ui {
+                    let countdown_ui_graph = countdown_ui.render_graph(&render_context);
+                    render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, countdown_ui_graph);
+                }
 
                 // commenting out now, will merge this in later
                 // let interaction_ui_graph = interaction_ui.render_graph(&render_context);
