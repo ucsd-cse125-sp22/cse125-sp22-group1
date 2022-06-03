@@ -588,8 +588,17 @@ impl GameServer {
                     } => {
                         if *decision_end_time < now {
                             // the vote has been in effect enough, lets go to the cooldown
-                            *voting_game_state =
-                                VotingState::VoteCooldown(now + Duration::new(10, 0))
+                            let time_voting_starts = now + Duration::new(5, 0);
+                            *voting_game_state = VotingState::VoteCooldown(time_voting_starts);
+                            for client in self.connections.iter_mut() {
+                                client.push_outgoing(ClientBoundPacket::VotingCooldown);
+                            }
+                            GameServer::broadcast_ws(
+                                &mut self.ws_connections,
+                                WSAudienceBoundMessage::Countdown {
+                                    time: time_voting_starts,
+                                },
+                            )
                         }
                     }
                     VotingState::VoteCooldown(cooldown) => {

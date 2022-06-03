@@ -23,6 +23,9 @@ const TERRAIN_COLLISION: &[u8] = include_bytes!("sfx/Bump_02.ogg");
 const INTERACTION_VOTE_START: &[u8] = include_bytes!("sfx/Power_Get_01.ogg");
 const INTERACTION_CHOSEN: &[u8] = include_bytes!("sfx/Effect_01.ogg");
 
+const COUNTDOWN_GENERAL: &[u8] = include_bytes!("sfx/Countdown_Tick.ogg");
+const COUNTDOWN_GO: &[u8] = include_bytes!("sfx/Countdown_Go.ogg");
+
 pub fn get_sfx(effect: SoundEffect) -> &'static [u8] {
     match effect {
         SoundEffect::EnterChairacterSelect => ENTER_CHAIRACTER_SELECT,
@@ -35,5 +38,7 @@ pub fn get_sfx(effect: SoundEffect) -> &'static [u8] {
         SoundEffect::TerrainCollision => TERRAIN_COLLISION,
         SoundEffect::InteractionVoteStart => INTERACTION_VOTE_START,
         SoundEffect::InteractionChosen => INTERACTION_CHOSEN,
+        SoundEffect::CountdownGeneral => COUNTDOWN_GENERAL,
+        SoundEffect::CountdownGo => COUNTDOWN_GO,
     }
 }

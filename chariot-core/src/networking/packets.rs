@@ -57,14 +57,13 @@ pub enum ClientBoundPacket {
         #[serde(with = "serde_millis")]
         time_until_vote_end: Duration,
     }, // Sent when the audience begins voting (suspense!)
-
     InteractionActivate {
         question: QuestionData,
         decision: QuestionOption,
         #[serde(with = "serde_millis")]
         time_effect_is_live: Duration,
     }, // Sent when the audience has voted on something
-
+    VotingCooldown,
     LapUpdate(LapNumber),       // What lap are you now on?
     PlacementUpdate(Placement), // What place in the race are you now at?
 

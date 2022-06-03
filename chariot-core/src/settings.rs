@@ -20,6 +20,7 @@ pub struct Settings {
     pub number_laps: u8,
     pub powerup_cooldown_time: u64,
     pub volume: f32,
+    pub enable_particle_effects: bool,
 
     // Physics
     pub gravity_coefficient: f64,
@@ -61,6 +62,7 @@ impl Settings {
             .set_default("number_laps", 3)?
             .set_default("powerup_cooldown_time", 10)?
             .set_default("volume", 1.0)?
+            .set_default("enable_particle_effects", true)?
             // physics
             // `gravity_coefficient` is acceleration due to gravity: this is
             // little g (whose IRL value is 9.81 meters per second squared, but
