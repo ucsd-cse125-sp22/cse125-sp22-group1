@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use crate::physics::bounding_box::BoundingBox;
 use chariot_core::{
     entity_location::EntityLocation,
@@ -43,5 +45,6 @@ pub fn get_player_start_physics_properties(chair: &Chair, player_number: PlayerI
         lap_info: LapInformation::new(),
         current_powerup: None,
         chair: *chair,
+        game_start_time: Instant::now(),
     };
 }

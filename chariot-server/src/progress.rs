@@ -99,6 +99,7 @@ pub fn get_player_placement_array(
                     last_checkpoint: data.1 .2,
                     placement: 4 - i as Placement,
                     finished: false,
+                    finish_time: players[data.0].lap_info.finish_time,
                 },
             )
         }
