@@ -72,6 +72,9 @@ impl Application {
             self.graphics.update_timer(since_game_started);
         }
 
+        // update countdown, potentially
+        self.graphics.maybe_update_countdown(&self.game_start_time);
+
         // TODO: do this for other players
         if self.pressed_keys.contains(&VirtualKeyCode::W) {
             self.graphics.add_fire_to_player(0, delta_time);
@@ -131,10 +134,16 @@ impl Application {
                 }
 
                 ClientBoundPacket::EntityUpdate(locations) => {
-                    locations.iter().enumerate().for_each(|(i, update)| {
-                        self.graphics
-                            .update_player_location(&update.0, &update.1, i)
-                    });
+                    locations
+                        .iter()
+                        .enumerate()
+                        .for_each(|(i, (location, velocity, did_move))| {
+                            self.graphics
+                                .update_player_location(&location, &velocity, i);
+                            if *did_move {
+                                self.graphics.add_fire_to_player(i, delta_time);
+                            }
+                        });
                 }
                 ClientBoundPacket::PlacementUpdate(given_position) => {
                     let position = if given_position > 4 {

@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 
 use chariot_core::player::choices::{Chair, PlayerChoices, Track};
 use chariot_core::player::lap_info::Placement;
-use chariot_core::player::player_inputs::PlayerInputs;
+use chariot_core::player::player_inputs::{EngineStatus, PlayerInputs};
 use chariot_core::player::{lap_info::LapInformation, player_inputs::InputEvent, PlayerID};
 use glam::DVec3;
 
@@ -135,7 +135,7 @@ impl GameServer {
                 match self.game_state.phase {
                     GamePhase::ConnectingAndChoosingSettings { .. }
                     | GamePhase::WaitingForPlayerLoad { .. } => println!("Tick took longer than configured length, but we don't care because we are still loading"),
-                    _ => panic!("server tick took longer than configured length"),
+                    _ => println!("server tick took longer than configured length"),
                 }
             }
         }
@@ -730,11 +730,20 @@ impl GameServer {
 
     // send player location and velocity data to every client
     fn sync_player_state(&mut self) {
-        let updates: Vec<(EntityLocation, DVec3)> = self
+        let updates: Vec<(EntityLocation, DVec3, bool)> = self
             .game_state
             .players
             .iter()
-            .map(|player| (player.entity_location, player.velocity))
+            .map(|player| {
+                (
+                    player.entity_location,
+                    player.velocity,
+                    matches!(
+                        player.player_inputs.engine_status,
+                        EngineStatus::Accelerating(_)
+                    ),
+                )
+            })
             .collect();
         for connection in &mut self.connections {
             connection.push_outgoing(ClientBoundPacket::EntityUpdate(updates.clone()));

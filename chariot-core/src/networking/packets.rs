@@ -50,8 +50,8 @@ pub enum ClientBoundPacket {
     GameStart(Duration), // How long until the game starts?
 
     // During game
-    EntityUpdate(Vec<(EntityLocation, DVec3)>), // Clients will need to know the location and velocity of every player
-    PowerupPickup,                              // Add a payload here when appropriate
+    EntityUpdate(Vec<(EntityLocation, DVec3, bool)>), // Clients will need to know the location and velocity of every player
+    PowerupPickup,                                    // Add a payload here when appropriate
     VotingStarted {
         question: QuestionData,
         #[serde(with = "serde_millis")]
