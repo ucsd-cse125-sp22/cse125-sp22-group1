@@ -52,7 +52,7 @@ impl AudioManager {
     ) -> AudioThread {
         // Create the new instance of an audio thread, and set the volume and pitch to the levels defined in source
         let mut thread = AudioThread::new(ctx, track_audio, opt);
-        thread.set_volume(self.volume);
+        thread.set_volume(0.0); //self.volume);
         thread.set_pitch(self.pitch);
 
         thread

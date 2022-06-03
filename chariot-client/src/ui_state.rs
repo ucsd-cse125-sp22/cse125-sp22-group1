@@ -3,7 +3,6 @@ use std::time::{Duration, Instant};
 use glam::Vec2;
 use image::ImageFormat;
 use lazy_static::lazy_static;
-use ordinal::Ordinal;
 
 use chariot_core::player::choices::Chair;
 
@@ -45,11 +44,13 @@ pub enum UIState {
     },
     InGameHUD {
         place_position_image: UIDrawable,
+        minimap_ui: UIDrawable,
+        timer_ui: UIDrawable,
+        lap_ui: UIDrawable,
+        // to be deprecated
         game_announcement_title: UIDrawable,
         game_announcement_subtitle: UIDrawable,
         announcement_state: AnnouncementState,
-        minimap_ui: UIDrawable,
-        timer_ui: UIDrawable,
     },
 }
 
@@ -66,15 +67,18 @@ lazy_static! {
             .alignment(StringAlignment::CENTERED)
             .content("")
             .position(0.50, 0.14);
-    static ref PLACEMENT_TEXT: UIStringBuilder =
-        UIStringBuilder::new(*assets::fonts::PLACEMENT_FONT_SELECTION)
-            .alignment(StringAlignment::RIGHT)
-            .content("")
-            .position(1.0, 0.057);
+    static ref PLACEMENT_TEXT: UIStringBuilder = UIStringBuilder::new(*assets::fonts::PRESS_START)
+        .alignment(StringAlignment::RIGHT)
+        .content("")
+        .position(1.0, 0.057);
     static ref TIMER_TEXT: UIStringBuilder = UIStringBuilder::new(assets::fonts::PRIMARY_FONT)
         .alignment(StringAlignment::RIGHT)
         .content("00:00:000")
         .position(0.95, 0.9);
+    static ref LAP_TEXT: UIStringBuilder = UIStringBuilder::new(*assets::fonts::PRESS_START)
+        .alignment(StringAlignment::LEFT)
+        .content("Lap 0/3")
+        .position(30.0 / 1280.0, 0.35);
 }
 
 impl GraphicsManager {
@@ -201,6 +205,15 @@ impl GraphicsManager {
         } = &mut self.ui
         {
             *announcement_state = new_announcement_state;
+        }
+    }
+
+    pub fn maybe_update_lap(&mut self, lap: u8) {
+        if let UIState::InGameHUD { ref mut lap_ui, .. } = self.ui {
+            *lap_ui = LAP_TEXT
+                .clone()
+                .content(format!("lap {lap}/3").as_str())
+                .build_drawable(&self.renderer, &mut self.resources);
         }
     }
 
@@ -498,6 +511,10 @@ impl GraphicsManager {
             .clone()
             .build_drawable(&self.renderer, &mut self.resources);
 
+        let lap_ui = LAP_TEXT
+            .clone()
+            .build_drawable(&self.renderer, &mut self.resources);
+
         // minimap
         let minimap_map_handle = self.resources.import_texture_embedded(
             &self.renderer,
@@ -558,6 +575,7 @@ impl GraphicsManager {
             announcement_state: AnnouncementState::None,
             minimap_ui,
             timer_ui,
+            lap_ui,
         }
     }
 }
