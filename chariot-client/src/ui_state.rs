@@ -196,7 +196,7 @@ impl GraphicsManager {
                 let player_layer = minimap_ui.layers.get_mut(player_index + 1).unwrap();
 
                 let raw_verts_data = UILayerTechnique::create_verts_data(
-                    Vec2::new(0.2 * location.0, 0.2 * location.1),
+                    Vec2::new(0.2 * location.0, 0.3 * location.1),
                     Vec2::new(0.02, 0.02),
                 );
                 let verts_data: &[u8] = bytemuck::cast_slice(&raw_verts_data);
@@ -425,6 +425,8 @@ impl GraphicsManager {
             chair_description,
             player_chair_images: vec![None, None, None, None],
         };
+
+        (0..4).for_each(|i| self.maybe_display_chair(None, i));
     }
 
     pub fn maybe_select_chair(&mut self, chair: Chair) {
@@ -491,12 +493,12 @@ impl GraphicsManager {
             *chair_description = UIDrawable { layers: layer_vec };
 
             for (player_id, choice) in self.player_choices.clone().iter().flatten().enumerate() {
-                self.maybe_display_chair(choice.chair, player_id);
+                self.maybe_display_chair(Some(choice.chair), player_id);
             }
         }
     }
 
-    pub fn maybe_display_chair(&mut self, chair: Chair, player: usize) {
+    pub fn maybe_display_chair(&mut self, chair: Option<Chair>, player: usize) {
         if let UIState::ChairacterSelect {
             player_chair_images,
             ..
@@ -513,7 +515,7 @@ impl GraphicsManager {
                 .resources
                 .textures
                 .get(&chair_image)
-                .expect(format!("{} doesn't exist!", chair.to_string()).as_str());
+                .expect(format!("chair doesn't exist!").as_str());
 
             let position = match player {
                 0 => glam::vec2(165.0 / 1280.0, 187.0 / 720.0),
@@ -523,7 +525,7 @@ impl GraphicsManager {
                 _ => glam::vec2(165.0 / 1280.0, 187.0 / 720.0),
             };
 
-            let layers = vec![technique::UILayerTechnique::new(
+            let layers = vec![UILayerTechnique::new(
                 &self.renderer,
                 position,
                 glam::vec2(166.0 / 1280.0, 247.0 / 720.0),
@@ -614,10 +616,10 @@ impl GraphicsManager {
             })
             .collect();
 
-        let mut layer_vec = vec![technique::UILayerTechnique::new(
+        let mut layer_vec = vec![UILayerTechnique::new(
             &self.renderer,
             glam::vec2(0.0, 0.0),
-            glam::vec2(0.2, 0.2),
+            glam::vec2(0.2, 0.3),
             glam::vec2(0.0, 0.0),
             glam::vec2(1.0, 1.0),
             &minimap_map_texture,

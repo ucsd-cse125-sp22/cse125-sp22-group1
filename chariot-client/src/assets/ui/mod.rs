@@ -28,14 +28,18 @@ const CHAIR_ERGONOMIC: &[u8] = include_bytes!("chair-select/display/type=ergonom
 const CHAIR_FOLDING: &[u8] = include_bytes!("chair-select/display/type=folding.png");
 const CHAIR_RECLINER: &[u8] = include_bytes!("chair-select/display/type=recliner.png");
 const CHAIR_SWIVEL: &[u8] = include_bytes!("chair-select/display/type=swivel.png");
+const CHAIR_NONE: &[u8] = include_bytes!("chair-select/display/type=none.png");
 
-pub fn get_chair_image(chair: Chair) -> &'static [u8] {
+pub fn get_chair_image(chair: Option<Chair>) -> &'static [u8] {
     match chair {
-        Chair::Swivel => CHAIR_SWIVEL,
-        Chair::Recliner => CHAIR_RECLINER,
-        Chair::Beanbag => CHAIR_BEANBAG,
-        Chair::Ergonomic => CHAIR_ERGONOMIC,
-        Chair::Folding => CHAIR_FOLDING,
+        Some(chair) => match chair {
+            Chair::Swivel => CHAIR_SWIVEL,
+            Chair::Recliner => CHAIR_RECLINER,
+            Chair::Beanbag => CHAIR_BEANBAG,
+            Chair::Ergonomic => CHAIR_ERGONOMIC,
+            Chair::Folding => CHAIR_FOLDING,
+        },
+        None => CHAIR_NONE,
     }
 }
 
