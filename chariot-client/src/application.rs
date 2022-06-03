@@ -147,6 +147,7 @@ impl Application {
                 }
                 ClientBoundPacket::LapUpdate(lap_num) => {
                     println!("I am now on lap {}!", lap_num);
+                    self.graphics.maybe_update_lap(lap_num);
                     self.sfx_manager.play(
                         get_sfx(SoundEffect::NextLap),
                         &self.audio_context,

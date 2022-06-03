@@ -928,6 +928,7 @@ impl GraphicsManager {
                 announcement_state,
                 minimap_ui,
                 timer_ui,
+                lap_ui,
                 interaction_ui,
             } => {
                 let position_graph = place_position_image.render_graph(&render_context);
@@ -943,6 +944,9 @@ impl GraphicsManager {
                 }
                 let minimap_ui_graph = minimap_ui.render_graph(&render_context);
                 render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, minimap_ui_graph);
+
+                let lap_ui_graph = lap_ui.render_graph(&render_context);
+                render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, lap_ui_graph);
 
                 let timer_ui_graph = timer_ui.render_graph(&render_context);
                 render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, timer_ui_graph);
