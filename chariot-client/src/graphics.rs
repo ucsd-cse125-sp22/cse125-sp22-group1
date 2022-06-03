@@ -577,8 +577,8 @@ impl GraphicsManager {
 
         // If we are moving, we might need to rotate the model
         if velocity.length() > 0.0 {
-            if let Some(Chair::Beanbag) = self.player_choices[player_num].as_ref().map(|c| c.chair)
-            {
+            let chair = self.player_choices[player_num].as_ref().map(|c| c.chair);
+            if matches!(chair, Some(Chair::Folding)) || matches!(chair, Some(Chair::Beanbag)) {
                 for drawable in self
                     .world
                     .get_mut::<Vec<StaticMeshDrawable>>(player_entity)
