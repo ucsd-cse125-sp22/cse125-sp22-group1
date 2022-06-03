@@ -261,8 +261,9 @@ impl GameServer {
                                 force_start: false,
                                 player_choices: Default::default(),
                             };
-                            self.game_state.players = [0, 1, 2, 3]
-                                .map(|num| get_player_start_physics_properties(&Chair::Swivel, num));
+                            self.game_state.players = [0, 1, 2, 3].map(|num| {
+                                get_player_start_physics_properties(&Chair::Swivel, num)
+                            });
                             self.game_state.map = None;
                             need_to_broadcast.push(ClientBoundPacket::StartNextGame);
                         }

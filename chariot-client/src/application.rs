@@ -7,7 +7,7 @@ use std::time::SystemTime;
 
 use winit::event::VirtualKeyCode;
 
-use crate::assets::audio::{get_sfx, CYBER_RECLINER, random_track_music};
+use crate::assets::audio::{get_sfx, random_track_music, CYBER_RECLINER};
 use crate::audio::AudioManager;
 use chariot_core::networking::ClientBoundPacket;
 use chariot_core::player::lap_info::Placement;
@@ -269,7 +269,12 @@ impl Application {
                             .chair,
                     );
                     self.graphics.display_chairacter_select();
-                    self.music_manager.play_cf(CYBER_RECLINER, &self.audio_context, SourceOptions::new().set_repeat(true), Duration::from_secs(2));
+                    self.music_manager.play_cf(
+                        CYBER_RECLINER,
+                        &self.audio_context,
+                        SourceOptions::new().set_repeat(true),
+                        Duration::from_secs(2),
+                    );
                 }
                 ClientBoundPacket::VotingCooldown => (),
             }
