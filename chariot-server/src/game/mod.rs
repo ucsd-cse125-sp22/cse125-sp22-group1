@@ -696,8 +696,9 @@ impl GameServer {
                             if let PlayerProgress::Finished { finish_time } = player.placement_data
                             {
                                 finish_time
-                            }
-							Duration::from_secs(1000)
+                            } else {
+								Duration::from_secs(1000)
+							}
                         })
                         .enumerate()
                         .collect::<Vec<(usize, Duration)>>();
