@@ -34,7 +34,7 @@ use crate::resources::*;
 use crate::scenegraph::components::*;
 use crate::scenegraph::particle_system::*;
 use crate::scenegraph::*;
-use crate::ui_state::AnnouncementState;
+use crate::ui_state::{AnnouncementState, CountdownState};
 use crate::ui_state::UIState;
 
 pub fn register_passes(renderer: &mut Renderer) {
@@ -916,6 +916,8 @@ impl GraphicsManager {
                 announcement_state,
                 minimap_ui,
                 timer_ui,
+                countdown_ui,
+                ..
             } => {
                 let position_graph = place_position_image.render_graph(&render_context);
                 render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, position_graph);
@@ -933,6 +935,10 @@ impl GraphicsManager {
 
                 let timer_ui_graph = timer_ui.render_graph(&render_context);
                 render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, timer_ui_graph);
+                if let Some(countdown_ui) = countdown_ui {
+                    let countdown_ui_graph = countdown_ui.render_graph(&render_context);
+                    render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, countdown_ui_graph);
+                }
             }
             UIState::MainMenu { background } => {
                 let ui_graph = background.render_graph(&render_context);

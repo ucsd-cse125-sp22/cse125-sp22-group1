@@ -1,4 +1,6 @@
+use std::time::Duration;
 use chariot_core::player::choices::Chair;
+use crate::ui_state::CountdownState;
 
 // backgrounds
 pub const HOME_BACKGROUND: &[u8] = include_bytes!("homebackground.png");
@@ -77,3 +79,13 @@ const COUNTDOWN_3: &[u8] = include_bytes!("countdown/3.png");
 const COUNTDOWN_2: &[u8] = include_bytes!("countdown/2.png");
 const COUNTDOWN_1: &[u8] = include_bytes!("countdown/1.png");
 const COUNTDOWN_START: &[u8] = include_bytes!("countdown/start.png");
+
+pub fn get_countdown_asset(countdown_state: CountdownState) -> Option<&'static [u8]> {
+    match countdown_state {
+        CountdownState::None => None,
+        CountdownState::Three => Some(COUNTDOWN_3),
+        CountdownState::Two => Some(COUNTDOWN_2),
+        CountdownState::One => Some(COUNTDOWN_1),
+        CountdownState::Start => Some(COUNTDOWN_START)
+    }
+}

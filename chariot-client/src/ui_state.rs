@@ -1,9 +1,9 @@
-use std::time::{Duration, Instant};
+use std::ops::Sub;
+use std::time::{Duration, Instant, SystemTime};
 
 use glam::Vec2;
 use image::ImageFormat;
 use lazy_static::lazy_static;
-use ordinal::Ordinal;
 
 use chariot_core::player::choices::Chair;
 
@@ -32,6 +32,15 @@ pub enum AnnouncementState {
     },
 }
 
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub enum CountdownState {
+    None,
+    Three,
+    Two,
+    One,
+    Start
+}
+
 pub enum UIState {
     None,
     MainMenu {
@@ -44,6 +53,8 @@ pub enum UIState {
         player_chair_images: Vec<Option<UIDrawable>>,
     },
     InGameHUD {
+        countdown_ui: Option<UIDrawable>,
+        countdown_state: CountdownState,
         place_position_image: UIDrawable,
         game_announcement_title: UIDrawable,
         game_announcement_subtitle: UIDrawable,
@@ -240,6 +251,66 @@ impl GraphicsManager {
                     &place_position_texture,
                 )],
             };
+        }
+    }
+
+    pub fn maybe_update_countdown(&mut self, game_start_time: &SystemTime) {
+        if let UIState::InGameHUD {
+            ref mut countdown_ui,
+            ref mut countdown_state,
+            ..
+        } = self.ui
+        {
+            // what state SHOULD we be in based on the game start time
+            let correct_state = match game_start_time.duration_since(SystemTime::now()) {
+                Ok(elapsed) => match elapsed.as_secs() {
+                    1 => CountdownState::Two,
+                    0 => CountdownState::One,
+                    _ => CountdownState::Three
+                },
+                Err(e) => match e.duration().as_secs() {
+                    0 => CountdownState::Start,
+                    _ => CountdownState::None
+                }
+            };
+
+            // has the countdown state changed? if no, just quit
+            if correct_state == *countdown_state {
+                return;
+            }
+
+            // otherwise, load a new texture and maybe play a sound
+            let new_texture = assets::ui::get_countdown_asset(correct_state);
+            if let Some(new_texture) = new_texture {
+                let countdown_texture_handle = self.resources.import_texture_embedded(
+                    &self.renderer,
+                    "countdown",
+                    new_texture,
+                    ImageFormat::Png,
+                );
+
+                let countdown_position_texture = self
+                    .resources
+                    .textures
+                    .get(&countdown_texture_handle)
+                    .expect("Expected countdown image!");
+
+                *countdown_ui = Some(UIDrawable {
+                    layers: vec![UILayerTechnique::new(
+                        &self.renderer,
+                        glam::vec2(0.5, 0.5),
+                        glam::vec2(0.1, 0.1),
+                        glam::vec2(0.0, 0.0),
+                        glam::vec2(1.0, 1.0),
+                        &countdown_position_texture,
+                    )],
+                });
+            } else {
+                *countdown_ui = None;
+            }
+
+            // once we're done, change the countdown state
+            *countdown_state = correct_state;
         }
     }
 
@@ -560,6 +631,8 @@ impl GraphicsManager {
             announcement_state: AnnouncementState::None,
             minimap_ui,
             timer_ui,
+            countdown_ui: None,
+            countdown_state: CountdownState::Three
         }
     }
 }
