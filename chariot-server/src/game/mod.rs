@@ -577,12 +577,7 @@ impl GameServer {
                                 decision_end_time: effect_end_time,
                             };
                         } else if self.tick_counter % 10 == 0 {
-                            let counts: Vec<u32> = vec![
-                                rand::random::<u32>() % 50,
-                                rand::random::<u32>() % 50,
-                                rand::random::<u32>() % 50,
-                                rand::random::<u32>() % 50,
-                            ];
+                            let counts = self.get_vote_counts();
                             for conn in self.connections.iter_mut() {
                                 conn.push_outgoing(ClientBoundPacket::VotingUpdate(counts.clone()));
                             }
