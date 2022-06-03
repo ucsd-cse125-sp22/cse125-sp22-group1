@@ -1,6 +1,7 @@
 use crate::assets;
 use crate::assets::models;
 use crate::assets::shaders;
+use crate::drawable::technique::WronskiAATechnique;
 use chariot_core::entity_location::EntityLocation;
 use chariot_core::player::choices::Chair;
 use chariot_core::player::choices::PlayerChoices;
@@ -45,6 +46,8 @@ pub fn register_passes(renderer: &mut Renderer) {
 
     ShadeDirectTechnique::register(renderer);
     SkyboxTechnique::register(renderer);
+
+    WronskiAATechnique::register(renderer);
 
     DownsampleTechnique::register(renderer);
 
@@ -119,6 +122,7 @@ pub struct GraphicsManager {
     pub player_entities: [Option<Entity>; 4],
     shade_direct: ShadeDirectTechnique,
     skybox: SkyboxTechnique,
+    wronski_aa: WronskiAATechnique,
     downsample: DownsampleTechnique,
     hibl: HBILTechnique,
     hibl_debayer: HBILDebayerTechnique,
@@ -143,16 +147,21 @@ impl GraphicsManager {
 
         register_passes(&mut renderer);
 
-        resources.register_depth_surface_framebuffer(
+        let surface_size = renderer.surface_size();
+        let upsample2_size =
+            winit::dpi::PhysicalSize::<u32>::new(surface_size.width * 2, surface_size.height * 2);
+
+        resources.register_depth_framebuffer(
             "geometry_out",
             &mut renderer,
+            upsample2_size,
             &[
                 wgpu::TextureFormat::Rgba16Float,
                 wgpu::TextureFormat::Rgba8Unorm,
             ],
             Some(wgpu::Color::TRANSPARENT),
             true,
-            true,
+            false,
         );
 
         let shadow_map_res = winit::dpi::PhysicalSize::<u32>::new(2048, 2048);
@@ -167,21 +176,21 @@ impl GraphicsManager {
         );
 
         resources.register_depth_surface_framebuffer(
-            "particles_out",
-            &mut renderer,
-            &[wgpu::TextureFormat::Rgba8Unorm],
-            Some(wgpu::Color::TRANSPARENT),
-            true,
-            false,
-        );
-
-        resources.register_depth_surface_framebuffer(
             "probes_out",
             &mut renderer,
             &[wgpu::TextureFormat::Rgba16Float],
             Some(wgpu::Color::WHITE),
             true,
             true,
+        );
+
+        resources.register_framebuffer(
+            "shade_direct_out_us",
+            &mut renderer,
+            upsample2_size,
+            &[wgpu::TextureFormat::Rgba16Float],
+            Some(wgpu::Color::TRANSPARENT),
+            false,
         );
 
         resources.register_surface_framebuffer(
@@ -192,7 +201,6 @@ impl GraphicsManager {
             false,
         );
 
-        let surface_size = renderer.surface_size();
         let downsample2_size =
             winit::dpi::PhysicalSize::<u32>::new(surface_size.width / 2, surface_size.height / 2);
 
@@ -208,7 +216,7 @@ impl GraphicsManager {
         resources.register_surface_framebuffer(
             "hbil_out",
             &mut renderer,
-            &[wgpu::TextureFormat::Rgba8Unorm],
+            &[wgpu::TextureFormat::Rgba16Float],
             Some(wgpu::Color::TRANSPARENT),
             false,
         );
@@ -216,7 +224,7 @@ impl GraphicsManager {
         resources.register_surface_framebuffer(
             "hbil_debayer_out",
             &mut renderer,
-            &[wgpu::TextureFormat::Rgba8Unorm],
+            &[wgpu::TextureFormat::Rgba16Float],
             Some(wgpu::Color::TRANSPARENT),
             false,
         );
@@ -316,6 +324,7 @@ impl GraphicsManager {
         let world = setup_void();
         let shade_direct = ShadeDirectTechnique::new(&renderer, &resources, quad_handle);
         let skybox = SkyboxTechnique::new(&renderer, &resources, quad_handle);
+        let wronski_aa = WronskiAATechnique::new(&renderer, &resources, quad_handle);
         let downsample =
             DownsampleTechnique::new(&renderer, &resources, "shade_direct_out", 0, quad_handle);
         let hibl = HBILTechnique::new(&renderer, &resources, quad_handle);
@@ -344,6 +353,7 @@ impl GraphicsManager {
             iteration: 0,
             shade_direct,
             skybox,
+            wronski_aa,
             downsample,
             hibl,
             hibl_debayer,
@@ -416,7 +426,7 @@ impl GraphicsManager {
                 .builder()
                 .attach(world_root)
                 .with(Light::new_directional(
-                    glam::vec3(-1.0, -0.5, 0.0),
+                    glam::vec3(-1.0, -0.5, 0.1),
                     scene_bounds,
                 ))
                 .with(Transform::default())
@@ -854,8 +864,11 @@ impl GraphicsManager {
         let shade_direct_graph = self.shade_direct.render_item(&render_context).to_graph();
         render_job.merge_graph_after(SkyboxTechnique::PASS_NAME, shade_direct_graph);
 
+        let aa_graph = self.wronski_aa.render_item(&render_context).to_graph();
+        render_job.merge_graph_after(ShadeDirectTechnique::PASS_NAME, aa_graph);
+
         let downsample_graph = self.downsample.render_item(&render_context).to_graph();
-        render_job.merge_graph_after(ShadeDirectTechnique::PASS_NAME, downsample_graph);
+        render_job.merge_graph_after(WronskiAATechnique::PASS_NAME, downsample_graph);
 
         let hibl_graph = self.hibl.render_item(&render_context).to_graph();
         render_job.merge_graph_after(DownsampleTechnique::PASS_NAME, hibl_graph);
@@ -867,7 +880,7 @@ impl GraphicsManager {
             .downsample_bloom
             .render_item(&render_context)
             .to_graph();
-        render_job.merge_graph_after(DownsampleTechnique::PASS_NAME, downsample_bloom_graph);
+        render_job.merge_graph_after(HBILDebayerTechnique::PASS_NAME, downsample_bloom_graph);
 
         let kawase_down_graph = self
             .kawase_blur_down

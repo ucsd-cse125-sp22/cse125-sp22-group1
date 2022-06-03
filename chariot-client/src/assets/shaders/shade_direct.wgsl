@@ -157,9 +157,9 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 		shadow = 0.0; 
 	}
 
-	let light_color = vec3<f32>(1.0, 0.584, 0.521);
+	let light_color = vec3<f32>(1.0, 0.584, 0.521) * 0.4;
 	let ambient_color = vec3<f32>(0.39, 0.57, 1.0);
-	let fog_color = vec3<f32>(1.0, 0.384, 0.221) * 0.8;
+	let fog_color = vec3<f32>(1.0, 0.384, 0.221) * 0.8; 
 
 	var fog_factor = exp(-0.004 * length(view_pos));
 	if (mat_id > 0.5) {
@@ -167,9 +167,13 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 	}
 
 	let ambient = vec3<f32>(0.1);
-	let shaded = (shadow * diffuse * light_color + ambient * ambient_color) * color;
+	var shaded = (shadow * diffuse * light_color) * color;
+
+	if (mat_id > 0.1) {
+		shaded = shaded * color.r * 3.0;
+	}
 
 	let fog_shaded = fog_factor * shaded + (1.0 - fog_factor) * fog_color;
 
-	return vec4<f32>(fog_shaded * 0.7, color_alpha.a);
+	return vec4<f32>(shaded * 0.7, color_alpha.a);
 }
