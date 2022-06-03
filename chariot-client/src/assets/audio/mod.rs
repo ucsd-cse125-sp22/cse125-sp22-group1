@@ -1,9 +1,15 @@
 use chariot_core::sound_effect::SoundEffect;
+use rand::prelude::SliceRandom;
 
 // music
 pub const HOLD_ON_TO_YOUR_SEATS: &[u8] = include_bytes!("music/01.ogg");
 pub const CYBER_RECLINER: &[u8] = include_bytes!("music/04.ogg");
-// pub const TURBOBOOSTING_ALL_THE_WAY_HOME: &[u8] = include_bytes!("music/06.ogg");
+pub const TURBOBOOSTING_ALL_THE_WAY_HOME: &[u8] = include_bytes!("music/06.ogg");
+pub const TRACK_MUSIC: [&[u8]; 2] = [HOLD_ON_TO_YOUR_SEATS, TURBOBOOSTING_ALL_THE_WAY_HOME];
+
+pub fn random_track_music() -> &'static [u8] {
+    *TRACK_MUSIC.choose(&mut rand::thread_rng()).unwrap()
+}
 
 // ambient
 
