@@ -146,7 +146,7 @@ impl PlayerEntity {
             }
         };
 
-        let rotation_matrix = glam::DMat3::from_axis_angle(DVec3::Y, -1.0 * angular_velocity);
+        let rotation_matrix = DMat3::from_axis_angle(DVec3::Y, -1.0 * angular_velocity);
 
         let mut delta_velocity = acceleration * time_step;
 

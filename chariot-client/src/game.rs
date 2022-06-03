@@ -1,16 +1,35 @@
+use std::io;
+use std::net::TcpStream;
+
+use backoff::Error;
+use backoff::ExponentialBackoff;
+
 use chariot_core::networking::{ServerBoundPacket, ServerConnection};
 use chariot_core::player::choices::{Chair, Track};
 use chariot_core::player::player_inputs::InputEvent;
-use std::net::TcpStream;
 
 pub struct GameClient {
     pub connection: ServerConnection,
 }
 
+fn connect_exponential_backoff(ip_addr: &str) -> Result<TcpStream, Error<io::Error>> {
+    backoff::retry_notify(
+        ExponentialBackoff::default(),
+        || Ok(TcpStream::connect(ip_addr)?),
+        |err, dur| {
+            println!(
+                "error connecting to game server '{}', trying again in {:?}",
+                err, dur
+            )
+        },
+    )
+}
+
 impl GameClient {
     pub fn new(ip_addr: String) -> GameClient {
-        let connection = TcpStream::connect(&ip_addr).expect("could not connect to game server");
-        println!("game client now listening on {}", ip_addr);
+        let connection =
+            connect_exponential_backoff(&ip_addr).expect("could not connect to game server");
+        println!("game client now connected to server {}", ip_addr);
         GameClient {
             connection: ServerConnection::new(connection),
         }

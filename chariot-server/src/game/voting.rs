@@ -81,12 +81,22 @@ impl GameServer {
                 )));
 
                 if let VotingState::WaitingForVotes {
-                    current_question, ..
+                    current_question,
+                    vote_close_time,
+                    ..
                 } = voting_game_state
                 {
-                    conn.push_outgoing_message(WSAudienceBoundMessage::Prompt(
-                        current_question.clone(),
-                    ))
+                    conn.push_outgoing_message(WSAudienceBoundMessage::Prompt {
+                        question: current_question.clone(),
+                        vote_close_time: vote_close_time.clone(),
+                    })
+                } else if let VotingState::VoteResultActive {
+                    decision_end_time, ..
+                } = voting_game_state
+                {
+                    conn.push_outgoing_message(WSAudienceBoundMessage::Countdown {
+                        time: decision_end_time.clone(),
+                    });
                 }
             } else {
                 conn.push_outgoing_message(WSAudienceBoundMessage::Standings([0, 1, 2, 3].map(
@@ -94,12 +104,18 @@ impl GameServer {
                         Standing {
                             name: idx.to_string(),
                             chair: self.game_state.players[idx].chair.to_string(),
-                            rank: idx as u8,
+                            rank: (idx as u8) + 1,
                             lap: 0,
                         }
                     },
                 )));
             }
         }
+
+        let total_connections = self.ws_connections.len();
+        GameServer::broadcast_ws(
+            &mut self.ws_connections,
+            WSAudienceBoundMessage::AudienceCount(total_connections),
+        )
     }
 }

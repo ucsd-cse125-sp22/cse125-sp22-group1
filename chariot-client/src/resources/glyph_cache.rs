@@ -1,9 +1,7 @@
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use chariot_core::GLOBAL_CONFIG;
 use font_kit::canvas::{Canvas, Format, RasterizationOptions};
 use font_kit::font::Font;
 use font_kit::handle::Handle;

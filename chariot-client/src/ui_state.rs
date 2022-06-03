@@ -19,7 +19,6 @@ use crate::{
     graphics::GraphicsManager,
     resources::TextureHandle,
     scenegraph::components::Transform,
-    ui::ui_region::UIRegion,
 };
 
 pub enum AnnouncementState {
@@ -43,10 +42,11 @@ pub enum UIState {
     ChairacterSelect {
         background: UIDrawable,
         chair_select_box: UIDrawable,
+        chair_description: UIDrawable,
         player_chair_images: Vec<Option<UIDrawable>>,
     },
     InGameHUD {
-        place_position_text: UIDrawable,
+        place_position_image: UIDrawable,
         game_announcement_title: UIDrawable,
         game_announcement_subtitle: UIDrawable,
         announcement_state: AnnouncementState,
@@ -125,41 +125,36 @@ impl GraphicsManager {
     }
 
     pub fn update_voting_announcements(&mut self) {
-        if let UIState::InGameHUD {
+        if let Some((title, subtitle)) = if let UIState::InGameHUD {
             ref announcement_state,
             ..
         } = &self.ui
         {
             match announcement_state {
-                AnnouncementState::VotingInProgress { vote_end_time, .. } => {
-                    self.make_announcement(
-                        "The audience is deciding your fate",
-                        format!(
-                            "They decide in {} seconds",
-                            (*vote_end_time - Instant::now()).as_secs()
-                        )
-                        .as_str(),
-                    );
-                }
+                AnnouncementState::VotingInProgress { vote_end_time, .. } => Some((
+                    String::from("The audience is deciding your fate"),
+                    format!(
+                        "They decide in {} seconds",
+                        (*vote_end_time - Instant::now()).as_secs()
+                    ),
+                )),
                 AnnouncementState::VoteActiveTime {
                     prompt: _,
                     decision,
                     effect_end_time,
-                } => {
-                    let effect_end_time = effect_end_time;
-                    self.make_announcement(
-                        format!("{} was chosen!", decision).as_str(),
-                        format!(
-                            "Effects will last for another {} seconds",
-                            (*effect_end_time - Instant::now()).as_secs()
-                        )
-                        .as_str(),
-                    );
-                }
-                AnnouncementState::None => {
-                    self.make_announcement("", "");
-                }
+                } => Some((
+                    format!("{} was chosen!", decision),
+                    format!(
+                        "Effects will last for another {} seconds",
+                        (*effect_end_time - Instant::now()).as_secs()
+                    ),
+                )),
+                AnnouncementState::None => None,
             }
+        } else {
+            None
+        } {
+            self.make_announcement(&title, &subtitle);
         }
     }
 
@@ -219,7 +214,6 @@ impl GraphicsManager {
             ..
         } = &mut self.ui
         {
-            println!("new state");
             match &new_announcement_state {
                 AnnouncementState::VotingInProgress { vote_end_time, .. } => {
                     interaction_ui.push(UILayerTechnique::new(
@@ -266,14 +260,40 @@ impl GraphicsManager {
 
     pub fn maybe_update_place(&mut self, position: u8) {
         if let UIState::InGameHUD {
-            ref mut place_position_text,
+            ref mut place_position_image,
             ..
         } = self.ui
         {
-            *place_position_text = PLACEMENT_TEXT
-                .clone()
-                .content(Ordinal(position).to_string().as_str())
-                .build_drawable(&self.renderer, &mut self.resources);
+            let texture_name = match position {
+                1 => "1st",
+                2 => "2nd",
+                3 => "3rd",
+                4 => "4th",
+                _ => "1st",
+            };
+            let placement_handle = self.resources.import_texture_embedded(
+                &self.renderer,
+                texture_name,
+                assets::ui::PLACE_IMAGES[position as usize - 1],
+                ImageFormat::Png,
+            );
+
+            let place_position_texture = self
+                .resources
+                .textures
+                .get(&placement_handle)
+                .expect("Expected placement text image!");
+
+            *place_position_image = UIDrawable {
+                layers: vec![technique::UILayerTechnique::new(
+                    &self.renderer,
+                    glam::vec2(0.85, 0.05),
+                    glam::vec2(0.1, 0.15),
+                    glam::vec2(0.0, 0.0),
+                    glam::vec2(1.0, 1.0),
+                    &place_position_texture,
+                )],
+            };
         }
     }
 
@@ -291,7 +311,7 @@ impl GraphicsManager {
             .get(&background_handle)
             .expect("main menu background doesn't exist!");
 
-        let layer_vec = vec![technique::UILayerTechnique::new(
+        let layer_vec = vec![UILayerTechnique::new(
             &self.renderer,
             glam::vec2(0.0, 0.0),
             glam::vec2(1.0, 1.0),
@@ -303,15 +323,6 @@ impl GraphicsManager {
         let background = UIDrawable { layers: layer_vec };
 
         self.ui = UIState::MainMenu { background };
-
-        // join lobby button
-        let mut join_lobby_button = UIRegion::new(472.0, 539.0, 336.0, 87.0);
-        join_lobby_button.on_click(|graphics, game| {
-            graphics.display_chairacter_select();
-            game.pick_chair(Chair::Swivel);
-        });
-
-        self.ui_regions = vec![join_lobby_button];
     }
 
     pub fn display_chairacter_select(&mut self) {
@@ -328,7 +339,7 @@ impl GraphicsManager {
             .get(&background_handle)
             .expect("background doesn't exist!");
 
-        let layer_vec = vec![technique::UILayerTechnique::new(
+        let layer_vec = vec![UILayerTechnique::new(
             &self.renderer,
             glam::vec2(0.0, 0.0),
             glam::vec2(1.0, 1.0),
@@ -346,58 +357,68 @@ impl GraphicsManager {
             ImageFormat::Png,
         );
 
+        let chair_description_handle = self.resources.import_texture_embedded(
+            &self.renderer,
+            "swivel_description",
+            assets::ui::get_chair_description(Chair::Swivel),
+            ImageFormat::Png,
+        );
+
         let chair_select_box_texture = self
             .resources
             .textures
             .get(&chair_select_box_handle)
             .expect("background doesn't exist!");
 
+        let chair_description_texture = self
+            .resources
+            .textures
+            .get(&chair_description_handle)
+            .expect("description doesn't exist!");
+
         let layer_vec = vec![technique::UILayerTechnique::new(
             &self.renderer,
-            glam::vec2(304.0 / 1280.0, 548.0 / 720.0),
-            glam::vec2(141.0 / 1280.0, 134.0 / 720.0),
+            glam::vec2(343.0 / 1280.0, 565.0 / 720.0),
+            glam::vec2(128.0 / 1280.0, 122.0 / 720.0),
             glam::vec2(0.0, 0.0),
             glam::vec2(1.0, 1.0),
             &chair_select_box_texture,
         )];
 
         let chair_select_box = UIDrawable { layers: layer_vec };
+
+        let layer_vec = vec![technique::UILayerTechnique::new(
+            &self.renderer,
+            glam::vec2(317.0 / 1280.0, 433.0 / 720.0),
+            glam::vec2(640.0 / 1280.0, 117.0 / 720.0),
+            glam::vec2(0.0, 0.0),
+            glam::vec2(1.0, 1.0),
+            &chair_description_texture,
+        )];
+
+        let chair_description = UIDrawable { layers: layer_vec };
+
         self.ui = UIState::ChairacterSelect {
             background,
             chair_select_box,
+            chair_description,
             player_chair_images: vec![None, None, None, None],
         };
-
-        // buttons
-        let mut main_menu_button = UIRegion::new(40.0, 587.0, 224.0, 64.0);
-        main_menu_button.on_click(|graphics, _game_client| {
-            graphics.display_main_menu();
-        });
-
-        let mut ready_button = UIRegion::new(999.0, 587.0, 225.0, 64.0);
-        ready_button.on_click(|_graphics, game_client| {
-            game_client.signal_ready_status(true);
-        });
-
-        let mut force_start_button = UIRegion::new(999.0, 637.0, 225.0, 31.0);
-        force_start_button.on_click(|_graphics, game_client| {
-            game_client.force_start();
-        });
-
-        self.ui_regions = vec![main_menu_button, ready_button, force_start_button];
     }
 
     pub fn maybe_select_chair(&mut self, chair: Chair) {
         if let UIState::ChairacterSelect {
-            chair_select_box, ..
+            chair_select_box,
+            chair_description,
+            ..
         } = &mut self.ui
         {
             let position = match chair {
-                Chair::Swivel => glam::vec2(304.0 / 1280.0, 548.0 / 720.0),
-                Chair::Recliner => glam::vec2(437.0 / 1280.0, 548.0 / 720.0),
-                Chair::Beanbag => glam::vec2(570.0 / 1280.0, 548.0 / 720.0),
-                Chair::Ergonomic => glam::vec2(703.0 / 1280.0, 548.0 / 720.0),
-                Chair::Folding => glam::vec2(835.0 / 1280.0, 548.0 / 720.0),
+                Chair::Swivel => glam::vec2(343.0 / 1280.0, 565.0 / 720.0),
+                Chair::Recliner => glam::vec2(460.0 / 1280.0, 565.0 / 720.0),
+                Chair::Beanbag => glam::vec2(576.0 / 1280.0, 565.0 / 720.0),
+                Chair::Ergonomic => glam::vec2(693.0 / 1280.0, 565.0 / 720.0),
+                Chair::Folding => glam::vec2(809.0 / 1280.0, 565.0 / 720.0),
             };
             // not sure the best way to change the position; for now, I'm just rerendering completely
             let chair_select_box_handle = self.resources.import_texture_embedded(
@@ -407,22 +428,46 @@ impl GraphicsManager {
                 ImageFormat::Png,
             );
 
+            let chair_description_handle = self.resources.import_texture_embedded(
+                &self.renderer,
+                format!("{}_description", chair.file()).as_str(),
+                assets::ui::get_chair_description(chair),
+                ImageFormat::Png,
+            );
+
             let chair_select_box_texture = self
                 .resources
                 .textures
                 .get(&chair_select_box_handle)
                 .expect("chair select box doesn't exist!");
 
+            let chair_description_texture = self
+                .resources
+                .textures
+                .get(&chair_description_handle)
+                .expect("description doesn't exist!");
+
             let layer_vec = vec![technique::UILayerTechnique::new(
                 &self.renderer,
                 position,
-                glam::vec2(141.0 / 1280.0, 134.0 / 720.0),
+                glam::vec2(127.0 / 1280.0, 121.0 / 720.0),
                 glam::vec2(0.0, 0.0),
                 glam::vec2(1.0, 1.0),
                 &chair_select_box_texture,
             )];
 
             *chair_select_box = UIDrawable { layers: layer_vec };
+
+            let layer_vec = vec![technique::UILayerTechnique::new(
+                &self.renderer,
+                glam::vec2(317.0 / 1280.0, 433.0 / 720.0),
+                glam::vec2(640.0 / 1280.0, 117.0 / 720.0),
+                glam::vec2(0.0, 0.0),
+                glam::vec2(1.0, 1.0),
+                &chair_description_texture,
+            )];
+
+            *chair_description = UIDrawable { layers: layer_vec };
 
             for (player_id, choice) in self.player_choices.clone().iter().flatten().enumerate() {
                 self.maybe_display_chair(choice.chair, player_id);
@@ -471,9 +516,29 @@ impl GraphicsManager {
     }
 
     pub fn display_hud(&mut self) {
-        let place_position_text = PLACEMENT_TEXT
-            .clone()
-            .build_drawable(&self.renderer, &mut self.resources);
+        let place_1st_handle = self.resources.import_texture_embedded(
+            &self.renderer,
+            "1st",
+            assets::ui::PLACE_IMAGES[0],
+            ImageFormat::Png,
+        );
+
+        let place_position_texture = self
+            .resources
+            .textures
+            .get(&place_1st_handle)
+            .expect("Expected placement text image!");
+
+        let place_position_image = UIDrawable {
+            layers: vec![technique::UILayerTechnique::new(
+                &self.renderer,
+                glam::vec2(0.85, 0.05),
+                glam::vec2(0.1, 0.1),
+                glam::vec2(0.0, 0.0),
+                glam::vec2(1.0, 1.0),
+                &place_position_texture,
+            )],
+        };
 
         let game_announcement_title = ANNOUNCEMENT_TITLE
             .clone()
@@ -541,7 +606,7 @@ impl GraphicsManager {
         let minimap_ui = UIDrawable { layers: layer_vec };
 
         self.ui = UIState::InGameHUD {
-            place_position_text,
+            place_position_image,
             game_announcement_title,
             game_announcement_subtitle,
             announcement_state: AnnouncementState::None,
@@ -549,9 +614,5 @@ impl GraphicsManager {
             timer_ui,
             interaction_ui: AnimatedUIDrawable::new(),
         }
-    }
-
-    pub fn get_ui_regions(&mut self) -> Vec<UIRegion> {
-        std::mem::replace(&mut self.ui_regions, vec![])
     }
 }

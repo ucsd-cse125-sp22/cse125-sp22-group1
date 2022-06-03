@@ -13,41 +13,71 @@ use std::f64::consts::PI;
 use std::time::Duration;
 
 use crate::drawable::particle::ParticleDrawable;
+use crate::drawable::technique;
+use crate::drawable::technique::CompositeBloomTechnique;
+use crate::drawable::technique::DownsampleBloomTechnique;
+use crate::drawable::technique::DownsampleTechnique;
+use crate::drawable::technique::GeometryDrawTechnique;
+use crate::drawable::technique::HBILDebayerTechnique;
+use crate::drawable::technique::HBILTechnique;
+use crate::drawable::technique::KawaseBlurDownTechnique;
+use crate::drawable::technique::KawaseBlurUpTechnique;
+use crate::drawable::technique::ShadeDirectTechnique;
+use crate::drawable::technique::SimpleFSQTechnique;
+use crate::drawable::technique::SkyboxTechnique;
 use crate::drawable::technique::{Technique, UILayerTechnique};
+use crate::drawable::Drawable;
+use crate::drawable::RenderContext;
+use crate::drawable::StaticMeshDrawable;
+use crate::drawable::UIDrawable;
 use crate::drawable::*;
 use crate::renderer::*;
 use crate::resources::*;
 use crate::scenegraph::components::*;
 use crate::scenegraph::particle_system::*;
 use crate::scenegraph::*;
-use crate::ui::ui_region::UIRegion;
 use crate::ui_state::AnnouncementState;
 use crate::ui_state::UIState;
 
 pub fn register_passes(renderer: &mut Renderer) {
+    StaticMeshDrawable::register(renderer);
+    UIDrawable::register(renderer);
+    ParticleDrawable::register(renderer);
+
+    ShadeDirectTechnique::register(renderer);
+    SkyboxTechnique::register(renderer);
+
+    DownsampleTechnique::register(renderer);
+
+    HBILTechnique::register(renderer);
+    HBILDebayerTechnique::register(renderer);
+
+    DownsampleBloomTechnique::register(renderer);
+    KawaseBlurDownTechnique::register(renderer);
+    KawaseBlurUpTechnique::register(renderer);
+    CompositeBloomTechnique::register(renderer);
+
+    SimpleFSQTechnique::register(renderer);
+
     renderer.register_pass(
-        "forward",
-        &util::indirect_graphics_depth_pass!(
-            &shaders::FORWARD,
-            [
-                wgpu::TextureFormat::Rgba16Float,
-                wgpu::TextureFormat::Rgba8Unorm
-            ]
+        "init_probes",
+        &util::indirect_surfel_pass!(&shaders::INIT_PROBES, [wgpu::TextureFormat::Rgba16Float]),
+    );
+
+    renderer.register_pass(
+        "temporal_acc_probes",
+        &util::indirect_surfel_pass!(
+            &shaders::TEMPORAL_ACC_PROBES,
+            [wgpu::TextureFormat::Rgba16Float]
         ),
     );
 
-    renderer.register_pass("shadow", &util::shadow_pass!(&shaders::SHADOW));
-
     renderer.register_pass(
-        "postprocess",
-        &util::direct_graphics_nodepth_pass!(&shaders::POST_PROCESS),
-    );
-
-    renderer.register_pass("ui", &util::direct_graphics_nodepth_pass!(&shaders::UI));
-
-    renderer.register_pass(
-        "particle",
-        &util::direct_graphics_nodepth_pass!(&shaders::PARTICLE),
+        "geometry_acc_probes",
+        &util::indirect_surfel_pass!(
+            &shaders::GEOMETRY_ACC_PROBES,
+            [wgpu::TextureFormat::Rgba16Float]
+        ),
     );
 }
 
@@ -57,6 +87,7 @@ fn setup_void() -> World {
     world.register::<Vec<StaticMeshDrawable>>();
     world.register::<Bounds>();
     world.register::<Light>();
+    world.register::<FlyCamera>();
 
     ParticleSystem::<0>::register_components(&mut world);
     ParticleSystem::<1>::register_components(&mut world);
@@ -84,13 +115,24 @@ pub struct GraphicsManager {
     pub renderer: Renderer,
     pub resources: ResourceManager,
     pub ui: UIState,
-    pub ui_regions: Vec<UIRegion>,
     pub player_num: PlayerID,
     pub player_choices: [Option<PlayerChoices>; 4],
     pub player_entities: [Option<Entity>; 4],
-    postprocess: technique::FSQTechnique,
+    shade_direct: technique::ShadeDirectTechnique,
+    skybox: technique::SkyboxTechnique,
+    downsample: technique::DownsampleTechnique,
+    hibl: technique::HBILTechnique,
+    hibl_debayer: technique::HBILDebayerTechnique,
+    downsample_bloom: technique::DownsampleBloomTechnique,
+    kawase_blur_down: technique::KawaseBlurDownTechnique,
+    kawase_blur_up: technique::KawaseBlurUpTechnique,
+    composite_bloom: technique::CompositeBloomTechnique,
+    simple_fsq: technique::SimpleFSQTechnique,
     fire_particle_system: ParticleSystem<0>,
     smoke_particle_system: ParticleSystem<1>,
+    prev_view: glam::Mat4,
+    prev_proj: glam::Mat4,
+    iteration: u32,
     camera_entity: Entity,
     pub test_ui: AnimatedUIDrawable,
     pub white_box_tex: TextureHandle,
@@ -102,31 +144,130 @@ impl GraphicsManager {
 
         register_passes(&mut renderer);
 
-        {
-            let fb_desc = resources.depth_surface_framebuffer(
-                "forward_out",
-                &renderer,
-                &[
-                    wgpu::TextureFormat::Rgba16Float,
-                    wgpu::TextureFormat::Rgba8Unorm,
-                ],
-                Some(wgpu::Color {
-                    r: 0.517,
-                    g: 0.780,
-                    b: 0.980,
-                    a: 1.0,
-                }),
-            );
+        resources.register_depth_surface_framebuffer(
+            "geometry_out",
+            &mut renderer,
+            &[
+                wgpu::TextureFormat::Rgba16Float,
+                wgpu::TextureFormat::Rgba8Unorm,
+            ],
+            Some(wgpu::Color::TRANSPARENT),
+            true,
+            true,
+        );
 
-            renderer.register_framebuffer("forward_out", fb_desc);
-        }
-        {
-            // insanely large shadow map for now
-            let shadow_map_res = winit::dpi::PhysicalSize::<u32>::new(2048, 2048);
-            let fb_desc =
-                resources.depth_framebuffer("shadow_out1", &renderer, shadow_map_res, &[], None);
-            renderer.register_framebuffer("shadow_out1", fb_desc);
-        }
+        let shadow_map_res = winit::dpi::PhysicalSize::<u32>::new(2048, 2048);
+        resources.register_depth_framebuffer(
+            "shadow_out1",
+            &mut renderer,
+            shadow_map_res,
+            &[],
+            None,
+            true,
+            false,
+        );
+
+        resources.register_depth_surface_framebuffer(
+            "particles_out",
+            &mut renderer,
+            &[wgpu::TextureFormat::Rgba8Unorm],
+            Some(wgpu::Color::TRANSPARENT),
+            true,
+            false,
+        );
+
+        resources.register_depth_surface_framebuffer(
+            "probes_out",
+            &mut renderer,
+            &[wgpu::TextureFormat::Rgba16Float],
+            Some(wgpu::Color::WHITE),
+            true,
+            true,
+        );
+
+        resources.register_surface_framebuffer(
+            "shade_direct_out",
+            &mut renderer,
+            &[wgpu::TextureFormat::Rgba16Float],
+            Some(wgpu::Color::TRANSPARENT),
+            false,
+        );
+
+        let surface_size = renderer.surface_size();
+        let downsample2_size =
+            winit::dpi::PhysicalSize::<u32>::new(surface_size.width / 2, surface_size.height / 2);
+
+        resources.register_framebuffer(
+            "shade_direct_out_0_ds",
+            &mut renderer,
+            downsample2_size,
+            &[wgpu::TextureFormat::Rgba16Float],
+            Some(wgpu::Color::TRANSPARENT),
+            false,
+        );
+
+        resources.register_surface_framebuffer(
+            "hbil_out",
+            &mut renderer,
+            &[wgpu::TextureFormat::Rgba8Unorm],
+            Some(wgpu::Color::TRANSPARENT),
+            false,
+        );
+
+        resources.register_surface_framebuffer(
+            "hbil_debayer_out",
+            &mut renderer,
+            &[wgpu::TextureFormat::Rgba8Unorm],
+            Some(wgpu::Color::TRANSPARENT),
+            false,
+        );
+
+        let downsample4_size =
+            winit::dpi::PhysicalSize::<u32>::new(surface_size.width / 4, surface_size.height / 4);
+        resources.register_framebuffer(
+            "downsample_bloom_out",
+            &mut renderer,
+            downsample4_size,
+            &[wgpu::TextureFormat::Rgba8Unorm],
+            Some(wgpu::Color::TRANSPARENT),
+            false,
+        );
+
+        let downsample8_size =
+            winit::dpi::PhysicalSize::<u32>::new(surface_size.width / 8, surface_size.height / 8);
+        resources.register_framebuffer(
+            "kawase_blur_down_out",
+            &mut renderer,
+            downsample8_size,
+            &[wgpu::TextureFormat::Rgba8Unorm],
+            Some(wgpu::Color::TRANSPARENT),
+            false,
+        );
+
+        resources.register_framebuffer(
+            "kawase_blur_up_out",
+            &mut renderer,
+            downsample4_size,
+            &[wgpu::TextureFormat::Rgba8Unorm],
+            Some(wgpu::Color::TRANSPARENT),
+            false,
+        );
+
+        resources.register_surface_framebuffer(
+            "composite_bloom_out",
+            &mut renderer,
+            &[wgpu::TextureFormat::Rgba8Unorm],
+            Some(wgpu::Color::TRANSPARENT),
+            false,
+        );
+
+        /*resources.register_depth_surface_framebuffer(
+            "probes_acc_out",
+            &mut renderer,
+            &[wgpu::TextureFormat::Rgba16Float],
+            Some(wgpu::Color::BLACK),
+            true,
+        );*/
 
         let quad_handle = resources.create_quad_mesh(&renderer);
         let fire_handle = resources.import_texture_embedded(
@@ -135,7 +276,7 @@ impl GraphicsManager {
             assets::sprites::FIRE,
             ImageFormat::Png,
         );
-        let fire_offset = glam::Vec3::Z * -3.0;
+        //let fire_offset = glam::Vec3::Z * -3.0;
         let fire_particle_system = ParticleSystem::new(
             &renderer,
             &mut resources,
@@ -165,7 +306,7 @@ impl GraphicsManager {
                 texture_handle: smoke_handle,
                 mesh_handle: quad_handle,
                 pos_range: (-glam::Vec3::ONE * 0.1, glam::Vec3::ONE * 0.1),
-                size_range: (glam::Vec2::ONE, glam::Vec2::ONE * 3.0),
+                size_range: (Vec2::ONE, Vec2::ONE * 3.0),
                 initial_vel: glam::Vec3::ZERO,
                 spawn_rate: 50.0,
                 lifetime: 5.0,
@@ -174,7 +315,32 @@ impl GraphicsManager {
             },
         );
         let world = setup_void();
-        let postprocess = technique::FSQTechnique::new(&renderer, &resources, "postprocess");
+        let shade_direct = technique::ShadeDirectTechnique::new(&renderer, &resources, quad_handle);
+        let skybox = technique::SkyboxTechnique::new(&renderer, &resources, quad_handle);
+        let downsample = technique::DownsampleTechnique::new(
+            &renderer,
+            &resources,
+            "shade_direct_out",
+            0,
+            quad_handle,
+        );
+        let hibl = technique::HBILTechnique::new(&renderer, &resources, quad_handle);
+        let hibl_debayer = technique::HBILDebayerTechnique::new(&renderer, &resources, quad_handle);
+        let downsample_bloom =
+            technique::DownsampleBloomTechnique::new(&renderer, &resources, quad_handle);
+        let kawase_blur_down =
+            technique::KawaseBlurDownTechnique::new(&renderer, &resources, quad_handle);
+        let kawase_blur_up =
+            technique::KawaseBlurUpTechnique::new(&renderer, &resources, quad_handle);
+        let composite_bloom =
+            technique::CompositeBloomTechnique::new(&renderer, &resources, quad_handle);
+        let simple_fsq = technique::SimpleFSQTechnique::new(
+            &renderer,
+            &resources,
+            "composite_bloom_out",
+            0,
+            quad_handle,
+        );
 
         let white_box_tex = resources.import_texture_embedded(
             &renderer,
@@ -184,12 +350,23 @@ impl GraphicsManager {
         );
 
         Self {
-            ui_regions: vec![],
-            postprocess,
             world,
             renderer,
             resources,
             player_choices: Default::default(),
+            prev_view: glam::Mat4::IDENTITY,
+            prev_proj: glam::Mat4::IDENTITY,
+            iteration: 0,
+            shade_direct,
+            skybox,
+            downsample,
+            hibl,
+            hibl_debayer,
+            downsample_bloom,
+            kawase_blur_down,
+            kawase_blur_up,
+            composite_bloom,
+            simple_fsq,
             player_entities: [None, None, None, None],
             ui: UIState::None,
             player_num: 4,
@@ -211,7 +388,7 @@ impl GraphicsManager {
             .builder()
             .attach(root)
             .with(Camera {
-                orbit_angle: glam::Vec2::ZERO,
+                orbit_angle: Vec2::ZERO,
                 distance: 3.0,
             })
             .build();
@@ -223,6 +400,7 @@ impl GraphicsManager {
         world.register::<Vec<StaticMeshDrawable>>();
         world.register::<Bounds>();
         world.register::<Light>();
+        world.register::<FlyCamera>();
 
         ParticleSystem::<0>::register_components(&mut world);
         ParticleSystem::<1>::register_components(&mut world);
@@ -253,7 +431,7 @@ impl GraphicsManager {
                 .builder()
                 .attach(world_root)
                 .with(Light::new_directional(
-                    glam::vec3(-0.5, -1.0, 0.5),
+                    glam::vec3(-1.0, -0.5, 0.0),
                     scene_bounds,
                 ))
                 .with(Transform::default())
@@ -267,6 +445,46 @@ impl GraphicsManager {
         self.world = self.setup_world(map);
 
         [0, 1, 2, 3].map(|player_num| self.add_player(player_num));
+    }
+
+    pub fn load_dev_mode(&mut self, map: Track) {
+        self.world = self.setup_world(map);
+        let world_root = self.world.root();
+        let cam = self
+            .world
+            .builder()
+            .attach(world_root)
+            .with(Transform {
+                translation: glam::vec3(0.0, 5.0, 0.0),
+                rotation: glam::Quat::IDENTITY,
+                scale: glam::Vec3::ONE * 0.2,
+            })
+            .with(FlyCamera {
+                angle: glam::vec2(std::f32::consts::PI, 0.0),
+            })
+            .build();
+        self.camera_entity = cam;
+
+        let chair_import = self
+            .resources
+            .import_gltf_slice(&mut self.renderer, models::get_chair_data(Chair::Swivel))
+            .expect("Failed to import chair");
+
+        let world_root = self.world.root();
+        let chair = self
+            .world
+            .builder()
+            .attach(world_root)
+            .with(Transform {
+                translation: glam::vec3(0.0, 5.0, 5.0),
+                rotation: glam::Quat::IDENTITY,
+                scale: glam::Vec3::ONE * 0.2,
+            })
+            .with(chair_import.drawables)
+            .with(chair_import.bounds)
+            .build();
+
+        self.player_entities[0] = Some(chair);
     }
 
     pub fn add_player(&mut self, player_num: PlayerID) {
@@ -298,7 +516,7 @@ impl GraphicsManager {
             self.world.insert(
                 chair,
                 Camera {
-                    orbit_angle: glam::Vec2::ZERO,
+                    orbit_angle: Vec2::ZERO,
                     distance: 3.0,
                 },
             );
@@ -314,6 +532,35 @@ impl GraphicsManager {
             .update(&mut self.world, delta_time);
         self.smoke_particle_system
             .update(&mut self.world, delta_time);
+    }
+
+    pub fn update_flycam_angle(&mut self, x: f64, y: f64) {
+        let screen_sizei = self.renderer.surface_size();
+        let screen_size = glam::uvec2(screen_sizei.width, screen_sizei.height).as_vec2();
+        let mouse_pos = glam::dvec2(x, y).as_vec2();
+        if let Some(camera) = self.world.get_mut::<FlyCamera>(self.camera_entity) {
+            let ndc = (mouse_pos / screen_size) * 2.0 - 1.0;
+            camera.angle = glam::vec2(
+                std::f32::consts::PI - ndc.x * std::f32::consts::PI,
+                ndc.y * std::f32::consts::FRAC_PI_2,
+            );
+        }
+    }
+
+    pub fn update_flycam_pos(&mut self, dir: glam::Vec3) {
+        let mut new_transform = *self
+            .world
+            .get::<Transform>(self.camera_entity)
+            .unwrap_or(&Transform::default());
+        if let Some(camera) = self.world.get_mut::<FlyCamera>(self.camera_entity) {
+            let forward = camera.look_dir();
+            let right = forward.cross(glam::Vec3::Y).normalize();
+            new_transform.translation += 0.3 * (forward * dir.z + right * dir.x);
+        }
+
+        if let Some(transform) = self.world.get_mut::<Transform>(self.camera_entity) {
+            *transform = new_transform;
+        }
     }
 
     pub fn update_player_location(
@@ -412,7 +659,12 @@ impl GraphicsManager {
     }
 
     pub fn add_fire_to_player(&mut self, player_num: PlayerID, delta_time: f32) {
-        let player_entity = self.player_entities[player_num as usize].unwrap();
+        let maybe_player_entity = self.player_entities[player_num as usize];
+        if maybe_player_entity.is_none() {
+            return;
+        }
+
+        let player_entity = maybe_player_entity.unwrap();
         let player_transform = *self.world.get::<Transform>(player_entity).unwrap();
         let world_root = self.world.root();
 
@@ -440,7 +692,6 @@ impl GraphicsManager {
     }
 
     pub fn render(&mut self) {
-        self.update_voting_announcements();
         self.update_dynamic_ui();
 
         let world_root = self.world.root();
@@ -450,37 +701,37 @@ impl GraphicsManager {
             .expect("Root doesn't have transform component")
             .to_mat4();
 
-        // Right now, we're iterating over the scene graph and evaluating all the global transforms twice
-        // which is kind of annoying. First to find the camera and get the view matrix and again to actually
-        // render everything. Ideally maybe in the future this could be simplified
-
         let surface_size = self.renderer.surface_size();
         let aspect_ratio = (surface_size.width as f32) / (surface_size.height as f32);
         let proj = glam::Mat4::perspective_rh(f32::to_radians(60.0), aspect_ratio, 0.1, 1000.0);
 
-        let mut view_local =
-            glam::Mat4::look_at_rh(glam::vec3(0.0, 0.0, -2.0), glam::Vec3::ZERO, glam::Vec3::Y);
-        let mut view_global = glam::Mat4::IDENTITY;
-        self.world.dfs_acc(self.world.root(), root_xform, |e, acc| {
-            let mut cur_model_transform: Transform = self
-                .world
-                .get::<Transform>(e)
-                .map_or(Transform::default(), |t| *t);
+        let view = {
+            let mut cur_entity = self.camera_entity;
 
-            cur_model_transform.scale = glam::Vec3::ONE;
-            let cur_model = cur_model_transform.to_mat4();
+            let local_view = if let Some(camera) = self.world.get::<Camera>(self.camera_entity) {
+                camera.view_mat4()
+            } else if let Some(camera) = self.world.get::<FlyCamera>(self.camera_entity) {
+                camera.view_mat4()
+            } else {
+                glam::Mat4::IDENTITY
+            };
 
-            let acc_model = *acc * cur_model;
+            let mut global_view_inv = glam::Mat4::IDENTITY;
+            while cur_entity != NULL_ENTITY {
+                let mut cur_model_transform: Transform = self
+                    .world
+                    .get::<Transform>(cur_entity)
+                    .map_or(Transform::default(), |t| *t);
+                cur_model_transform.scale = glam::Vec3::ONE;
 
-            if let Some(camera) = self.world.get::<Camera>(e) {
-                view_local = camera.view_mat4();
-                view_global = acc_model;
+                let cur_model = cur_model_transform.to_mat4();
+                global_view_inv = cur_model * global_view_inv;
+
+                cur_entity = self.world.get::<SceneNode>(cur_entity).unwrap().parent;
             }
 
-            acc_model
-        });
-
-        let view = view_local * view_global.inverse();
+            local_view * global_view_inv.inverse()
+        };
 
         let view_bounds = {
             let min_z = 0.01;
@@ -519,7 +770,7 @@ impl GraphicsManager {
             (min, max)
         };
 
-        let lights: Vec<(glam::Mat4, glam::Mat4)> = self
+        let light_vps: Vec<(glam::Mat4, glam::Mat4)> = self
             .world
             .storage::<Light>()
             .unwrap_or(&VecStorage::default())
@@ -528,6 +779,20 @@ impl GraphicsManager {
             .collect();
 
         let default_translation = Transform::default();
+        let render_context = RenderContext {
+            resources: &self.resources,
+            iteration: self.iteration,
+            view,
+            proj,
+            light_vps,
+        };
+
+        StaticMeshDrawable::update_once(&self.renderer, &render_context);
+        ParticleDrawable::update_once(&self.renderer, &render_context);
+        ShadeDirectTechnique::update_once(&self.renderer, &render_context);
+        SkyboxTechnique::update_once(&self.renderer, &render_context);
+        HBILTechnique::update_once(&self.renderer, &render_context);
+
         let mut render_job = render_job::RenderJob::default();
         self.world.dfs_acc(self.world.root(), root_xform, |e, acc| {
             let cur_transform = self
@@ -553,15 +818,14 @@ impl GraphicsManager {
                         acc_model = *acc
                             * Transform {
                                 translation: cur_transform.translation,
-                                rotation: rotation,
+                                rotation,
                                 scale: cur_transform.scale,
                             }
                             .to_mat4();
                     }
 
-                    drawable.update_xforms(&self.renderer, proj, view, acc_model);
-                    drawable.update_lights(&self.renderer, acc_model, &lights);
-                    let render_graph = drawable.render_graph(&self.resources);
+                    drawable.update_model(&self.renderer, acc_model, view);
+                    let render_graph = drawable.render_graph(&render_context);
                     render_job.merge_graph(render_graph);
                 }
             }
@@ -576,59 +840,90 @@ impl GraphicsManager {
                     self.fire_particle_system
                         .calc_particle_model(&self.world, e, view)
                 {
-                    drawable.update_mvp(&self.renderer, acc_model * particle_model, view, proj);
+                    drawable.update_model(&self.renderer, acc_model * particle_model);
                 }
 
                 if let Some(particle_model) =
                     self.smoke_particle_system
                         .calc_particle_model(&self.world, e, view)
                 {
-                    drawable.update_mvp(&self.renderer, acc_model * particle_model, view, proj);
+                    drawable.update_model(&self.renderer, acc_model * particle_model);
                 }
             }
 
             acc_model
         });
 
-        self.postprocess
-            .update_view_data(&self.renderer, view, proj);
-        self.postprocess.update_light_data(
-            &self.renderer,
-            lights.first().unwrap().0,
-            lights.first().unwrap().1,
-        );
-        let postprocess_graph = self.postprocess.render_item(&self.resources).to_graph();
-        render_job.merge_graph_after("forward", postprocess_graph);
-
         if let Some(drawables) = self.world.storage::<Option<ParticleDrawable>>() {
             for maybe_drawable in drawables.iter() {
                 if let Some(drawable) = maybe_drawable {
-                    let graph = drawable.render_graph(&self.resources);
-                    render_job.merge_graph_after("postprocess", graph);
+                    let graph = drawable.render_graph(&render_context);
+                    render_job.merge_graph_after(GeometryDrawTechnique::PASS_NAME, graph);
                 }
             }
         }
+
+        let skybox_graph = self.skybox.render_item(&render_context).to_graph();
+        render_job.merge_graph_after(ParticleDrawable::PASS_NAME, skybox_graph);
+
+        let shade_direct_graph = self.shade_direct.render_item(&render_context).to_graph();
+        render_job.merge_graph_after(SkyboxTechnique::PASS_NAME, shade_direct_graph);
+
+        let downsample_graph = self.downsample.render_item(&render_context).to_graph();
+        render_job.merge_graph_after(ShadeDirectTechnique::PASS_NAME, downsample_graph);
+
+        let hibl_graph = self.hibl.render_item(&render_context).to_graph();
+        render_job.merge_graph_after(DownsampleTechnique::PASS_NAME, hibl_graph);
+
+        let hibl_debayer_graph = self.hibl_debayer.render_item(&render_context).to_graph();
+        render_job.merge_graph_after(HBILTechnique::PASS_NAME, hibl_debayer_graph);
+
+        let downsample_bloom_graph = self
+            .downsample_bloom
+            .render_item(&render_context)
+            .to_graph();
+        render_job.merge_graph_after(DownsampleTechnique::PASS_NAME, downsample_bloom_graph);
+
+        let kawase_down_graph = self
+            .kawase_blur_down
+            .render_item(&render_context)
+            .to_graph();
+        render_job.merge_graph_after(DownsampleBloomTechnique::PASS_NAME, kawase_down_graph);
+
+        let kawase_up_graph = self.kawase_blur_up.render_item(&render_context).to_graph();
+        render_job.merge_graph_after(KawaseBlurDownTechnique::PASS_NAME, kawase_up_graph);
+
+        let composite_bloom_graph = self.composite_bloom.render_item(&render_context).to_graph();
+        render_job.merge_graph_after(KawaseBlurUpTechnique::PASS_NAME, composite_bloom_graph);
+
+        let fsq_graph = self.simple_fsq.render_item(&render_context).to_graph();
+        render_job.merge_graph_after(CompositeBloomTechnique::PASS_NAME, fsq_graph);
 
         match &self.ui {
             UIState::None => {}
             UIState::ChairacterSelect {
                 background,
                 chair_select_box,
+                chair_description,
                 player_chair_images,
             } => {
-                let background_graph = background.render_graph(&self.resources);
-                render_job.merge_graph_after("postprocess", background_graph);
+                let background_graph = background.render_graph(&render_context);
+                render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, background_graph);
 
-                let chair_select_box_graph = chair_select_box.render_graph(&self.resources);
-                render_job.merge_graph_after("postprocess", chair_select_box_graph);
+                let chair_select_box_graph = chair_select_box.render_graph(&render_context);
+                render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, chair_select_box_graph);
 
                 for chair_image in player_chair_images.iter().flatten() {
-                    let chair_graph = chair_image.render_graph(&self.resources);
-                    render_job.merge_graph_after("postprocess", chair_graph);
+                    let chair_graph = chair_image.render_graph(&render_context);
+                    render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, chair_graph);
                 }
+
+                let chair_description_box_graph = chair_description.render_graph(&render_context);
+                render_job
+                    .merge_graph_after(SimpleFSQTechnique::PASS_NAME, chair_description_box_graph);
             }
             UIState::InGameHUD {
-                place_position_text,
+                place_position_image,
                 game_announcement_title,
                 game_announcement_subtitle,
                 announcement_state,
@@ -636,32 +931,36 @@ impl GraphicsManager {
                 timer_ui,
                 interaction_ui,
             } => {
-                let text_graph = place_position_text.render_graph(&self.resources);
-                render_job.merge_graph_after("postprocess", text_graph);
+                let position_graph = place_position_image.render_graph(&render_context);
+                render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, position_graph);
 
                 if let AnnouncementState::None = announcement_state {
                 } else {
-                    let text_graph = game_announcement_title.render_graph(&self.resources);
-                    render_job.merge_graph_after("postprocess", text_graph);
+                    let text_graph = game_announcement_title.render_graph(&render_context);
+                    render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, text_graph);
 
-                    let text_graph = game_announcement_subtitle.render_graph(&self.resources);
-                    render_job.merge_graph_after("postprocess", text_graph);
+                    let text_graph = game_announcement_subtitle.render_graph(&render_context);
+                    render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, text_graph);
                 }
-                let minimap_ui_graph = minimap_ui.render_graph(&self.resources);
-                render_job.merge_graph_after("postprocess", minimap_ui_graph);
+                let minimap_ui_graph = minimap_ui.render_graph(&render_context);
+                render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, minimap_ui_graph);
 
-                let timer_ui_graph = timer_ui.render_graph(&self.resources);
-                render_job.merge_graph_after("postprocess", timer_ui_graph);
+                let timer_ui_graph = timer_ui.render_graph(&render_context);
+                render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, timer_ui_graph);
 
-                let interaction_ui_graph = interaction_ui.render_graph(&self.resources);
-                render_job.merge_graph_after("postprocess", interaction_ui_graph);
+                let interaction_ui_graph = interaction_ui.render_graph(&render_context);
+                render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, interaction_ui_graph);
             }
             UIState::MainMenu { background } => {
-                let ui_graph = background.render_graph(&self.resources);
-                render_job.merge_graph_after("postprocess", ui_graph);
+                let ui_graph = background.render_graph(&render_context);
+                render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, ui_graph);
             }
         }
 
         self.renderer.render(&render_job);
+
+        self.prev_view = view;
+        self.prev_proj = proj;
+        self.iteration += 1;
     }
 }

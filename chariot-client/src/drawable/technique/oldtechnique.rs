@@ -44,14 +44,16 @@ impl<const NUM_ELEMS: usize> TransformUniform<NUM_ELEMS> {
     }
 }
 
-pub struct ForwardDrawTechnique {
+pub struct GeometryDrawTechnique {
     material: MaterialHandle,
     static_mesh: StaticMeshHandle,
     submesh_idx: usize,
     pub(super) mvp_xform: TransformUniform<3>,
 }
 
-impl ForwardDrawTechnique {
+impl GeometryDrawTechnique {
+    const PASS_NAME: &'static str = "geometry";
+    const FRAMEBUFFER_NAME: &'static str = "geometry_out";
     pub fn new(
         renderer: &Renderer,
         resources: &ResourceManager,
@@ -59,22 +61,16 @@ impl ForwardDrawTechnique {
         static_mesh: StaticMeshHandle,
         submesh_idx: usize,
     ) -> Self {
-        let pass_name = &resources
-            .materials
-            .get(&material)
-            .expect("invalid material handle")
-            .pass_name;
-
         Self {
             material: material,
             static_mesh: static_mesh,
             submesh_idx: submesh_idx,
-            mvp_xform: TransformUniform::new(renderer, pass_name, 0),
+            mvp_xform: TransformUniform::new(renderer, Self::PASS_NAME, 0),
         }
     }
 }
 
-impl Technique for ForwardDrawTechnique {
+impl Technique for GeometryDrawTechnique {
     fn render_item<'a>(&'a self, resources: &'a ResourceManager) -> render_job::RenderItem<'a> {
         let static_mesh = resources
             .meshes
@@ -93,8 +89,8 @@ impl Technique for ForwardDrawTechnique {
         let mut bind_group_refs = vec![&self.mvp_xform.bind_group];
         bind_group_refs.extend(material.bind_groups.values());
         render_job::RenderItem::Graphics {
-            pass_name: material.pass_name.as_str(),
-            framebuffer_name: "forward_out",
+            pass_name: Self::PASS_NAME,
+            framebuffer_name: Self::FRAMEBUFFER_NAME,
             num_elements: static_mesh.submeshes[self.submesh_idx].num_elements,
             vertex_buffers: vertex_buffers_with_ranges
                 .map(|(buffer, range)| buffer.slice(*range))
@@ -170,7 +166,7 @@ impl Technique for ShadowDrawTechnique {
     }
 }
 
-pub struct FSQTechnique {
+pub struct ShadeDirectTechnique {
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     material: material::Material,
@@ -178,8 +174,11 @@ pub struct FSQTechnique {
     light_xform: TransformUniform<1>,
 }
 
-impl FSQTechnique {
-    pub fn new(renderer: &Renderer, resources: &ResourceManager, pass_name: &str) -> Self {
+impl ShadeDirectTechnique {
+    const PASS_NAME: &'static str = "shade_direct";
+    const FRAMEBUFFER_NAME: &'static str = "shade_direct_out";
+
+    pub fn new(renderer: &Renderer, resources: &ResourceManager) -> Self {
         let verts_data: [[f32; 2]; 4] = [[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0]];
         let inds_data: [u16; 6] = [0, 1, 2, 0, 2, 3];
 
@@ -205,23 +204,23 @@ impl FSQTechnique {
                 .framebuffer_tex(name, idx)
                 .expect(
                     format!(
-                        "FSQTechnique ({}) requires forward_out framebuffer to be registered",
-                        pass_name
+                        "FSQTechnique ({}) requires geometry_out framebuffer to be registered",
+                        Self::PASS_NAME
                     )
                     .as_str(),
                 )
                 .create_view(&wgpu::TextureViewDescriptor::default())
         };
 
-        let color_tex_view = load_tex("forward_out", 0);
-        let normal_tex_view = load_tex("forward_out", 1);
-        let depth_tex_view = load_tex("forward_out", 2);
+        let color_tex_view = load_tex("geometry_out", 0);
+        let normal_tex_view = load_tex("geometry_out", 1);
+        let depth_tex_view = load_tex("geometry_out", 2);
         let shadow_tex_view = load_tex("shadow_out1", 0);
 
-        let view_xform = TransformUniform::<2>::new(renderer, "postprocess", 1);
-        let light_xform = TransformUniform::<1>::new(renderer, "postprocess", 2);
+        let view_xform = TransformUniform::<2>::new(renderer, Self::PASS_NAME, 1);
+        let light_xform = TransformUniform::<1>::new(renderer, Self::PASS_NAME, 2);
 
-        let material = material::MaterialBuilder::new(renderer, pass_name)
+        let material = material::MaterialBuilder::new(renderer, Self::PASS_NAME)
             .texture_resource(0, 0, color_tex_view)
             .texture_resource(0, 1, normal_tex_view)
             .texture_resource(0, 2, depth_tex_view)
@@ -249,7 +248,7 @@ impl FSQTechnique {
     }
 }
 
-impl Technique for FSQTechnique {
+impl Technique for ShadeDirectTechnique {
     fn render_item<'a>(&'a self, _: &'a ResourceManager) -> render_job::RenderItem<'a> {
         let bind_groups = self
             .material
@@ -260,8 +259,88 @@ impl Technique for FSQTechnique {
             .collect();
 
         render_job::RenderItem::Graphics {
-            pass_name: self.material.pass_name.as_str(),
-            framebuffer_name: "surface_nodepth",
+            pass_name: Self::PASS_NAME,
+            framebuffer_name: Self::FRAMEBUFFER_NAME,
+            num_elements: 6,
+            vertex_buffers: vec![self.vertex_buffer.slice(..)],
+            index_buffer: Some(self.index_buffer.slice(..)),
+            index_format: wgpu::IndexFormat::Uint16,
+            bind_group: bind_groups,
+        }
+    }
+}
+
+pub struct PostprocessTechnique {
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
+    material: material::Material,
+}
+
+impl PostprocessTechnique {
+    const PASS_NAME: &'static str = "postprocess";
+    const FRAMEBUFFER_NAME: &'static str = "surface_nodepth";
+
+    pub fn new(renderer: &Renderer, resources: &ResourceManager) -> Self {
+        let verts_data: [[f32; 2]; 4] = [[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0]];
+        let inds_data: [u16; 6] = [0, 1, 2, 0, 2, 3];
+
+        let vertex_buffer = renderer
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("fsq_verts"),
+                contents: bytemuck::cast_slice(&verts_data),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+
+        let index_buffer = renderer
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("fsq_inds"),
+                contents: bytemuck::cast_slice(&inds_data),
+                usage: wgpu::BufferUsages::INDEX,
+            });
+
+        // I don't like the idea of making new views all the time but it's too built into the design now; maybe later I'll fix it
+        let load_tex = |name: &str, idx: usize| {
+            resources
+                .framebuffer_tex(name, idx)
+                .expect(
+                    format!(
+                        "FSQTechnique ({}) requires shade_direct_out framebuffer to be registered",
+                        Self::PASS_NAME
+                    )
+                    .as_str(),
+                )
+                .create_view(&wgpu::TextureViewDescriptor::default())
+        };
+
+        let color_tex_view = load_tex("shade_direct_out", 0);
+        let depth_tex_view = load_tex("geometry_out", 2);
+        let particles_color_tex_view = load_tex("particles_out", 0);
+        let particles_depth_tex_view = load_tex("particles_out", 1);
+
+        let material = material::MaterialBuilder::new(renderer, Self::PASS_NAME)
+            .texture_resource(0, 0, color_tex_view)
+            .texture_resource(0, 1, depth_tex_view)
+            .texture_resource(0, 2, particles_color_tex_view)
+            .texture_resource(0, 3, particles_depth_tex_view)
+            .produce();
+
+        Self {
+            vertex_buffer,
+            index_buffer,
+            material,
+        }
+    }
+}
+
+impl Technique for PostprocessTechnique {
+    fn render_item<'a>(&'a self, _: &'a ResourceManager) -> render_job::RenderItem<'a> {
+        let bind_groups = self.material.bind_groups.values().collect();
+
+        render_job::RenderItem::Graphics {
+            pass_name: Self::PASS_NAME,
+            framebuffer_name: Self::FRAMEBUFFER_NAME,
             num_elements: 6,
             vertex_buffers: vec![self.vertex_buffer.slice(..)],
             index_buffer: Some(self.index_buffer.slice(..)),
@@ -282,6 +361,9 @@ pub struct UILayerTechnique {
 }
 
 impl UILayerTechnique {
+    const PASS_NAME: &'static str = "ui";
+    const FRAMEBUFFER_NAME: &'static str = "surface_nodepth";
+
     pub fn create_verts_data(pos: glam::Vec2, size: glam::Vec2) -> [[f32; 2]; 4] {
         let pos_ndc = glam::vec2(pos.x, 1.0 - pos.y) * 2.0 - 1.0;
         let size_ndc = glam::vec2(size.x, -size.y) * 2.0;
@@ -354,7 +436,7 @@ impl UILayerTechnique {
                 usage: wgpu::BufferUsages::INDEX,
             });
 
-        let material = MaterialBuilder::new(renderer, "ui")
+        let material = MaterialBuilder::new(renderer, Self::PASS_NAME)
             .texture_resource(
                 0,
                 0,
@@ -390,8 +472,8 @@ impl Technique for UILayerTechnique {
         let bind_groups = self.material.bind_groups.values().collect();
 
         render_job::RenderItem::Graphics {
-            pass_name: self.material.pass_name.as_str(),
-            framebuffer_name: "surface_nodepth",
+            pass_name: Self::PASS_NAME,
+            framebuffer_name: Self::FRAMEBUFFER_NAME,
             num_elements: 6,
             vertex_buffers: vec![self.vertex_buffer.slice(..), self.texcoord_buffer.slice(..)],
             index_buffer: Some(self.index_buffer.slice(..)),

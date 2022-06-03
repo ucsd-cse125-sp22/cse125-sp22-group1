@@ -3,7 +3,7 @@ import '../styles/globals.css'
 import styles from '../styles/Defaults.module.scss';
 import type { AppProps } from 'next/app'
 import { VotingGameState, GlobalContext } from '../src/contexts/GlobalContext';
-import { Prompt, Standing } from '../src/utils/networking';
+import { Prompt, QuestionResult, Standing } from '../src/utils/networking';
 import Logo from '../src/assets/Logo.png'
 import BG from '../src/assets/BG.png'
 import Image from 'next/image'
@@ -19,6 +19,9 @@ function MyApp({ Component, pageProps }: AppProps) {
 	const [gameState, setGameState] = useState<VotingGameState>('waiting')
 	const [winner, setWinner] = useState<number | null>(null);
 	const [standings, setStandings] = useState<Standing[]>([]);
+	const [totalConnected, setTotalConnected] = useState(1);
+	const [countdownTime, setCountdownTime] = useState<Date | null>(null);
+	const [optionResults, setOptionResults] = useState<QuestionResult[]>([]);
 
 	const funnyPhrases = ["I prefer folding",
 		"Hold onto your seats",
@@ -47,27 +50,37 @@ function MyApp({ Component, pageProps }: AppProps) {
 			winner,
 			setWinner,
 			standings,
-			setStandings
+			setStandings,
+			totalConnected,
+			setTotalConnected,
+			countdownTime,
+			setCountdownTime,
+			optionResults,
+			setOptionResults
 		}}>
-			<div className={styles.main} style={{ backgroundImage: `url(${BG.src})` }}>
-				<div className={styles.header}>
-					<div className={styles.headerImage}>
-						<Image alt="Chairot" src={Logo} height="200" width={`${ratio * 200}`} />
-					</div>
-					<NoSsr>
-						<div className={styles.headerText}>
-							<Typewriter options={{
-								strings: displayStatusMessage ? statusMessage : funnyPhrases,
-								autoStart: true,
-								loop: !displayStatusMessage,
-								delay: 60,
-							}
-							} />
+			<div className={styles.backgroundImage} style={{ backgroundImage: `url(${BG.src})` }}>
+				<div className={styles.main}>
+					<div className={styles.header}>
+						<div className={styles.headerImage}>
+							<Image alt="Chairot" src={Logo} />
 						</div>
-					</NoSsr>
-				</div>
-				<div className={styles.rest}>
-					<Component {...pageProps} />
+						<NoSsr>
+							<div className={styles.headerContainer}>
+								<div className={styles.headerText}>
+									<Typewriter options={{
+										strings: displayStatusMessage ? statusMessage : funnyPhrases,
+										autoStart: true,
+										loop: !displayStatusMessage,
+										delay: 60,
+									}
+									} />
+								</div>
+							</div>
+						</NoSsr>
+					</div>
+					<div className={styles.rest}>
+						<Component {...pageProps} />
+					</div>
 				</div>
 			</div>
 		</GlobalContext.Provider>

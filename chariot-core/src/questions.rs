@@ -48,6 +48,36 @@ pub enum AudienceAction {
     Backwards,              // Players instantly rotate 180 degrees and have their speed inverted
 }
 
+impl AudienceAction {
+    pub fn get_description(&self) -> &str {
+        match self {
+            AudienceAction::Null => "The audience has decided to do nothing. booooo",
+            AudienceAction::NoLeft => {
+                "If you're nothing without turning left, then you shouldn't have it"
+            }
+            AudienceAction::NoRight => {
+                "If you're nothing without turning left, then you shouldn't have it"
+            }
+            AudienceAction::InvertControls => "Switch your hands, controls are inverted!",
+            AudienceAction::AutoAccelerate => "chair go brrrrrr!! (now with more brrr)",
+            AudienceAction::TurnOnlyWhenNotMoving => "You can only turn when you stop moving!",
+            AudienceAction::ShoppingCart => "Don't you just love how shopping carts drift?",
+            AudienceAction::SpeedBalanceBoost => "Everyone but first place: FULL SPEED AHEAD",
+            AudienceAction::DoubleMaxSpeed => "You can go faster now :O",
+            AudienceAction::SuperAccelerator => "You can accelerate faster now B)",
+            AudienceAction::SuperSpin => "I'll try spinning, that's a cool trick!",
+            AudienceAction::MoonGravity => "Fly me to the moon!",
+            AudienceAction::IceRink => "It's a great time to go ice skating!",
+            AudienceAction::ExplosivePlayerCollisions => "Make sure to practice social distancing!",
+            AudienceAction::SuperBouncyObjects => "What if we made everything bouncy?",
+            AudienceAction::SwapFirstAndLast => "first and last have been swapped!",
+            AudienceAction::ShufflePlayerPositions => "Oops, we seem to have misplaced you all!",
+            AudienceAction::ResetLapCounter => "Everyone is now on lap 1!",
+            AudienceAction::Backwards => "Whoops! Drive backwards now!",
+        }
+    }
+}
+
 fn get_shuffled_questions() -> Vec<QuestionData> {
     let mut questions = vec![
         QuestionData {

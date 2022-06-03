@@ -55,7 +55,7 @@ pub struct FramebufferDescriptor {
 }
 
 pub struct Renderer {
-    context: Context,
+    pub context: Context,
     pub device: wgpu::Device,
     queue: wgpu::Queue,
     passes: HashMap<String, RenderPass>,
@@ -147,6 +147,7 @@ impl Renderer {
                 push_constant_ranges,
                 targets,
                 primitive_state,
+                tests_depth,
                 outputs_depth,
                 multisample_state,
                 multiview,
@@ -226,12 +227,16 @@ impl Renderer {
                                 targets: target_formats,
                             }),
                             primitive: *primitive_state,
-                            depth_stencil: if *outputs_depth {
+                            depth_stencil: if *tests_depth || *outputs_depth {
                                 Some(wgpu::DepthStencilState {
                                     format: Self::DEPTH_FORMAT,
-                                    depth_write_enabled: true,
-                                    depth_compare: wgpu::CompareFunction::Less, // 1.
-                                    stencil: wgpu::StencilState::default(),     // 2.
+                                    depth_write_enabled: *outputs_depth,
+                                    depth_compare: if *tests_depth {
+                                        wgpu::CompareFunction::Less
+                                    } else {
+                                        wgpu::CompareFunction::Always
+                                    }, // 1.
+                                    stencil: wgpu::StencilState::default(), // 2.
                                     bias: wgpu::DepthBiasState::default(),
                                 })
                             } else {
@@ -318,9 +323,9 @@ impl Renderer {
             layout: self
                 .bind_group_layouts
                 .get(pass_name)
-                .expect("invalid pass name")
+                .expect(format!("invalid pass name: {}", pass_name).as_str())
                 .get(group_num as usize)
-                .expect("invalid group num"),
+                .expect(format!("invalid group num: {}", group_num).as_str()),
             entries: &bind_group_entries,
         })
     }
@@ -429,7 +434,7 @@ impl Renderer {
     ) -> wgpu::RenderPass<'a> {
         let framebuffer_desc = framebuffers
             .get(&String::from(framebuffer_name))
-            .expect("Unable to find framebuffer requested");
+            .expect(format!("Unable to find framebuffer requested: {}", framebuffer_name).as_str());
 
         let mut color_attachments = Vec::new();
         for color_tex_view in framebuffer_desc.color_attachments.iter() {

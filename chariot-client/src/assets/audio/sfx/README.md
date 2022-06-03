@@ -55,3 +55,11 @@
 [Slip_01](https://freesound.org/people/fordps3/sounds/533233/)*attribution 3.0*
 
 [Slip_02](https://freesound.org/people/WannyManny/sounds/609936/) *cc*
+
+**UI**
+
+[Enter_Chairacter_Select](https://freesound.org/people/JustinBW/sounds/80921/) *attribution 4.0*
+
+[Select_Chairacter](https://freesound.org/people/dland/sounds/320181/) *cc*
+
+[Ready_Up](https://freesound.org/people/Leszek_Szary/sounds/171671/) *cc*
