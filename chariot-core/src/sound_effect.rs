@@ -15,4 +15,7 @@ pub enum SoundEffect {
 
     InteractionVoteStart,
     InteractionChosen,
+
+    CountdownGeneral,
+    CountdownGo,
 }

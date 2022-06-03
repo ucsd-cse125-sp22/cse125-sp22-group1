@@ -346,7 +346,10 @@ impl GraphicsManager {
         }
     }
 
-    pub fn maybe_update_countdown(&mut self, game_start_time: &SystemTime) {
+    pub fn maybe_update_countdown(
+        &mut self,
+        game_start_time: &SystemTime,
+    ) -> Option<CountdownState> {
         if let UIState::InGameHUD {
             ref mut countdown_ui,
             ref mut countdown_state,
@@ -368,7 +371,7 @@ impl GraphicsManager {
 
             // has the countdown state changed? if no, just quit
             if correct_state == *countdown_state {
-                return;
+                return None;
             }
 
             // otherwise, load a new texture and maybe play a sound
@@ -403,7 +406,9 @@ impl GraphicsManager {
 
             // once we're done, change the countdown state
             *countdown_state = correct_state;
+            return Some(*countdown_state);
         }
+        None
     }
 
     pub fn display_main_menu(&mut self) {
