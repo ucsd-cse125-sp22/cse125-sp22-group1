@@ -846,8 +846,8 @@ impl GraphicsManager {
         let join_the_audience_image = UIDrawable {
             layers: vec![UILayerTechnique::new(
                 &self.renderer,
-                glam::vec2(34.0 / 1280.0, 512.0 / 720.0),
-                glam::vec2(1.0, 1.0),
+                glam::vec2(34.0 / 1280.0, 500.0 / 720.0),
+                glam::vec2(316.0 / 1280.0, 113.0 / 720.0),
                 glam::vec2(0.0, 0.0),
                 glam::vec2(1.0, 1.0),
                 &join_the_audience_texture,
