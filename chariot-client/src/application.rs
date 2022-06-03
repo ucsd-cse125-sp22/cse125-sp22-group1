@@ -94,11 +94,6 @@ impl Application {
             }
         }
 
-        // TODO: do this for other players
-        if self.pressed_keys.contains(&VirtualKeyCode::W) {
-            self.graphics.add_fire_to_player(0, delta_time);
-        }
-
         self.last_update = SystemTime::now();
 
         self.game.fetch_incoming_packets();
@@ -159,7 +154,7 @@ impl Application {
                         .for_each(|(i, (location, velocity, did_move))| {
                             self.graphics
                                 .update_player_location(&location, &velocity, i);
-                            if *did_move {
+                            if *did_move && GLOBAL_CONFIG.enable_particle_effects {
                                 self.graphics.add_fire_to_player(i, delta_time);
                             }
                         });
