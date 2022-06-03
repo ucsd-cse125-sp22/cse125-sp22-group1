@@ -203,7 +203,20 @@ impl Application {
     }
 
     fn input_gamepad_final_standings(&mut self, event: Result<(Button, f32), (Axis, f32)>) {
-        if let Ok(_) = event {
+        if let Ok((button, _)) = event {
+            if matches!(button, Button::Select) || matches!(button, Button::Start) {
+                self.game.next_game();
+                self.sfx_manager.play(
+                    get_sfx(chariot_core::sound_effect::SoundEffect::ReadyUp),
+                    &self.audio_context,
+                    SourceOptions::new(),
+                );
+            }
+        }
+    }
+
+    fn input_keyboard_final_standings(&mut self, key: VirtualKeyCode) {
+        if matches!(key, VirtualKeyCode::Escape) {
             self.game.next_game();
             self.sfx_manager.play(
                 get_sfx(chariot_core::sound_effect::SoundEffect::ReadyUp),
@@ -211,15 +224,6 @@ impl Application {
                 SourceOptions::new(),
             );
         }
-    }
-
-    fn input_keyboard_final_standings(&mut self, _: VirtualKeyCode) {
-        self.game.next_game();
-        self.sfx_manager.play(
-            get_sfx(chariot_core::sound_effect::SoundEffect::ReadyUp),
-            &self.audio_context,
-            SourceOptions::new(),
-        );
     }
 
     pub fn handle_gamepad_event(&mut self, event: Event) {
