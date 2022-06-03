@@ -120,7 +120,7 @@ impl GameServer {
 
             // wait until server tick time has elapsed
             if let Some(remaining_tick_duration) =
-            max_server_tick_duration.checked_sub(start_time.elapsed())
+                max_server_tick_duration.checked_sub(start_time.elapsed())
             {
                 thread::sleep(remaining_tick_duration);
             } else {
@@ -144,13 +144,12 @@ impl GameServer {
                 match packet {
                     ServerBoundPacket::ChairSelect(new_chair) => match &mut self.game_state.phase {
                         GamePhase::ConnectingAndChoosingSettings { player_choices, .. } => {
-
                             if player_choices[player_num].is_none() {
                                 player_choices[player_num] = Some(Default::default());
                             }
 
                             if let Some(PlayerChoices { chair, .. }) =
-                            &mut player_choices[player_num]
+                                &mut player_choices[player_num]
                             {
                                 println!(
                                     "Setting player #{}'s chair to {}!",
@@ -202,7 +201,7 @@ impl GameServer {
                                 force_start,
                             } => {
                                 if let Some(PlayerChoices { ready, .. }) =
-                                &mut player_choices[player_num]
+                                    &mut player_choices[player_num]
                                 {
                                     println!(
                                         "Player {} is no{} ready!",
@@ -230,7 +229,7 @@ impl GameServer {
                     }
                     ServerBoundPacket::ForceStart => {
                         if let GamePhase::ConnectingAndChoosingSettings { force_start, .. } =
-                        &mut self.game_state.phase
+                            &mut self.game_state.phase
                         {
                             *force_start = true;
                         }
@@ -578,7 +577,7 @@ impl GameServer {
                             }
 
                             if let Some(change_type) =
-                            get_physics_change_from_audience_action(&decision.action)
+                                get_physics_change_from_audience_action(&decision.action)
                             {
                                 let change = PhysicsChange {
                                     change_type,
@@ -710,7 +709,7 @@ impl GameServer {
                         .map(|(zero_based_place, &data)| ((zero_based_place + 1) as u8, data))
                         .collect::<Vec<(u8, (usize, Duration))>>();
                     // (
-                    final_places.sort_by(|x, y| x.1.0.cmp(&y.1.0));
+                    final_places.sort_by(|x, y| x.1 .0.cmp(&y.1 .0));
 
                     // Vec<(Placement, finish_time)>
                     let final_placement: [(u8, (u64, u32)); 4] = final_places
