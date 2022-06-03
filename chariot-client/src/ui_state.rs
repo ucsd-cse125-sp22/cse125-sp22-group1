@@ -1,4 +1,3 @@
-use std::ops::Sub;
 use std::time::{Duration, Instant, SystemTime};
 
 use chariot_core::GLOBAL_CONFIG;
@@ -7,33 +6,17 @@ use image::ImageFormat;
 use lazy_static::lazy_static;
 
 use chariot_core::player::choices::Chair;
+use chariot_core::questions::{QuestionData, QuestionOption};
 
 use crate::drawable::AnimatedUIDrawable;
-use crate::renderer::Renderer;
 use crate::ui::string::{StringAlignment, UIStringBuilder};
 use crate::{
     assets,
-    drawable::{
-        technique::{self, UILayerTechnique},
-        UIDrawable,
-    },
+    drawable::{technique::UILayerTechnique, UIDrawable},
     graphics::GraphicsManager,
     resources::TextureHandle,
     scenegraph::components::Transform,
 };
-
-pub enum AnnouncementState {
-    None,
-    VotingInProgress {
-        prompt: String,
-        vote_end_time: Instant,
-    },
-    VoteActiveTime {
-        prompt: String,
-        decision: String,
-        effect_end_time: Instant,
-    },
-}
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum CountdownState {
@@ -42,6 +25,20 @@ pub enum CountdownState {
     Two,
     One,
     Start,
+}
+
+pub enum InteractionState {
+    None,
+    Voting {
+        tally: Vec<u32>,
+        end_time: Instant,
+    },
+    Active {
+        question: QuestionData,
+        choice: QuestionOption,
+        end_time: Instant,
+        bar_filled: bool,
+    },
 }
 
 pub enum UIState {
@@ -62,11 +59,9 @@ pub enum UIState {
         minimap_ui: UIDrawable,
         timer_ui: UIDrawable,
         lap_ui: UIDrawable,
-        // to be deprecated
-        game_announcement_title: UIDrawable,
-        game_announcement_subtitle: UIDrawable,
-        announcement_state: AnnouncementState,
         interaction_ui: AnimatedUIDrawable,
+        interaction_text: UIDrawable,
+        interaction_state: InteractionState,
     },
 }
 
@@ -96,6 +91,10 @@ lazy_static! {
         .alignment(StringAlignment::LEFT)
         .content(format!("lap 0/{}", GLOBAL_CONFIG.number_laps).as_str())
         .position(30.0 / 1280.0, 0.35);
+    static ref INTERACTION_TEXT: UIStringBuilder =
+        UIStringBuilder::new(*assets::fonts::LAP_TEXT_FONT)
+            .alignment(StringAlignment::CENTERED)
+            .content("The audience is deciding your fate...");
 }
 
 impl GraphicsManager {
@@ -115,65 +114,48 @@ impl GraphicsManager {
         }
     }
 
-    pub fn make_announcement(&mut self, title: &str, subtitle: &str) {
-        if let UIState::InGameHUD {
-            ref mut game_announcement_subtitle,
-            ref mut game_announcement_title,
-            ..
-        } = self.ui
-        {
-            *game_announcement_title = ANNOUNCEMENT_TITLE
-                .clone()
-                .content(title)
-                .build_drawable(&self.renderer, &mut self.resources);
-            *game_announcement_subtitle = ANNOUNCEMENT_SUBTITLE
-                .clone()
-                .content(subtitle)
-                .build_drawable(&self.renderer, &mut self.resources);
-        }
-    }
-
     pub fn update_dynamic_ui(&mut self) {
-        self.update_voting_announcements();
         self.update_minimap();
 
-        if let UIState::InGameHUD { interaction_ui, .. } = &mut self.ui {
-            // interaction_ui.update(&mut self.renderer);
-            // commenting out for now — it's a little intrusive, but will bring back in a later PR
-        }
-    }
-
-    pub fn update_voting_announcements(&mut self) {
-        if let Some((title, subtitle)) = if let UIState::InGameHUD {
-            ref announcement_state,
+        if let UIState::InGameHUD {
+            interaction_ui,
+            interaction_text,
+            interaction_state,
             ..
-        } = &self.ui
+        } = &mut self.ui
         {
-            match announcement_state {
-                AnnouncementState::VotingInProgress { vote_end_time, .. } => Some((
-                    String::from("The audience is deciding your fate"),
-                    format!(
-                        "They decide in {} seconds",
-                        (*vote_end_time - Instant::now()).as_secs()
-                    ),
-                )),
-                AnnouncementState::VoteActiveTime {
-                    prompt: _,
-                    decision,
-                    effect_end_time,
-                } => Some((
-                    format!("{} was chosen!", decision),
-                    format!(
-                        "Effects will last for another {} seconds",
-                        (*effect_end_time - Instant::now()).as_secs()
-                    ),
-                )),
-                AnnouncementState::None => None,
+            interaction_ui.update(&mut self.renderer);
+
+            if let InteractionState::Active {
+                end_time,
+                bar_filled,
+                ..
+            } = interaction_state
+            {
+                let now = Instant::now();
+                let last = interaction_ui.layers.len() - 1;
+                if !*bar_filled && interaction_ui.layers[last].2.is_none() {
+                    interaction_ui.layers.swap(0, last);
+                    interaction_ui.layers.truncate(1);
+                    let duration = *end_time - now;
+
+                    interaction_ui.pos_to(
+                        0,
+                        glam::vec2(0.5, Self::INTERACTION_VOTING_Y_POS),
+                        duration,
+                    );
+                    interaction_ui.size_to(
+                        0,
+                        self.renderer.pixel(0, Self::INTERACTION_VOTING_HEIGHT),
+                        duration,
+                    );
+                }
+                if now > *end_time {
+                    *interaction_state = InteractionState::None;
+                    interaction_ui.layers.clear();
+                    interaction_text.layers.clear();
+                }
             }
-        } else {
-            None
-        } {
-            self.make_announcement(&title, &subtitle);
         }
     }
 
@@ -226,75 +208,149 @@ impl GraphicsManager {
         }
     }
 
-    pub fn maybe_set_announcement_state(&mut self, new_announcement_state: AnnouncementState) {
+    const INTERACTION_VOTING_WIDTH: u32 = 600;
+    const INTERACTION_VOTING_HEIGHT: u32 = 20;
+    const INTERACTION_VOTING_Y_POS: f32 = 0.1;
+    const INTERACTION_SECTION_COLORS: [[f32; 4]; 4] = [
+        [254.0 / 255.0, 100.0 / 255.0, 100.0 / 255.0, 1.0],
+        [98.0 / 255.0, 87.0 / 255.0, 227.0 / 255.0, 1.0],
+        [137.0 / 255.0, 202.0 / 255.0, 127.0 / 255.0, 1.0],
+        [203.0 / 255.0, 157.0 / 255.0, 67.0 / 255.0, 1.0],
+    ];
+
+    pub fn begin_audience_voting(&mut self, num_options: usize, until_end: Duration) {
         if let UIState::InGameHUD {
-            announcement_state,
             interaction_ui,
+            interaction_state,
+            interaction_text,
             ..
         } = &mut self.ui
         {
-            match &new_announcement_state {
-                AnnouncementState::VotingInProgress { vote_end_time, .. } => {
-                    interaction_ui.layers.clear();
-                    interaction_ui.push(UILayerTechnique::new(
-                        &mut self.renderer,
-                        glam::vec2(0.25, 0.0),
-                        glam::vec2(0.5, 0.2),
-                        glam::vec2(0.0, 0.0),
-                        glam::vec2(1.0, 1.0),
-                        self.resources.textures.get(&self.white_box_tex).unwrap(),
-                    ));
-                    interaction_ui
-                        .layers
-                        .last_mut()
-                        .unwrap()
-                        .0
-                        .update_color(&self.renderer, [0.0, 0.0, 0.0, 1.0]);
-                    interaction_ui.push(UILayerTechnique::new(
-                        &mut self.renderer,
-                        glam::vec2(0.26, 0.01),
-                        glam::vec2(0.48, 0.18),
-                        glam::vec2(0.0, 0.0),
-                        glam::vec2(1.0, 1.0),
-                        self.resources.textures.get(&self.white_box_tex).unwrap(),
-                    ));
-                    interaction_ui.push(UILayerTechnique::new(
-                        &mut self.renderer,
-                        glam::vec2(0.26, 0.01),
-                        glam::vec2(0.0, 0.18),
-                        glam::vec2(0.0, 0.0),
-                        glam::vec2(1.0, 1.0),
-                        self.resources.textures.get(&self.white_box_tex).unwrap(),
-                    ));
-                    interaction_ui
-                        .layers
-                        .last_mut()
-                        .unwrap()
-                        .0
-                        .update_color(&self.renderer, [0.527, 0.0, 0.082, 1.0]);
-                    interaction_ui.animate(
-                        2,
-                        None,
-                        Some(glam::vec2(0.48, 0.18)),
-                        *vote_end_time - Instant::now(),
-                    );
-                }
-                AnnouncementState::VoteActiveTime {
-                    prompt: _,
-                    decision,
-                    effect_end_time,
-                } => {
-                    interaction_ui.animate(
-                        2,
-                        None,
-                        Some(glam::vec2(0.0, 0.18)),
-                        *effect_end_time - Instant::now(),
-                    );
-                    ()
-                }
-                _ => interaction_ui.layers.clear(),
+            interaction_ui.layers.clear();
+
+            let local_origin = glam::vec2(
+                0.5 - self.renderer.pixel_x(Self::INTERACTION_VOTING_WIDTH / 2),
+                Self::INTERACTION_VOTING_Y_POS,
+            );
+
+            let even_width = self
+                .renderer
+                .pixel_x(Self::INTERACTION_VOTING_WIDTH / num_options as u32);
+            for i in 0..num_options {
+                interaction_ui.push(UILayerTechnique::new(
+                    &self.renderer,
+                    local_origin + glam::vec2(even_width * i as f32, 0.0),
+                    glam::vec2(
+                        even_width,
+                        self.renderer.pixel_y(Self::INTERACTION_VOTING_HEIGHT),
+                    ),
+                    glam::vec2(0.0, 0.0),
+                    glam::vec2(1.0, 1.0),
+                    self.resources.textures.get(&self.white_box_tex).unwrap(),
+                ));
+                let color = {
+                    if i < 4 {
+                        Self::INTERACTION_SECTION_COLORS[i]
+                    } else {
+                        [1.0, 1.0, 1.0, 1.0]
+                    }
+                };
+                interaction_ui
+                    .layers
+                    .get_mut(i)
+                    .unwrap()
+                    .0
+                    .update_color(&self.renderer, color);
             }
-            *announcement_state = new_announcement_state;
+
+            *interaction_state = InteractionState::Voting {
+                tally: vec![0; num_options],
+                end_time: Instant::now() + until_end,
+            };
+            *interaction_text = INTERACTION_TEXT
+                .clone()
+                .position(0.5, Self::INTERACTION_VOTING_Y_POS / 1.5)
+                .build_drawable(&self.renderer, &mut self.resources);
+        }
+    }
+
+    pub fn update_audience_votes(&mut self, new_tally: Vec<u32>) {
+        if let UIState::InGameHUD {
+            interaction_ui,
+            interaction_state,
+            ..
+        } = &mut self.ui
+        {
+            if let InteractionState::Voting { tally, .. } = interaction_state {
+                let local_origin = glam::vec2(
+                    0.5 - self.renderer.pixel_x(Self::INTERACTION_VOTING_WIDTH / 2),
+                    Self::INTERACTION_VOTING_Y_POS,
+                );
+
+                let sum: u32 = new_tally.iter().sum();
+                let mut sibling_push = 0;
+                for idx in 0..new_tally.len() {
+                    let width = Self::INTERACTION_VOTING_WIDTH * new_tally[idx] / sum;
+                    interaction_ui.layers[idx].0.update_pos(
+                        &self.renderer,
+                        local_origin + self.renderer.pixel(sibling_push, 0),
+                    );
+                    interaction_ui.layers[idx].0.update_size(
+                        &self.renderer,
+                        self.renderer.pixel(width, Self::INTERACTION_VOTING_HEIGHT),
+                    );
+                    sibling_push += width;
+                }
+
+                *tally = new_tally;
+            }
+        }
+    }
+
+    pub fn start_audience_interaction(
+        &mut self,
+        question: QuestionData,
+        choice: QuestionOption,
+        duration: Duration,
+    ) {
+        if let UIState::InGameHUD {
+            interaction_ui,
+            interaction_text,
+            interaction_state,
+            ..
+        } = &mut self.ui
+        {
+            // TODO: fix hardcode
+            let victor_idx = 1;
+            let local_origin = glam::vec2(
+                0.5 - self.renderer.pixel_x(Self::INTERACTION_VOTING_WIDTH / 2),
+                Self::INTERACTION_VOTING_Y_POS,
+            );
+
+            interaction_ui.pos_to(victor_idx, local_origin, Duration::from_secs(1));
+            interaction_ui.size_to(
+                victor_idx,
+                self.renderer.pixel(
+                    Self::INTERACTION_VOTING_WIDTH,
+                    Self::INTERACTION_VOTING_HEIGHT,
+                ),
+                Duration::from_secs(1),
+            );
+
+            let last = interaction_ui.layers.len() - 1;
+            interaction_ui.layers.swap(victor_idx, last);
+
+            *interaction_text = INTERACTION_TEXT
+                .clone()
+                .content(choice.action.get_description())
+                .position(0.5, Self::INTERACTION_VOTING_Y_POS / 1.5)
+                .build_drawable(&self.renderer, &mut self.resources);
+            *interaction_state = InteractionState::Active {
+                question,
+                choice,
+                end_time: Instant::now() + duration,
+                bar_filled: false,
+            };
         }
     }
 
@@ -334,7 +390,7 @@ impl GraphicsManager {
                 .expect("Expected placement text image!");
 
             *place_position_image = UIDrawable {
-                layers: vec![technique::UILayerTechnique::new(
+                layers: vec![UILayerTechnique::new(
                     &self.renderer,
                     glam::vec2(1117.0 / 1280.0, 590.0 / 720.0),
                     glam::vec2(0.1, 0.15),
@@ -490,7 +546,7 @@ impl GraphicsManager {
             .get(&chair_description_handle)
             .expect("description doesn't exist!");
 
-        let layer_vec = vec![technique::UILayerTechnique::new(
+        let layer_vec = vec![UILayerTechnique::new(
             &self.renderer,
             glam::vec2(343.0 / 1280.0, 565.0 / 720.0),
             glam::vec2(128.0 / 1280.0, 122.0 / 720.0),
@@ -501,7 +557,7 @@ impl GraphicsManager {
 
         let chair_select_box = UIDrawable { layers: layer_vec };
 
-        let layer_vec = vec![technique::UILayerTechnique::new(
+        let layer_vec = vec![UILayerTechnique::new(
             &self.renderer,
             glam::vec2(317.0 / 1280.0, 433.0 / 720.0),
             glam::vec2(640.0 / 1280.0, 117.0 / 720.0),
@@ -563,7 +619,7 @@ impl GraphicsManager {
                 .get(&chair_description_handle)
                 .expect("description doesn't exist!");
 
-            let layer_vec = vec![technique::UILayerTechnique::new(
+            let layer_vec = vec![UILayerTechnique::new(
                 &self.renderer,
                 position,
                 glam::vec2(127.0 / 1280.0, 121.0 / 720.0),
@@ -574,7 +630,7 @@ impl GraphicsManager {
 
             *chair_select_box = UIDrawable { layers: layer_vec };
 
-            let layer_vec = vec![technique::UILayerTechnique::new(
+            let layer_vec = vec![UILayerTechnique::new(
                 &self.renderer,
                 glam::vec2(317.0 / 1280.0, 433.0 / 720.0),
                 glam::vec2(640.0 / 1280.0, 117.0 / 720.0),
@@ -646,7 +702,7 @@ impl GraphicsManager {
             .expect("Expected placement text image!");
 
         let place_position_image = UIDrawable {
-            layers: vec![technique::UILayerTechnique::new(
+            layers: vec![UILayerTechnique::new(
                 &self.renderer,
                 glam::vec2(1117.0 / 1280.0, 590.0 / 720.0),
                 glam::vec2(0.1, 0.1),
@@ -655,14 +711,6 @@ impl GraphicsManager {
                 &place_position_texture,
             )],
         };
-
-        let game_announcement_title = ANNOUNCEMENT_TITLE
-            .clone()
-            .build_drawable(&self.renderer, &mut self.resources);
-
-        let game_announcement_subtitle = ANNOUNCEMENT_SUBTITLE
-            .clone()
-            .build_drawable(&self.renderer, &mut self.resources);
 
         let timer_ui = TIMER_TEXT
             .clone()
@@ -727,15 +775,14 @@ impl GraphicsManager {
 
         self.ui = UIState::InGameHUD {
             place_position_image,
-            game_announcement_title,
-            game_announcement_subtitle,
-            announcement_state: AnnouncementState::None,
             minimap_ui,
             timer_ui,
             countdown_ui: None,
             countdown_state: CountdownState::None,
             lap_ui,
             interaction_ui: AnimatedUIDrawable::new(),
+            interaction_text: UIDrawable { layers: vec![] },
+            interaction_state: InteractionState::None,
         }
     }
 }
