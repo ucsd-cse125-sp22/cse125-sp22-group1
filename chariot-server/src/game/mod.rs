@@ -422,8 +422,6 @@ impl GameServer {
                                 .push_outgoing(ClientBoundPacket::PlacementUpdate(placement));
                         }
                     }
-
-                    //println!("player #{player_id} in place {placement}");
                 }
 
                 let ramps = &self
