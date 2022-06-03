@@ -1,6 +1,7 @@
 use crate::assets;
 use crate::assets::models;
 use crate::assets::shaders;
+use crate::drawable::technique::UILayerTechnique;
 use crate::drawable::technique::WronskiAATechnique;
 use chariot_core::entity_location::EntityLocation;
 use chariot_core::player::choices::Chair;
@@ -954,6 +955,18 @@ impl GraphicsManager {
             UIState::MainMenu { background } => {
                 let ui_graph = background.render_graph(&render_context);
                 render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, ui_graph);
+            }
+            UIState::FinalStandings {
+                final_standings_ui,
+                player_final_times,
+            } => {
+                let ui_graph = final_standings_ui.render_graph(&render_context);
+                render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, ui_graph);
+
+                for player_final_time in player_final_times {
+                    let time_graph = player_final_time.render_graph(&render_context);
+                    render_job.merge_graph_after(UILayerTechnique::PASS_NAME, time_graph);
+                }
             }
         }
 

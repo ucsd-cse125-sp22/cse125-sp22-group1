@@ -8,6 +8,7 @@ use lazy_static::lazy_static;
 use chariot_core::player::choices::Chair;
 use chariot_core::questions::{QuestionData, QuestionOption};
 
+use crate::assets::ui::get_chair_icon;
 use crate::drawable::AnimatedUIDrawable;
 use crate::ui::string::{StringAlignment, UIStringBuilder};
 use crate::{
@@ -63,6 +64,10 @@ pub enum UIState {
         interaction_text: UIDrawable,
         interaction_state: InteractionState,
     },
+    FinalStandings {
+        final_standings_ui: UIDrawable,
+        player_final_times: [UIDrawable; 4],
+    },
 }
 
 // by initializing the builders statically,
@@ -87,9 +92,29 @@ lazy_static! {
         .alignment(StringAlignment::LEFT)
         .content("00:00:000")
         .position(30.0 / 1280.0, 651.0 / 720.0);
+    static ref P1_FINAL_TIME_TEXT: UIStringBuilder =
+        UIStringBuilder::new(*assets::fonts::PLACEMENT_TEXT_FONT)
+            .alignment(StringAlignment::LEFT)
+            .content("00:00:000")
+            .position(666.0 / 1280.0, 220.0 / 720.0);
+    static ref P2_FINAL_TIME_TEXT: UIStringBuilder =
+        UIStringBuilder::new(*assets::fonts::PLACEMENT_TEXT_FONT)
+            .alignment(StringAlignment::LEFT)
+            .content("00:00:000")
+            .position(666.0 / 1280.0, 320.0 / 720.0);
+    static ref P3_FINAL_TIME_TEXT: UIStringBuilder =
+        UIStringBuilder::new(*assets::fonts::PLACEMENT_TEXT_FONT)
+            .alignment(StringAlignment::LEFT)
+            .content("00:00:000")
+            .position(666.0 / 1280.0, 420.0 / 720.0);
+    static ref P4_FINAL_TIME_TEXT: UIStringBuilder =
+        UIStringBuilder::new(*assets::fonts::PLACEMENT_TEXT_FONT)
+            .alignment(StringAlignment::LEFT)
+            .content("00:00:000")
+            .position(666.0 / 1280.0, 520.0 / 720.0);
     static ref LAP_TEXT: UIStringBuilder = UIStringBuilder::new(*assets::fonts::LAP_TEXT_FONT)
         .alignment(StringAlignment::LEFT)
-        .content(format!("lap 0/{}", GLOBAL_CONFIG.number_laps).as_str())
+        .content(format!("lap 1/{}", GLOBAL_CONFIG.number_laps).as_str())
         .position(30.0 / 1280.0, 0.35);
     static ref INTERACTION_TEXT: UIStringBuilder =
         UIStringBuilder::new(*assets::fonts::LAP_TEXT_FONT)
@@ -782,6 +807,162 @@ impl GraphicsManager {
             interaction_ui: AnimatedUIDrawable::new(),
             interaction_text: UIDrawable { layers: vec![] },
             interaction_state: InteractionState::None,
+        }
+    }
+
+    pub fn display_final_standings(
+        &mut self,
+        positions: [u8; 4],
+        chairs: [Chair; 4],
+        times: [(u64, u32); 4],
+    ) {
+        let background_handle = self.resources.import_texture_embedded(
+            &self.renderer,
+            "results background",
+            assets::ui::RESULTS_BACKGROUND,
+            ImageFormat::Png,
+        );
+
+        let background_texture = self
+            .resources
+            .textures
+            .get(&background_handle)
+            .expect("Results background doesn't exist!");
+
+        let mut layer_vec = vec![UILayerTechnique::new(
+            &self.renderer,
+            glam::vec2(0.0, 0.0),
+            glam::vec2(1.0, 1.0),
+            glam::vec2(0.0, 0.0),
+            glam::vec2(1.0, 1.0),
+            background_texture,
+        )];
+
+        let mut player_nums: Vec<usize> = vec![0, 1, 2, 3];
+        player_nums.sort_by(|&a, &b| positions[a].cmp(&positions[b]));
+
+        for (placement_index, &player_index) in player_nums.iter().enumerate() {
+            let placement_card_handle = self.resources.import_texture_embedded(
+                &self.renderer,
+                format!("placement-{}", player_index + 1).as_str(),
+                assets::ui::PLACEMENT_CARDS[player_index],
+                ImageFormat::Png,
+            );
+
+            let texture_name = match positions[player_index] {
+                1 => "1st",
+                2 => "2nd",
+                3 => "3rd",
+                4 => "4th",
+                _ => "1st",
+            };
+
+            let placement_handle = self.resources.import_texture_embedded(
+                &self.renderer,
+                texture_name,
+                assets::ui::PLACE_IMAGES[positions[player_index] as usize],
+                ImageFormat::Png,
+            );
+
+            let chair_handle = self.resources.import_texture_embedded(
+                &self.renderer,
+                format!("{}-icon", chairs[player_index].file()).as_str(),
+                get_chair_icon(chairs[player_index]),
+                ImageFormat::Png,
+            );
+
+            let placement_card_texture = self
+                .resources
+                .textures
+                .get(&placement_card_handle)
+                .expect("placement card doesn't exist!");
+
+            let placement_text_texture = self
+                .resources
+                .textures
+                .get(&placement_handle)
+                .expect("Expected placement text image!");
+
+            let chair_texture = self
+                .resources
+                .textures
+                .get(&chair_handle)
+                .expect("chair doesn't exist!");
+
+            // placement_index is usually (but not always) placement - this
+            // should be resilient to ties
+            let position = match placement_index {
+                0 => glam::vec2(167.0 / 1280.0, 148.0 / 720.0),
+                1 => glam::vec2(167.0 / 1280.0, 248.0 / 720.0),
+                2 => glam::vec2(167.0 / 1280.0, 348.0 / 720.0),
+                3 => glam::vec2(167.0 / 1280.0, 448.0 / 720.0),
+                _ => glam::vec2(167.0 / 1280.0, 148.0 / 720.0), // shouldn't happen :p
+            };
+
+            layer_vec.push(UILayerTechnique::new(
+                &self.renderer,
+                position,
+                glam::vec2(939.0 / 1280.0, 120.0 / 720.0),
+                glam::vec2(0.0, 0.0),
+                glam::vec2(1.0, 1.0),
+                &placement_card_texture,
+            ));
+
+            layer_vec.push(UILayerTechnique::new(
+                &self.renderer,
+                position + glam::vec2(35.0 / 1280.0, 22.0 / 720.0),
+                glam::vec2(90.0 / 1280.0, 90.0 / 720.0),
+                glam::vec2(0.0, 0.0),
+                glam::vec2(1.0, 1.0),
+                &placement_text_texture,
+            ));
+
+            layer_vec.push(UILayerTechnique::new(
+                &self.renderer,
+                position + glam::vec2(754.0 / 1280.0, 10.0 / 720.0),
+                glam::vec2(104.0 / 1280.0, 98.0 / 720.0),
+                glam::vec2(0.0, 0.0),
+                glam::vec2(1.0, 1.0),
+                &chair_texture,
+            ));
+        }
+
+        let final_standings_ui = UIDrawable { layers: layer_vec };
+
+        let player_final_times = [0, 1, 2, 3].map(|player_index| {
+            let (time_secs, time_millis) = times[player_index];
+            let minutes = time_secs / 60;
+            let seconds = time_secs % 60;
+            let millis = time_millis % 1000;
+            let time_str = format!("{:02}:{:02}:{:03}", minutes, seconds, millis);
+
+            // don't worry, i hate this code too
+            if player_index == 0 {
+                P1_FINAL_TIME_TEXT
+                    .clone()
+                    .content(&time_str)
+                    .build_drawable(&self.renderer, &mut self.resources)
+            } else if player_index == 1 {
+                P2_FINAL_TIME_TEXT
+                    .clone()
+                    .content(&time_str)
+                    .build_drawable(&self.renderer, &mut self.resources)
+            } else if player_index == 2 {
+                P3_FINAL_TIME_TEXT
+                    .clone()
+                    .content(&time_str)
+                    .build_drawable(&self.renderer, &mut self.resources)
+            } else {
+                P4_FINAL_TIME_TEXT
+                    .clone()
+                    .content(&time_str)
+                    .build_drawable(&self.renderer, &mut self.resources)
+            }
+        });
+
+        self.ui = UIState::FinalStandings {
+            final_standings_ui,
+            player_final_times,
         }
     }
 }

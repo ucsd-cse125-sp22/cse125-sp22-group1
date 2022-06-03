@@ -72,7 +72,11 @@ pub enum ClientBoundPacket {
     SoundEffectEvent(SoundEffect),
 
     // After game
-    AllDone([Placement; 4]), // All players' final placements
+    AllDone {
+        placements: [Placement; 4],
+        // lol
+        times: [(u64, u32); 4],
+    },
     StartNextGame,
 }
 

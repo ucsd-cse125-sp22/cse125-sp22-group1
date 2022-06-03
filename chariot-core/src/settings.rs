@@ -59,7 +59,7 @@ impl Settings {
             // tracks folder (too big to embed)
             .set_default("tracks_folder", "../tracks")?
             // Gameplay
-            .set_default("number_laps", 3)?
+            .set_default("number_laps", 1)?
             .set_default("powerup_cooldown_time", 10)?
             .set_default("volume", 1.0)?
             .set_default("enable_particle_effects", true)?

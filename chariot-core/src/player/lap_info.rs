@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use serde::{Deserialize, Serialize};
 
 pub type LapNumber = u8;
@@ -12,6 +14,7 @@ pub struct LapInformation {
     pub last_checkpoint: CheckpointID,
     pub placement: Placement,
     pub finished: bool,
+    pub finish_time: Option<Duration>,
 }
 
 impl LapInformation {
@@ -22,6 +25,7 @@ impl LapInformation {
             last_checkpoint: 0,
             placement: 0,
             finished: false,
+            finish_time: None,
         }
     }
 }

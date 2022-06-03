@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use chariot_core::player::choices::Chair;
 use glam::DVec3;
 
@@ -38,6 +40,7 @@ fn get_starting_player_props() -> PlayerEntity {
         lap_info: LapInformation::new(),
         current_powerup: None,
         chair: Chair::Swivel,
+        game_start_time: Instant::now(),
     }
 }
 
@@ -67,6 +70,7 @@ fn get_origin_cube() -> PlayerEntity {
         lap_info: LapInformation::new(),
         current_powerup: None,
         chair: Chair::Swivel,
+        game_start_time: Instant::now(),
     }
 }
 
