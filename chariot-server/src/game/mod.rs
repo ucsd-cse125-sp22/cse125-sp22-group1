@@ -497,17 +497,25 @@ impl GameServer {
                         lap_info: LapInformation { lap: old_lap, .. },
                     } = self.game_state.players[n].placement_data
                     {
-                        if let PlayerProgress::Racing {
-                            lap_info: LapInformation { lap: new_lap, .. },
-                        } = player.placement_data
-                        {
-                            if old_lap != new_lap {
+                        
+                        match player.placement_data {
+                            PlayerProgress::Racing {
+                                lap_info: LapInformation { lap: new_lap, .. },
+                            } => {
+                                if old_lap != new_lap {
                                 self.connections[n]
-                                    .push_outgoing(ClientBoundPacket::LapUpdate(new_lap));
+                                .push_outgoing(ClientBoundPacket::LapUpdate(new_lap));
+                                }
+                            },
+                            PlayerProgress::Finished { .. } => {
+                                self.connections[n].push_outgoing(ClientBoundPacket::FinishedLaps(player.cached_place.unwrap()));
                             }
+                            _ => {}
                         }
+                        
+                        
                     }
-
+                    
                     // Restore original player inputs: without this, the server's inputs can change multiple times per client update
                     player.player_inputs = original_player_inputs.get(n).unwrap().to_owned();
                     player
