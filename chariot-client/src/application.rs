@@ -248,6 +248,5 @@ impl Application {
                 }
             }
         }
-        self.graphics.update_minimap();
     }
 }
