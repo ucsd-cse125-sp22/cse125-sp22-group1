@@ -1,5 +1,7 @@
-use std::time::{Duration, Instant};
+use std::ops::Sub;
+use std::time::{Duration, Instant, SystemTime};
 
+use chariot_core::GLOBAL_CONFIG;
 use glam::Vec2;
 use image::ImageFormat;
 use lazy_static::lazy_static;
@@ -7,6 +9,8 @@ use lazy_static::lazy_static;
 use chariot_core::player::choices::Chair;
 
 use crate::assets::ui::get_chair_icon;
+use crate::drawable::AnimatedUIDrawable;
+use crate::renderer::Renderer;
 use crate::ui::string::{StringAlignment, UIStringBuilder};
 use crate::{
     assets,
@@ -32,6 +36,15 @@ pub enum AnnouncementState {
     },
 }
 
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub enum CountdownState {
+    None,
+    Three,
+    Two,
+    One,
+    Start,
+}
+
 pub enum UIState {
     None,
     MainMenu {
@@ -44,12 +57,17 @@ pub enum UIState {
         player_chair_images: Vec<Option<UIDrawable>>,
     },
     InGameHUD {
+        countdown_ui: Option<UIDrawable>,
+        countdown_state: CountdownState,
         place_position_image: UIDrawable,
+        minimap_ui: UIDrawable,
+        timer_ui: UIDrawable,
+        lap_ui: UIDrawable,
+        // to be deprecated
         game_announcement_title: UIDrawable,
         game_announcement_subtitle: UIDrawable,
         announcement_state: AnnouncementState,
-        minimap_ui: UIDrawable,
-        timer_ui: UIDrawable,
+        interaction_ui: AnimatedUIDrawable,
     },
     FinalStandings {
         final_standings_ui: UIDrawable,
@@ -71,34 +89,39 @@ lazy_static! {
             .content("")
             .position(0.50, 0.14);
     static ref PLACEMENT_TEXT: UIStringBuilder =
-        UIStringBuilder::new(*assets::fonts::PLACEMENT_FONT_SELECTION)
+        UIStringBuilder::new(*assets::fonts::PLACEMENT_TEXT_FONT)
             .alignment(StringAlignment::RIGHT)
             .content("")
             .position(1.0, 0.057);
     static ref TIMER_TEXT: UIStringBuilder = UIStringBuilder::new(assets::fonts::PRIMARY_FONT)
-        .alignment(StringAlignment::RIGHT)
+        .alignment(StringAlignment::LEFT)
         .content("00:00:000")
         .position(0.95, 0.9);
     static ref P1_FINAL_TIME_TEXT: UIStringBuilder =
-        UIStringBuilder::new(*assets::fonts::PLACEMENT_FONT_SELECTION)
+        UIStringBuilder::new(*assets::fonts::PLACEMENT_TEXT_FONT)
             .alignment(StringAlignment::LEFT)
             .content("00:00:000")
             .position(688.0 / 1280.0, 173.0 / 720.0);
     static ref P2_FINAL_TIME_TEXT: UIStringBuilder =
-        UIStringBuilder::new(*assets::fonts::PLACEMENT_FONT_SELECTION)
+        UIStringBuilder::new(*assets::fonts::PLACEMENT_TEXT_FONT)
             .alignment(StringAlignment::LEFT)
             .content("00:00:000")
             .position(688.0 / 1280.0, 273.0 / 720.0);
     static ref P3_FINAL_TIME_TEXT: UIStringBuilder =
-        UIStringBuilder::new(*assets::fonts::PLACEMENT_FONT_SELECTION)
+        UIStringBuilder::new(*assets::fonts::PLACEMENT_TEXT_FONT)
             .alignment(StringAlignment::LEFT)
             .content("00:00:000")
             .position(688.0 / 1280.0, 373.0 / 720.0);
     static ref P4_FINAL_TIME_TEXT: UIStringBuilder =
-        UIStringBuilder::new(*assets::fonts::PLACEMENT_FONT_SELECTION)
+        UIStringBuilder::new(*assets::fonts::PLACEMENT_TEXT_FONT)
             .alignment(StringAlignment::LEFT)
             .content("00:00:000")
             .position(688.0 / 1280.0, 473.0 / 720.0);
+        // .position(30.0 / 1280.0, 651.0 / 720.0);
+    static ref LAP_TEXT: UIStringBuilder = UIStringBuilder::new(*assets::fonts::LAP_TEXT_FONT)
+        .alignment(StringAlignment::LEFT)
+        .content(format!("lap 0/{}", GLOBAL_CONFIG.number_laps).as_str())
+        .position(30.0 / 1280.0, 0.35);
 }
 
 impl GraphicsManager {
@@ -133,6 +156,16 @@ impl GraphicsManager {
                 .clone()
                 .content(subtitle)
                 .build_drawable(&self.renderer, &mut self.resources);
+        }
+    }
+
+    pub fn update_dynamic_ui(&mut self) {
+        self.update_voting_announcements();
+        self.update_minimap();
+
+        if let UIState::InGameHUD { interaction_ui, .. } = &mut self.ui {
+            // interaction_ui.update(&mut self.renderer);
+            // commenting out for now — it's a little intrusive, but will bring back in a later PR
         }
     }
 
@@ -221,10 +254,82 @@ impl GraphicsManager {
 
     pub fn maybe_set_announcement_state(&mut self, new_announcement_state: AnnouncementState) {
         if let UIState::InGameHUD {
-            announcement_state, ..
+            announcement_state,
+            interaction_ui,
+            ..
         } = &mut self.ui
         {
+            match &new_announcement_state {
+                AnnouncementState::VotingInProgress { vote_end_time, .. } => {
+                    interaction_ui.layers.clear();
+                    interaction_ui.push(UILayerTechnique::new(
+                        &mut self.renderer,
+                        glam::vec2(0.25, 0.0),
+                        glam::vec2(0.5, 0.2),
+                        glam::vec2(0.0, 0.0),
+                        glam::vec2(1.0, 1.0),
+                        self.resources.textures.get(&self.white_box_tex).unwrap(),
+                    ));
+                    interaction_ui
+                        .layers
+                        .last_mut()
+                        .unwrap()
+                        .0
+                        .update_color(&self.renderer, [0.0, 0.0, 0.0, 1.0]);
+                    interaction_ui.push(UILayerTechnique::new(
+                        &mut self.renderer,
+                        glam::vec2(0.26, 0.01),
+                        glam::vec2(0.48, 0.18),
+                        glam::vec2(0.0, 0.0),
+                        glam::vec2(1.0, 1.0),
+                        self.resources.textures.get(&self.white_box_tex).unwrap(),
+                    ));
+                    interaction_ui.push(UILayerTechnique::new(
+                        &mut self.renderer,
+                        glam::vec2(0.26, 0.01),
+                        glam::vec2(0.0, 0.18),
+                        glam::vec2(0.0, 0.0),
+                        glam::vec2(1.0, 1.0),
+                        self.resources.textures.get(&self.white_box_tex).unwrap(),
+                    ));
+                    interaction_ui
+                        .layers
+                        .last_mut()
+                        .unwrap()
+                        .0
+                        .update_color(&self.renderer, [0.527, 0.0, 0.082, 1.0]);
+                    interaction_ui.animate(
+                        2,
+                        None,
+                        Some(glam::vec2(0.48, 0.18)),
+                        *vote_end_time - Instant::now(),
+                    );
+                }
+                AnnouncementState::VoteActiveTime {
+                    prompt: _,
+                    decision,
+                    effect_end_time,
+                } => {
+                    interaction_ui.animate(
+                        2,
+                        None,
+                        Some(glam::vec2(0.0, 0.18)),
+                        *effect_end_time - Instant::now(),
+                    );
+                    ()
+                }
+                _ => interaction_ui.layers.clear(),
+            }
             *announcement_state = new_announcement_state;
+        }
+    }
+
+    pub fn maybe_update_lap(&mut self, lap: u8) {
+        if let UIState::InGameHUD { ref mut lap_ui, .. } = self.ui {
+            *lap_ui = LAP_TEXT
+                .clone()
+                .content(format!("lap {}/{}", lap, GLOBAL_CONFIG.number_laps).as_str())
+                .build_drawable(&self.renderer, &mut self.resources);
         }
     }
 
@@ -257,7 +362,7 @@ impl GraphicsManager {
             *place_position_image = UIDrawable {
                 layers: vec![technique::UILayerTechnique::new(
                     &self.renderer,
-                    glam::vec2(0.85, 0.05),
+                    glam::vec2(1117.0 / 1280.0, 590.0 / 720.0),
                     glam::vec2(0.1, 0.15),
                     glam::vec2(0.0, 0.0),
                     glam::vec2(1.0, 1.0),
@@ -265,6 +370,71 @@ impl GraphicsManager {
                 )],
             };
         }
+    }
+
+    pub fn maybe_update_countdown(
+        &mut self,
+        game_start_time: &SystemTime,
+    ) -> Option<CountdownState> {
+        if let UIState::InGameHUD {
+            ref mut countdown_ui,
+            ref mut countdown_state,
+            ..
+        } = self.ui
+        {
+            // what state SHOULD we be in based on the game start time
+            let correct_state = match game_start_time.duration_since(SystemTime::now()) {
+                Ok(elapsed) => match elapsed.as_secs() {
+                    1 => CountdownState::Two,
+                    0 => CountdownState::One,
+                    _ => CountdownState::Three,
+                },
+                Err(e) => match e.duration().as_secs() {
+                    0 => CountdownState::Start,
+                    _ => CountdownState::None,
+                },
+            };
+
+            // has the countdown state changed? if no, just quit
+            if correct_state == *countdown_state {
+                return None;
+            }
+
+            // otherwise, load a new texture and maybe play a sound
+            let new_texture = assets::ui::get_countdown_asset(correct_state);
+            if let Some((new_texture, dimensions)) = new_texture {
+                let countdown_texture_handle = self.resources.import_texture_embedded(
+                    &self.renderer,
+                    "countdown",
+                    new_texture,
+                    ImageFormat::Png,
+                );
+
+                let countdown_position_texture = self
+                    .resources
+                    .textures
+                    .get(&countdown_texture_handle)
+                    .expect("Expected countdown image!");
+
+                *countdown_ui = Some(UIDrawable {
+                    layers: vec![UILayerTechnique::new(
+                        &self.renderer,
+                        glam::vec2(0.5, 0.5) - (dimensions / 2.0) / glam::vec2(1280.0, 720.0),
+                        dimensions / glam::vec2(1280.0, 720.0),
+                        glam::vec2(0.0, 0.0),
+                        glam::vec2(1.0, 1.0),
+                        &countdown_position_texture,
+                    )],
+                });
+            } else {
+                *countdown_ui = None;
+            }
+
+            // once we're done, change the countdown state
+            *countdown_state = correct_state;
+            return Some(*countdown_state);
+        }
+        None
     }
 
     pub fn display_main_menu(&mut self) {
@@ -374,6 +544,8 @@ impl GraphicsManager {
             chair_description,
             player_chair_images: vec![None, None, None, None],
         };
+
+        (0..4).for_each(|i| self.maybe_display_chair(None, i));
     }
 
     pub fn maybe_select_chair(&mut self, chair: Chair) {
@@ -440,12 +612,12 @@ impl GraphicsManager {
             *chair_description = UIDrawable { layers: layer_vec };
 
             for (player_id, choice) in self.player_choices.clone().iter().flatten().enumerate() {
-                self.maybe_display_chair(choice.chair, player_id);
+                self.maybe_display_chair(Some(choice.chair), player_id);
             }
         }
     }
 
-    pub fn maybe_display_chair(&mut self, chair: Chair, player: usize) {
+    pub fn maybe_display_chair(&mut self, chair: Option<Chair>, player: usize) {
         if let UIState::ChairacterSelect {
             player_chair_images,
             ..
@@ -462,7 +634,7 @@ impl GraphicsManager {
                 .resources
                 .textures
                 .get(&chair_image)
-                .expect(format!("{} doesn't exist!", chair.to_string()).as_str());
+                .expect(format!("chair doesn't exist!").as_str());
 
             let position = match player {
                 0 => glam::vec2(165.0 / 1280.0, 187.0 / 720.0),
@@ -472,7 +644,7 @@ impl GraphicsManager {
                 _ => glam::vec2(165.0 / 1280.0, 187.0 / 720.0),
             };
 
-            let layers = vec![technique::UILayerTechnique::new(
+            let layers = vec![UILayerTechnique::new(
                 &self.renderer,
                 position,
                 glam::vec2(166.0 / 1280.0, 247.0 / 720.0),
@@ -502,7 +674,7 @@ impl GraphicsManager {
         let place_position_image = UIDrawable {
             layers: vec![technique::UILayerTechnique::new(
                 &self.renderer,
-                glam::vec2(0.85, 0.05),
+                glam::vec2(1117.0 / 1280.0, 590.0 / 720.0),
                 glam::vec2(0.1, 0.1),
                 glam::vec2(0.0, 0.0),
                 glam::vec2(1.0, 1.0),
@@ -519,6 +691,10 @@ impl GraphicsManager {
             .build_drawable(&self.renderer, &mut self.resources);
 
         let timer_ui = TIMER_TEXT
+            .clone()
+            .build_drawable(&self.renderer, &mut self.resources);
+
+        let lap_ui = LAP_TEXT
             .clone()
             .build_drawable(&self.renderer, &mut self.resources);
 
@@ -582,6 +758,10 @@ impl GraphicsManager {
             announcement_state: AnnouncementState::None,
             minimap_ui,
             timer_ui,
+            countdown_ui: None,
+            countdown_state: CountdownState::None,
+            lap_ui,
+            interaction_ui: AnimatedUIDrawable::new(),
         }
     }
 
@@ -589,7 +769,7 @@ impl GraphicsManager {
         &mut self,
         positions: [u8; 4],
         chairs: [Chair; 4],
-        times: [Duration; 4],
+        times: [(u64, u32); 4],
     ) {
         let background_handle = self.resources.import_texture_embedded(
             &self.renderer,
@@ -705,10 +885,10 @@ impl GraphicsManager {
         let final_standings_ui = UIDrawable { layers: layer_vec };
 
         let player_final_times = [0, 1, 2, 3].map(|player_index| {
-            let time = times[player_index];
-            let minutes = time.as_secs() / 60;
-            let seconds = time.as_secs() % 60;
-            let millis = time.subsec_millis();
+            let (time_secs, time_millis) = times[player_index];
+            let minutes = time_secs / 60;
+            let seconds = time_secs % 60;
+            let millis = time_millis;
             let time_str = format!("{:02}:{:02}:{:03}", minutes, seconds, millis);
 
             // don't worry, i hate this code too

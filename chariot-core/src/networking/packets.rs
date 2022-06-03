@@ -50,21 +50,20 @@ pub enum ClientBoundPacket {
     GameStart(Duration), // How long until the game starts?
 
     // During game
-    EntityUpdate(Vec<(EntityLocation, DVec3)>), // Clients will need to know the location and velocity of every player
-    PowerupPickup,                              // Add a payload here when appropriate
+    EntityUpdate(Vec<(EntityLocation, DVec3, bool)>), // Clients will need to know the location and velocity of every player
+    PowerupPickup,                                    // Add a payload here when appropriate
     VotingStarted {
         question: QuestionData,
         #[serde(with = "serde_millis")]
         time_until_vote_end: Duration,
     }, // Sent when the audience begins voting (suspense!)
-
     InteractionActivate {
         question: QuestionData,
         decision: QuestionOption,
         #[serde(with = "serde_millis")]
         time_effect_is_live: Duration,
     }, // Sent when the audience has voted on something
-
+    VotingCooldown,
     LapUpdate(LapNumber),       // What lap are you now on?
     PlacementUpdate(Placement), // What place in the race are you now at?
 
@@ -73,8 +72,7 @@ pub enum ClientBoundPacket {
     // After game
     AllDone {
         placements: [Placement; 4],
-        #[serde(with = "serde_millis")]
-        times: [Duration; 4],
+        times: [(u64, u32); 4],
     }, // All players' final placements
     StartNextGame,
 }

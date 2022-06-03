@@ -274,8 +274,9 @@ impl ResourceManager {
                             &images,
                         );
 
-                        let drawable =
+                        let mut drawable =
                             StaticMeshDrawable::new(renderer, *material_handle, mesh_handle, 0);
+                        drawable.modifiers = modifiers;
                         drawables.push(drawable);
 
                         mesh_handles.push(mesh_handle);
