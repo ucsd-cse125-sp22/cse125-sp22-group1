@@ -33,14 +33,14 @@ impl PlayerProgress {
                     Ordering::Equal
                 }
             }
-            (PlayerProgress::Finished { .. }, PlayerProgress::Racing { .. }) => Ordering::Greater,
-            (PlayerProgress::Racing { .. }, PlayerProgress::Finished { .. }) => Ordering::Less,
+            (PlayerProgress::Finished { .. }, PlayerProgress::Racing { .. }) => Ordering::Less,
+            (PlayerProgress::Racing { .. }, PlayerProgress::Finished { .. }) => Ordering::Greater,
             (
                 PlayerProgress::Finished { finish_time },
                 PlayerProgress::Finished {
                     finish_time: other_finish_time,
                 },
-            ) => finish_time.cmp(other_finish_time).reverse(),
+            ) => finish_time.cmp(other_finish_time),
             (_, _) => panic!("This comparison shouldn't be possible"),
         }
     }

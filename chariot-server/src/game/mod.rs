@@ -672,9 +672,9 @@ impl GameServer {
                     .enumerate()
                     .all(|(player_num, player)| {
                         if let PlayerProgress::Finished { .. } = player.placement_data {
-                            player_num >= self.connections.len()
+                            true
                         } else {
-                            false
+                            player_num >= self.connections.len()
                         }
                     })
                 {
