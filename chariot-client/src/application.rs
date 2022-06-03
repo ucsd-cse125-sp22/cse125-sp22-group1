@@ -16,7 +16,7 @@ use crate::graphics::GraphicsManager;
 
 use crate::audio::thread::context::AudioCtx;
 use crate::audio::thread::options::SourceOptions;
-use crate::ui_state::AnnouncementState;
+use crate::ui_state::{AnnouncementState, CountdownState};
 
 pub struct Application {
     // audio
@@ -73,7 +73,26 @@ impl Application {
         }
 
         // update countdown, potentially
-        self.graphics.maybe_update_countdown(&self.game_start_time);
+        let changed_state = self.graphics.maybe_update_countdown(&self.game_start_time);
+        if let Some(changed_state) = changed_state {
+            match changed_state {
+                CountdownState::One | CountdownState::Two | CountdownState::Three => {
+                    self.sfx_manager.play(
+                        get_sfx(chariot_core::sound_effect::SoundEffect::CountdownGeneral),
+                        &self.audio_context,
+                        SourceOptions::new(),
+                    );
+                }
+                CountdownState::Start => {
+                    self.sfx_manager.play(
+                        get_sfx(chariot_core::sound_effect::SoundEffect::CountdownGo),
+                        &self.audio_context,
+                        SourceOptions::new(),
+                    );
+                }
+                CountdownState::None => {}
+            }
+        }
 
         // TODO: do this for other players
         if self.pressed_keys.contains(&VirtualKeyCode::W) {
