@@ -44,7 +44,7 @@ pub enum AudienceAction {
     // One-time events
     SwapFirstAndLast,       // First and last player switch places
     ShufflePlayerPositions, // All players' positions are switched
-    ResetLapCounter,        // Change everyone's lap counter back to 1
+    RewindLapCounter,       // Change everyone's lap counter back 1 lap
     Backwards,              // Players instantly rotate 180 degrees and have their speed inverted
 }
 
@@ -72,7 +72,7 @@ impl AudienceAction {
             AudienceAction::SuperBouncyObjects => "What if we made everything bouncy?",
             AudienceAction::SwapFirstAndLast => "first and last have been swapped!",
             AudienceAction::ShufflePlayerPositions => "Oops, we seem to have misplaced you all!",
-            AudienceAction::ResetLapCounter => "Everyone is now on lap 1!",
+            AudienceAction::RewindLapCounter => "Everyone has been set back one lap!",
             AudienceAction::Backwards => "Whoops! Drive backwards now!",
         }
     }
@@ -192,8 +192,8 @@ fn get_shuffled_questions() -> Vec<QuestionData> {
             prompt: "Throwback time! What should we do?".to_string(),
             options: vec![
                 QuestionOption {
-                    label: "Reset everyone to lap 1".to_string(),
-                    action: AudienceAction::ResetLapCounter,
+                    label: "Set everybody back one lap!".to_string(),
+                    action: AudienceAction::RewindLapCounter,
                 },
                 QuestionOption {
                     label: "Flip everyone backwards".to_string(),

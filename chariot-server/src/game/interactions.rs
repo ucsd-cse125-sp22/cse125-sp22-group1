@@ -131,14 +131,16 @@ pub fn handle_one_time_audience_action(
             }
         }
 
-        AudienceAction::ResetLapCounter => {
+        AudienceAction::RewindLapCounter => {
             for player in players.iter_mut() {
                 if let PlayerProgress::Racing {
                     lap_info: LapInformation { lap, .. },
                     ..
                 } = &mut player.placement_data
                 {
-                    *lap = 1;
+                    if *lap > 1 {
+                        *lap = *lap - 1;
+                    }
                 }
             }
         }

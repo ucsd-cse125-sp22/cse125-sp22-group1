@@ -965,7 +965,7 @@ impl GraphicsManager {
                 let join_the_audience_graph = join_the_audience_image.render_graph(&render_context);
                 render_job
                     .merge_graph_after(SimpleFSQTechnique::PASS_NAME, join_the_audience_graph);
-              
+
                 let finished_text_graph = finished_text.render_graph(&render_context);
                 render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, finished_text_graph);
             }
