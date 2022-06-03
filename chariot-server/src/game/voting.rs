@@ -1,11 +1,8 @@
 use std::collections::HashMap;
 
-use chariot_core::networking::ws::{
-    QuestionResult, Standing, WSAudienceBoundMessage, WSServerBoundMessage,
-};
+use chariot_core::networking::ws::{Standing, WSAudienceBoundMessage, WSServerBoundMessage};
 use chariot_core::networking::Uuid;
 use chariot_core::networking::WebSocketConnection;
-use chariot_core::questions::QuestionOption;
 
 use crate::game::phase::VotingState;
 use crate::game::GameServer;
