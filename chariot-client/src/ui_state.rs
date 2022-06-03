@@ -860,7 +860,7 @@ impl GraphicsManager {
             let placement_handle = self.resources.import_texture_embedded(
                 &self.renderer,
                 texture_name,
-                assets::ui::PLACE_IMAGES[positions[player_index] as usize],
+                assets::ui::PLACE_IMAGES[(positions[player_index] - 1) as usize],
                 ImageFormat::Png,
             );
 
