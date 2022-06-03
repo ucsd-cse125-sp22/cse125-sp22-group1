@@ -1,6 +1,5 @@
 use chariot_core::player::choices::Chair;
 use chariot_core::sound_effect::SoundEffect;
-use std::borrow::Borrow;
 use std::collections::HashSet;
 use std::time::Duration;
 
@@ -8,7 +7,7 @@ use std::time::SystemTime;
 
 use winit::event::VirtualKeyCode;
 
-use crate::assets::audio::{get_sfx, CYBER_RECLINER, HOLD_ON_TO_YOUR_SEATS};
+use crate::assets::audio::{get_sfx, random_track_music, CYBER_RECLINER};
 use crate::audio::AudioManager;
 use chariot_core::networking::ClientBoundPacket;
 use chariot_core::player::lap_info::Placement;
@@ -148,7 +147,7 @@ impl Application {
                     self.graphics.load_map(map);
                     self.game.signal_loaded();
                     self.music_manager.play_cf(
-                        HOLD_ON_TO_YOUR_SEATS,
+                        random_track_music(),
                         &self.audio_context,
                         SourceOptions::new().set_repeat(true),
                         Duration::new(2, 0),
@@ -270,6 +269,12 @@ impl Application {
                             .chair,
                     );
                     self.graphics.display_chairacter_select();
+                    self.music_manager.play_cf(
+                        CYBER_RECLINER,
+                        &self.audio_context,
+                        SourceOptions::new().set_repeat(true),
+                        Duration::from_secs(2),
+                    );
                 }
                 ClientBoundPacket::VotingCooldown => (),
             }
