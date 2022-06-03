@@ -1,6 +1,6 @@
 use chariot_core::sound_effect::SoundEffect;
 use std::collections::HashSet;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use std::time::SystemTime;
 
@@ -16,7 +16,7 @@ use crate::graphics::GraphicsManager;
 
 use crate::audio::thread::context::AudioCtx;
 use crate::audio::thread::options::SourceOptions;
-use crate::ui_state::{AnnouncementState, CountdownState};
+use crate::ui_state::CountdownState;
 
 pub struct Application {
     // audio
@@ -78,14 +78,14 @@ impl Application {
             match changed_state {
                 CountdownState::One | CountdownState::Two | CountdownState::Three => {
                     self.sfx_manager.play(
-                        get_sfx(chariot_core::sound_effect::SoundEffect::CountdownGeneral),
+                        get_sfx(SoundEffect::CountdownGeneral),
                         &self.audio_context,
                         SourceOptions::new(),
                     );
                 }
                 CountdownState::Start => {
                     self.sfx_manager.play(
-                        get_sfx(chariot_core::sound_effect::SoundEffect::CountdownGo),
+                        get_sfx(SoundEffect::CountdownGo),
                         &self.audio_context,
                         SourceOptions::new(),
                     );
@@ -188,11 +188,9 @@ impl Application {
                 }
                 ClientBoundPacket::PowerupPickup => println!("we got a powerup!"),
                 ClientBoundPacket::VotingStarted {
-                    question,
                     time_until_vote_end,
+                    ..
                 } => {
-                    let vote_end_time = Instant::now() + time_until_vote_end;
-
                     // TODO: num_options constant
                     self.graphics.begin_audience_voting(4, time_until_vote_end);
 
@@ -210,8 +208,6 @@ impl Application {
                     decision,
                     time_effect_is_live,
                 } => {
-                    let effect_end_time = Instant::now() + time_effect_is_live;
-
                     self.graphics.start_audience_interaction(
                         question,
                         decision,
@@ -252,9 +248,7 @@ impl Application {
                 ClientBoundPacket::StartNextGame => {
                     self.graphics.load_pregame();
                 }
-                ClientBoundPacket::VotingCooldown => self
-                    .graphics
-                    .maybe_set_announcement_state(AnnouncementState::None),
+                ClientBoundPacket::VotingCooldown => (),
             }
         }
     }

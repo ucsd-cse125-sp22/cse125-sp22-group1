@@ -101,7 +101,7 @@ impl Renderer {
 
         let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("depth_buffer_tex"),
-            size: wgpu::Extent3d {
+            size: Extent3d {
                 width: config.width,
                 height: config.height,
                 depth_or_array_layers: 1,
@@ -144,7 +144,7 @@ impl Renderer {
         (y as f32) / (self.context.window.inner_size().height as f32)
     }
 
-    pub fn pixel_scale(&self, coord: (u32, u32)) -> glam::Vec2 {
+    pub fn _pixel_scale(&self, coord: (u32, u32)) -> glam::Vec2 {
         let width = 1280.0;
         let height = 720.0;
         glam::vec2((coord.0 as f32) / width, (coord.1 as f32) / height)
@@ -364,7 +364,7 @@ impl Renderer {
             &self.queue,
             &wgpu::TextureDescriptor {
                 label: Some(name),
-                size: wgpu::Extent3d {
+                size: Extent3d {
                     width: size.width,
                     height: size.height,
                     depth_or_array_layers: 1,
@@ -649,7 +649,7 @@ impl Renderer {
 
         self.depth_texture = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("depth buffer_tex"),
-            size: wgpu::Extent3d {
+            size: Extent3d {
                 width: config.width,
                 height: config.height,
                 depth_or_array_layers: 1,

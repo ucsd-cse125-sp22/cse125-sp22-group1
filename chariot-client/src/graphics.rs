@@ -13,7 +13,6 @@ use image::ImageFormat;
 use std::f64::consts::PI;
 
 use crate::drawable::particle::ParticleDrawable;
-use crate::drawable::technique;
 use crate::drawable::technique::CompositeBloomTechnique;
 use crate::drawable::technique::DownsampleBloomTechnique;
 use crate::drawable::technique::DownsampleTechnique;
@@ -36,7 +35,6 @@ use crate::resources::*;
 use crate::scenegraph::components::*;
 use crate::scenegraph::particle_system::*;
 use crate::scenegraph::*;
-use crate::ui_state::CountdownState;
 use crate::ui_state::UIState;
 
 pub fn register_passes(renderer: &mut Renderer) {

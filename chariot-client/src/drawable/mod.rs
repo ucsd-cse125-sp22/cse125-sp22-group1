@@ -142,6 +142,8 @@ pub enum UIAnimation {
         start_time: Instant,
         duration: Duration,
     },
+    // i am not changing all the cases just to get a single compiler warning to go away :)
+    #[allow(dead_code)]
     ColorAnimation {
         start_color: [f32; 4],
         end_color: [f32; 4],
@@ -195,7 +197,7 @@ impl AnimatedUIDrawable {
         }
     }
 
-    pub fn col_to(&mut self, index: usize, end_color: [f32; 4], duration: Duration) {
+    pub fn _col_to(&mut self, index: usize, end_color: [f32; 4], duration: Duration) {
         if let Some((ui, _, _, color_animation)) = self.layers.get_mut(index) {
             *color_animation = Some(UIAnimation::ColorAnimation {
                 start_color: ui.tint_color,
@@ -206,8 +208,8 @@ impl AnimatedUIDrawable {
         }
     }
 
-    pub fn animate(&mut self, index: usize, anim_vec: Vec<UIAnimation>) {
-        if let Some((ui, pos_animation, size_animation, color_animation)) =
+    pub fn _animate(&mut self, index: usize, anim_vec: Vec<UIAnimation>) {
+        if let Some((_, pos_animation, size_animation, color_animation)) =
             self.layers.get_mut(index)
         {
             for anim_data in anim_vec {

@@ -1,12 +1,11 @@
 use std::collections::HashMap;
-use std::time::{Duration, Instant};
 
 use chariot_core::networking::ws::{
     QuestionResult, Standing, WSAudienceBoundMessage, WSServerBoundMessage,
 };
 use chariot_core::networking::Uuid;
 use chariot_core::networking::WebSocketConnection;
-use chariot_core::questions::{QuestionData, QuestionOption};
+use chariot_core::questions::QuestionOption;
 
 use crate::game::phase::VotingState;
 use crate::game::GameServer;
@@ -126,7 +125,7 @@ impl GameServer {
     }
 
     // depending on the game state, this function will maybe get the voting state
-    pub fn maybe_get_voting_state(&self) -> Option<(QuestionOption, usize, Vec<QuestionResult>)> {
+    pub fn _maybe_get_voting_state(&self) -> Option<(QuestionOption, usize, Vec<QuestionResult>)> {
         if let GamePhase::PlayingGame {
             voting_game_state, ..
         } = &self.game_state.phase

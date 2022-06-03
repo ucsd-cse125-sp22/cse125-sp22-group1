@@ -1,4 +1,3 @@
-use std::ops::Sub;
 use std::time::{Duration, Instant, SystemTime};
 
 use chariot_core::GLOBAL_CONFIG;
@@ -10,31 +9,14 @@ use chariot_core::player::choices::Chair;
 use chariot_core::questions::{QuestionData, QuestionOption};
 
 use crate::drawable::AnimatedUIDrawable;
-use crate::renderer::Renderer;
 use crate::ui::string::{StringAlignment, UIStringBuilder};
 use crate::{
     assets,
-    drawable::{
-        technique::{self, UILayerTechnique},
-        UIDrawable,
-    },
+    drawable::{technique::UILayerTechnique, UIDrawable},
     graphics::GraphicsManager,
     resources::TextureHandle,
     scenegraph::components::Transform,
 };
-
-pub enum AnnouncementState {
-    None,
-    VotingInProgress {
-        prompt: String,
-        vote_end_time: Instant,
-    },
-    VoteActiveTime {
-        prompt: String,
-        decision: String,
-        effect_end_time: Instant,
-    },
-}
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum CountdownState {
@@ -251,15 +233,15 @@ impl GraphicsManager {
                 Self::INTERACTION_VOTING_Y_POS,
             );
 
-            let EVEN_WIDTH = self
+            let even_width = self
                 .renderer
                 .pixel_x(Self::INTERACTION_VOTING_WIDTH / num_options as u32);
             for i in 0..num_options {
                 interaction_ui.push(UILayerTechnique::new(
                     &self.renderer,
-                    local_origin + glam::vec2(EVEN_WIDTH * i as f32, 0.0),
+                    local_origin + glam::vec2(even_width * i as f32, 0.0),
                     glam::vec2(
-                        EVEN_WIDTH,
+                        even_width,
                         self.renderer.pixel_y(Self::INTERACTION_VOTING_HEIGHT),
                     ),
                     glam::vec2(0.0, 0.0),
@@ -339,15 +321,15 @@ impl GraphicsManager {
         } = &mut self.ui
         {
             // TODO: fix hardcode
-            let VICTOR_IDX = 1;
+            let victor_idx = 1;
             let local_origin = glam::vec2(
                 0.5 - self.renderer.pixel_x(Self::INTERACTION_VOTING_WIDTH / 2),
                 Self::INTERACTION_VOTING_Y_POS,
             );
 
-            interaction_ui.pos_to(VICTOR_IDX, local_origin, Duration::from_secs(1));
+            interaction_ui.pos_to(victor_idx, local_origin, Duration::from_secs(1));
             interaction_ui.size_to(
-                VICTOR_IDX,
+                victor_idx,
                 self.renderer.pixel(
                     Self::INTERACTION_VOTING_WIDTH,
                     Self::INTERACTION_VOTING_HEIGHT,
@@ -356,7 +338,7 @@ impl GraphicsManager {
             );
 
             let last = interaction_ui.layers.len() - 1;
-            interaction_ui.layers.swap(VICTOR_IDX, last);
+            interaction_ui.layers.swap(victor_idx, last);
 
             *interaction_text = INTERACTION_TEXT
                 .clone()
@@ -408,7 +390,7 @@ impl GraphicsManager {
                 .expect("Expected placement text image!");
 
             *place_position_image = UIDrawable {
-                layers: vec![technique::UILayerTechnique::new(
+                layers: vec![UILayerTechnique::new(
                     &self.renderer,
                     glam::vec2(1117.0 / 1280.0, 590.0 / 720.0),
                     glam::vec2(0.1, 0.15),
@@ -564,7 +546,7 @@ impl GraphicsManager {
             .get(&chair_description_handle)
             .expect("description doesn't exist!");
 
-        let layer_vec = vec![technique::UILayerTechnique::new(
+        let layer_vec = vec![UILayerTechnique::new(
             &self.renderer,
             glam::vec2(343.0 / 1280.0, 565.0 / 720.0),
             glam::vec2(128.0 / 1280.0, 122.0 / 720.0),
@@ -575,7 +557,7 @@ impl GraphicsManager {
 
         let chair_select_box = UIDrawable { layers: layer_vec };
 
-        let layer_vec = vec![technique::UILayerTechnique::new(
+        let layer_vec = vec![UILayerTechnique::new(
             &self.renderer,
             glam::vec2(317.0 / 1280.0, 433.0 / 720.0),
             glam::vec2(640.0 / 1280.0, 117.0 / 720.0),
@@ -637,7 +619,7 @@ impl GraphicsManager {
                 .get(&chair_description_handle)
                 .expect("description doesn't exist!");
 
-            let layer_vec = vec![technique::UILayerTechnique::new(
+            let layer_vec = vec![UILayerTechnique::new(
                 &self.renderer,
                 position,
                 glam::vec2(127.0 / 1280.0, 121.0 / 720.0),
@@ -648,7 +630,7 @@ impl GraphicsManager {
 
             *chair_select_box = UIDrawable { layers: layer_vec };
 
-            let layer_vec = vec![technique::UILayerTechnique::new(
+            let layer_vec = vec![UILayerTechnique::new(
                 &self.renderer,
                 glam::vec2(317.0 / 1280.0, 433.0 / 720.0),
                 glam::vec2(640.0 / 1280.0, 117.0 / 720.0),
@@ -720,7 +702,7 @@ impl GraphicsManager {
             .expect("Expected placement text image!");
 
         let place_position_image = UIDrawable {
-            layers: vec![technique::UILayerTechnique::new(
+            layers: vec![UILayerTechnique::new(
                 &self.renderer,
                 glam::vec2(1117.0 / 1280.0, 590.0 / 720.0),
                 glam::vec2(0.1, 0.1),

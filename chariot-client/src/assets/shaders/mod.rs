@@ -62,8 +62,6 @@ macro_rules! shader {
     () => {};
 }
 
-use include_flate::flate;
-
 #[cfg(not(debug_assertions))]
 macro_rules! shader {
     ($name:ident => $filename:literal) => {

@@ -18,8 +18,6 @@ use crate::player::{
 use crate::questions::{QuestionData, QuestionOption};
 use crate::sound_effect::SoundEffect;
 
-use super::ws::QuestionResult;
-
 #[derive(Serialize, Deserialize)]
 pub enum ServerBoundPacket {
     // Before game
