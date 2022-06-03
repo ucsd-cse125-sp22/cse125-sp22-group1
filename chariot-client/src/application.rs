@@ -257,7 +257,7 @@ impl Application {
                         .display_final_standings(placements, self.chairs, times);
                 }
                 ClientBoundPacket::StartNextGame => {
-                    self.graphics.load_pregame();
+                    self.graphics.display_chairacter_select();
                 }
                 ClientBoundPacket::VotingCooldown => (),
             }
