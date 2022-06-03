@@ -9,6 +9,7 @@ import { handleSocket, sendMessage } from "../src/utils/networking";
 import styles from './Game.module.scss';
 import AudienceIcon from '../src/assets/Audience.png'
 import Image from 'next/image';
+import { toPercentage } from "../src/utils/other";
 
 const Game: NextPage = () => {
 	const [showStandings, setShowStandings] = useState(true);
@@ -16,7 +17,7 @@ const Game: NextPage = () => {
 	const context = useContext(GlobalContext);
 	const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
-	const { socket, uuid, prompt, winner, totalConnected, countdownTime, gameState } = context;
+	const { socket, uuid, prompt, winner, totalConnected, countdownTime, gameState, optionResults } = context;
 
 	useEffect(() => {
 		if (winner !== null) {
@@ -37,7 +38,15 @@ const Game: NextPage = () => {
 	socket.onerror = (err) => {
 		if (err.type === 'error') {
 			alert("Failed to connect to server. Is it running?");
+			router.push(`/?ip=${router.query.ip}`);
+			context.setStatusMessage("");
 		}
+	}
+
+	socket.onclose = () => {
+		alert("you lost connection!");
+		router.push(`/?ip=${router.query.ip}`);
+		context.setStatusMessage("");
 	}
 
 	socket.onmessage = (msg) => {
@@ -53,14 +62,17 @@ const Game: NextPage = () => {
 		</div>
 		{!showStandings && prompt !== null &&
 			<div className={styles.buttonLayout}>
-				{prompt.options.map((({ label }, choice) => (
-					<Button width="100%" clickable={winner === null} state={choice === winner ? 'voted' : choice === selectedIdx ? 'selected' : 'unselected'} key={choice} text={label} onClick={() => {
-						if (winner === null) {
-							sendMessage(context, { Vote: [uuid, choice] })
-							setSelectedIdx(choice);
-						}
-					}} />
-				)))}
+				{prompt.options.map((({ label }, choice) => {
+					const labelText = `${label}${(gameState === 'winner' && optionResults?.length === prompt.options.length) ? " " + toPercentage(optionResults[choice].percentage) : ""}`
+					return (
+						<Button width="100%" clickable={winner === null} state={choice === winner ? 'voted' : choice === selectedIdx ? 'selected' : 'unselected'} key={choice} text={labelText} onClick={() => {
+							if (winner === null) {
+								sendMessage(context, { Vote: [uuid, choice] })
+								setSelectedIdx(choice);
+							}
+						}} />
+					)
+				}))}
 				{prompt.options.length === 0 && <p>New Vote Coming Soon</p>}
 			</div>
 		}

@@ -1,7 +1,10 @@
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
+use chariot_core::GLOBAL_CONFIG;
 use thread::AudioBuffer;
 use thread::AudioThread;
 
@@ -14,7 +17,6 @@ pub mod thread;
 pub struct AudioThreadHandle(usize);
 
 impl AudioThreadHandle {
-    const INVALID: Self = AudioThreadHandle(usize::MAX);
     fn unique() -> Self {
         static COUNTER: AtomicUsize = AtomicUsize::new(0);
         Self(COUNTER.fetch_add(1, Ordering::Relaxed))
@@ -32,7 +34,7 @@ impl AudioManager {
     pub fn new() -> Self {
         Self {
             threads: HashMap::new(),
-            volume: 1.0,
+            volume: GLOBAL_CONFIG.volume,
             pitch: 1.0,
         }
     }

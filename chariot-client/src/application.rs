@@ -72,6 +72,9 @@ impl Application {
             self.graphics.update_timer(since_game_started);
         }
 
+        // update countdown, potentially
+        self.graphics.maybe_update_countdown(&self.game_start_time);
+
         // TODO: do this for other players
         if self.pressed_keys.contains(&VirtualKeyCode::W) {
             self.graphics.add_fire_to_player(0, delta_time);
@@ -101,7 +104,7 @@ impl Application {
                         .as_mut()
                         .expect("Attempted to set chair on player we don't know about!")
                         .chair = chair;
-                    self.graphics.maybe_display_chair(chair, player_num);
+                    self.graphics.maybe_display_chair(Some(chair), player_num);
                 }
                 ClientBoundPacket::PlayerMapChoice(player_num, map) => {
                     println!("Player #{} has voted for map {}!", player_num, map.clone());
@@ -131,16 +134,29 @@ impl Application {
                 }
 
                 ClientBoundPacket::EntityUpdate(locations) => {
-                    locations.iter().enumerate().for_each(|(i, update)| {
-                        self.graphics
-                            .update_player_location(&update.0, &update.1, i)
-                    });
+                    locations
+                        .iter()
+                        .enumerate()
+                        .for_each(|(i, (location, velocity, did_move))| {
+                            self.graphics
+                                .update_player_location(&location, &velocity, i);
+                            if *did_move {
+                                self.graphics.add_fire_to_player(i, delta_time);
+                            }
+                        });
                 }
-                ClientBoundPacket::PlacementUpdate(position) => {
+                ClientBoundPacket::PlacementUpdate(given_position) => {
+                    let position = if given_position > 4 {
+                        1
+                    } else {
+                        given_position
+                    };
+
                     self.graphics.maybe_update_place(position);
                 }
                 ClientBoundPacket::LapUpdate(lap_num) => {
                     println!("I am now on lap {}!", lap_num);
+                    self.graphics.maybe_update_lap(lap_num);
                     self.sfx_manager.play(
                         get_sfx(SoundEffect::NextLap),
                         &self.audio_context,
@@ -242,6 +258,5 @@ impl Application {
                 }
             }
         }
-        self.graphics.update_minimap();
     }
 }

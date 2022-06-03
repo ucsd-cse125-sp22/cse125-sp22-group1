@@ -5,17 +5,30 @@ use chariot_core::player::{
 use gilrs::{Axis, Button, Event, EventType};
 use winit::event::VirtualKeyCode;
 
-use crate::{application::Application, graphics::register_passes, ui_state::UIState};
+use crate::{
+    application::Application, assets::audio::get_sfx, audio::thread::options::SourceOptions,
+    graphics::register_passes, ui_state::UIState,
+};
 
 impl Application {
     fn input_gamepad_main_menu(&mut self, event: Result<(Button, f32), (Axis, f32)>) {
         if let Ok(_) = event {
             self.graphics.display_chairacter_select();
+            self.sfx_manager.play(
+                get_sfx(chariot_core::sound_effect::SoundEffect::EnterChairacterSelect),
+                &self.audio_context,
+                SourceOptions::new(),
+            );
         }
     }
 
     fn input_keyboard_main_menu(&mut self, _: VirtualKeyCode) {
         self.graphics.display_chairacter_select();
+        self.sfx_manager.play(
+            get_sfx(chariot_core::sound_effect::SoundEffect::EnterChairacterSelect),
+            &self.audio_context,
+            SourceOptions::new(),
+        );
     }
 
     fn input_gamepad_chairacter_select(&mut self, event: Result<(Button, f32), (Axis, f32)>) {
@@ -28,6 +41,11 @@ impl Application {
                 // Ready up
                 Button::Start if value == 1.0 => {
                     self.game.signal_ready_status(true);
+                    self.sfx_manager.play(
+                        get_sfx(chariot_core::sound_effect::SoundEffect::ReadyUp),
+                        &self.audio_context,
+                        SourceOptions::new(),
+                    );
                 }
                 Button::DPadRight if value == 1.0 => {
                     let new_chair = match self.graphics.player_choices[self.graphics.player_num]
@@ -43,6 +61,11 @@ impl Application {
                     };
                     self.graphics.maybe_select_chair(new_chair);
                     self.game.pick_chair(new_chair);
+                    self.sfx_manager.play(
+                        get_sfx(chariot_core::sound_effect::SoundEffect::SelectChairacter),
+                        &self.audio_context,
+                        SourceOptions::new(),
+                    );
                 }
                 Button::DPadLeft if value == 1.0 => {
                     let new_chair = match self.graphics.player_choices[self.graphics.player_num]
@@ -58,6 +81,11 @@ impl Application {
                     };
                     self.graphics.maybe_select_chair(new_chair);
                     self.game.pick_chair(new_chair);
+                    self.sfx_manager.play(
+                        get_sfx(chariot_core::sound_effect::SoundEffect::SelectChairacter),
+                        &self.audio_context,
+                        SourceOptions::new(),
+                    );
                 }
                 _ => {}
             }
@@ -79,6 +107,11 @@ impl Application {
             };
             self.game.pick_chair(new_chair);
             self.graphics.maybe_select_chair(new_chair);
+            self.sfx_manager.play(
+                get_sfx(chariot_core::sound_effect::SoundEffect::SelectChairacter),
+                &self.audio_context,
+                SourceOptions::new(),
+            );
         } else if key == VirtualKeyCode::Left {
             let new_chair = match self.graphics.player_choices[self.graphics.player_num]
                 .as_ref()
@@ -93,8 +126,18 @@ impl Application {
             };
             self.graphics.maybe_select_chair(new_chair);
             self.game.pick_chair(new_chair);
+            self.sfx_manager.play(
+                get_sfx(chariot_core::sound_effect::SoundEffect::SelectChairacter),
+                &self.audio_context,
+                SourceOptions::new(),
+            );
         } else if key == VirtualKeyCode::Up {
             self.game.signal_ready_status(true);
+            self.sfx_manager.play(
+                get_sfx(chariot_core::sound_effect::SoundEffect::ReadyUp),
+                &self.audio_context,
+                SourceOptions::new(),
+            );
         }
     }
 
@@ -206,6 +249,9 @@ impl Application {
         } else if key == VirtualKeyCode::P {
             println!("Starting next game!");
             self.game.next_game();
+        } else if key == VirtualKeyCode::F11 {
+            println!("toggling fullscreen");
+            self.graphics.renderer.context.toggle_fullscreen();
         }
 
         match self.graphics.ui {

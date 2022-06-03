@@ -97,6 +97,23 @@ impl<'a> MaterialBuilder<'a> {
         self
     }
 
+    pub fn remember_buffer_resource(
+        &mut self,
+        group: u32,
+        binding: u32,
+        buffer: wgpu::Buffer,
+        save_idx: &mut usize,
+    ) -> &mut Self {
+        *save_idx = self.buffers.len();
+        self.buffers.push(buffer);
+
+        self.bind_group_resources
+            .entry(group)
+            .or_default()
+            .insert(binding, MatResourceIdx::Buffer(self.buffers.len() - 1));
+        self
+    }
+
     pub fn texture_resource(
         &mut self,
         group: u32,

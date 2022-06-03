@@ -11,12 +11,15 @@ pub struct Settings {
     pub player_amount: usize,
     pub ws_server_port: String,
 
+    pub start_fullscreen: bool,
+
     // Resources
     pub tracks_folder: String,
 
     // Gameplay
     pub number_laps: u8,
     pub powerup_cooldown_time: u64,
+    pub volume: f32,
 
     // Physics
     pub gravity_coefficient: f64,
@@ -50,11 +53,14 @@ impl Settings {
             .set_default("ws_server_port", "0.0.0.0:2334")?
             .set_default("server_tick_ms", 30)?
             .set_default("player_amount", 4)?
+            // display settings
+            .set_default("start_fullscreen", true)?
             // tracks folder (too big to embed)
             .set_default("tracks_folder", "../tracks")?
             // Gameplay
             .set_default("number_laps", 3)?
             .set_default("powerup_cooldown_time", 10)?
+            .set_default("volume", 1.0)?
             // physics
             // `gravity_coefficient` is acceleration due to gravity: this is
             // little g (whose IRL value is 9.81 meters per second squared, but
