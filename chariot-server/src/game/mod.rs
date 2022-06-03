@@ -641,10 +641,20 @@ impl GameServer {
                         .try_into()
                         .unwrap();
 
+                    let final_times: [(u64, u32); 4] = self
+                        .game_state
+                        .players
+                        .iter()
+                        .map(|player| player.lap_info.finish_time.unwrap_or(Duration::new(0, 0)))
+                        .map(|duration| (duration.as_secs(), duration.subsec_nanos()))
+                        .collect::<Vec<(u64, u32)>>()
+                        .try_into()
+                        .unwrap();
+
                     for conn in &mut self.connections {
                         conn.push_outgoing(ClientBoundPacket::AllDone {
                             placements: final_placements.clone(),
-                            times: [(0, 0), (0, 0), (0, 0), (0, 0)],
+                            times: final_times,
                         });
                     }
 

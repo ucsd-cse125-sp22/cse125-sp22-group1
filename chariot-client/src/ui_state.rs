@@ -96,31 +96,30 @@ lazy_static! {
     static ref TIMER_TEXT: UIStringBuilder = UIStringBuilder::new(assets::fonts::PRIMARY_FONT)
         .alignment(StringAlignment::LEFT)
         .content("00:00:000")
-        .position(0.95, 0.9);
+        .position(30.0 / 1280.0, 651.0 / 720.0);
     static ref P1_FINAL_TIME_TEXT: UIStringBuilder =
         UIStringBuilder::new(*assets::fonts::PLACEMENT_TEXT_FONT)
             .alignment(StringAlignment::LEFT)
             .content("00:00:000")
-            .position(688.0 / 1280.0, 173.0 / 720.0);
+            .position(666.0 / 1280.0, 220.0 / 720.0);
     static ref P2_FINAL_TIME_TEXT: UIStringBuilder =
         UIStringBuilder::new(*assets::fonts::PLACEMENT_TEXT_FONT)
             .alignment(StringAlignment::LEFT)
             .content("00:00:000")
-            .position(688.0 / 1280.0, 273.0 / 720.0);
+            .position(666.0 / 1280.0, 320.0 / 720.0);
     static ref P3_FINAL_TIME_TEXT: UIStringBuilder =
         UIStringBuilder::new(*assets::fonts::PLACEMENT_TEXT_FONT)
             .alignment(StringAlignment::LEFT)
             .content("00:00:000")
-            .position(688.0 / 1280.0, 373.0 / 720.0);
+            .position(666.0 / 1280.0, 420.0 / 720.0);
     static ref P4_FINAL_TIME_TEXT: UIStringBuilder =
         UIStringBuilder::new(*assets::fonts::PLACEMENT_TEXT_FONT)
             .alignment(StringAlignment::LEFT)
             .content("00:00:000")
-            .position(688.0 / 1280.0, 473.0 / 720.0);
-        // .position(30.0 / 1280.0, 651.0 / 720.0);
+            .position(666.0 / 1280.0, 520.0 / 720.0);
     static ref LAP_TEXT: UIStringBuilder = UIStringBuilder::new(*assets::fonts::LAP_TEXT_FONT)
         .alignment(StringAlignment::LEFT)
-        .content(format!("lap 0/{}", GLOBAL_CONFIG.number_laps).as_str())
+        .content(format!("lap 1/{}", GLOBAL_CONFIG.number_laps).as_str())
         .position(30.0 / 1280.0, 0.35);
 }
 
@@ -888,7 +887,7 @@ impl GraphicsManager {
             let (time_secs, time_millis) = times[player_index];
             let minutes = time_secs / 60;
             let seconds = time_secs % 60;
-            let millis = time_millis;
+            let millis = time_millis % 1000;
             let time_str = format!("{:02}:{:02}:{:03}", minutes, seconds, millis);
 
             // don't worry, i hate this code too

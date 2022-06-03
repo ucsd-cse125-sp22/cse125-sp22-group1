@@ -1,6 +1,7 @@
 use crate::assets;
 use crate::assets::models;
 use crate::assets::shaders;
+use crate::drawable::technique::UILayerTechnique;
 use chariot_core::entity_location::EntityLocation;
 use chariot_core::player::choices::Chair;
 use chariot_core::player::choices::PlayerChoices;
@@ -12,7 +13,6 @@ use image::ImageFormat;
 use std::f64::consts::PI;
 
 use crate::drawable::particle::ParticleDrawable;
-use crate::drawable::technique;
 use crate::drawable::technique::CompositeBloomTechnique;
 use crate::drawable::technique::DownsampleBloomTechnique;
 use crate::drawable::technique::DownsampleTechnique;
@@ -960,8 +960,8 @@ impl GraphicsManager {
                 render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, ui_graph);
 
                 for player_final_time in player_final_times {
-                    let time_graph = final_standings_ui.render_graph(&render_context);
-                    render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, time_graph);
+                    let time_graph = player_final_time.render_graph(&render_context);
+                    render_job.merge_graph_after(UILayerTechnique::PASS_NAME, time_graph);
                 }
             }
         }
