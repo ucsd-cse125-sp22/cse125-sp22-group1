@@ -3,7 +3,7 @@ on:
   push:
     branches:
       - main
-      - ronak_testing
+      - ronak-testing
 
 name: Build Release - Win64
 
