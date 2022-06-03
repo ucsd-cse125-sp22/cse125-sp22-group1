@@ -1,4 +1,6 @@
 use core::ops::Deref;
+// Compiler is dumb because of macros
+#[allow(unused_imports)]
 use include_flate::flate;
 use std::mem::MaybeUninit;
 
@@ -62,10 +64,6 @@ macro_rules! shader {
     };
     () => {};
 }
-
-// Compiler is dumb because of macros
-#[allow(unused_imports)]
-use include_flate::flate;
 
 #[cfg(not(debug_assertions))]
 macro_rules! shader {

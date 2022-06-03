@@ -415,7 +415,13 @@ impl GameServer {
                 let player_placement_data = Self::find_player_placement(&self.game_state.players);
 
                 for (player_id, placement) in player_placement_data {
-                    self.game_state.players[player_id].cached_place = Some(placement);
+                    if self.game_state.players[player_id].cached_place != Some(placement) {
+                        self.game_state.players[player_id].cached_place = Some(placement);
+                        self.connections[player_id]
+                            .push_outgoing(ClientBoundPacket::PlacementUpdate(placement));
+                    }
+
+                    println!("player #{player_id} in place {placement}");
                 }
 
                 let ramps = &self

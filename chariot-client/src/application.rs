@@ -166,8 +166,8 @@ impl Application {
                         });
                 }
                 ClientBoundPacket::PlacementUpdate(given_position) => {
-                    let position = if given_position > 4 {
-                        1
+                    let position = if given_position > 5 {
+                        4
                     } else {
                         given_position
                     };
