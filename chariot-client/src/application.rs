@@ -169,14 +169,6 @@ impl Application {
                     time_until_vote_end,
                 } => {
                     let vote_end_time = Instant::now() + time_until_vote_end;
-                    self.graphics.make_announcement(
-                        "The audience is deciding your fate",
-                        format!(
-                            "They decide in {} seconds",
-                            (vote_end_time - Instant::now()).as_secs()
-                        )
-                        .as_str(),
-                    );
 
                     // TODO: num_options constant
                     self.graphics.begin_audience_voting(4, time_until_vote_end);
@@ -196,14 +188,6 @@ impl Application {
                     time_effect_is_live,
                 } => {
                     let effect_end_time = Instant::now() + time_effect_is_live;
-                    self.graphics.make_announcement(
-                        format!("{} was chosen!", decision.label).as_str(),
-                        format!(
-                            "Effects will last for another {} seconds",
-                            (effect_end_time - Instant::now()).as_secs()
-                        )
-                        .as_str(),
-                    );
 
                     self.graphics.start_audience_interaction(
                         question,

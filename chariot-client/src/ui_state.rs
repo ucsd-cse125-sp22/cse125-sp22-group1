@@ -66,11 +66,8 @@ pub enum UIState {
         timer_ui: UIDrawable,
         lap_ui: UIDrawable,
         interaction_ui: AnimatedUIDrawable,
+        interaction_text: UIDrawable,
         interaction_state: InteractionState,
-        // to be deprecated
-        game_announcement_title: UIDrawable,
-        game_announcement_subtitle: UIDrawable,
-        announcement_state: AnnouncementState,
     },
 }
 
@@ -100,6 +97,10 @@ lazy_static! {
         .alignment(StringAlignment::LEFT)
         .content(format!("lap 0/{}", GLOBAL_CONFIG.number_laps).as_str())
         .position(30.0 / 1280.0, 0.35);
+    static ref INTERACTION_TEXT: UIStringBuilder =
+        UIStringBuilder::new(*assets::fonts::LAP_TEXT_FONT)
+            .alignment(StringAlignment::CENTERED)
+            .content("The audience is deciding your fate...");
 }
 
 impl GraphicsManager {
@@ -119,30 +120,12 @@ impl GraphicsManager {
         }
     }
 
-    pub fn make_announcement(&mut self, title: &str, subtitle: &str) {
-        if let UIState::InGameHUD {
-            ref mut game_announcement_subtitle,
-            ref mut game_announcement_title,
-            ..
-        } = self.ui
-        {
-            *game_announcement_title = ANNOUNCEMENT_TITLE
-                .clone()
-                .content(title)
-                .build_drawable(&self.renderer, &mut self.resources);
-            *game_announcement_subtitle = ANNOUNCEMENT_SUBTITLE
-                .clone()
-                .content(subtitle)
-                .build_drawable(&self.renderer, &mut self.resources);
-        }
-    }
-
     pub fn update_dynamic_ui(&mut self) {
-        self.update_voting_announcements();
         self.update_minimap();
 
         if let UIState::InGameHUD {
             interaction_ui,
+            interaction_text,
             interaction_state,
             ..
         } = &mut self.ui
@@ -176,42 +159,9 @@ impl GraphicsManager {
                 if now > *end_time {
                     *interaction_state = InteractionState::None;
                     interaction_ui.layers.clear();
+                    interaction_text.layers.clear();
                 }
             }
-        }
-    }
-
-    pub fn update_voting_announcements(&mut self) {
-        if let Some((title, subtitle)) = if let UIState::InGameHUD {
-            ref announcement_state,
-            ..
-        } = &self.ui
-        {
-            match announcement_state {
-                AnnouncementState::VotingInProgress { vote_end_time, .. } => Some((
-                    String::from("The audience is deciding your fate"),
-                    format!(
-                        "They decide in {} seconds",
-                        (*vote_end_time - Instant::now()).as_secs()
-                    ),
-                )),
-                AnnouncementState::VoteActiveTime {
-                    prompt: _,
-                    decision,
-                    effect_end_time,
-                } => Some((
-                    format!("{} was chosen!", decision),
-                    format!(
-                        "Effects will last for another {} seconds",
-                        (*effect_end_time - Instant::now()).as_secs()
-                    ),
-                )),
-                AnnouncementState::None => None,
-            }
-        } else {
-            None
-        } {
-            self.make_announcement(&title, &subtitle);
         }
     }
 
@@ -278,6 +228,7 @@ impl GraphicsManager {
         if let UIState::InGameHUD {
             interaction_ui,
             interaction_state,
+            interaction_text,
             ..
         } = &mut self.ui
         {
@@ -321,7 +272,11 @@ impl GraphicsManager {
             *interaction_state = InteractionState::Voting {
                 tally: vec![0; num_options],
                 end_time: Instant::now() + until_end,
-            }
+            };
+            *interaction_text = INTERACTION_TEXT
+                .clone()
+                .position(0.5, Self::INTERACTION_VOTING_Y_POS / 1.5)
+                .build_drawable(&self.renderer, &mut self.resources);
         }
     }
 
@@ -366,6 +321,7 @@ impl GraphicsManager {
     ) {
         if let UIState::InGameHUD {
             interaction_ui,
+            interaction_text,
             interaction_state,
             ..
         } = &mut self.ui
@@ -390,12 +346,17 @@ impl GraphicsManager {
             let last = interaction_ui.layers.len() - 1;
             interaction_ui.layers.swap(VICTOR_IDX, last);
 
+            *interaction_text = INTERACTION_TEXT
+                .clone()
+                .content(choice.action.get_description())
+                .position(0.5, Self::INTERACTION_VOTING_Y_POS / 1.5)
+                .build_drawable(&self.renderer, &mut self.resources);
             *interaction_state = InteractionState::Active {
                 question,
                 choice,
                 end_time: Instant::now() + duration,
                 bar_filled: false,
-            }
+            };
         }
     }
 
@@ -692,14 +653,6 @@ impl GraphicsManager {
             )],
         };
 
-        let game_announcement_title = ANNOUNCEMENT_TITLE
-            .clone()
-            .build_drawable(&self.renderer, &mut self.resources);
-
-        let game_announcement_subtitle = ANNOUNCEMENT_SUBTITLE
-            .clone()
-            .build_drawable(&self.renderer, &mut self.resources);
-
         let timer_ui = TIMER_TEXT
             .clone()
             .build_drawable(&self.renderer, &mut self.resources);
@@ -763,13 +716,11 @@ impl GraphicsManager {
 
         self.ui = UIState::InGameHUD {
             place_position_image,
-            game_announcement_title,
-            game_announcement_subtitle,
-            announcement_state: AnnouncementState::None,
             minimap_ui,
             timer_ui,
             lap_ui,
             interaction_ui: AnimatedUIDrawable::new(),
+            interaction_text: UIDrawable { layers: vec![] },
             interaction_state: InteractionState::None,
         }
     }
