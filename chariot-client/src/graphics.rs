@@ -1,6 +1,7 @@
 use crate::assets;
 use crate::assets::models;
 use crate::assets::shaders;
+use crate::drawable::technique::WronskiAATechnique;
 use chariot_core::entity_location::EntityLocation;
 use chariot_core::player::choices::Chair;
 use chariot_core::player::choices::PlayerChoices;
@@ -35,7 +36,7 @@ use crate::resources::*;
 use crate::scenegraph::components::*;
 use crate::scenegraph::particle_system::*;
 use crate::scenegraph::*;
-use crate::ui_state::AnnouncementState;
+use crate::ui_state::CountdownState;
 use crate::ui_state::UIState;
 
 pub fn register_passes(renderer: &mut Renderer) {
@@ -45,6 +46,8 @@ pub fn register_passes(renderer: &mut Renderer) {
 
     ShadeDirectTechnique::register(renderer);
     SkyboxTechnique::register(renderer);
+
+    WronskiAATechnique::register(renderer);
 
     DownsampleTechnique::register(renderer);
 
@@ -117,16 +120,17 @@ pub struct GraphicsManager {
     pub player_num: PlayerID,
     pub player_choices: [Option<PlayerChoices>; 4],
     pub player_entities: [Option<Entity>; 4],
-    shade_direct: technique::ShadeDirectTechnique,
-    skybox: technique::SkyboxTechnique,
-    downsample: technique::DownsampleTechnique,
-    hibl: technique::HBILTechnique,
-    hibl_debayer: technique::HBILDebayerTechnique,
-    downsample_bloom: technique::DownsampleBloomTechnique,
-    kawase_blur_down: technique::KawaseBlurDownTechnique,
-    kawase_blur_up: technique::KawaseBlurUpTechnique,
-    composite_bloom: technique::CompositeBloomTechnique,
-    simple_fsq: technique::SimpleFSQTechnique,
+    shade_direct: ShadeDirectTechnique,
+    skybox: SkyboxTechnique,
+    wronski_aa: WronskiAATechnique,
+    downsample: DownsampleTechnique,
+    hibl: HBILTechnique,
+    hibl_debayer: HBILDebayerTechnique,
+    downsample_bloom: DownsampleBloomTechnique,
+    kawase_blur_down: KawaseBlurDownTechnique,
+    kawase_blur_up: KawaseBlurUpTechnique,
+    composite_bloom: CompositeBloomTechnique,
+    simple_fsq: SimpleFSQTechnique,
     fire_particle_system: ParticleSystem<0>,
     smoke_particle_system: ParticleSystem<1>,
     prev_view: glam::Mat4,
@@ -143,16 +147,21 @@ impl GraphicsManager {
 
         register_passes(&mut renderer);
 
-        resources.register_depth_surface_framebuffer(
+        let surface_size = renderer.surface_size();
+        let upsample2_size =
+            winit::dpi::PhysicalSize::<u32>::new(surface_size.width * 2, surface_size.height * 2);
+
+        resources.register_depth_framebuffer(
             "geometry_out",
             &mut renderer,
+            upsample2_size,
             &[
                 wgpu::TextureFormat::Rgba16Float,
                 wgpu::TextureFormat::Rgba8Unorm,
             ],
             Some(wgpu::Color::TRANSPARENT),
             true,
-            true,
+            false,
         );
 
         let shadow_map_res = winit::dpi::PhysicalSize::<u32>::new(2048, 2048);
@@ -167,21 +176,21 @@ impl GraphicsManager {
         );
 
         resources.register_depth_surface_framebuffer(
-            "particles_out",
-            &mut renderer,
-            &[wgpu::TextureFormat::Rgba8Unorm],
-            Some(wgpu::Color::TRANSPARENT),
-            true,
-            false,
-        );
-
-        resources.register_depth_surface_framebuffer(
             "probes_out",
             &mut renderer,
             &[wgpu::TextureFormat::Rgba16Float],
             Some(wgpu::Color::WHITE),
             true,
             true,
+        );
+
+        resources.register_framebuffer(
+            "shade_direct_out_us",
+            &mut renderer,
+            upsample2_size,
+            &[wgpu::TextureFormat::Rgba16Float],
+            Some(wgpu::Color::TRANSPARENT),
+            false,
         );
 
         resources.register_surface_framebuffer(
@@ -192,7 +201,6 @@ impl GraphicsManager {
             false,
         );
 
-        let surface_size = renderer.surface_size();
         let downsample2_size =
             winit::dpi::PhysicalSize::<u32>::new(surface_size.width / 2, surface_size.height / 2);
 
@@ -208,7 +216,7 @@ impl GraphicsManager {
         resources.register_surface_framebuffer(
             "hbil_out",
             &mut renderer,
-            &[wgpu::TextureFormat::Rgba8Unorm],
+            &[wgpu::TextureFormat::Rgba16Float],
             Some(wgpu::Color::TRANSPARENT),
             false,
         );
@@ -216,7 +224,7 @@ impl GraphicsManager {
         resources.register_surface_framebuffer(
             "hbil_debayer_out",
             &mut renderer,
-            &[wgpu::TextureFormat::Rgba8Unorm],
+            &[wgpu::TextureFormat::Rgba16Float],
             Some(wgpu::Color::TRANSPARENT),
             false,
         );
@@ -314,32 +322,19 @@ impl GraphicsManager {
             },
         );
         let world = setup_void();
-        let shade_direct = technique::ShadeDirectTechnique::new(&renderer, &resources, quad_handle);
-        let skybox = technique::SkyboxTechnique::new(&renderer, &resources, quad_handle);
-        let downsample = technique::DownsampleTechnique::new(
-            &renderer,
-            &resources,
-            "shade_direct_out",
-            0,
-            quad_handle,
-        );
-        let hibl = technique::HBILTechnique::new(&renderer, &resources, quad_handle);
-        let hibl_debayer = technique::HBILDebayerTechnique::new(&renderer, &resources, quad_handle);
-        let downsample_bloom =
-            technique::DownsampleBloomTechnique::new(&renderer, &resources, quad_handle);
-        let kawase_blur_down =
-            technique::KawaseBlurDownTechnique::new(&renderer, &resources, quad_handle);
-        let kawase_blur_up =
-            technique::KawaseBlurUpTechnique::new(&renderer, &resources, quad_handle);
-        let composite_bloom =
-            technique::CompositeBloomTechnique::new(&renderer, &resources, quad_handle);
-        let simple_fsq = technique::SimpleFSQTechnique::new(
-            &renderer,
-            &resources,
-            "composite_bloom_out",
-            0,
-            quad_handle,
-        );
+        let shade_direct = ShadeDirectTechnique::new(&renderer, &resources, quad_handle);
+        let skybox = SkyboxTechnique::new(&renderer, &resources, quad_handle);
+        let wronski_aa = WronskiAATechnique::new(&renderer, &resources, quad_handle);
+        let downsample =
+            DownsampleTechnique::new(&renderer, &resources, "shade_direct_out", 0, quad_handle);
+        let hibl = HBILTechnique::new(&renderer, &resources, quad_handle);
+        let hibl_debayer = HBILDebayerTechnique::new(&renderer, &resources, quad_handle);
+        let downsample_bloom = DownsampleBloomTechnique::new(&renderer, &resources, quad_handle);
+        let kawase_blur_down = KawaseBlurDownTechnique::new(&renderer, &resources, quad_handle);
+        let kawase_blur_up = KawaseBlurUpTechnique::new(&renderer, &resources, quad_handle);
+        let composite_bloom = CompositeBloomTechnique::new(&renderer, &resources, quad_handle);
+        let simple_fsq =
+            SimpleFSQTechnique::new(&renderer, &resources, "composite_bloom_out", 0, quad_handle);
 
         let white_box_tex = resources.import_texture_embedded(
             &renderer,
@@ -358,6 +353,7 @@ impl GraphicsManager {
             iteration: 0,
             shade_direct,
             skybox,
+            wronski_aa,
             downsample,
             hibl,
             hibl_debayer,
@@ -430,7 +426,7 @@ impl GraphicsManager {
                 .builder()
                 .attach(world_root)
                 .with(Light::new_directional(
-                    glam::vec3(-1.0, -0.5, 0.0),
+                    glam::vec3(-1.0, -0.5, 0.1),
                     scene_bounds,
                 ))
                 .with(Transform::default())
@@ -868,8 +864,11 @@ impl GraphicsManager {
         let shade_direct_graph = self.shade_direct.render_item(&render_context).to_graph();
         render_job.merge_graph_after(SkyboxTechnique::PASS_NAME, shade_direct_graph);
 
+        let aa_graph = self.wronski_aa.render_item(&render_context).to_graph();
+        render_job.merge_graph_after(ShadeDirectTechnique::PASS_NAME, aa_graph);
+
         let downsample_graph = self.downsample.render_item(&render_context).to_graph();
-        render_job.merge_graph_after(ShadeDirectTechnique::PASS_NAME, downsample_graph);
+        render_job.merge_graph_after(WronskiAATechnique::PASS_NAME, downsample_graph);
 
         let hibl_graph = self.hibl.render_item(&render_context).to_graph();
         render_job.merge_graph_after(DownsampleTechnique::PASS_NAME, hibl_graph);
@@ -881,7 +880,7 @@ impl GraphicsManager {
             .downsample_bloom
             .render_item(&render_context)
             .to_graph();
-        render_job.merge_graph_after(DownsampleTechnique::PASS_NAME, downsample_bloom_graph);
+        render_job.merge_graph_after(HBILDebayerTechnique::PASS_NAME, downsample_bloom_graph);
 
         let kawase_down_graph = self
             .kawase_blur_down
@@ -927,6 +926,7 @@ impl GraphicsManager {
                 timer_ui,
                 lap_ui,
                 interaction_ui,
+                countdown_ui,
                 interaction_text,
                 ..
             } => {
@@ -942,7 +942,11 @@ impl GraphicsManager {
                 let timer_ui_graph = timer_ui.render_graph(&render_context);
                 render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, timer_ui_graph);
 
-                // commenting out now, will merge this in later
+                if let Some(countdown_ui) = countdown_ui {
+                    let countdown_ui_graph = countdown_ui.render_graph(&render_context);
+                    render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, countdown_ui_graph);
+                }
+
                 let interaction_ui_graph = interaction_ui.render_graph(&render_context);
                 render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, interaction_ui_graph);
 

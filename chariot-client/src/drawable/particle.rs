@@ -67,7 +67,7 @@ impl Drawable for ParticleDrawable {
             particle_drawable::VIEW_PROJ.set(TransformUniform::new(renderer, Self::PASS_NAME, 0));
 
         if res.is_err() {
-            panic!("Can't register this technique twice!");
+            println!("Re-registering technique but not resetting static uniforms");
         }
     }
 

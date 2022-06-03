@@ -16,7 +16,7 @@ use crate::graphics::GraphicsManager;
 
 use crate::audio::thread::context::AudioCtx;
 use crate::audio::thread::options::SourceOptions;
-use crate::ui_state::AnnouncementState;
+use crate::ui_state::{AnnouncementState, CountdownState};
 
 pub struct Application {
     // audio
@@ -72,9 +72,26 @@ impl Application {
             self.graphics.update_timer(since_game_started);
         }
 
-        // TODO: do this for other players
-        if self.pressed_keys.contains(&VirtualKeyCode::W) {
-            self.graphics.add_fire_to_player(0, delta_time);
+        // update countdown, potentially
+        let changed_state = self.graphics.maybe_update_countdown(&self.game_start_time);
+        if let Some(changed_state) = changed_state {
+            match changed_state {
+                CountdownState::One | CountdownState::Two | CountdownState::Three => {
+                    self.sfx_manager.play(
+                        get_sfx(chariot_core::sound_effect::SoundEffect::CountdownGeneral),
+                        &self.audio_context,
+                        SourceOptions::new(),
+                    );
+                }
+                CountdownState::Start => {
+                    self.sfx_manager.play(
+                        get_sfx(chariot_core::sound_effect::SoundEffect::CountdownGo),
+                        &self.audio_context,
+                        SourceOptions::new(),
+                    );
+                }
+                CountdownState::None => {}
+            }
         }
 
         self.last_update = SystemTime::now();
@@ -131,10 +148,16 @@ impl Application {
                 }
 
                 ClientBoundPacket::EntityUpdate(locations) => {
-                    locations.iter().enumerate().for_each(|(i, update)| {
-                        self.graphics
-                            .update_player_location(&update.0, &update.1, i)
-                    });
+                    locations
+                        .iter()
+                        .enumerate()
+                        .for_each(|(i, (location, velocity, did_move))| {
+                            self.graphics
+                                .update_player_location(&location, &velocity, i);
+                            if *did_move && GLOBAL_CONFIG.enable_particle_effects {
+                                self.graphics.add_fire_to_player(i, delta_time);
+                            }
+                        });
                 }
                 ClientBoundPacket::PlacementUpdate(given_position) => {
                     let position = if given_position > 4 {
@@ -229,6 +252,9 @@ impl Application {
                 ClientBoundPacket::StartNextGame => {
                     self.graphics.load_pregame();
                 }
+                ClientBoundPacket::VotingCooldown => self
+                    .graphics
+                    .maybe_set_announcement_state(AnnouncementState::None),
             }
         }
     }

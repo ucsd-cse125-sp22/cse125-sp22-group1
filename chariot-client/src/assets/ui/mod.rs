@@ -1,4 +1,7 @@
+use crate::ui_state::CountdownState;
 use chariot_core::player::choices::Chair;
+use glam::{DVec2, Vec2};
+use std::time::Duration;
 
 // main menu
 pub const HOME_BACKGROUND: &[u8] = include_bytes!("homebackground.png");
@@ -74,6 +77,23 @@ const SECOND_PLACE: &[u8] = include_bytes!("placement/2nd.png");
 const THIRD_PLACE: &[u8] = include_bytes!("placement/3rd.png");
 const FOURTH_PLACE: &[u8] = include_bytes!("placement/4th.png");
 pub const PLACE_IMAGES: [&[u8]; 4] = [FIRST_PLACE, SECOND_PLACE, THIRD_PLACE, FOURTH_PLACE];
+
+// countdown
+const COUNTDOWN_3: &[u8] = include_bytes!("countdown/3.png");
+const COUNTDOWN_2: &[u8] = include_bytes!("countdown/2.png");
+const COUNTDOWN_1: &[u8] = include_bytes!("countdown/1.png");
+const COUNTDOWN_START: &[u8] = include_bytes!("countdown/start.png");
+
+// return the asset AND DIMENSIONS of each asset
+pub fn get_countdown_asset(countdown_state: CountdownState) -> Option<(&'static [u8], Vec2)> {
+    match countdown_state {
+        CountdownState::None => None,
+        CountdownState::Three => Some((COUNTDOWN_3, Vec2::new(220.0, 220.0))),
+        CountdownState::Two => Some((COUNTDOWN_2, Vec2::new(220.0, 220.0))),
+        CountdownState::One => Some((COUNTDOWN_1, Vec2::new(220.0, 220.0))),
+        CountdownState::Start => Some((COUNTDOWN_START, Vec2::new(920.0, 170.0))),
+    }
+}
 
 // blank ui helper
 pub const WHITE_TEXTURE: &[u8] = include_bytes!("box.png");
