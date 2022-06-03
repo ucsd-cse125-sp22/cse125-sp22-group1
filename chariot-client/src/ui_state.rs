@@ -838,6 +838,8 @@ impl GraphicsManager {
             background_texture,
         )];
 
+        // positions and times both indexed by player_num
+
         let mut player_nums: Vec<usize> = vec![0, 1, 2, 3];
         player_nums.sort_by(|&a, &b| positions[a].cmp(&positions[b]));
 
@@ -860,7 +862,7 @@ impl GraphicsManager {
             let placement_handle = self.resources.import_texture_embedded(
                 &self.renderer,
                 texture_name,
-                assets::ui::PLACE_IMAGES[positions[player_index] as usize],
+                assets::ui::PLACE_IMAGES[(positions[player_index] - 1) as usize],
                 ImageFormat::Png,
             );
 
@@ -936,18 +938,20 @@ impl GraphicsManager {
             let millis = time_millis % 1000;
             let time_str = format!("{:02}:{:02}:{:03}", minutes, seconds, millis);
 
+            let placement = positions[player_index];
+
             // don't worry, i hate this code too
-            if player_index == 0 {
+            if placement == 1 {
                 P1_FINAL_TIME_TEXT
                     .clone()
                     .content(&time_str)
                     .build_drawable(&self.renderer, &mut self.resources)
-            } else if player_index == 1 {
+            } else if placement == 2 {
                 P2_FINAL_TIME_TEXT
                     .clone()
                     .content(&time_str)
                     .build_drawable(&self.renderer, &mut self.resources)
-            } else if player_index == 2 {
+            } else if placement == 3 {
                 P3_FINAL_TIME_TEXT
                     .clone()
                     .content(&time_str)

@@ -2,6 +2,7 @@ use std::time::Instant;
 
 use crate::physics::bounding_box::BoundingBox;
 use crate::physics::{player_entity::PlayerEntity, trigger_entity::TriggerEntity};
+use crate::progress::PlayerProgress;
 use chariot_core::player::lap_info::*;
 use chariot_core::GLOBAL_CONFIG;
 use glam::DVec3;
@@ -28,7 +29,9 @@ impl TriggerEntity for Checkpoint {
     }
 
     fn trigger(&mut self, player: &mut PlayerEntity) {
-        player.lap_info.last_checkpoint = self.id;
+        if let PlayerProgress::Racing { lap_info } = &mut player.placement_data {
+            lap_info.last_checkpoint = self.id;
+        }
     }
 }
 
@@ -55,9 +58,11 @@ impl TriggerEntity for Zone {
 
     fn trigger(&mut self, player: &mut PlayerEntity) {
         // Only advance zone if the player is in the zone before us
-        if (player.lap_info.zone + 1) == self.id {
-            player.lap_info.zone = self.id;
-            println!("Player now in zone {}", self.id);
+        if let PlayerProgress::Racing { lap_info } = &mut player.placement_data {
+            if (lap_info.zone + 1) == self.id {
+                lap_info.zone = self.id;
+                println!("Player now in zone {}", self.id);
+            }
         }
     }
 }
@@ -90,15 +95,17 @@ impl TriggerEntity for FinishLine {
 
     fn trigger(&mut self, player: &mut PlayerEntity) {
         // Player is only allowed to advance if they are on the track's last zone
-        if player.lap_info.zone == self.last_zone {
-            if player.lap_info.lap == GLOBAL_CONFIG.number_laps {
-                player.lap_info.finished = true;
-                player.lap_info.finish_time = Some(Instant::now() - player.game_start_time);
-                println!("Player has finished {}!", player.lap_info.placement + 1);
-            } else {
-                player.lap_info.lap += 1;
-                player.lap_info.zone = 0;
-                println!("Player now on lap {}", player.lap_info.lap);
+        if let PlayerProgress::Racing { lap_info } = &mut player.placement_data {
+            if lap_info.zone == self.last_zone {
+                if lap_info.lap == GLOBAL_CONFIG.number_laps {
+                    let finish_time = Instant::now() - player.game_start_time;
+                    println!("Player has finished in {:?}!", &finish_time);
+                    player.placement_data = PlayerProgress::Finished { finish_time };
+                } else {
+                    lap_info.lap += 1;
+                    lap_info.zone = 0;
+                    println!("Player now on lap {}", lap_info.lap);
+                }
             }
         }
     }

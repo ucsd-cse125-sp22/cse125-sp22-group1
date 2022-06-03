@@ -10,6 +10,7 @@ use winit::event::VirtualKeyCode;
 use crate::assets::audio::{get_sfx, CYBER_RECLINER, HOLD_ON_TO_YOUR_SEATS};
 use crate::audio::AudioManager;
 use chariot_core::networking::ClientBoundPacket;
+use chariot_core::player::lap_info::Placement;
 use chariot_core::GLOBAL_CONFIG;
 
 use crate::game::GameClient;
@@ -165,8 +166,8 @@ impl Application {
                         });
                 }
                 ClientBoundPacket::PlacementUpdate(given_position) => {
-                    let position = if given_position > 4 {
-                        1
+                    let position = if given_position > 5 {
+                        4
                     } else {
                         given_position
                     };
@@ -235,7 +236,9 @@ impl Application {
                         SourceOptions::new(),
                     );
                 }
-                ClientBoundPacket::AllDone { placements, times } => {
+                ClientBoundPacket::AllDone { placements } => {
+                    let mut placement_info: [Placement; 4] = [4; 4];
+                    let mut times: [(u64, u32); 4] = [(0, 0); 4];
                     self.sfx_manager.play(
                         get_sfx(SoundEffect::GameEnd),
                         &self.audio_context,
@@ -246,15 +249,16 @@ impl Application {
                         placements
                             .iter()
                             .enumerate()
-                            .map(|(player_num, place)| format!(
-                                "\t(#{} came {})\n",
-                                player_num, place
-                            ))
+                            .map(|(player_num, (place, time))| {
+                                placement_info[player_num] = *place;
+                                times[player_num] = *time;
+                                format!("\t(#{} came {})\n", player_num, place)
+                            })
                             .collect::<String>()
                     );
 
                     self.graphics
-                        .display_final_standings(placements, self.chairs, times);
+                        .display_final_standings(placement_info, self.chairs, times);
                 }
                 ClientBoundPacket::StartNextGame => {
                     self.graphics.display_chairacter_select();

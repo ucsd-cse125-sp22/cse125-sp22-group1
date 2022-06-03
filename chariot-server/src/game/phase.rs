@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use chariot_core::networking::Uuid;
 use chariot_core::player::choices::PlayerChoices;
-use chariot_core::player::lap_info::{LapInformation, Placement};
+use chariot_core::player::lap_info::Placement;
 use chariot_core::questions::{QuestionData, QuestionOption};
 
 use super::voting::{AnswerID, QuestionID};
@@ -48,11 +48,10 @@ pub enum GamePhase {
     // Game is playing
     PlayingGame {
         voting_game_state: VotingState,
-        player_placement: [LapInformation; 4],
         question_idx: QuestionID, // to keep track of which question we have asked
     },
     // Everyone has finished racing
-    AllPlayersDone([Option<Placement>; 4]),
+    AllPlayersDone([(Placement, (u64, u32)); 4]),
 }
 
 pub enum VotingState {

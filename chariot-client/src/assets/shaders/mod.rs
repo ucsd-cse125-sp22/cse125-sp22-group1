@@ -1,4 +1,6 @@
 use core::ops::Deref;
+// Compiler is dumb because of macros
+#[allow(unused_imports)]
 use include_flate::flate;
 use std::mem::MaybeUninit;
 

@@ -1,11 +1,14 @@
+use chariot_core::GLOBAL_CONFIG;
 use std::collections::HashMap;
 
 use chariot_core::networking::ws::{Standing, WSAudienceBoundMessage, WSServerBoundMessage};
 use chariot_core::networking::Uuid;
 use chariot_core::networking::WebSocketConnection;
+use chariot_core::player::lap_info::LapInformation;
 
 use crate::game::phase::VotingState;
 use crate::game::GameServer;
+use crate::progress::PlayerProgress;
 
 use super::phase::GamePhase;
 
@@ -66,9 +69,7 @@ impl GameServer {
             conn.push_outgoing_message(WSAudienceBoundMessage::Assignment(id));
 
             if let GamePhase::PlayingGame {
-                voting_game_state,
-                player_placement,
-                ..
+                voting_game_state, ..
             } = &mut self.game_state.phase
             {
                 conn.push_outgoing_message(WSAudienceBoundMessage::Standings([0, 1, 2, 3].map(
@@ -76,8 +77,14 @@ impl GameServer {
                         Standing {
                             name: idx.to_string(),
                             chair: self.game_state.players[idx].chair.to_string(),
-                            rank: player_placement[idx].placement,
-                            lap: player_placement[idx].lap,
+                            rank: self.game_state.players[idx].cached_place.unwrap_or(4),
+                            lap: match self.game_state.players[idx].placement_data {
+                                PlayerProgress::PreGame => 0,
+                                PlayerProgress::Racing {
+                                    lap_info: LapInformation { lap, .. },
+                                } => lap,
+                                PlayerProgress::Finished { .. } => GLOBAL_CONFIG.number_laps,
+                            },
                         }
                     },
                 )));
@@ -158,8 +165,8 @@ impl GameServer {
                     })
                     .collect();
 
-                println!("game results!");
-                println!("{:?}", option_results);
+                //println!("game results!");
+                //println!("{:?}", option_results);
                 return option_results;
             }
         }

@@ -5,6 +5,7 @@ use glam::DVec3;
 
 use crate::physics::bounding_box::BoundingBox;
 use crate::physics::ramp::RampCollisionResult;
+use crate::progress::PlayerProgress;
 use chariot_core::entity_location::EntityLocation;
 use chariot_core::player::{
     lap_info::LapInformation,
@@ -37,7 +38,8 @@ fn get_starting_player_props() -> PlayerEntity {
         physics_changes: Vec::new(),
         stats_changes: Vec::new(),
         sound_effects: Vec::new(),
-        lap_info: LapInformation::new(),
+        placement_data: PlayerProgress::PreGame,
+        cached_place: None,
         current_powerup: None,
         chair: Chair::Swivel,
         game_start_time: Instant::now(),
@@ -67,7 +69,8 @@ fn get_origin_cube() -> PlayerEntity {
         physics_changes: Vec::new(),
         stats_changes: Vec::new(),
         sound_effects: Vec::new(),
-        lap_info: LapInformation::new(),
+        placement_data: PlayerProgress::PreGame,
+        cached_place: None,
         current_powerup: None,
         chair: Chair::Swivel,
         game_start_time: Instant::now(),
