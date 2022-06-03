@@ -18,6 +18,7 @@ const Game: NextPage = () => {
 	const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
 	const { socket, uuid, prompt, winner, totalConnected, countdownTime, gameState, optionResults } = context;
+	const othersConnected = totalConnected - 1;
 
 	useEffect(() => {
 		if (winner !== null) {
@@ -54,16 +55,16 @@ const Game: NextPage = () => {
 	}
 
 	const timeLeft = countdownTime ? countdownTime.getSeconds() - new Date().getSeconds() : -1;
-	const timeLeftText = gameState === 'voting' ? `Voting ends in ${timeLeft}s` : `${timeLeft}s until next vote`
+	const timeLeftText = gameState === 'voting' ? `Voting ends in ${timeLeft}s` : gameState === 'winner' ? `${timeLeft}s until effects subside` : `${timeLeft}s until next vote`
 
 	return (<div className={styles.container}>
 		<div className={styles.blockText}>
 			<p>{showStandings ? "Standings" : (timeLeft >= 0) ? timeLeftText : "Waiting for Next Vote"}</p>
 		</div>
-		{!showStandings && prompt !== null &&
+		{!showStandings && prompt !== null && gameState !== 'waiting' &&
 			<div className={styles.buttonLayout}>
 				{prompt.options.map((({ label }, choice) => {
-					const labelText = `${label}${(gameState === 'winner' && optionResults?.length === prompt.options.length) ? " " + toPercentage(optionResults[choice].percentage) : ""}`
+					const labelText = `${label}${(gameState === 'winner' && optionResults?.length === prompt.options.length) ? " — " + toPercentage(optionResults[choice].percentage) : ""}`
 					return (
 						<Button width="100%" clickable={winner === null} state={choice === winner ? 'voted' : choice === selectedIdx ? 'selected' : 'unselected'} key={choice} text={labelText} onClick={() => {
 							if (winner === null) {
@@ -83,7 +84,7 @@ const Game: NextPage = () => {
 			<Button width="80%" text={showStandings ? "hide standings" : "see standings"} onClick={() => { setShowStandings(!showStandings) }} style='minimal' />
 			<div className={styles.liveAudience}>
 				<Image src={AudienceIcon} height="32.56" alt="audience icon" />
-				<p>{totalConnected} Other{totalConnected !== 1 && 's'} Online</p>
+				<p>{othersConnected} Other{othersConnected !== 1 && 's'} Online</p>
 			</div>
 		</div>
 
