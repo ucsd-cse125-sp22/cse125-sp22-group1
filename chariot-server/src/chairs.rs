@@ -19,7 +19,7 @@ use crate::progress::PlayerProgress;
 
 // These numbers are completely random guesses btw
 fn get_starting_position_from_player_number(player_number: PlayerID) -> DVec3 {
-    return DVec3::new(21.5 + 2.0 * (1.5 - player_number as f64), 1.0, 65.0);
+    return DVec3::new(21.5 + 2.0 * (1.5 - player_number as f64), 0.32, 65.0);
 }
 
 // Get the initial physics properties of a player (i.e. at the race start, before anyone starts going)
