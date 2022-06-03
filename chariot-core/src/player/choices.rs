@@ -117,7 +117,7 @@ impl Chair {
                 // Can get going fast
                 Stat::MaxCarSpeed => GLOBAL_CONFIG.max_car_speed * 1.1,
                 // But takes a bit to get there
-                Stat::CarAccelerator => GLOBAL_CONFIG.car_accelerator * 0.75,
+                Stat::CarAccelerator => GLOBAL_CONFIG.car_accelerator * 0.7,
                 // However, it will NOT stop.
                 Stat::DragCoefficient => GLOBAL_CONFIG.drag_coefficient * 0.02,
                 Stat::RollingResistanceCoefficient => {
@@ -135,7 +135,7 @@ impl Chair {
                     GLOBAL_CONFIG.rolling_resistance_coefficient * 3.0
                 }
                 // But are a bit slower
-                Stat::MaxCarSpeed => GLOBAL_CONFIG.max_car_speed * 0.8,
+                Stat::MaxCarSpeed => GLOBAL_CONFIG.max_car_speed * 0.9,
                 // We have great control over our direction
                 Stat::CarAccelerator => GLOBAL_CONFIG.car_accelerator * 2.0,
                 // And won't roll too when changing direction
@@ -145,25 +145,25 @@ impl Chair {
                 _ => *Chair::default_stats().get(stat_name).unwrap(),
             },
             Chair::Beanbag => match stat_name {
-                Stat::MaxCarSpeed => GLOBAL_CONFIG.max_car_speed * 1.8,
-                Stat::CarAccelerator => GLOBAL_CONFIG.car_accelerator * 0.33,
+                Stat::MaxCarSpeed => GLOBAL_CONFIG.max_car_speed * 1.6,
+                Stat::CarAccelerator => GLOBAL_CONFIG.car_accelerator * 0.5,
                 // A L L G A S N O B R A K E S
                 Stat::CarBrake => 0.0,
                 // very light on our feet :^)
-                Stat::DragCoefficient => GLOBAL_CONFIG.drag_coefficient * 0.001,
+                Stat::DragCoefficient => GLOBAL_CONFIG.drag_coefficient * 0.01,
                 Stat::RollingResistanceCoefficient => {
-                    GLOBAL_CONFIG.rolling_resistance_coefficient * 0.1
+                    GLOBAL_CONFIG.rolling_resistance_coefficient * 0.2
                 }
                 Stat::Mass => 1.0,
                 _ => *Chair::default_stats().get(stat_name).unwrap(),
             },
             Chair::Folding => match stat_name {
                 // Folding don't fold very fast
-                Stat::MaxCarSpeed => GLOBAL_CONFIG.max_car_speed * 0.8,
+                Stat::MaxCarSpeed => GLOBAL_CONFIG.max_car_speed * 0.85,
                 // Folding chairs are light!
-                Stat::CarAccelerator => GLOBAL_CONFIG.car_accelerator * 1.5,
-                Stat::CarBrake => GLOBAL_CONFIG.car_brake,
-                Stat::DragCoefficient => GLOBAL_CONFIG.drag_coefficient,
+                Stat::CarAccelerator => GLOBAL_CONFIG.car_accelerator * 4.0,
+                Stat::CarBrake => GLOBAL_CONFIG.car_brake * 20.0,
+                Stat::DragCoefficient => GLOBAL_CONFIG.drag_coefficient * 0.001,
                 Stat::RollingResistanceCoefficient => GLOBAL_CONFIG.rolling_resistance_coefficient,
                 Stat::Mass => 1.0,
                 _ => *Chair::default_stats().get(stat_name).unwrap(),
