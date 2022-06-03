@@ -103,11 +103,21 @@ impl GameServer {
                 .iter_mut()
                 .for_each(|(_, con)| con.fetch_incoming_packets());
 
+            let mut previous_placement_array: Option<[(PlayerID, LapInformation); 4]> = None;
+            if let GamePhase::PlayingGame { .. } = self.game_state.phase {
+                if let Some(map) = &self.game_state.map {
+                    previous_placement_array = Some(get_player_placement_array(
+                        &self.game_state.players,
+                        &map.checkpoints,
+                    ));
+                }
+            }
+
             self.process_incoming_packets();
             self.process_ws_packets();
             self.simulate_game();
 
-            self.sync_state();
+            self.sync_state(previous_placement_array);
 
             // empty outgoing packet queue and send to clients
             self.connections
@@ -376,7 +386,6 @@ impl GameServer {
                     self.game_state.phase = GamePhase::PlayingGame {
                         // start off with 10 seconds of vote free gameplay
                         voting_game_state: VotingState::VoteCooldown(vote_cooldown_time),
-                        player_placement: player_placement.clone(),
                         question_idx: 0,
                     };
                     // tell the audience that we have player placement now
@@ -654,7 +663,7 @@ impl GameServer {
     }
 
     // queue up sending updated game state
-    fn sync_state(&mut self) {
+    fn sync_state(&mut self, previous_placement_state: Option<[(PlayerID, LapInformation); 4]>) {
         match self.game_state.phase {
             // These two phases have visible players
             GamePhase::CountingDownToGameStart(_) | GamePhase::PlayingGame { .. } => {
@@ -663,52 +672,58 @@ impl GameServer {
             _ => (),
         }
 
-        self.update_and_sync_placement_state();
+        if let Some(previous_placement_state) = previous_placement_state {
+            self.update_and_sync_placement_state(previous_placement_state);
+        }
         self.sync_sfx_state();
     }
 
     // send placement data to each client, if its changed
-    fn update_and_sync_placement_state(&mut self) {
+    fn update_and_sync_placement_state(
+        &mut self,
+        previous_placement_state: [(PlayerID, LapInformation); 4],
+    ) {
         if let Some(map) = &self.game_state.map {
-            if let GamePhase::PlayingGame {
-                player_placement, ..
-            } = &mut self.game_state.phase
+            let new_placement_array: [(PlayerID, LapInformation); 4] =
+                get_player_placement_array(&self.game_state.players, &map.checkpoints);
+
+            let mut old_placement_map: HashMap<usize, (usize, LapInformation)> = HashMap::new();
+
+            for place_index in 0..4 {
+                let (player_id, lap_information) = previous_placement_state[place_index];
+                old_placement_map.insert(player_id, (place_index, lap_information));
+            }
+
+            for &(place_index, lap_information @ LapInformation { lap, placement, .. }) in
+                new_placement_array.iter()
             {
-                let new_placement_array: [(PlayerID, LapInformation); 4] =
-                    get_player_placement_array(&self.game_state.players, &map.checkpoints);
+                if self.connections.len() <= place_index {
+                    continue;
+                };
 
-                for &(player_num, lap_information @ LapInformation { lap, placement, .. }) in
-                    new_placement_array.iter()
-                {
-                    if self.connections.len() <= player_num {
-                        continue;
-                    };
-
-                    if player_placement[player_num].lap != lap {
-                        self.connections[player_num]
-                            .push_outgoing(ClientBoundPacket::LapUpdate(lap));
-                    } else if player_placement[player_num].placement != placement {
-                        // notify the player now in a different place that
-                        // their new placement is different; the one that used
-                        // to be there will get notified when it's their turn
-                        self.connections[player_num]
-                            .push_outgoing(ClientBoundPacket::PlacementUpdate(placement));
-                    }
-
-                    player_placement[player_num] = lap_information;
-
-                    GameServer::broadcast_ws(
-                        &mut self.ws_connections,
-                        WSAudienceBoundMessage::Standings([0, 1, 2, 3].map(|idx| -> Standing {
-                            Standing {
-                                name: idx.to_string(),
-                                chair: self.game_state.players[idx].chair.to_string(),
-                                rank: player_placement[idx].placement,
-                                lap: player_placement[idx].lap,
-                            }
-                        })),
-                    );
+                if old_placement_map.get(&place_index).unwrap().1.lap != lap {
+                    self.connections[place_index].push_outgoing(ClientBoundPacket::LapUpdate(lap));
+                } else if old_placement_map.get(&place_index).unwrap().1.placement != placement {
+                    // notify the player now in a different place that
+                    // their new placement is different; the one that used
+                    // to be there will get notified when it's their turn
+                    self.connections[place_index]
+                        .push_outgoing(ClientBoundPacket::PlacementUpdate(placement));
                 }
+
+                self.game_state.players[place_index].lap_info = lap_information;
+
+                GameServer::broadcast_ws(
+                    &mut self.ws_connections,
+                    WSAudienceBoundMessage::Standings([0, 1, 2, 3].map(|idx| -> Standing {
+                        Standing {
+                            name: idx.to_string(),
+                            chair: self.game_state.players[idx].chair.to_string(),
+                            rank: self.game_state.players[idx].lap_info.placement,
+                            lap: self.game_state.players[idx].lap_info.lap,
+                        }
+                    })),
+                );
             }
         }
     }

@@ -79,7 +79,7 @@ pub fn get_player_placement_array(
         let &(player_num, _) = player_nums_with_scores.get(i).unwrap();
         let mut old_lap_info = players[player_num].lap_info;
         if !old_lap_info.finished {
-            old_lap_info.placement = 4 - i as Placement;
+            old_lap_info.placement = (i + 1) as u8;
         };
 
         (player_num, old_lap_info)

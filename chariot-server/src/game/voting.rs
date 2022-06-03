@@ -64,9 +64,7 @@ impl GameServer {
             conn.push_outgoing_message(WSAudienceBoundMessage::Assignment(id));
 
             if let GamePhase::PlayingGame {
-                voting_game_state,
-                player_placement,
-                ..
+                voting_game_state, ..
             } = &mut self.game_state.phase
             {
                 conn.push_outgoing_message(WSAudienceBoundMessage::Standings([0, 1, 2, 3].map(
@@ -74,8 +72,8 @@ impl GameServer {
                         Standing {
                             name: idx.to_string(),
                             chair: self.game_state.players[idx].chair.to_string(),
-                            rank: player_placement[idx].placement,
-                            lap: player_placement[idx].lap,
+                            rank: self.game_state.players[idx].lap_info.placement,
+                            lap: self.game_state.players[idx].lap_info.lap,
                         }
                     },
                 )));
