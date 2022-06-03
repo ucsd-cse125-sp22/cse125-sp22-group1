@@ -1,5 +1,6 @@
 use crate::ui_state::CountdownState;
 use chariot_core::player::choices::Chair;
+use glam::{DVec2, Vec2};
 use std::time::Duration;
 
 // main menu
@@ -83,13 +84,14 @@ const COUNTDOWN_2: &[u8] = include_bytes!("countdown/2.png");
 const COUNTDOWN_1: &[u8] = include_bytes!("countdown/1.png");
 const COUNTDOWN_START: &[u8] = include_bytes!("countdown/start.png");
 
-pub fn get_countdown_asset(countdown_state: CountdownState) -> Option<&'static [u8]> {
+// return the asset AND DIMENSIONS of each asset
+pub fn get_countdown_asset(countdown_state: CountdownState) -> Option<(&'static [u8], Vec2)> {
     match countdown_state {
         CountdownState::None => None,
-        CountdownState::Three => Some(COUNTDOWN_3),
-        CountdownState::Two => Some(COUNTDOWN_2),
-        CountdownState::One => Some(COUNTDOWN_1),
-        CountdownState::Start => Some(COUNTDOWN_START),
+        CountdownState::Three => Some((COUNTDOWN_3, Vec2::new(220.0, 220.0))),
+        CountdownState::Two => Some((COUNTDOWN_2, Vec2::new(220.0, 220.0))),
+        CountdownState::One => Some((COUNTDOWN_1, Vec2::new(220.0, 220.0))),
+        CountdownState::Start => Some((COUNTDOWN_START, Vec2::new(920.0, 170.0))),
     }
 }
 

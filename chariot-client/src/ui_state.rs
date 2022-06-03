@@ -373,7 +373,7 @@ impl GraphicsManager {
 
             // otherwise, load a new texture and maybe play a sound
             let new_texture = assets::ui::get_countdown_asset(correct_state);
-            if let Some(new_texture) = new_texture {
+            if let Some((new_texture, dimensions)) = new_texture {
                 let countdown_texture_handle = self.resources.import_texture_embedded(
                     &self.renderer,
                     "countdown",
@@ -390,8 +390,8 @@ impl GraphicsManager {
                 *countdown_ui = Some(UIDrawable {
                     layers: vec![UILayerTechnique::new(
                         &self.renderer,
-                        glam::vec2(0.5, 0.5),
-                        glam::vec2(0.1, 0.1),
+                        glam::vec2(0.5, 0.5) - (dimensions / 2.0) / glam::vec2(1280.0, 720.0),
+                        dimensions / glam::vec2(1280.0, 720.0),
                         glam::vec2(0.0, 0.0),
                         glam::vec2(1.0, 1.0),
                         &countdown_position_texture,
@@ -728,7 +728,7 @@ impl GraphicsManager {
             minimap_ui,
             timer_ui,
             countdown_ui: None,
-            countdown_state: CountdownState::Three,
+            countdown_state: CountdownState::None,
             lap_ui,
             interaction_ui: AnimatedUIDrawable::new(),
         }
