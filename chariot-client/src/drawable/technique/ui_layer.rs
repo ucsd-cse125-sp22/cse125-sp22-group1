@@ -13,7 +13,10 @@ pub struct UILayerTechnique {
     pub vertex_buffer: wgpu::Buffer,
     texcoord_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
-    material: Material,
+    material: crate::resources::material::Material,
+    pub tint_color: [f32; 4],
+    pub pos: glam::Vec2,
+    pub size: glam::Vec2,
 }
 
 impl UILayerTechnique {
@@ -28,6 +31,25 @@ impl UILayerTechnique {
             [pos_ndc.x + size_ndc.x, pos_ndc.y + size_ndc.y],
             [pos_ndc.x, pos_ndc.y + size_ndc.y],
         ]
+    }
+
+    pub fn update_pos(&mut self, renderer: &Renderer, pos: glam::Vec2) {
+        let raw_data = UILayerTechnique::create_verts_data(pos, self.size);
+        let verts_data: &[u8] = bytemuck::cast_slice(&raw_data);
+        renderer.write_buffer(&self.vertex_buffer, verts_data);
+        self.pos = pos;
+    }
+
+    pub fn update_size(&mut self, renderer: &Renderer, size: glam::Vec2) {
+        let raw_data = UILayerTechnique::create_verts_data(self.pos, size);
+        let verts_data: &[u8] = bytemuck::cast_slice(&raw_data);
+        renderer.write_buffer(&self.vertex_buffer, verts_data);
+        self.size = size;
+    }
+
+    pub fn update_color(&mut self, renderer: &Renderer, color: [f32; 4]) {
+        let raw_data: &[u8] = bytemuck::cast_slice(&color);
+        //self.material.bind_groups.get(&0).unwrap();
     }
 
     pub fn new(
@@ -78,6 +100,17 @@ impl UILayerTechnique {
                 0,
                 texture.create_view(&wgpu::TextureViewDescriptor::default()),
             )
+            .buffer_resource(
+                0,
+                1,
+                renderer
+                    .device
+                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("ui_color"),
+                        contents: bytemuck::cast_slice(&([1.0, 1.0, 1.0, 1.0] as [f32; 4])),
+                        usage: wgpu::BufferUsages::UNIFORM,
+                    }),
+            )
             .produce();
 
         Self {
@@ -85,6 +118,9 @@ impl UILayerTechnique {
             texcoord_buffer,
             index_buffer,
             material,
+            tint_color: [1.0, 1.0, 1.0, 1.0],
+            pos,
+            size,
         }
     }
 }

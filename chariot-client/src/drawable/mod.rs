@@ -142,9 +142,7 @@ pub enum UIAnimation {
         start_time: Instant,
         duration: Duration,
     },
-    ColorAnimation {
-        start_color: todo!(),
-    },
+    ColorAnimation {}, // TODO?
 }
 
 pub struct AnimatedUIDrawable {
@@ -244,7 +242,8 @@ impl Drawable for AnimatedUIDrawable {
         let mut builder = render_job::RenderGraphBuilder::new();
 
         if !self.layers.is_empty() {
-            let mut last_dep = builder.add_root(self.layers.first().unwrap().render_item(context));
+            let mut last_dep =
+                builder.add_root(self.layers.first().unwrap().0.render_item(context));
             for (layer, _, _) in self.layers.iter().skip(1) {
                 last_dep = builder.add(layer.render_item(context), &[last_dep]);
             }
