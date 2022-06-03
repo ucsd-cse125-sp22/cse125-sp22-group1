@@ -113,6 +113,9 @@ const COUNTDOWN_2: &[u8] = include_bytes!("countdown/2.png");
 const COUNTDOWN_1: &[u8] = include_bytes!("countdown/1.png");
 const COUNTDOWN_START: &[u8] = include_bytes!("countdown/start.png");
 
+// join the audience
+pub const JOIN_THE_AUDIENCE: &[u8] = include_bytes!("jointheaudience.png");
+
 // return the asset AND DIMENSIONS of each asset
 pub fn get_countdown_asset(countdown_state: CountdownState) -> Option<(&'static [u8], Vec2)> {
     match countdown_state {
