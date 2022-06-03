@@ -120,7 +120,8 @@ impl GraphicsManager {
         self.update_minimap();
 
         if let UIState::InGameHUD { interaction_ui, .. } = &mut self.ui {
-            interaction_ui.update(&mut self.renderer);
+            // interaction_ui.update(&mut self.renderer);
+            // commenting out for now — it's a little intrusive, but will bring back in a later PR
         }
     }
 
