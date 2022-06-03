@@ -417,8 +417,10 @@ impl GameServer {
                 for (player_id, placement) in player_placement_data {
                     if self.game_state.players[player_id].cached_place != Some(placement) {
                         self.game_state.players[player_id].cached_place = Some(placement);
-                        self.connections[player_id]
-                            .push_outgoing(ClientBoundPacket::PlacementUpdate(placement));
+                        if self.connections.len() > player_id {
+                            self.connections[player_id]
+                                .push_outgoing(ClientBoundPacket::PlacementUpdate(placement));
+                        }
                     }
 
                     println!("player #{player_id} in place {placement}");
