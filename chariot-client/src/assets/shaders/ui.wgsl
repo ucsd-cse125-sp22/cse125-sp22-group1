@@ -12,7 +12,7 @@ fn vs_main([[location(0)]] position: vec2<f32>, [[location(1)]] tex_coords: vec2
     return out;
 }
 
-struct colorHolder {
+struct ColorData {
     color: vec4<f32>;
 };
 
@@ -20,7 +20,7 @@ struct colorHolder {
 var texture: texture_2d<f32>;
 
 [[group(0), binding(1)]]
-var<uniform> tint: colorHolder;
+var<uniform> tint: ColorData;
 
 [[stage(fragment)]]
 fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
