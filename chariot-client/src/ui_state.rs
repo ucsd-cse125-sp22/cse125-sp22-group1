@@ -6,6 +6,8 @@ use lazy_static::lazy_static;
 
 use chariot_core::player::choices::Chair;
 
+use crate::drawable::AnimatedUIDrawable;
+use crate::renderer::Renderer;
 use crate::ui::string::{StringAlignment, UIStringBuilder};
 use crate::{
     assets,
@@ -51,6 +53,7 @@ pub enum UIState {
         game_announcement_title: UIDrawable,
         game_announcement_subtitle: UIDrawable,
         announcement_state: AnnouncementState,
+        interaction_ui: AnimatedUIDrawable,
     },
 }
 
@@ -113,6 +116,16 @@ impl GraphicsManager {
                 .clone()
                 .content(subtitle)
                 .build_drawable(&self.renderer, &mut self.resources);
+        }
+    }
+
+    pub fn update_dynamic_ui(&mut self) {
+        self.update_voting_announcements();
+        self.update_minimap();
+
+        if let UIState::InGameHUD { interaction_ui, .. } = &mut self.ui {
+            // interaction_ui.update(&mut self.renderer);
+            // commenting out for now — it's a little intrusive, but will bring back in a later PR
         }
     }
 
@@ -201,9 +214,72 @@ impl GraphicsManager {
 
     pub fn maybe_set_announcement_state(&mut self, new_announcement_state: AnnouncementState) {
         if let UIState::InGameHUD {
-            announcement_state, ..
+            announcement_state,
+            interaction_ui,
+            ..
         } = &mut self.ui
         {
+            match &new_announcement_state {
+                AnnouncementState::VotingInProgress { vote_end_time, .. } => {
+                    interaction_ui.layers.clear();
+                    interaction_ui.push(UILayerTechnique::new(
+                        &mut self.renderer,
+                        glam::vec2(0.25, 0.0),
+                        glam::vec2(0.5, 0.2),
+                        glam::vec2(0.0, 0.0),
+                        glam::vec2(1.0, 1.0),
+                        self.resources.textures.get(&self.white_box_tex).unwrap(),
+                    ));
+                    interaction_ui
+                        .layers
+                        .last_mut()
+                        .unwrap()
+                        .0
+                        .update_color(&self.renderer, [0.0, 0.0, 0.0, 1.0]);
+                    interaction_ui.push(UILayerTechnique::new(
+                        &mut self.renderer,
+                        glam::vec2(0.26, 0.01),
+                        glam::vec2(0.48, 0.18),
+                        glam::vec2(0.0, 0.0),
+                        glam::vec2(1.0, 1.0),
+                        self.resources.textures.get(&self.white_box_tex).unwrap(),
+                    ));
+                    interaction_ui.push(UILayerTechnique::new(
+                        &mut self.renderer,
+                        glam::vec2(0.26, 0.01),
+                        glam::vec2(0.0, 0.18),
+                        glam::vec2(0.0, 0.0),
+                        glam::vec2(1.0, 1.0),
+                        self.resources.textures.get(&self.white_box_tex).unwrap(),
+                    ));
+                    interaction_ui
+                        .layers
+                        .last_mut()
+                        .unwrap()
+                        .0
+                        .update_color(&self.renderer, [0.527, 0.0, 0.082, 1.0]);
+                    interaction_ui.animate(
+                        2,
+                        None,
+                        Some(glam::vec2(0.48, 0.18)),
+                        *vote_end_time - Instant::now(),
+                    );
+                }
+                AnnouncementState::VoteActiveTime {
+                    prompt: _,
+                    decision,
+                    effect_end_time,
+                } => {
+                    interaction_ui.animate(
+                        2,
+                        None,
+                        Some(glam::vec2(0.0, 0.18)),
+                        *effect_end_time - Instant::now(),
+                    );
+                    ()
+                }
+                _ => interaction_ui.layers.clear(),
+            }
             *announcement_state = new_announcement_state;
         }
     }
@@ -363,6 +439,8 @@ impl GraphicsManager {
             chair_description,
             player_chair_images: vec![None, None, None, None],
         };
+
+        (0..4).for_each(|i| self.maybe_display_chair(None, i));
     }
 
     pub fn maybe_select_chair(&mut self, chair: Chair) {
@@ -429,12 +507,12 @@ impl GraphicsManager {
             *chair_description = UIDrawable { layers: layer_vec };
 
             for (player_id, choice) in self.player_choices.clone().iter().flatten().enumerate() {
-                self.maybe_display_chair(choice.chair, player_id);
+                self.maybe_display_chair(Some(choice.chair), player_id);
             }
         }
     }
 
-    pub fn maybe_display_chair(&mut self, chair: Chair, player: usize) {
+    pub fn maybe_display_chair(&mut self, chair: Option<Chair>, player: usize) {
         if let UIState::ChairacterSelect {
             player_chair_images,
             ..
@@ -451,7 +529,7 @@ impl GraphicsManager {
                 .resources
                 .textures
                 .get(&chair_image)
-                .expect(format!("{} doesn't exist!", chair.to_string()).as_str());
+                .expect(format!("chair doesn't exist!").as_str());
 
             let position = match player {
                 0 => glam::vec2(165.0 / 1280.0, 187.0 / 720.0),
@@ -461,7 +539,7 @@ impl GraphicsManager {
                 _ => glam::vec2(165.0 / 1280.0, 187.0 / 720.0),
             };
 
-            let layers = vec![technique::UILayerTechnique::new(
+            let layers = vec![UILayerTechnique::new(
                 &self.renderer,
                 position,
                 glam::vec2(166.0 / 1280.0, 247.0 / 720.0),
@@ -576,6 +654,7 @@ impl GraphicsManager {
             minimap_ui,
             timer_ui,
             lap_ui,
+            interaction_ui: AnimatedUIDrawable::new(),
         }
     }
 }

@@ -101,7 +101,7 @@ impl Application {
                         .as_mut()
                         .expect("Attempted to set chair on player we don't know about!")
                         .chair = chair;
-                    self.graphics.maybe_display_chair(chair, player_num);
+                    self.graphics.maybe_display_chair(Some(chair), player_num);
                 }
                 ClientBoundPacket::PlayerMapChoice(player_num, map) => {
                     println!("Player #{} has voted for map {}!", player_num, map.clone());
@@ -249,6 +249,5 @@ impl Application {
                 }
             }
         }
-        self.graphics.update_minimap();
     }
 }

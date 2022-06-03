@@ -5,6 +5,7 @@ pub mod util;
 use crate::renderer::*;
 use crate::resources::*;
 use crate::scenegraph::components::Modifiers;
+use std::time::{Duration, Instant};
 use technique::ui_layer::UILayerTechnique;
 use technique::*;
 
@@ -120,6 +121,130 @@ impl Drawable for UIDrawable {
         if !self.layers.is_empty() {
             let mut last_dep = builder.add_root(self.layers.first().unwrap().render_item(context));
             for layer in self.layers.iter().skip(1) {
+                last_dep = builder.add(layer.render_item(context), &[last_dep]);
+            }
+        }
+
+        builder.build()
+    }
+}
+
+pub enum UIAnimation {
+    PositionAnimation {
+        start_pos: glam::Vec2,
+        end_pos: glam::Vec2,
+        start_time: Instant,
+        duration: Duration,
+    },
+    SizeAnimation {
+        start_size: glam::Vec2,
+        end_size: glam::Vec2,
+        start_time: Instant,
+        duration: Duration,
+    },
+    ColorAnimation {}, // TODO?
+}
+
+pub struct AnimatedUIDrawable {
+    // [(Layer, PositionAnimation?, SizeAnimation?)]
+    pub layers: Vec<(UILayerTechnique, Option<UIAnimation>, Option<UIAnimation>)>,
+    last_update: Instant,
+}
+
+impl AnimatedUIDrawable {
+    pub fn new() -> AnimatedUIDrawable {
+        Self {
+            layers: vec![],
+            last_update: Instant::now(),
+        }
+    }
+
+    pub fn push(&mut self, ui: UILayerTechnique) {
+        self.layers.push((ui, None, None));
+    }
+
+    pub fn animate(
+        &mut self,
+        index: usize,
+        end_pos: Option<glam::Vec2>,
+        end_size: Option<glam::Vec2>,
+        duration: Duration,
+    ) {
+        if let Some((ui, pos_animation, size_animation)) = self.layers.get_mut(index) {
+            if let Some(pos) = end_pos {
+                *pos_animation = Some(UIAnimation::PositionAnimation {
+                    start_pos: ui.pos,
+                    end_pos: pos,
+                    start_time: Instant::now(),
+                    duration,
+                });
+            }
+
+            if let Some(size) = end_size {
+                *size_animation = Some(UIAnimation::SizeAnimation {
+                    start_size: ui.size,
+                    end_size: size,
+                    start_time: Instant::now(),
+                    duration,
+                });
+            }
+        }
+    }
+
+    pub fn update(&mut self, renderer: &mut Renderer) {
+        for (ui, pos_animation, size_animation) in self.layers.iter_mut() {
+            if let Some(UIAnimation::PositionAnimation {
+                start_pos,
+                end_pos,
+                start_time,
+                duration,
+            }) = *pos_animation
+            {
+                if start_time + duration > Instant::now() {
+                    let progress = (Instant::now() - start_time).as_millis() as f32
+                        / (duration.as_millis() as f32);
+                    let change = end_pos - start_pos;
+                    ui.update_pos(renderer, change * progress + start_pos);
+                } else {
+                    ui.update_pos(renderer, end_pos);
+                    *pos_animation = None;
+                }
+            }
+            if let Some(UIAnimation::SizeAnimation {
+                start_size,
+                end_size,
+                start_time,
+                duration,
+            }) = *size_animation
+            {
+                if start_time + duration > Instant::now() {
+                    let progress = (Instant::now() - start_time).as_millis() as f32
+                        / (duration.as_millis() as f32);
+                    let change = end_size - start_size;
+                    ui.update_size(renderer, change * progress + start_size);
+                } else {
+                    ui.update_size(renderer, end_size);
+                    *size_animation = None;
+                }
+            }
+        }
+
+        self.last_update = Instant::now();
+    }
+}
+
+impl Drawable for AnimatedUIDrawable {
+    fn register(renderer: &mut Renderer) {
+        UILayerTechnique::register(renderer);
+    }
+
+    fn render_graph<'a>(&'a self, context: &RenderContext<'a>) -> render_job::RenderGraph<'a> {
+        let mut builder = render_job::RenderGraphBuilder::new();
+
+        if !self.layers.is_empty() {
+            let mut last_dep =
+                builder.add_root(self.layers.first().unwrap().0.render_item(context));
+            for (layer, _, _) in self.layers.iter().skip(1) {
                 last_dep = builder.add(layer.render_item(context), &[last_dep]);
             }
         }

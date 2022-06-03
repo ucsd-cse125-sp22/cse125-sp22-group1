@@ -1,13 +1,16 @@
 use chariot_core::player::choices::Chair;
 
-// backgrounds
+// main menu
 pub const HOME_BACKGROUND: &[u8] = include_bytes!("homebackground.png");
-pub const CHAIR_SELECT_BACKGROUND: &[u8] = include_bytes!("chair-select/background.png");
+pub const MAIN_MENU_BACKGROUND: &[u8] = include_bytes!("main-menu/BG.png");
+pub const MAIN_MENU_FOREGROUND: &[u8] = include_bytes!("main-menu/Chars.png");
+pub const MAIN_MENU_TITLE: &[u8] = include_bytes!("main-menu/Title.png");
 
 // icon
 pub const ICON: &[u8] = include_bytes!("icon.png");
 
 // chair select rectangles
+pub const CHAIR_SELECT_BACKGROUND: &[u8] = include_bytes!("chair-select/background.png");
 const CHAIR_SELECT_RECT0: &[u8] = include_bytes!("chair-select/select/p0rectangle.png");
 const CHAIR_SELECT_RECT1: &[u8] = include_bytes!("chair-select/select/p1rectangle.png");
 const CHAIR_SELECT_RECT2: &[u8] = include_bytes!("chair-select/select/p2rectangle.png");
@@ -25,14 +28,18 @@ const CHAIR_ERGONOMIC: &[u8] = include_bytes!("chair-select/display/type=ergonom
 const CHAIR_FOLDING: &[u8] = include_bytes!("chair-select/display/type=folding.png");
 const CHAIR_RECLINER: &[u8] = include_bytes!("chair-select/display/type=recliner.png");
 const CHAIR_SWIVEL: &[u8] = include_bytes!("chair-select/display/type=swivel.png");
+const CHAIR_NONE: &[u8] = include_bytes!("chair-select/display/type=none.png");
 
-pub fn get_chair_image(chair: Chair) -> &'static [u8] {
+pub fn get_chair_image(chair: Option<Chair>) -> &'static [u8] {
     match chair {
-        Chair::Swivel => CHAIR_SWIVEL,
-        Chair::Recliner => CHAIR_RECLINER,
-        Chair::Beanbag => CHAIR_BEANBAG,
-        Chair::Ergonomic => CHAIR_ERGONOMIC,
-        Chair::Folding => CHAIR_FOLDING,
+        Some(chair) => match chair {
+            Chair::Swivel => CHAIR_SWIVEL,
+            Chair::Recliner => CHAIR_RECLINER,
+            Chair::Beanbag => CHAIR_BEANBAG,
+            Chair::Ergonomic => CHAIR_ERGONOMIC,
+            Chair::Folding => CHAIR_FOLDING,
+        },
+        None => CHAIR_NONE,
     }
 }
 
@@ -67,3 +74,6 @@ const SECOND_PLACE: &[u8] = include_bytes!("placement/2nd.png");
 const THIRD_PLACE: &[u8] = include_bytes!("placement/3rd.png");
 const FOURTH_PLACE: &[u8] = include_bytes!("placement/4th.png");
 pub const PLACE_IMAGES: [&[u8]; 4] = [FIRST_PLACE, SECOND_PLACE, THIRD_PLACE, FOURTH_PLACE];
+
+// blank ui helper
+pub const WHITE_TEXTURE: &[u8] = include_bytes!("box.png");

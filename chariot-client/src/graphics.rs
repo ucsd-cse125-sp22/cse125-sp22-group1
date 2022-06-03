@@ -25,6 +25,7 @@ use crate::drawable::technique::ShadeDirectTechnique;
 use crate::drawable::technique::SimpleFSQTechnique;
 use crate::drawable::technique::SkyboxTechnique;
 use crate::drawable::technique::Technique;
+use crate::drawable::AnimatedUIDrawable;
 use crate::drawable::Drawable;
 use crate::drawable::RenderContext;
 use crate::drawable::StaticMeshDrawable;
@@ -132,6 +133,8 @@ pub struct GraphicsManager {
     prev_proj: glam::Mat4,
     iteration: u32,
     camera_entity: Entity,
+    pub test_ui: AnimatedUIDrawable,
+    pub white_box_tex: TextureHandle,
 }
 
 impl GraphicsManager {
@@ -302,7 +305,7 @@ impl GraphicsManager {
                 texture_handle: smoke_handle,
                 mesh_handle: quad_handle,
                 pos_range: (-glam::Vec3::ONE * 0.1, glam::Vec3::ONE * 0.1),
-                size_range: (glam::Vec2::ONE, glam::Vec2::ONE * 3.0),
+                size_range: (Vec2::ONE, Vec2::ONE * 3.0),
                 initial_vel: glam::Vec3::ZERO,
                 spawn_rate: 50.0,
                 lifetime: 5.0,
@@ -338,6 +341,13 @@ impl GraphicsManager {
             quad_handle,
         );
 
+        let white_box_tex = resources.import_texture_embedded(
+            &renderer,
+            "box.png",
+            assets::ui::WHITE_TEXTURE,
+            ImageFormat::Png,
+        );
+
         Self {
             world,
             renderer,
@@ -362,6 +372,8 @@ impl GraphicsManager {
             fire_particle_system,
             smoke_particle_system,
             camera_entity: NULL_ENTITY,
+            test_ui: AnimatedUIDrawable::new(),
+            white_box_tex,
         }
     }
 
@@ -375,7 +387,7 @@ impl GraphicsManager {
             .builder()
             .attach(root)
             .with(Camera {
-                orbit_angle: glam::Vec2::ZERO,
+                orbit_angle: Vec2::ZERO,
                 distance: 3.0,
             })
             .build();
@@ -503,7 +515,7 @@ impl GraphicsManager {
             self.world.insert(
                 chair,
                 Camera {
-                    orbit_angle: glam::Vec2::ZERO,
+                    orbit_angle: Vec2::ZERO,
                     distance: 3.0,
                 },
             );
@@ -679,7 +691,7 @@ impl GraphicsManager {
     }
 
     pub fn render(&mut self) {
-        self.update_voting_announcements();
+        self.update_dynamic_ui();
 
         let world_root = self.world.root();
         let root_xform = self
@@ -805,7 +817,7 @@ impl GraphicsManager {
                         acc_model = *acc
                             * Transform {
                                 translation: cur_transform.translation,
-                                rotation: rotation,
+                                rotation,
                                 scale: cur_transform.scale,
                             }
                             .to_mat4();
@@ -917,6 +929,7 @@ impl GraphicsManager {
                 minimap_ui,
                 timer_ui,
                 lap_ui,
+                interaction_ui,
             } => {
                 let position_graph = place_position_image.render_graph(&render_context);
                 render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, position_graph);
@@ -937,6 +950,10 @@ impl GraphicsManager {
 
                 let timer_ui_graph = timer_ui.render_graph(&render_context);
                 render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, timer_ui_graph);
+
+                // commenting out now, will merge this in later
+                // let interaction_ui_graph = interaction_ui.render_graph(&render_context);
+                // render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, interaction_ui_graph);
             }
             UIState::MainMenu { background } => {
                 let ui_graph = background.render_graph(&render_context);
