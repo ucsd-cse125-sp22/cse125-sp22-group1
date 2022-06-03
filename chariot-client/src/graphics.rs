@@ -935,6 +935,7 @@ impl GraphicsManager {
                 interaction_ui,
                 countdown_ui,
                 interaction_text,
+                finished_text,
                 ..
             } => {
                 let position_graph = place_position_image.render_graph(&render_context);
@@ -959,6 +960,9 @@ impl GraphicsManager {
 
                 let interaction_text_graph = interaction_text.render_graph(&render_context);
                 render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, interaction_text_graph);
+
+                let finished_text_graph = finished_text.render_graph(&render_context);
+                render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, finished_text_graph);
             }
             UIState::MainMenu { background } => {
                 let ui_graph = background.render_graph(&render_context);
