@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
+use chariot_core::GLOBAL_CONFIG;
 use thread::AudioBuffer;
 use thread::AudioThread;
 
@@ -33,7 +34,7 @@ impl AudioManager {
     pub fn new() -> Self {
         Self {
             threads: HashMap::new(),
-            volume: 1.0,
+            volume: GLOBAL_CONFIG.volume,
             pitch: 1.0,
         }
     }
@@ -52,7 +53,7 @@ impl AudioManager {
     ) -> AudioThread {
         // Create the new instance of an audio thread, and set the volume and pitch to the levels defined in source
         let mut thread = AudioThread::new(ctx, track_audio, opt);
-        thread.set_volume(0.0); //self.volume);
+        thread.set_volume(self.volume);
         thread.set_pitch(self.pitch);
 
         thread

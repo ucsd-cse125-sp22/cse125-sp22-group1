@@ -324,7 +324,6 @@ impl GraphicsManager {
             *place_position_image = UIDrawable {
                 layers: vec![technique::UILayerTechnique::new(
                     &self.renderer,
-                    // glam::vec2(0.85, 0.05), // old position
                     glam::vec2(1117.0 / 1280.0, 590.0 / 720.0),
                     glam::vec2(0.1, 0.15),
                     glam::vec2(0.0, 0.0),
@@ -572,7 +571,6 @@ impl GraphicsManager {
         let place_position_image = UIDrawable {
             layers: vec![technique::UILayerTechnique::new(
                 &self.renderer,
-                // glam::vec2(0.85, 0.05), // old position
                 glam::vec2(1117.0 / 1280.0, 590.0 / 720.0),
                 glam::vec2(0.1, 0.1),
                 glam::vec2(0.0, 0.0),
