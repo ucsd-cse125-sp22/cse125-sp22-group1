@@ -76,9 +76,13 @@ macro_rules! shader {
 shader!(GEOMETRY => "src/assets/shaders/geometry.wgsl");
 shader!(PARTICLE => "src/assets/shaders/particle.wgsl");
 shader!(SHADE_DIRECT => "src/assets/shaders/shade_direct.wgsl");
-shader!(SHADOW => "src/assets/shaders/shadow.wgsl");
 shader!(SKYBOX => "src/assets/shaders/skybox.wgsl");
 shader!(UI => "src/assets/shaders/ui.wgsl");
+
+// shadow stuff
+shader!(SHADOW => "src/assets/shaders/shadow.wgsl");
+shader!(VSM_BLUR_HORIZ => "src/assets/shaders/vsm_blur_horiz.wgsl");
+shader!(VSM_BLUR_VERT => "src/assets/shaders/vsm_blur_vert.wgsl");
 
 // bloom stuff
 shader!(DOWNSAMPLE_BLOOM => "src/assets/shaders/downsample_bloom.wgsl");

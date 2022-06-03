@@ -25,7 +25,7 @@ impl InitProbesTechnique {
             .framebuffer_texture_resource(0, 0, "geometry_out", 0, false)
             .framebuffer_texture_resource(0, 1, "geometry_out", 1, false)
             .framebuffer_texture_resource(0, 2, "geometry_out", 2, false)
-            .framebuffer_texture_resource(0, 3, "shadow_out1", 0, false)
+            .framebuffer_texture_resource(0, 3, "shadow_out1", 1, false)
             .produce();
 
         Self {

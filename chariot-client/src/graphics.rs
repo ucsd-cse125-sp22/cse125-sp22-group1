@@ -2,6 +2,8 @@ use crate::assets;
 use crate::assets::models;
 use crate::assets::shaders;
 use crate::drawable::technique::UILayerTechnique;
+use crate::drawable::technique::VSMBlurHorizTechnique;
+use crate::drawable::technique::VSMBlurVertTechnique;
 use crate::drawable::technique::WronskiAATechnique;
 use chariot_core::entity_location::EntityLocation;
 use chariot_core::player::choices::Chair;
@@ -42,6 +44,9 @@ pub fn register_passes(renderer: &mut Renderer) {
     StaticMeshDrawable::register(renderer);
     UIDrawable::register(renderer);
     ParticleDrawable::register(renderer);
+
+    VSMBlurHorizTechnique::register(renderer);
+    VSMBlurVertTechnique::register(renderer);
 
     ShadeDirectTechnique::register(renderer);
     SkyboxTechnique::register(renderer);
@@ -119,6 +124,8 @@ pub struct GraphicsManager {
     pub player_num: PlayerID,
     pub player_choices: [Option<PlayerChoices>; 4],
     pub player_entities: [Option<Entity>; 4],
+    vsm_blur_horiz: VSMBlurHorizTechnique,
+    vsm_blur_vert: VSMBlurVertTechnique,
     shade_direct: ShadeDirectTechnique,
     skybox: SkyboxTechnique,
     wronski_aa: WronskiAATechnique,
@@ -160,6 +167,7 @@ impl GraphicsManager {
             ],
             Some(wgpu::Color::TRANSPARENT),
             true,
+            true,
             false,
         );
 
@@ -168,9 +176,30 @@ impl GraphicsManager {
             "shadow_out1",
             &mut renderer,
             shadow_map_res,
-            &[],
-            None,
+            &[wgpu::TextureFormat::Rg16Float],
+            Some(wgpu::Color::BLACK),
             true,
+            false,
+            false,
+        );
+
+        resources.register_framebuffer(
+            "vsm_blur_horiz_out1",
+            &mut renderer,
+            shadow_map_res,
+            &[wgpu::TextureFormat::Rg16Float],
+            Some(wgpu::Color::BLACK),
+            false,
+            false,
+        );
+
+        resources.register_framebuffer(
+            "vsm_blur_vert_out1",
+            &mut renderer,
+            shadow_map_res,
+            &[wgpu::TextureFormat::Rg16Float],
+            Some(wgpu::Color::BLACK),
+            false,
             false,
         );
 
@@ -181,6 +210,7 @@ impl GraphicsManager {
             Some(wgpu::Color::WHITE),
             true,
             true,
+            true,
         );
 
         resources.register_framebuffer(
@@ -189,6 +219,7 @@ impl GraphicsManager {
             upsample2_size,
             &[wgpu::TextureFormat::Rgba16Float],
             Some(wgpu::Color::TRANSPARENT),
+            true,
             false,
         );
 
@@ -197,6 +228,7 @@ impl GraphicsManager {
             &mut renderer,
             &[wgpu::TextureFormat::Rgba16Float],
             Some(wgpu::Color::TRANSPARENT),
+            true,
             false,
         );
 
@@ -209,6 +241,7 @@ impl GraphicsManager {
             downsample2_size,
             &[wgpu::TextureFormat::Rgba16Float],
             Some(wgpu::Color::TRANSPARENT),
+            true,
             false,
         );
 
@@ -217,6 +250,7 @@ impl GraphicsManager {
             &mut renderer,
             &[wgpu::TextureFormat::Rgba16Float],
             Some(wgpu::Color::TRANSPARENT),
+            true,
             false,
         );
 
@@ -225,6 +259,7 @@ impl GraphicsManager {
             &mut renderer,
             &[wgpu::TextureFormat::Rgba16Float],
             Some(wgpu::Color::TRANSPARENT),
+            true,
             false,
         );
 
@@ -236,6 +271,7 @@ impl GraphicsManager {
             downsample4_size,
             &[wgpu::TextureFormat::Rgba8Unorm],
             Some(wgpu::Color::TRANSPARENT),
+            true,
             false,
         );
 
@@ -247,6 +283,7 @@ impl GraphicsManager {
             downsample8_size,
             &[wgpu::TextureFormat::Rgba8Unorm],
             Some(wgpu::Color::TRANSPARENT),
+            true,
             false,
         );
 
@@ -256,6 +293,7 @@ impl GraphicsManager {
             downsample4_size,
             &[wgpu::TextureFormat::Rgba8Unorm],
             Some(wgpu::Color::TRANSPARENT),
+            true,
             false,
         );
 
@@ -264,6 +302,7 @@ impl GraphicsManager {
             &mut renderer,
             &[wgpu::TextureFormat::Rgba8Unorm],
             Some(wgpu::Color::TRANSPARENT),
+            true,
             false,
         );
 
@@ -321,6 +360,8 @@ impl GraphicsManager {
             },
         );
         let world = setup_void();
+        let vsm_blur_horiz = VSMBlurHorizTechnique::new(&renderer, &resources, quad_handle, 1);
+        let vsm_blur_vert = VSMBlurVertTechnique::new(&renderer, &resources, quad_handle, 1);
         let shade_direct = ShadeDirectTechnique::new(&renderer, &resources, quad_handle);
         let skybox = SkyboxTechnique::new(&renderer, &resources, quad_handle);
         let wronski_aa = WronskiAATechnique::new(&renderer, &resources, quad_handle);
@@ -350,6 +391,8 @@ impl GraphicsManager {
             prev_view: glam::Mat4::IDENTITY,
             prev_proj: glam::Mat4::IDENTITY,
             iteration: 0,
+            vsm_blur_horiz,
+            vsm_blur_vert,
             shade_direct,
             skybox,
             wronski_aa,
@@ -857,8 +900,14 @@ impl GraphicsManager {
             }
         }
 
+        let vsm_blur_horiz_graph = self.vsm_blur_horiz.render_item(&render_context).to_graph();
+        render_job.merge_graph_after(ParticleDrawable::PASS_NAME, vsm_blur_horiz_graph);
+
+        let vsm_blur_vert_graph = self.vsm_blur_vert.render_item(&render_context).to_graph();
+        render_job.merge_graph_after(VSMBlurHorizTechnique::PASS_NAME, vsm_blur_vert_graph);
+
         let skybox_graph = self.skybox.render_item(&render_context).to_graph();
-        render_job.merge_graph_after(ParticleDrawable::PASS_NAME, skybox_graph);
+        render_job.merge_graph_after(VSMBlurVertTechnique::PASS_NAME, skybox_graph);
 
         let shade_direct_graph = self.shade_direct.render_item(&render_context).to_graph();
         render_job.merge_graph_after(SkyboxTechnique::PASS_NAME, shade_direct_graph);

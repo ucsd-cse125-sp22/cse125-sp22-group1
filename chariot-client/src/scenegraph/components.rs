@@ -130,9 +130,9 @@ impl Light {
 
     pub fn calc_view_proj(&self, bounds: &Bounds) -> (glam::Mat4, glam::Mat4) {
         let scene_center = (bounds.0 + bounds.1) * 0.5;
-        let scene_radius = (bounds.1 - scene_center).length();
+        let scene_radius = (bounds.1 - scene_center).length() * 2.0;
 
-        let dist_padding = 0.0;
+        let dist_padding = 50.0;
 
         let light_pos = scene_center - self.dir * (scene_radius + dist_padding);
         let view = glam::Mat4::look_at_rh(light_pos, scene_center, glam::Vec3::Y);
@@ -142,7 +142,7 @@ impl Light {
             -scene_radius,
             scene_radius,
             0.01,
-            scene_radius * 3.0,
+            scene_radius * 6.0,
         );
 
         (view, proj)

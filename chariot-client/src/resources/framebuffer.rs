@@ -10,8 +10,17 @@ impl ResourceManager {
         size: winit::dpi::PhysicalSize<u32>,
         formats: &[wgpu::TextureFormat],
         clear_color: Option<wgpu::Color>,
+        storage: bool,
         is_alt: bool,
     ) -> Vec<TextureHandle> {
+        let usages = wgpu::TextureUsages::RENDER_ATTACHMENT
+            | wgpu::TextureUsages::TEXTURE_BINDING
+            | if storage {
+                wgpu::TextureUsages::STORAGE_BINDING
+            } else {
+                wgpu::TextureUsages::empty()
+            };
+
         let color_textures: Vec<wgpu::Texture> = formats
             .iter()
             .enumerate()
@@ -20,9 +29,7 @@ impl ResourceManager {
                     format!("{}_tex_{}", name, idx).as_str(),
                     size,
                     *format,
-                    wgpu::TextureUsages::RENDER_ATTACHMENT
-                        | wgpu::TextureUsages::TEXTURE_BINDING
-                        | wgpu::TextureUsages::STORAGE_BINDING,
+                    usages,
                 )
             })
             .collect();
@@ -65,6 +72,7 @@ impl ResourceManager {
         formats: &[wgpu::TextureFormat],
         clear_color: Option<wgpu::Color>,
         clear_depth: bool,
+        storage: bool,
         is_alt: bool,
     ) -> (TextureHandle, Vec<TextureHandle>) {
         let depth_texture = renderer.create_texture2d(
@@ -74,6 +82,14 @@ impl ResourceManager {
             wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
         );
 
+        let usages = wgpu::TextureUsages::RENDER_ATTACHMENT
+            | wgpu::TextureUsages::TEXTURE_BINDING
+            | if storage {
+                wgpu::TextureUsages::STORAGE_BINDING
+            } else {
+                wgpu::TextureUsages::empty()
+            };
+
         let color_textures: Vec<wgpu::Texture> = formats
             .iter()
             .enumerate()
@@ -82,9 +98,7 @@ impl ResourceManager {
                     format!("{}_tex_{}", name, idx).as_str(),
                     size,
                     *format,
-                    wgpu::TextureUsages::RENDER_ATTACHMENT
-                        | wgpu::TextureUsages::TEXTURE_BINDING
-                        | wgpu::TextureUsages::STORAGE_BINDING,
+                    usages,
                 )
             })
             .collect();
@@ -132,10 +146,18 @@ impl ResourceManager {
         size: winit::dpi::PhysicalSize<u32>,
         formats: &[wgpu::TextureFormat],
         clear_color: Option<wgpu::Color>,
+        storage: bool,
         save_prev: bool,
     ) {
-        let color_handles =
-            self.create_framebuffer_textures(name, renderer, size, formats, clear_color, false);
+        let color_handles = self.create_framebuffer_textures(
+            name,
+            renderer,
+            size,
+            formats,
+            clear_color,
+            storage,
+            false,
+        );
 
         self.framebuffers
             .entry(name.to_string())
@@ -143,8 +165,15 @@ impl ResourceManager {
             .extend(color_handles.iter());
 
         if save_prev {
-            let alt_color_handles =
-                self.create_framebuffer_textures(name, renderer, size, formats, clear_color, true);
+            let alt_color_handles = self.create_framebuffer_textures(
+                name,
+                renderer,
+                size,
+                formats,
+                clear_color,
+                storage,
+                true,
+            );
 
             self.alt_framebuffers
                 .entry(name.to_string())
@@ -161,6 +190,7 @@ impl ResourceManager {
         formats: &[wgpu::TextureFormat],
         clear_color: Option<wgpu::Color>,
         clear_depth: bool,
+        storage: bool,
         save_prev: bool,
     ) {
         let (depth_handle, color_handles) = self.create_depth_framebuffer_textures(
@@ -170,6 +200,7 @@ impl ResourceManager {
             formats,
             clear_color,
             clear_depth,
+            storage,
             false,
         );
 
@@ -186,6 +217,7 @@ impl ResourceManager {
                 formats,
                 clear_color,
                 clear_depth,
+                storage,
                 true,
             );
 
@@ -202,6 +234,7 @@ impl ResourceManager {
         renderer: &mut Renderer,
         formats: &[wgpu::TextureFormat],
         clear_color: Option<wgpu::Color>,
+        storage: bool,
         save_prev: bool,
     ) {
         let surface_size = renderer.surface_size();
@@ -211,6 +244,7 @@ impl ResourceManager {
             surface_size,
             formats,
             clear_color,
+            storage,
             save_prev,
         )
     }
@@ -222,6 +256,7 @@ impl ResourceManager {
         formats: &[wgpu::TextureFormat],
         clear_color: Option<wgpu::Color>,
         clear_depth: bool,
+        storage: bool,
         save_prev: bool,
     ) {
         let surface_size = renderer.surface_size();
@@ -232,6 +267,7 @@ impl ResourceManager {
             formats,
             clear_color,
             clear_depth,
+            storage,
             save_prev,
         )
     }
