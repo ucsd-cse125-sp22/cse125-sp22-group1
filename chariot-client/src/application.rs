@@ -270,6 +270,9 @@ impl Application {
                 ClientBoundPacket::StartNextGame => {
                     self.graphics.load_pregame();
                 }
+                ClientBoundPacket::VotingCooldown => self
+                    .graphics
+                    .maybe_set_announcement_state(AnnouncementState::None),
             }
         }
     }
