@@ -189,10 +189,11 @@ impl Application {
                 ClientBoundPacket::PowerupPickup => println!("we got a powerup!"),
                 ClientBoundPacket::VotingStarted {
                     time_until_vote_end,
+                    question,
                     ..
                 } => {
-                    // TODO: num_options constant
-                    self.graphics.begin_audience_voting(4, time_until_vote_end);
+                    self.graphics
+                        .begin_audience_voting(question.options.len(), time_until_vote_end);
 
                     self.sfx_manager.play(
                         get_sfx(SoundEffect::InteractionVoteStart),
@@ -207,11 +208,13 @@ impl Application {
                     question,
                     decision,
                     time_effect_is_live,
+                    winner_idx,
                 } => {
                     self.graphics.start_audience_interaction(
                         question,
                         decision,
                         time_effect_is_live,
+                        winner_idx,
                     );
 
                     self.sfx_manager.play(
