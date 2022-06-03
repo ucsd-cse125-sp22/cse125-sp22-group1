@@ -128,8 +128,8 @@ impl PlayerEntity {
     ) -> PlayerEntity {
         let mut has_collided_with_players = false;
         let minimum_player_height = match ramp_collision_result {
-            RampCollisionResult::NoEffect => 1.0,
-            RampCollisionResult::Collision { .. } => 1.0,
+            RampCollisionResult::NoEffect => 0.32,
+            RampCollisionResult::Collision { .. } => 0.32,
             RampCollisionResult::Driveable { ramp } => ramp.get_height_at_coordinates(
                 self.entity_location.position.x,
                 self.entity_location.position.z,
