@@ -25,6 +25,7 @@ use crate::drawable::technique::ShadeDirectTechnique;
 use crate::drawable::technique::SimpleFSQTechnique;
 use crate::drawable::technique::SkyboxTechnique;
 use crate::drawable::technique::Technique;
+use crate::drawable::AnimatedUIDrawable;
 use crate::drawable::Drawable;
 use crate::drawable::RenderContext;
 use crate::drawable::StaticMeshDrawable;
@@ -34,8 +35,8 @@ use crate::resources::*;
 use crate::scenegraph::components::*;
 use crate::scenegraph::particle_system::*;
 use crate::scenegraph::*;
-use crate::ui_state::{AnnouncementState, CountdownState};
 use crate::ui_state::UIState;
+use crate::ui_state::{AnnouncementState, CountdownState};
 
 pub fn register_passes(renderer: &mut Renderer) {
     StaticMeshDrawable::register(renderer);
@@ -132,6 +133,8 @@ pub struct GraphicsManager {
     prev_proj: glam::Mat4,
     iteration: u32,
     camera_entity: Entity,
+    pub test_ui: AnimatedUIDrawable,
+    pub white_box_tex: TextureHandle,
 }
 
 impl GraphicsManager {
@@ -313,29 +316,22 @@ impl GraphicsManager {
         let world = setup_void();
         let shade_direct = ShadeDirectTechnique::new(&renderer, &resources, quad_handle);
         let skybox = SkyboxTechnique::new(&renderer, &resources, quad_handle);
-        let downsample = DownsampleTechnique::new(
-            &renderer,
-            &resources,
-            "shade_direct_out",
-            0,
-            quad_handle,
-        );
+        let downsample =
+            DownsampleTechnique::new(&renderer, &resources, "shade_direct_out", 0, quad_handle);
         let hibl = HBILTechnique::new(&renderer, &resources, quad_handle);
         let hibl_debayer = HBILDebayerTechnique::new(&renderer, &resources, quad_handle);
-        let downsample_bloom =
-            DownsampleBloomTechnique::new(&renderer, &resources, quad_handle);
-        let kawase_blur_down =
-            KawaseBlurDownTechnique::new(&renderer, &resources, quad_handle);
-        let kawase_blur_up =
-            KawaseBlurUpTechnique::new(&renderer, &resources, quad_handle);
-        let composite_bloom =
-            CompositeBloomTechnique::new(&renderer, &resources, quad_handle);
-        let simple_fsq = SimpleFSQTechnique::new(
+        let downsample_bloom = DownsampleBloomTechnique::new(&renderer, &resources, quad_handle);
+        let kawase_blur_down = KawaseBlurDownTechnique::new(&renderer, &resources, quad_handle);
+        let kawase_blur_up = KawaseBlurUpTechnique::new(&renderer, &resources, quad_handle);
+        let composite_bloom = CompositeBloomTechnique::new(&renderer, &resources, quad_handle);
+        let simple_fsq =
+            SimpleFSQTechnique::new(&renderer, &resources, "composite_bloom_out", 0, quad_handle);
+
+        let white_box_tex = resources.import_texture_embedded(
             &renderer,
-            &resources,
-            "composite_bloom_out",
-            0,
-            quad_handle,
+            "box.png",
+            assets::ui::WHITE_TEXTURE,
+            ImageFormat::Png,
         );
 
         Self {
@@ -362,6 +358,8 @@ impl GraphicsManager {
             fire_particle_system,
             smoke_particle_system,
             camera_entity: NULL_ENTITY,
+            test_ui: AnimatedUIDrawable::new(),
+            white_box_tex,
         }
     }
 
@@ -679,7 +677,7 @@ impl GraphicsManager {
     }
 
     pub fn render(&mut self) {
-        self.update_voting_announcements();
+        self.update_dynamic_ui();
 
         let world_root = self.world.root();
         let root_xform = self
@@ -805,7 +803,7 @@ impl GraphicsManager {
                         acc_model = *acc
                             * Transform {
                                 translation: cur_transform.translation,
-                                rotation: rotation,
+                                rotation,
                                 scale: cur_transform.scale,
                             }
                             .to_mat4();
@@ -916,6 +914,8 @@ impl GraphicsManager {
                 announcement_state,
                 minimap_ui,
                 timer_ui,
+                lap_ui,
+                interaction_ui,
                 countdown_ui,
                 ..
             } => {
@@ -933,12 +933,20 @@ impl GraphicsManager {
                 let minimap_ui_graph = minimap_ui.render_graph(&render_context);
                 render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, minimap_ui_graph);
 
+                let lap_ui_graph = lap_ui.render_graph(&render_context);
+                render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, lap_ui_graph);
+
                 let timer_ui_graph = timer_ui.render_graph(&render_context);
                 render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, timer_ui_graph);
+
                 if let Some(countdown_ui) = countdown_ui {
                     let countdown_ui_graph = countdown_ui.render_graph(&render_context);
                     render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, countdown_ui_graph);
                 }
+
+                // commenting out now, will merge this in later
+                // let interaction_ui_graph = interaction_ui.render_graph(&render_context);
+                // render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, interaction_ui_graph);
             }
             UIState::MainMenu { background } => {
                 let ui_graph = background.render_graph(&render_context);

@@ -1,15 +1,18 @@
-use std::time::Duration;
-use chariot_core::player::choices::Chair;
 use crate::ui_state::CountdownState;
+use chariot_core::player::choices::Chair;
+use std::time::Duration;
 
-// backgrounds
+// main menu
 pub const HOME_BACKGROUND: &[u8] = include_bytes!("homebackground.png");
-pub const CHAIR_SELECT_BACKGROUND: &[u8] = include_bytes!("chair-select/background.png");
+pub const MAIN_MENU_BACKGROUND: &[u8] = include_bytes!("main-menu/BG.png");
+pub const MAIN_MENU_FOREGROUND: &[u8] = include_bytes!("main-menu/Chars.png");
+pub const MAIN_MENU_TITLE: &[u8] = include_bytes!("main-menu/Title.png");
 
 // icon
 pub const ICON: &[u8] = include_bytes!("icon.png");
 
 // chair select rectangles
+pub const CHAIR_SELECT_BACKGROUND: &[u8] = include_bytes!("chair-select/background.png");
 const CHAIR_SELECT_RECT0: &[u8] = include_bytes!("chair-select/select/p0rectangle.png");
 const CHAIR_SELECT_RECT1: &[u8] = include_bytes!("chair-select/select/p1rectangle.png");
 const CHAIR_SELECT_RECT2: &[u8] = include_bytes!("chair-select/select/p2rectangle.png");
@@ -86,6 +89,9 @@ pub fn get_countdown_asset(countdown_state: CountdownState) -> Option<&'static [
         CountdownState::Three => Some(COUNTDOWN_3),
         CountdownState::Two => Some(COUNTDOWN_2),
         CountdownState::One => Some(COUNTDOWN_1),
-        CountdownState::Start => Some(COUNTDOWN_START)
+        CountdownState::Start => Some(COUNTDOWN_START),
     }
 }
+
+// blank ui helper
+pub const WHITE_TEXTURE: &[u8] = include_bytes!("box.png");

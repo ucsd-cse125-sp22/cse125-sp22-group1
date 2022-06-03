@@ -1,12 +1,15 @@
 use std::ops::Sub;
 use std::time::{Duration, Instant, SystemTime};
 
+use chariot_core::GLOBAL_CONFIG;
 use glam::Vec2;
 use image::ImageFormat;
 use lazy_static::lazy_static;
 
 use chariot_core::player::choices::Chair;
 
+use crate::drawable::AnimatedUIDrawable;
+use crate::renderer::Renderer;
 use crate::ui::string::{StringAlignment, UIStringBuilder};
 use crate::{
     assets,
@@ -38,7 +41,7 @@ pub enum CountdownState {
     Three,
     Two,
     One,
-    Start
+    Start,
 }
 
 pub enum UIState {
@@ -56,11 +59,14 @@ pub enum UIState {
         countdown_ui: Option<UIDrawable>,
         countdown_state: CountdownState,
         place_position_image: UIDrawable,
+        minimap_ui: UIDrawable,
+        timer_ui: UIDrawable,
+        lap_ui: UIDrawable,
+        // to be deprecated
         game_announcement_title: UIDrawable,
         game_announcement_subtitle: UIDrawable,
         announcement_state: AnnouncementState,
-        minimap_ui: UIDrawable,
-        timer_ui: UIDrawable,
+        interaction_ui: AnimatedUIDrawable,
     },
 }
 
@@ -78,14 +84,18 @@ lazy_static! {
             .content("")
             .position(0.50, 0.14);
     static ref PLACEMENT_TEXT: UIStringBuilder =
-        UIStringBuilder::new(*assets::fonts::PLACEMENT_FONT_SELECTION)
+        UIStringBuilder::new(*assets::fonts::PLACEMENT_TEXT_FONT)
             .alignment(StringAlignment::RIGHT)
             .content("")
             .position(1.0, 0.057);
     static ref TIMER_TEXT: UIStringBuilder = UIStringBuilder::new(assets::fonts::PRIMARY_FONT)
-        .alignment(StringAlignment::RIGHT)
+        .alignment(StringAlignment::LEFT)
         .content("00:00:000")
-        .position(0.95, 0.9);
+        .position(30.0 / 1280.0, 651.0 / 720.0);
+    static ref LAP_TEXT: UIStringBuilder = UIStringBuilder::new(*assets::fonts::LAP_TEXT_FONT)
+        .alignment(StringAlignment::LEFT)
+        .content(format!("lap 0/{}", GLOBAL_CONFIG.number_laps).as_str())
+        .position(30.0 / 1280.0, 0.35);
 }
 
 impl GraphicsManager {
@@ -120,6 +130,16 @@ impl GraphicsManager {
                 .clone()
                 .content(subtitle)
                 .build_drawable(&self.renderer, &mut self.resources);
+        }
+    }
+
+    pub fn update_dynamic_ui(&mut self) {
+        self.update_voting_announcements();
+        self.update_minimap();
+
+        if let UIState::InGameHUD { interaction_ui, .. } = &mut self.ui {
+            // interaction_ui.update(&mut self.renderer);
+            // commenting out for now — it's a little intrusive, but will bring back in a later PR
         }
     }
 
@@ -208,10 +228,82 @@ impl GraphicsManager {
 
     pub fn maybe_set_announcement_state(&mut self, new_announcement_state: AnnouncementState) {
         if let UIState::InGameHUD {
-            announcement_state, ..
+            announcement_state,
+            interaction_ui,
+            ..
         } = &mut self.ui
         {
+            match &new_announcement_state {
+                AnnouncementState::VotingInProgress { vote_end_time, .. } => {
+                    interaction_ui.layers.clear();
+                    interaction_ui.push(UILayerTechnique::new(
+                        &mut self.renderer,
+                        glam::vec2(0.25, 0.0),
+                        glam::vec2(0.5, 0.2),
+                        glam::vec2(0.0, 0.0),
+                        glam::vec2(1.0, 1.0),
+                        self.resources.textures.get(&self.white_box_tex).unwrap(),
+                    ));
+                    interaction_ui
+                        .layers
+                        .last_mut()
+                        .unwrap()
+                        .0
+                        .update_color(&self.renderer, [0.0, 0.0, 0.0, 1.0]);
+                    interaction_ui.push(UILayerTechnique::new(
+                        &mut self.renderer,
+                        glam::vec2(0.26, 0.01),
+                        glam::vec2(0.48, 0.18),
+                        glam::vec2(0.0, 0.0),
+                        glam::vec2(1.0, 1.0),
+                        self.resources.textures.get(&self.white_box_tex).unwrap(),
+                    ));
+                    interaction_ui.push(UILayerTechnique::new(
+                        &mut self.renderer,
+                        glam::vec2(0.26, 0.01),
+                        glam::vec2(0.0, 0.18),
+                        glam::vec2(0.0, 0.0),
+                        glam::vec2(1.0, 1.0),
+                        self.resources.textures.get(&self.white_box_tex).unwrap(),
+                    ));
+                    interaction_ui
+                        .layers
+                        .last_mut()
+                        .unwrap()
+                        .0
+                        .update_color(&self.renderer, [0.527, 0.0, 0.082, 1.0]);
+                    interaction_ui.animate(
+                        2,
+                        None,
+                        Some(glam::vec2(0.48, 0.18)),
+                        *vote_end_time - Instant::now(),
+                    );
+                }
+                AnnouncementState::VoteActiveTime {
+                    prompt: _,
+                    decision,
+                    effect_end_time,
+                } => {
+                    interaction_ui.animate(
+                        2,
+                        None,
+                        Some(glam::vec2(0.0, 0.18)),
+                        *effect_end_time - Instant::now(),
+                    );
+                    ()
+                }
+                _ => interaction_ui.layers.clear(),
+            }
             *announcement_state = new_announcement_state;
+        }
+    }
+
+    pub fn maybe_update_lap(&mut self, lap: u8) {
+        if let UIState::InGameHUD { ref mut lap_ui, .. } = self.ui {
+            *lap_ui = LAP_TEXT
+                .clone()
+                .content(format!("lap {}/{}", lap, GLOBAL_CONFIG.number_laps).as_str())
+                .build_drawable(&self.renderer, &mut self.resources);
         }
     }
 
@@ -244,7 +336,7 @@ impl GraphicsManager {
             *place_position_image = UIDrawable {
                 layers: vec![technique::UILayerTechnique::new(
                     &self.renderer,
-                    glam::vec2(0.85, 0.05),
+                    glam::vec2(1117.0 / 1280.0, 590.0 / 720.0),
                     glam::vec2(0.1, 0.15),
                     glam::vec2(0.0, 0.0),
                     glam::vec2(1.0, 1.0),
@@ -266,12 +358,12 @@ impl GraphicsManager {
                 Ok(elapsed) => match elapsed.as_secs() {
                     1 => CountdownState::Two,
                     0 => CountdownState::One,
-                    _ => CountdownState::Three
+                    _ => CountdownState::Three,
                 },
                 Err(e) => match e.duration().as_secs() {
                     0 => CountdownState::Start,
-                    _ => CountdownState::None
-                }
+                    _ => CountdownState::None,
+                },
             };
 
             // has the countdown state changed? if no, just quit
@@ -551,7 +643,7 @@ impl GraphicsManager {
         let place_position_image = UIDrawable {
             layers: vec![technique::UILayerTechnique::new(
                 &self.renderer,
-                glam::vec2(0.85, 0.05),
+                glam::vec2(1117.0 / 1280.0, 590.0 / 720.0),
                 glam::vec2(0.1, 0.1),
                 glam::vec2(0.0, 0.0),
                 glam::vec2(1.0, 1.0),
@@ -568,6 +660,10 @@ impl GraphicsManager {
             .build_drawable(&self.renderer, &mut self.resources);
 
         let timer_ui = TIMER_TEXT
+            .clone()
+            .build_drawable(&self.renderer, &mut self.resources);
+
+        let lap_ui = LAP_TEXT
             .clone()
             .build_drawable(&self.renderer, &mut self.resources);
 
@@ -632,7 +728,9 @@ impl GraphicsManager {
             minimap_ui,
             timer_ui,
             countdown_ui: None,
-            countdown_state: CountdownState::Three
+            countdown_state: CountdownState::Three,
+            lap_ui,
+            interaction_ui: AnimatedUIDrawable::new(),
         }
     }
 }
