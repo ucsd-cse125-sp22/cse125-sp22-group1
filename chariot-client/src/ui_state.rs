@@ -312,6 +312,7 @@ impl GraphicsManager {
         question: QuestionData,
         choice: QuestionOption,
         duration: Duration,
+        victor_idx: usize,
     ) {
         if let UIState::InGameHUD {
             interaction_ui,
@@ -320,8 +321,6 @@ impl GraphicsManager {
             ..
         } = &mut self.ui
         {
-            // TODO: fix hardcode
-            let victor_idx = 1;
             let local_origin = glam::vec2(
                 0.5 - self.renderer.pixel_x(Self::INTERACTION_VOTING_WIDTH / 2),
                 Self::INTERACTION_VOTING_Y_POS,

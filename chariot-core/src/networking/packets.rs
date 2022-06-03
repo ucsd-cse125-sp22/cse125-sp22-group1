@@ -63,6 +63,7 @@ pub enum ClientBoundPacket {
         decision: QuestionOption,
         #[serde(with = "serde_millis")]
         time_effect_is_live: Duration,
+        winner_idx: usize,
     }, // Sent when the audience has voted on something
     VotingCooldown,
     LapUpdate(LapNumber),       // What lap are you now on?

@@ -208,11 +208,13 @@ impl Application {
                     question,
                     decision,
                     time_effect_is_live,
+                    winner_idx,
                 } => {
                     self.graphics.start_audience_interaction(
                         question,
                         decision,
                         time_effect_is_live,
+                        winner_idx,
                     );
 
                     self.sfx_manager.play(

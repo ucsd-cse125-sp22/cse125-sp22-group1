@@ -543,6 +543,7 @@ impl GameServer {
                                     question: current_question.clone(),
                                     decision: decision.clone(),
                                     time_effect_is_live,
+                                    winner_idx: winner,
                                 });
                             }
 
