@@ -4,6 +4,7 @@ use crate::game::powerup::PowerUp;
 use crate::physics::bounding_box::BoundingBox;
 use chariot_core::entity_location::EntityLocation;
 use chariot_core::player::choices::{Chair, Stat};
+use chariot_core::player::lap_info::Placement;
 use chariot_core::player::{
     lap_info::LapInformation,
     player_inputs::{EngineStatus, PlayerInputs, RotationStatus},
@@ -37,6 +38,7 @@ pub struct PlayerEntity {
     pub sound_effects: Vec<SoundEffect>,
 
     pub placement_data: PlayerProgress,
+    pub cached_place: Option<Placement>,
 
     pub game_start_time: Instant,
 
@@ -271,10 +273,11 @@ impl PlayerEntity {
             physics_changes: self.physics_changes.clone(),
             stats_changes: self.stats_changes.clone(),
             sound_effects,
-            lap_info: self.lap_info,
             current_powerup: self.current_powerup,
             chair: self.chair,
             game_start_time: self.game_start_time,
+            placement_data: self.placement_data,
+            cached_place: self.cached_place,
         };
 
         new_player.apply_physics_changes();

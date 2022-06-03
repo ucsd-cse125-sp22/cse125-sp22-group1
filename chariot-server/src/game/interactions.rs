@@ -3,6 +3,7 @@ use std::time::Instant;
 use crate::physics::{
     physics_changes::PhysicsChangeType, player_entity::PlayerEntity, stats_changes::StatsChange,
 };
+use crate::progress::PlayerProgress;
 use chariot_core::{
     player::{choices::Stat, lap_info::LapInformation},
     questions::AudienceAction,
@@ -76,10 +77,10 @@ pub fn handle_one_time_audience_action(
         AudienceAction::SwapFirstAndLast => {
             let first_idx = players
                 .iter()
-                .position(|player| player.lap_info.placement == 1);
+                .position(|player| player.cached_place.map(|p| p == 1).unwrap_or(false));
             let last_idx = players
                 .iter()
-                .position(|player| player.lap_info.placement == 4);
+                .position(|player| player.cached_place.map(|p| p == 1).unwrap_or(false));
 
             // just do nothing if there's a tie or whatever, that's better than
             // crashing on an unwrap
@@ -88,14 +89,14 @@ pub fn handle_one_time_audience_action(
                 let last_idx = last_idx.unwrap();
 
                 let new_last_position = players[first_idx].entity_location.position;
-                let new_last_lap_info = players[first_idx].lap_info;
+                let new_last_placement_data = players[first_idx].placement_data;
 
                 players[first_idx].entity_location.position =
                     players[last_idx].entity_location.position;
-                players[first_idx].lap_info = players[last_idx].lap_info;
+                players[first_idx].placement_data = players[last_idx].placement_data;
 
                 players[last_idx].entity_location.position = new_last_position;
-                players[last_idx].lap_info = new_last_lap_info;
+                players[last_idx].placement_data = new_last_placement_data;
             }
         }
 
@@ -119,18 +120,26 @@ pub fn handle_one_time_audience_action(
                 .iter()
                 .map(|&i| players[i].entity_location.position)
                 .collect();
-            let lap_infos: Vec<LapInformation> =
-                shuffle_order.iter().map(|&i| players[i].lap_info).collect();
+            let placement_datas: Vec<PlayerProgress> = shuffle_order
+                .iter()
+                .map(|&i| players[i].placement_data)
+                .collect();
 
             for (i, player) in players.iter_mut().enumerate() {
                 player.entity_location.position = positions.get(i).unwrap().to_owned();
-                player.lap_info = lap_infos.get(i).unwrap().to_owned();
+                player.placement_data = placement_datas.get(i).unwrap().to_owned();
             }
         }
 
         AudienceAction::ResetLapCounter => {
             for player in players.iter_mut() {
-                player.lap_info.lap = 1;
+                if let PlayerProgress::Racing {
+                    lap_info: LapInformation { lap, .. },
+                    ..
+                } = &mut player.placement_data
+                {
+                    *lap = 1;
+                }
             }
         }
 

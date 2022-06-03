@@ -73,9 +73,8 @@ pub enum ClientBoundPacket {
 
     // After game
     AllDone {
-        placements: [Placement; 4],
-        // lol
-        times: [(u64, u32); 4],
+        // [place, time: (seconds, nanoseconds)]
+        placements: [(Placement, (u64, u32)); 4],
     },
     StartNextGame,
 }

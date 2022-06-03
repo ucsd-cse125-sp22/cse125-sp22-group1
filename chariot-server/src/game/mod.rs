@@ -4,7 +4,6 @@ use std::thread::{self};
 use std::time::{Duration, Instant};
 
 use chariot_core::player::choices::{Chair, PlayerChoices, Track};
-use chariot_core::player::lap_info::Placement;
 use chariot_core::player::player_inputs::{EngineStatus, PlayerInputs};
 use chariot_core::player::{lap_info::LapInformation, player_inputs::InputEvent, PlayerID};
 use glam::DVec3;
@@ -15,6 +14,7 @@ use chariot_core::networking::Uuid;
 use chariot_core::networking::{
     ClientBoundPacket, ClientConnection, ServerBoundPacket, WebSocketConnection,
 };
+use chariot_core::player::lap_info::Placement;
 use chariot_core::questions::{QuestionData, QUESTIONS};
 use chariot_core::GLOBAL_CONFIG;
 
@@ -22,6 +22,7 @@ use crate::chairs::get_player_start_physics_properties;
 use crate::physics::physics_changes::PhysicsChange;
 use crate::physics::player_entity::PlayerEntity;
 use crate::physics::ramp::RampCollisionResult;
+use crate::progress::PlayerProgress;
 
 use self::interactions::{
     get_physics_change_from_audience_action, get_stats_changes_from_audience_action,
@@ -104,21 +105,11 @@ impl GameServer {
                 .iter_mut()
                 .for_each(|(_, con)| con.fetch_incoming_packets());
 
-            let mut previous_placement_array: Option<[(PlayerID, LapInformation); 4]> = None;
-            if let GamePhase::PlayingGame { .. } = self.game_state.phase {
-                if let Some(map) = &self.game_state.map {
-                    previous_placement_array = Some(get_player_placement_array(
-                        &self.game_state.players,
-                        &map.checkpoints,
-                    ));
-                }
-            }
-
             self.process_incoming_packets();
             self.process_ws_packets();
             self.simulate_game();
 
-            self.sync_state(previous_placement_array);
+            self.sync_state();
 
             // empty outgoing packet queue and send to clients
             self.connections
@@ -264,8 +255,12 @@ impl GameServer {
                             println!("Starting next game!");
                             self.game_state.phase = GamePhase::ConnectingAndChoosingSettings {
                                 force_start: false,
-                                player_choices: placements
-                                    .map(|opt| opt.map(|_| Default::default())), // TODO figure out previous settings?
+                                player_choices: [
+                                    Default::default(),
+                                    Default::default(),
+                                    Default::default(),
+                                    Default::default(),
+                                ],
                             };
                             self.game_state.map = None;
                             need_to_broadcast.push(ClientBoundPacket::StartNextGame);
@@ -379,10 +374,10 @@ impl GameServer {
             GamePhase::CountingDownToGameStart(countdown_end_time) => {
                 if now > *countdown_end_time {
                     println!("Go!!!");
-                    let player_placement = [0, 1, 2, 3].map(|i| {
-                        let mut info = LapInformation::new();
-                        info.placement = i + 1;
-                        info
+                    [0, 1, 2, 3].map(|i| {
+                        self.game_state.players[i].placement_data = PlayerProgress::Racing {
+                            lap_info: LapInformation::new(),
+                        }
                     });
                     // transition to playing game after countdown
                     let vote_cooldown_time = now + Duration::new(10, 0);
@@ -398,8 +393,8 @@ impl GameServer {
                             Standing {
                                 name: idx.to_string(),
                                 chair: self.game_state.players[idx].chair.to_string(),
-                                rank: player_placement[idx].placement,
-                                lap: player_placement[idx].lap,
+                                rank: idx as u8,
+                                lap: 1,
                             }
                         })),
                     );
@@ -417,6 +412,12 @@ impl GameServer {
                 question_idx,
                 ..
             } => {
+                let player_placement_data = Self::find_player_placement(&self.game_state.players);
+
+                for (player_id, placement) in player_placement_data {
+                    self.game_state.players[player_id].cached_place = Some(placement);
+                }
+
                 let ramps = &self
                     .game_state
                     .map
@@ -647,46 +648,62 @@ impl GameServer {
                     .iter()
                     .enumerate()
                     .all(|(player_num, player)| {
-                        player.lap_info.finished || player_num >= self.connections.len()
+                        if let PlayerProgress::Finished { .. } = player.placement_data {
+                            player_num >= self.connections.len()
+                        } else {
+                            false
+                        }
                     })
                 {
-                    let final_placements: [Placement; 4] = self
+                    // Vec<(PlayerID, finish_time)>
+                    let mut final_times = self
                         .game_state
                         .players
                         .iter()
-                        .map(|player| player.lap_info.placement)
-                        .collect::<Vec<Placement>>()
-                        .try_into()
-                        .unwrap();
+                        .map(|player| {
+                            if let PlayerProgress::Finished { finish_time } = player.placement_data
+                            {
+                                finish_time
+                            } else {
+                                panic!()
+                            }
+                        })
+                        .enumerate()
+                        .collect::<Vec<(usize, Duration)>>();
+                    final_times.sort_by(|&(id, dur), (id2, dur2)| dur.cmp(dur2));
 
-                    let final_times: [(u64, u32); 4] = self
-                        .game_state
-                        .players
+                    // Vec<(Placement, (PlayerID, finish_time))>
+                    let mut final_places = final_times
                         .iter()
-                        .map(|player| player.lap_info.finish_time.unwrap_or(Duration::new(0, 0)))
-                        .map(|duration| (duration.as_secs(), duration.subsec_nanos()))
-                        .collect::<Vec<(u64, u32)>>()
+                        .enumerate()
+                        .map(|(zero_based_place, &data)| ((zero_based_place + 1) as u8, data))
+                        .collect::<Vec<(u8, (usize, Duration))>>();
+                    // (
+                    final_places.sort_by(|x, y| x.1 .0.cmp(&y.1 .0));
+
+                    // Vec<(Placement, finish_time)>
+                    let final_placement: [(u8, (u64, u32)); 4] = final_places
+                        .iter()
+                        .map(|(place, (player_id, finish_time))| {
+                            (*place, (finish_time.as_secs(), finish_time.subsec_nanos()))
+                        })
+                        .collect::<Vec<(u8, (u64, u32))>>()
                         .try_into()
                         .unwrap();
 
-                    for (playa, placement) in final_placements.iter().enumerate() {
-                        println!("player {playa} finished {placement}!");
+                    for (playa, (placement, time)) in final_placement.iter().enumerate() {
+                        println!(
+                            "player {playa} finished {placement} in {}:{}!",
+                            time.0, time.1
+                        );
                     }
                     for conn in &mut self.connections {
                         conn.push_outgoing(ClientBoundPacket::AllDone {
-                            placements: final_placements.clone(),
-                            times: final_times,
+                            placements: final_placement.clone(),
                         });
                     }
 
-                    self.game_state.phase =
-                        GamePhase::AllPlayersDone([0, 1, 2, 3].map(|player_num| {
-                            if player_num < self.connections.len() {
-                                Some(final_placements[player_num])
-                            } else {
-                                None
-                            }
-                        }));
+                    self.game_state.phase = GamePhase::AllPlayersDone(final_placement);
                 }
             }
 
@@ -696,78 +713,40 @@ impl GameServer {
         }
     }
 
+    fn find_player_placement(players: &[PlayerEntity; 4]) -> [(PlayerID, Placement); 4] {
+        let mut placement = [0, 1, 2, 3]
+            .map(|player_id| players[player_id].placement_data)
+            .iter()
+            .enumerate()
+            .map(|(id, &d)| (id, d))
+            .collect::<Vec<(PlayerID, PlayerProgress)>>();
+        placement.sort_by(|x, y| x.1.cmp(&y.1));
+        placement
+            .iter()
+            .enumerate()
+            .map(|(place, (playerid, _))| (*playerid as PlayerID, (place + 1) as Placement))
+            .collect::<Vec<(PlayerID, Placement)>>()
+            .try_into()
+            .unwrap()
+    }
+
     // queue up sending updated game state
-    fn sync_state(&mut self, previous_placement_state: Option<[(PlayerID, LapInformation); 4]>) {
+    fn sync_state(&mut self) {
         match self.game_state.phase {
             // These two phases have visible players
-            GamePhase::CountingDownToGameStart(_) | GamePhase::PlayingGame { .. } => {
-                self.sync_player_state()
+            GamePhase::CountingDownToGameStart(_) => self.sync_player_state(),
+            GamePhase::PlayingGame { .. } => {
+                self.sync_player_state();
+                self.update_and_sync_placement_state();
             }
             _ => (),
         }
 
-        if let Some(previous_placement_state) = previous_placement_state {
-            self.update_and_sync_placement_state(previous_placement_state);
-        }
         self.sync_sfx_state();
     }
 
     // send placement data to each client, if its changed
-    fn update_and_sync_placement_state(
-        &mut self,
-        previous_placement_state: [(PlayerID, LapInformation); 4],
-    ) {
-        if let Some(map) = &self.game_state.map {
-            let new_placement_array: [(PlayerID, LapInformation); 4] =
-                get_player_placement_array(&self.game_state.players, &map.checkpoints);
-
-            let mut old_placement_map: HashMap<usize, (usize, LapInformation)> = HashMap::new();
-            let mut player_num_to_info: HashMap<usize, (usize, LapInformation)> = HashMap::new();
-
-            for place_index in 0..4 {
-                let (player_id, lap_information) = previous_placement_state[place_index];
-                old_placement_map.insert(place_index, (player_id, lap_information));
-
-                player_num_to_info.insert(player_id, (place_index, lap_information));
-            }
-
-            for (
-                place_index,
-                &(player_number, lap_information @ LapInformation { lap, placement, .. }),
-            ) in new_placement_array.iter().enumerate()
-            {
-                if self.connections.len() <= player_number {
-                    continue;
-                };
-
-                let old_lap_information = player_num_to_info.get(&player_number).unwrap().1;
-
-                if old_lap_information.lap != lap {
-                    self.connections[player_number]
-                        .push_outgoing(ClientBoundPacket::LapUpdate(lap));
-                } else if old_lap_information.placement != placement {
-                    self.connections[player_number]
-                        .push_outgoing(ClientBoundPacket::PlacementUpdate(placement));
-                }
-
-                println!("{player_number} is in {placement} place!");
-
-                self.game_state.players[player_number].lap_info = lap_information;
-
-                GameServer::broadcast_ws(
-                    &mut self.ws_connections,
-                    WSAudienceBoundMessage::Standings([0, 1, 2, 3].map(|idx| -> Standing {
-                        Standing {
-                            name: idx.to_string(),
-                            chair: self.game_state.players[idx].chair.to_string(),
-                            rank: self.game_state.players[idx].lap_info.placement,
-                            lap: self.game_state.players[idx].lap_info.lap,
-                        }
-                    })),
-                );
-            }
-        }
-    }
+    fn update_and_sync_placement_state(&mut self) {}
 
     // send player location and velocity data to every client
     fn sync_player_state(&mut self) {

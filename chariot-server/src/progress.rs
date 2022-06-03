@@ -6,6 +6,7 @@ use chariot_core::player::{lap_info::*, PlayerID};
 use std::cmp::Ordering;
 use std::time::Duration;
 
+#[derive(Clone, Copy)]
 pub enum PlayerProgress {
     PreGame,
     Racing { lap_info: LapInformation },

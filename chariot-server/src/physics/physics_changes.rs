@@ -84,7 +84,7 @@ impl PlayerEntity {
                 }
 
                 PhysicsChangeType::SpeedBalanceBoost => {
-                    if self.lap_info.placement != 1 {
+                    if self.cached_place.unwrap_or(5) != 1 {
                         self.velocity *= 1.5;
                     }
                 }

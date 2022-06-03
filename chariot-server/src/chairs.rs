@@ -5,7 +5,6 @@ use chariot_core::{
     entity_location::EntityLocation,
     player::{
         choices::Chair,
-        lap_info::LapInformation,
         player_inputs::{EngineStatus, PlayerInputs, RotationStatus},
         PlayerID,
     },
@@ -13,6 +12,7 @@ use chariot_core::{
 use glam::DVec3;
 
 use crate::physics::player_entity::PlayerEntity;
+use crate::progress::PlayerProgress;
 
 // We could implement something to load mass and size from a file or whatever,
 // but it's probably just fine to hard-code them in here
@@ -42,9 +42,10 @@ pub fn get_player_start_physics_properties(chair: &Chair, player_number: PlayerI
         stats_changes: vec![],
         current_colliders: vec![],
         sound_effects: vec![],
-        lap_info: LapInformation::new(),
         current_powerup: None,
         chair: *chair,
         game_start_time: Instant::now(),
+        placement_data: PlayerProgress::PreGame,
+        cached_place: None,
     };
 }
