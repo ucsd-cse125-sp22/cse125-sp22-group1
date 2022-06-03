@@ -205,7 +205,7 @@ impl GraphicsManager {
         resources.register_surface_framebuffer(
             "hbil_out",
             &mut renderer,
-            &[wgpu::TextureFormat::Rgba8Unorm],
+            &[wgpu::TextureFormat::Rgba16Float],
             Some(wgpu::Color::TRANSPARENT),
             false,
         );
@@ -213,7 +213,7 @@ impl GraphicsManager {
         resources.register_surface_framebuffer(
             "hbil_debayer_out",
             &mut renderer,
-            &[wgpu::TextureFormat::Rgba8Unorm],
+            &[wgpu::TextureFormat::Rgba16Float],
             Some(wgpu::Color::TRANSPARENT),
             false,
         );
@@ -869,7 +869,7 @@ impl GraphicsManager {
             .downsample_bloom
             .render_item(&render_context)
             .to_graph();
-        render_job.merge_graph_after(DownsampleTechnique::PASS_NAME, downsample_bloom_graph);
+        render_job.merge_graph_after(HBILDebayerTechnique::PASS_NAME, downsample_bloom_graph);
 
         let kawase_down_graph = self
             .kawase_blur_down

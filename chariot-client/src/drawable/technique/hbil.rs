@@ -52,7 +52,7 @@ impl Technique for HBILTechnique {
             &util::indirect_graphics_nodepth_pass!(
                 &shaders::HBIL,
                 false,
-                [wgpu::TextureFormat::Rgba8Unorm],
+                [wgpu::TextureFormat::Rgba16Float],
                 [Some(wgpu::BlendState::REPLACE)]
             ),
         );
@@ -61,7 +61,7 @@ impl Technique for HBILTechnique {
             hbil_technique::INV_VIEW_PROJ.set(TransformUniform::new(renderer, Self::PASS_NAME, 1));
 
         if res.is_err() {
-            panic!("Can't register this technique twice!");
+            println!("Re-registering technique but not resetting static uniforms");
         }
     }
 
@@ -128,7 +128,7 @@ impl Technique for HBILDebayerTechnique {
             &util::indirect_graphics_nodepth_pass!(
                 &shaders::HBIL_DEBAYER,
                 false,
-                [wgpu::TextureFormat::Rgba8Unorm],
+                [wgpu::TextureFormat::Rgba16Float],
                 [Some(wgpu::BlendState::REPLACE)]
             ),
         );

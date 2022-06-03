@@ -230,9 +230,12 @@ impl CompositeBloomTechnique {
 
         let material = MaterialBuilder::new(renderer, resources, Self::PASS_NAME)
             .framebuffer_texture_resource(0, 0, "shade_direct_out", 0, false)
-            .framebuffer_texture_resource(0, 1, "kawase_blur_up_out", 0, false)
-            .framebuffer_texture_resource(0, 2, "hbil_debayer_out", 0, false)
-            .sampler_resource(0, 3, sampler)
+            .framebuffer_texture_resource(0, 1, "geometry_out", 0, false)
+            .framebuffer_texture_resource(0, 2, "geometry_out", 1, false)
+            .framebuffer_texture_resource(0, 3, "geometry_out", 2, false)
+            .framebuffer_texture_resource(0, 4, "kawase_blur_up_out", 0, false)
+            .framebuffer_texture_resource(0, 5, "hbil_debayer_out", 0, false)
+            .sampler_resource(0, 6, sampler)
             .produce();
 
         Self {

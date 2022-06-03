@@ -94,7 +94,7 @@ fn update_horizon(nei_screen_pos: vec2<f32>, view_pos: vec3<f32>, cos_sin_alpha:
 
 	let z = view_pos.z - 0.01;
 	let z_diff = z - nei_z;
-	if (distance(view_pos, nei_view_pos) > 1.0) { // reject if too far away
+	if (distance(view_pos, nei_view_pos) > 1.0 || nei_depth == 1.0) { // reject if too far away
 		return vec3<f32>(0.0, 0.0, 0.0);
 	}
 
@@ -126,7 +126,7 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 
 	let depth = textureLoad(t_depth, tc, 0).r;
 	if (depth == 1.0) { // skybox exit
-		return vec4<f32>(1.0, 1.0, 1.0, 1.0);
+		return vec4<f32>(0.0, 0.0, 0.0, 1.0);
 	}
 
 
@@ -136,7 +136,7 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 	let oct_normal_matid = textureLoad(t_normal, tc, 0).xyz;
 	let mat_id = oct_normal_matid.z;
 	if (mat_id > 0.1) {
-		return vec4<f32>(1.0, 1.0, 1.0, 1.0);
+		return vec4<f32>(0.0, 0.0, 0.0, 1.0);
 	}
 
 	let oct_normal = oct_normal_matid.xy * 2.0 - 1.0;
@@ -159,7 +159,7 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 
 	var total_irradiance = vec3<f32>(0.0, 0.0, 0.0);
 
-	var cos_theta_front = 0.0; //t / sqrt(1.0 + t * t);
+	var cos_theta_front = t / sqrt(1.0 + t * t);
 	var screen_pos_front = in.xy;
 	for(var i: i32 = 0; i < num_samples; i = i + 1) {
 		screen_pos_front = screen_pos_front + slice_dir;
@@ -168,7 +168,7 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 	}
 
 	let cos_sin_alpha_back = vec2<f32>(cos_sin_alpha.x, cos_sin_alpha.y);
-	var cos_theta_back = 0.0; //t / sqrt(1.0 + t * t);
+	var cos_theta_back = t / sqrt(1.0 + t * t);
 	var screen_pos_back = in.xy;
 	for(var i: i32 = 0; i < num_samples; i = i + 1) {
 		screen_pos_back = screen_pos_back - slice_dir;
@@ -179,6 +179,6 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 
 	let ao = (2.0 - cos_theta_back - cos_theta_front);
 	let shaded = vec3<f32>(ao, ao, ao); //total_irradiance * ao;
-	return vec4<f32>(shaded, 1.0);
+	return vec4<f32>(total_irradiance, ao);
 	//return vec4<f32>(view_dir * 0.5 + 0.5, 1.0);
 }
