@@ -1,5 +1,6 @@
 use std::time::{Duration, Instant};
 
+use chariot_core::GLOBAL_CONFIG;
 use glam::Vec2;
 use image::ImageFormat;
 use lazy_static::lazy_static;
@@ -70,17 +71,18 @@ lazy_static! {
             .alignment(StringAlignment::CENTERED)
             .content("")
             .position(0.50, 0.14);
-    static ref PLACEMENT_TEXT: UIStringBuilder = UIStringBuilder::new(*assets::fonts::PRESS_START)
-        .alignment(StringAlignment::RIGHT)
-        .content("")
-        .position(1.0, 0.057);
+    static ref PLACEMENT_TEXT: UIStringBuilder =
+        UIStringBuilder::new(*assets::fonts::PLACEMENT_TEXT_FONT)
+            .alignment(StringAlignment::RIGHT)
+            .content("")
+            .position(1.0, 0.057);
     static ref TIMER_TEXT: UIStringBuilder = UIStringBuilder::new(assets::fonts::PRIMARY_FONT)
-        .alignment(StringAlignment::RIGHT)
-        .content("00:00:000")
-        .position(0.95, 0.9);
-    static ref LAP_TEXT: UIStringBuilder = UIStringBuilder::new(*assets::fonts::PRESS_START)
         .alignment(StringAlignment::LEFT)
-        .content("Lap 0/3")
+        .content("00:00:000")
+        .position(30.0 / 1280.0, 651.0 / 720.0);
+    static ref LAP_TEXT: UIStringBuilder = UIStringBuilder::new(*assets::fonts::LAP_TEXT_FONT)
+        .alignment(StringAlignment::LEFT)
+        .content(format!("lap 0/{}", GLOBAL_CONFIG.number_laps).as_str())
         .position(30.0 / 1280.0, 0.35);
 }
 
@@ -288,7 +290,7 @@ impl GraphicsManager {
         if let UIState::InGameHUD { ref mut lap_ui, .. } = self.ui {
             *lap_ui = LAP_TEXT
                 .clone()
-                .content(format!("lap {lap}/3").as_str())
+                .content(format!("lap {}/{}", lap, GLOBAL_CONFIG.number_laps).as_str())
                 .build_drawable(&self.renderer, &mut self.resources);
         }
     }
@@ -322,7 +324,8 @@ impl GraphicsManager {
             *place_position_image = UIDrawable {
                 layers: vec![technique::UILayerTechnique::new(
                     &self.renderer,
-                    glam::vec2(0.85, 0.05),
+                    // glam::vec2(0.85, 0.05), // old position
+                    glam::vec2(1117.0 / 1280.0, 590.0 / 720.0),
                     glam::vec2(0.1, 0.15),
                     glam::vec2(0.0, 0.0),
                     glam::vec2(1.0, 1.0),
@@ -569,7 +572,8 @@ impl GraphicsManager {
         let place_position_image = UIDrawable {
             layers: vec![technique::UILayerTechnique::new(
                 &self.renderer,
-                glam::vec2(0.85, 0.05),
+                // glam::vec2(0.85, 0.05), // old position
+                glam::vec2(1117.0 / 1280.0, 590.0 / 720.0),
                 glam::vec2(0.1, 0.1),
                 glam::vec2(0.0, 0.0),
                 glam::vec2(1.0, 1.0),

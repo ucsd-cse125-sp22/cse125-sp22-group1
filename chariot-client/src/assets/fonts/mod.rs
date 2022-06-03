@@ -6,11 +6,17 @@ flate!(static PRESS_START_FONT_DATA: [u8] from "src/assets/fonts/PressStart2P-Re
 
 // we have to use lazy static here because we don't actually know the address of PRESS_START in advance
 lazy_static! {
-    pub static ref PRESS_START: FontSelection = FontSelection {
+    pub static ref PLACEMENT_TEXT_FONT: FontSelection = FontSelection {
         source: FontSource::EmbeddedFont {
             data: &PRESS_START_FONT_DATA
         },
         point_size: 38,
+    };
+    pub static ref LAP_TEXT_FONT: FontSelection = FontSelection {
+        source: FontSource::EmbeddedFont {
+            data: &PRESS_START_FONT_DATA
+        },
+        point_size: 28,
     };
 }
 
