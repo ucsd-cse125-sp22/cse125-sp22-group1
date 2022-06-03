@@ -6,6 +6,7 @@ use image::ImageFormat;
 use lazy_static::lazy_static;
 
 use chariot_core::player::choices::Chair;
+use chariot_core::player::lap_info::Placement;
 use chariot_core::questions::{QuestionData, QuestionOption};
 
 use crate::assets::ui::get_chair_icon;
@@ -65,6 +66,7 @@ pub enum UIState {
         interaction_text: UIDrawable,
         interaction_state: InteractionState,
         join_the_audience_image: UIDrawable,
+        finished_text: UIDrawable,
     },
     FinalStandings {
         final_standings_ui: UIDrawable,
@@ -125,6 +127,11 @@ lazy_static! {
         UIStringBuilder::new(*assets::fonts::LAP_TEXT_FONT)
             .alignment(StringAlignment::CENTERED)
             .content("The audience is deciding your fate...");
+    static ref FINISHED_TEXT: UIStringBuilder =
+        UIStringBuilder::new(*assets::fonts::PLACEMENT_TEXT_FONT)
+            .alignment(StringAlignment::CENTERED)
+            .position(0.5, 0.5)
+            .content("");
 }
 
 impl GraphicsManager {
@@ -496,6 +503,27 @@ impl GraphicsManager {
         None
     }
 
+    pub fn display_finished_text(&mut self, placement: u8) {
+        if let UIState::InGameHUD {
+            ref mut finished_text,
+            ..
+        } = self.ui
+        {
+            let message = match placement {
+                1 => "Congratulations, you came in 1st!",
+                2 => "Nice, you finished in 2nd!",
+                3 => "Not bad, you managed to arrive in 3rd.",
+                4 => "Oof, you took the L in 4th...",
+                _ => "Race Finished",
+            };
+
+            *finished_text = FINISHED_TEXT
+                .clone()
+                .content(message)
+                .build_drawable(&self.renderer, &mut self.resources);
+        }
+    }
+
     pub fn display_main_menu(&mut self) {
         let background_handle = self.resources.import_texture_embedded(
             &self.renderer,
@@ -865,6 +893,7 @@ impl GraphicsManager {
             interaction_text: UIDrawable { layers: vec![] },
             interaction_state: InteractionState::None,
             join_the_audience_image,
+            finished_text: UIDrawable { layers: vec![] },
         }
     }
 

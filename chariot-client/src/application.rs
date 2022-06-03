@@ -277,6 +277,9 @@ impl Application {
                     );
                 }
                 ClientBoundPacket::VotingCooldown => (),
+                ClientBoundPacket::FinishedLaps(placement) => {
+                    self.graphics.display_finished_text(placement);
+                }
             }
         }
     }
