@@ -144,6 +144,10 @@ impl GameServer {
                 match packet {
                     ServerBoundPacket::ChairSelect(new_chair) => match &mut self.game_state.phase {
                         GamePhase::ConnectingAndChoosingSettings { player_choices, .. } => {
+                            if player_choices[player_num].is_none() {
+                                player_choices[player_num] = Some(Default::default());
+                            }
+
                             if let Some(PlayerChoices { chair, .. }) =
                                 &mut player_choices[player_num]
                             {
@@ -251,16 +255,11 @@ impl GameServer {
                         }
                     },
                     ServerBoundPacket::NextGame => {
-                        if let GamePhase::AllPlayersDone(placements) = self.game_state.phase {
+                        if let GamePhase::AllPlayersDone(_placements) = self.game_state.phase {
                             println!("Starting next game!");
                             self.game_state.phase = GamePhase::ConnectingAndChoosingSettings {
                                 force_start: false,
-                                player_choices: [
-                                    Default::default(),
-                                    Default::default(),
-                                    Default::default(),
-                                    Default::default(),
-                                ],
+                                player_choices: Default::default(),
                             };
                             self.game_state.map = None;
                             need_to_broadcast.push(ClientBoundPacket::StartNextGame);
@@ -422,8 +421,6 @@ impl GameServer {
                                 .push_outgoing(ClientBoundPacket::PlacementUpdate(placement));
                         }
                     }
-
-                    //println!("player #{player_id} in place {placement}");
                 }
 
                 let ramps = &self
