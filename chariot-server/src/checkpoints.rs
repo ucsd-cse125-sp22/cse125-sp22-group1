@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use crate::physics::bounding_box::BoundingBox;
 use crate::physics::{player_entity::PlayerEntity, trigger_entity::TriggerEntity};
 use chariot_core::player::lap_info::*;
@@ -91,6 +93,7 @@ impl TriggerEntity for FinishLine {
         if player.lap_info.zone == self.last_zone {
             if player.lap_info.lap == GLOBAL_CONFIG.number_laps {
                 player.lap_info.finished = true;
+                player.lap_info.finish_time = Some(Instant::now() - player.game_start_time);
                 println!("Player has finished {}!", player.lap_info.placement);
             } else {
                 player.lap_info.lap += 1;

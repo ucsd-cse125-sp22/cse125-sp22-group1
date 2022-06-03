@@ -1,11 +1,8 @@
 use std::collections::HashMap;
 
-use chariot_core::networking::ws::{
-    QuestionResult, Standing, WSAudienceBoundMessage, WSServerBoundMessage,
-};
+use chariot_core::networking::ws::{Standing, WSAudienceBoundMessage, WSServerBoundMessage};
 use chariot_core::networking::Uuid;
 use chariot_core::networking::WebSocketConnection;
-use chariot_core::questions::QuestionOption;
 
 use crate::game::phase::VotingState;
 use crate::game::GameServer;
@@ -123,7 +120,7 @@ impl GameServer {
     }
 
     // depending on the game state, this function will maybe get the voting state
-    pub fn _maybe_get_voting_state(&self) -> Option<(QuestionOption, usize, Vec<QuestionResult>)> {
+    pub fn get_vote_counts(&self) -> Vec<u32> {
         if let GamePhase::PlayingGame {
             voting_game_state, ..
         } = &self.game_state.phase
@@ -136,8 +133,6 @@ impl GameServer {
             {
                 let mut counts = HashMap::new();
 
-                let total_vote_count = audience_votes.len();
-
                 for vote in audience_votes {
                     *counts.entry(vote.1).or_insert(0) += 1;
                 }
@@ -148,32 +143,32 @@ impl GameServer {
                     .map(|(vote, _c)| vote)
                     .unwrap_or(&&(0 as usize));
 
-                let decision = current_question.options[winner].clone();
-
-                let option_results: Vec<QuestionResult> = current_question
+                let option_results: Vec<u32> = current_question
                     .options
                     .iter()
                     .enumerate()
-                    .map(|(idx, q)| {
-                        let percentage: f32 = if total_vote_count == 0 {
-                            if idx == winner {
-                                1.0 // default to 100% for the winning vote
-                            } else {
-                                0.0
-                            }
+                    .map(|(idx, _q)| {
+                        if idx == winner {
+                            1
                         } else {
-                            *counts.get(&idx).unwrap_or(&0) as f32 / total_vote_count as f32
-                        };
-
-                        QuestionResult {
-                            label: q.label.clone(),
-                            percentage,
+                            *counts.get(&idx).unwrap_or(&0) as u32
                         }
                     })
                     .collect();
-                return Some((decision, winner, option_results));
+
+                println!("game results!");
+                println!("{:?}", option_results);
+                return option_results;
             }
         }
-        None
+
+        let counts: Vec<u32> = vec![
+            rand::random::<u32>() % 50,
+            rand::random::<u32>() % 50,
+            rand::random::<u32>() % 50,
+            rand::random::<u32>() % 50,
+        ];
+
+        return counts;
     }
 }

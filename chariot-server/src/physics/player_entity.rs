@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use crate::game::powerup::PowerUp;
 use crate::physics::bounding_box::BoundingBox;
 use chariot_core::entity_location::EntityLocation;
@@ -35,6 +37,8 @@ pub struct PlayerEntity {
     pub sound_effects: Vec<SoundEffect>,
 
     pub placement_data: PlayerProgress,
+
+    pub game_start_time: Instant,
 
     pub current_powerup: Option<PowerUp>,
     pub chair: Chair,
@@ -270,6 +274,7 @@ impl PlayerEntity {
             lap_info: self.lap_info,
             current_powerup: self.current_powerup,
             chair: self.chair,
+            game_start_time: self.game_start_time,
         };
 
         new_player.apply_physics_changes();

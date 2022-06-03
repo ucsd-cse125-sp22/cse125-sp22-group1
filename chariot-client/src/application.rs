@@ -1,3 +1,4 @@
+use chariot_core::player::choices::Chair;
 use chariot_core::sound_effect::SoundEffect;
 use std::collections::HashSet;
 use std::time::Duration;
@@ -25,6 +26,7 @@ pub struct Application {
     pub sfx_manager: AudioManager,
 
     // everything else haha
+    pub chairs: [Chair; 4],
     pub graphics: GraphicsManager,
     pub game: GameClient,
     pub pressed_keys: HashSet<VirtualKeyCode>,
@@ -52,6 +54,7 @@ impl Application {
             audio_context,
             music_manager,
             sfx_manager,
+            chairs: [Chair::Swivel, Chair::Swivel, Chair::Swivel, Chair::Swivel],
             graphics: graphics_manager,
             game,
             pressed_keys: HashSet::new(),
@@ -118,6 +121,8 @@ impl Application {
                         .as_mut()
                         .expect("Attempted to set chair on player we don't know about!")
                         .chair = chair;
+
+                    self.chairs[player_num] = chair;
                     self.graphics.maybe_display_chair(Some(chair), player_num);
                 }
                 ClientBoundPacket::PlayerMapChoice(player_num, map) => {
@@ -189,10 +194,11 @@ impl Application {
                 ClientBoundPacket::PowerupPickup => println!("we got a powerup!"),
                 ClientBoundPacket::VotingStarted {
                     time_until_vote_end,
+                    question,
                     ..
                 } => {
-                    // TODO: num_options constant
-                    self.graphics.begin_audience_voting(4, time_until_vote_end);
+                    self.graphics
+                        .begin_audience_voting(question.options.len(), time_until_vote_end);
 
                     self.sfx_manager.play(
                         get_sfx(SoundEffect::InteractionVoteStart),
@@ -207,11 +213,13 @@ impl Application {
                     question,
                     decision,
                     time_effect_is_live,
+                    winner_idx,
                 } => {
                     self.graphics.start_audience_interaction(
                         question,
                         decision,
                         time_effect_is_live,
+                        winner_idx,
                     );
 
                     self.sfx_manager.play(
@@ -227,7 +235,7 @@ impl Application {
                         SourceOptions::new(),
                     );
                 }
-                ClientBoundPacket::AllDone(final_placements) => {
+                ClientBoundPacket::AllDone { placements, times } => {
                     self.sfx_manager.play(
                         get_sfx(SoundEffect::GameEnd),
                         &self.audio_context,
@@ -235,7 +243,7 @@ impl Application {
                     );
                     println!(
                         "This game is over! Results:\n{}",
-                        final_placements
+                        placements
                             .iter()
                             .enumerate()
                             .map(|(player_num, place)| format!(
@@ -244,6 +252,9 @@ impl Application {
                             ))
                             .collect::<String>()
                     );
+
+                    self.graphics
+                        .display_final_standings(placements, self.chairs, times);
                 }
                 ClientBoundPacket::StartNextGame => {
                     self.graphics.load_pregame();

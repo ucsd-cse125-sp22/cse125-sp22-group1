@@ -551,6 +551,7 @@ impl GameServer {
                                     question: current_question.clone(),
                                     decision: decision.clone(),
                                     time_effect_is_live,
+                                    winner_idx: winner,
                                 });
                             }
 
@@ -585,12 +586,7 @@ impl GameServer {
                                 decision_end_time: effect_end_time,
                             };
                         } else if self.tick_counter % 10 == 0 {
-                            let counts: Vec<u32> = vec![
-                                rand::random::<u32>() % 50,
-                                rand::random::<u32>() % 50,
-                                rand::random::<u32>() % 50,
-                                rand::random::<u32>() % 50,
-                            ];
+                            let counts = self.get_vote_counts();
                             for conn in self.connections.iter_mut() {
                                 conn.push_outgoing(ClientBoundPacket::VotingUpdate(counts.clone()));
                             }
@@ -662,11 +658,25 @@ impl GameServer {
                         .collect::<Vec<Placement>>()
                         .try_into()
                         .unwrap();
+
+                    let final_times: [(u64, u32); 4] = self
+                        .game_state
+                        .players
+                        .iter()
+                        .map(|player| player.lap_info.finish_time.unwrap_or(Duration::new(0, 0)))
+                        .map(|duration| (duration.as_secs(), duration.subsec_nanos()))
+                        .collect::<Vec<(u64, u32)>>()
+                        .try_into()
+                        .unwrap();
+
                     for (playa, placement) in final_placements.iter().enumerate() {
                         println!("player {playa} finished {placement}!");
                     }
                     for conn in &mut self.connections {
-                        conn.push_outgoing(ClientBoundPacket::AllDone(final_placements.clone()));
+                        conn.push_outgoing(ClientBoundPacket::AllDone {
+                            placements: final_placements.clone(),
+                            times: final_times,
+                        });
                     }
 
                     self.game_state.phase =
