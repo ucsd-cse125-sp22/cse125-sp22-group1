@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - ronak_testing
 
 name: Build Release - Win64
 
@@ -30,6 +31,13 @@ jobs:
         with:
           name: chariot-client
           path: release
+      - name: Publish GitHub Release Artifact
+        uses: SierraSoftworks/gh-releases@v1.0.6
+        with: 
+          token: ${{ secrets.GITHUB_TOKEN }}
+          overwrite: 'true'
+          files: | 
+            - chariot-client  
 
   server_build:
     name: Chariot Server Release Builds
@@ -54,3 +62,10 @@ jobs:
         with:
           name: chariot-server
           path: release
+      - name: Publish GitHub Release Artifact
+        uses: SierraSoftworks/gh-releases@v1.0.6
+        with: 
+          token: ${{ secrets.GITHUB_TOKEN }}
+          overwrite: 'true'
+          files: | 
+            - chariot-server
