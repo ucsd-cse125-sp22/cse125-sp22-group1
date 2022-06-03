@@ -146,8 +146,13 @@ pub enum UIAnimation {
 }
 
 pub struct AnimatedUIDrawable {
-    // [(Layer, PositionAnimation?, SizeAnimation?)]
-    pub layers: Vec<(UILayerTechnique, Option<UIAnimation>, Option<UIAnimation>)>,
+    // [(Layer, PositionAnimation?, SizeAnimation?, ColorAnimation?)]
+    pub layers: Vec<(
+        UILayerTechnique,
+        Option<UIAnimation>,
+        Option<UIAnimation>,
+        Option<UIAnimation>,
+    )>,
     last_update: Instant,
 }
 
@@ -161,6 +166,63 @@ impl AnimatedUIDrawable {
 
     pub fn push(&mut self, ui: UILayerTechnique) {
         self.layers.push((ui, None, None));
+    }
+
+    pub fn pos_to(&mut self, index: usize, end_pos: glam::Vec2, duration: Duration) {
+        if let Some((ui, pos_animation, _, _)) = self.layers.get_mut(index) {
+            if let Some(pos) = end_pos {
+                *pos_animation = Some(UIAnimation::PositionAnimation {
+                    start_pos: ui.pos,
+                    end_pos: pos,
+                    start_time: Instant::now(),
+                    duration,
+                });
+            }
+        }
+    }
+
+    pub fn size_to(&mut self, index: usize, end_size: glam::Vec2, duration: Duration) {
+        if let Some((ui, _, size_animation, _)) = self.layers.get_mut(index) {
+            if let Some(size) = end_size {
+                *size_animation = Some(UIAnimation::SizeAnimation {
+                    start_size: ui.size,
+                    end_size: size,
+                    start_time: Instant::now(),
+                    duration,
+                });
+            }
+        }
+    }
+
+    pub fn col_to(&mut self, index: usize, color: [f32; 4], duration: Duration) {
+        if let Some((ui, _, _, color_animation)) = self.layers.get_mut(index) {
+            if let Some(size) = end_size {
+                *color_animation = Some(UIAnimation::SizeAnimation {
+                    start_size: ui.size,
+                    end_size: size,
+                    start_time: Instant::now(),
+                    duration,
+                });
+            }
+        }
+    }
+
+    pub fn animate(&mut self, index: usize, anim_data: UIAnimation) {
+        if let Some((ui, pos_animation, size_animation, color_animation)) =
+            self.layers.get_mut(index)
+        {
+            match anim_data {
+                UIAnimation::PositionAnimation { .. } => {
+                    *pos_animation = Some(anim_data);
+                }
+                UIAnimation::SizeAnimation { .. } => {
+                    *size_animation = Some(anim_data);
+                }
+                UIAnimation::ColorAnimation { .. } => {
+                    *color_animation = Some(anim_data);
+                }
+            }
+        }
     }
 
     pub fn animate(
