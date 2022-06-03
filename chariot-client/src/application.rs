@@ -247,6 +247,7 @@ impl Application {
                 ClientBoundPacket::StartNextGame => {
                     self.graphics.load_pregame();
                 }
+                ClientBoundPacket::VotingUpdate(_) => println!("Voting Update!"),
             }
         }
     }
