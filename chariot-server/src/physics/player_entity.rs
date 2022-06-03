@@ -11,6 +11,7 @@ use chariot_core::GLOBAL_CONFIG;
 use glam::{DMat3, DVec3};
 
 use crate::physics::trigger_entity::TriggerEntity;
+use crate::progress::PlayerProgress;
 
 use super::physics_changes::PhysicsChange;
 use super::ramp::RampCollisionResult;
@@ -33,7 +34,7 @@ pub struct PlayerEntity {
 
     pub sound_effects: Vec<SoundEffect>,
 
-    pub lap_info: LapInformation,
+    pub placement_data: PlayerProgress,
 
     pub current_powerup: Option<PowerUp>,
     pub chair: Chair,
