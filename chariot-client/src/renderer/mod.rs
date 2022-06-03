@@ -101,7 +101,7 @@ impl Renderer {
 
         let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("depth_buffer_tex"),
-            size: wgpu::Extent3d {
+            size: Extent3d {
                 width: config.width,
                 height: config.height,
                 depth_or_array_layers: 1,
@@ -126,6 +126,28 @@ impl Renderer {
             surface_format,
             depth_texture,
         }
+    }
+
+    pub fn pixel(&self, x: u32, y: u32) -> glam::Vec2 {
+        let wind_size = self.context.window.inner_size();
+        glam::vec2(
+            (x as f32) / (wind_size.width as f32),
+            (y as f32) / (wind_size.height as f32),
+        )
+    }
+
+    pub fn pixel_x(&self, x: u32) -> f32 {
+        (x as f32) / (self.context.window.inner_size().width as f32)
+    }
+
+    pub fn pixel_y(&self, y: u32) -> f32 {
+        (y as f32) / (self.context.window.inner_size().height as f32)
+    }
+
+    pub fn _pixel_scale(&self, coord: (u32, u32)) -> glam::Vec2 {
+        let width = 1280.0;
+        let height = 720.0;
+        glam::vec2((coord.0 as f32) / width, (coord.1 as f32) / height)
     }
 
     // request the operating system redraw the window contents via winit
@@ -342,7 +364,7 @@ impl Renderer {
             &self.queue,
             &wgpu::TextureDescriptor {
                 label: Some(name),
-                size: wgpu::Extent3d {
+                size: Extent3d {
                     width: size.width,
                     height: size.height,
                     depth_or_array_layers: 1,
@@ -627,7 +649,7 @@ impl Renderer {
 
         self.depth_texture = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("depth buffer_tex"),
-            size: wgpu::Extent3d {
+            size: Extent3d {
                 width: config.width,
                 height: config.height,
                 depth_or_array_layers: 1,

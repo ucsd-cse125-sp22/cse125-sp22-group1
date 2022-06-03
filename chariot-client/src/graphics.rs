@@ -13,7 +13,6 @@ use image::ImageFormat;
 use std::f64::consts::PI;
 
 use crate::drawable::particle::ParticleDrawable;
-use crate::drawable::technique;
 use crate::drawable::technique::CompositeBloomTechnique;
 use crate::drawable::technique::DownsampleBloomTechnique;
 use crate::drawable::technique::DownsampleTechnique;
@@ -37,7 +36,6 @@ use crate::scenegraph::components::*;
 use crate::scenegraph::particle_system::*;
 use crate::scenegraph::*;
 use crate::ui_state::UIState;
-use crate::ui_state::{AnnouncementState, CountdownState};
 
 pub fn register_passes(renderer: &mut Renderer) {
     StaticMeshDrawable::register(renderer);
@@ -922,27 +920,17 @@ impl GraphicsManager {
             }
             UIState::InGameHUD {
                 place_position_image,
-                game_announcement_title,
-                game_announcement_subtitle,
-                announcement_state,
                 minimap_ui,
                 timer_ui,
                 lap_ui,
                 interaction_ui,
                 countdown_ui,
+                interaction_text,
                 ..
             } => {
                 let position_graph = place_position_image.render_graph(&render_context);
                 render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, position_graph);
 
-                if let AnnouncementState::None = announcement_state {
-                } else {
-                    let text_graph = game_announcement_title.render_graph(&render_context);
-                    render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, text_graph);
-
-                    let text_graph = game_announcement_subtitle.render_graph(&render_context);
-                    render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, text_graph);
-                }
                 let minimap_ui_graph = minimap_ui.render_graph(&render_context);
                 render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, minimap_ui_graph);
 
@@ -957,9 +945,11 @@ impl GraphicsManager {
                     render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, countdown_ui_graph);
                 }
 
-                // commenting out now, will merge this in later
-                // let interaction_ui_graph = interaction_ui.render_graph(&render_context);
-                // render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, interaction_ui_graph);
+                let interaction_ui_graph = interaction_ui.render_graph(&render_context);
+                render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, interaction_ui_graph);
+
+                let interaction_text_graph = interaction_text.render_graph(&render_context);
+                render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, interaction_text_graph);
             }
             UIState::MainMenu { background } => {
                 let ui_graph = background.render_graph(&render_context);

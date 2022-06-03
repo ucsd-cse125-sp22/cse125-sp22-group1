@@ -6,7 +6,6 @@ use wgpu::util::DeviceExt;
 
 use crate::renderer::render_job::RenderItem;
 use crate::renderer::Renderer;
-use crate::resources::material::Material;
 use crate::resources::material::MaterialBuilder;
 
 pub struct UILayerTechnique {
