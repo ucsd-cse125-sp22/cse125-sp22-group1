@@ -11,7 +11,7 @@ mod shade_direct_technique {
     use once_cell::sync::OnceCell;
 
     pub static INV_VIEW_PROJ: OnceCell<TransformUniform<2>> = OnceCell::new();
-    pub static LIGHT_VIEW_PROJS: OnceCell<Vec<TransformUniform<1>>> = OnceCell::new();
+    pub static LIGHT_VIEW_PROJS: OnceCell<Vec<TransformUniform<2>>> = OnceCell::new();
 }
 
 pub struct ShadeDirectTechnique {
@@ -30,7 +30,7 @@ impl ShadeDirectTechnique {
             .framebuffer_texture_resource(0, 0, "geometry_out", 0, false)
             .framebuffer_texture_resource(0, 1, "geometry_out", 1, false)
             .framebuffer_texture_resource(0, 2, "geometry_out", 2, false)
-            .framebuffer_texture_resource(0, 3, "shadow_out1", 0, false)
+            .framebuffer_texture_resource(0, 3, "vsm_blur_vert_out1", 0, false)
             .produce();
 
         Self {
@@ -80,7 +80,7 @@ impl Technique for ShadeDirectTechnique {
 
         for (idx, (light_view, light_proj)) in context.light_vps.iter().enumerate() {
             let view_proj = (*light_proj) * (*light_view);
-            light_ufms[idx].update(renderer, &[view_proj]);
+            light_ufms[idx].update(renderer, &[*light_view, *light_proj]);
         }
 
         let view_ufm = shade_direct_technique::INV_VIEW_PROJ.get().unwrap();

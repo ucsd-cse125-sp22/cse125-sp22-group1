@@ -115,11 +115,15 @@ macro_rules! shadow_pass {
         crate::renderer::render_job::RenderPassDescriptor::Graphics {
             source: $shadertext,
             push_constant_ranges: &[],
-            targets: Some(&[]),
+            targets: Some(&[wgpu::ColorTargetState {
+                format: wgpu::TextureFormat::Rg16Float,
+                blend: None,
+                write_mask: wgpu::ColorWrites::ALL,
+            }]),
             primitive_state: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
-                cull_mode: Some(wgpu::Face::Front),
+                cull_mode: Some(wgpu::Face::Back),
                 ..wgpu::PrimitiveState::default()
             },
             tests_depth: true,

@@ -9,7 +9,8 @@ struct ViewInfo {
 };
 
 struct LightInfo {
-	view_proj: mat4x4<f32>;
+	view: mat4x4<f32>;
+	proj: mat4x4<f32>;
 };
 
 [[group(0), binding(0)]]
@@ -47,10 +48,25 @@ fn view_pos_from_depth(tex_coord: vec2<f32>, depth: f32) -> vec3<f32> {
 }
 
 fn world_pos_to_light_pos(world_pos: vec3<f32>) -> vec3<f32> {
-	let light_pos_h = light.view_proj * vec4<f32>(world_pos, 1.0);
+	let local_pos = light.view * vec4<f32>(world_pos, 1.0);
+	let light_pos_h = light.proj * local_pos;
 	let light_pos_ndc = light_pos_h.xyz / light_pos_h.w;
-	let light_pos = vec3<f32>(light_pos_ndc.x * 0.5 + 0.5, 1.0 - (light_pos_ndc.y * 0.5 + 0.5), light_pos_ndc.z);
+	let light_pos = vec3<f32>(light_pos_ndc.x * 0.5 + 0.5, 1.0 - (light_pos_ndc.y * 0.5 + 0.5), -local_pos.z);
 	return light_pos;
+}
+
+fn calc_light_coverage(depth_depth2: vec2<f32>, pixel_depth: f32) -> f32
+{
+    let variance = depth_depth2.y - depth_depth2.x * depth_depth2.x;
+    let diff = (pixel_depth - depth_depth2.x) * 10.0;
+    if(diff > 0.0)
+    {
+        return clamp(variance / (variance + diff * diff), 0.0, 1.0);
+    }
+    else
+    {
+        return 1.0;
+    }
 }
 
 fn srgb_to_linear(x: f32) -> f32{
@@ -124,7 +140,7 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 
 	let tc_shadow = vec2<i32>(tcn * shadow_sizef);
 
-	let light_dir = normalize(vec3<f32>(-1.0, -0.5, 0.0)); //vec3<f32>(-0.5, -1.0, 0.5);
+	let light_dir = normalize(vec3<f32>(-1.0, -0.5, 0.1)); //vec3<f32>(-0.5, -1.0, 0.5);
 	let oct_normal_matid = textureLoad(t_normal, tc, 0).xyz;
 	let mat_id = oct_normal_matid.z;
 	let oct_normal = oct_normal_matid.xy * 2.0 - 1.0;
@@ -147,15 +163,16 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 	//let world_pos = world_pos_from_depth(tcn, depth);
 	let light_pos = world_pos_to_light_pos(world_pos);
 	
-	var light_depth: f32 = 1000.0;
+	var light_depth = vec2<f32>(1000.0, 1000.0 * 1000.0);
 	if (light_pos.x > 0.0 && light_pos.x < 1.0 && light_pos.y > 0.0 && light_pos.y < 1.0) {
-		light_depth = textureLoad(t_shadow, vec2<i32>(light_pos.xy * shadow_sizef), 0).r;
+		light_depth = textureLoad(t_shadow, vec2<i32>(light_pos.xy * shadow_sizef), 0).rg;
 	}
 	
-	var shadow = 1.0; 
-	if (light_pos.z > light_depth - 0.00004 && mat_id < 0.5) {
-		shadow = 0.0; 
-	}
+	//var shadow = 1.0; 
+	//if (light_pos.z < light_depth.r - 0.00004 && mat_id < 0.5) {
+	//	shadow = 0.0; 
+	//}
+	let shadow = calc_light_coverage(light_depth, light_pos.z - 0.4);
 
 	let light_color = vec3<f32>(1.0, 0.584, 0.521) * 0.4;
 	let ambient_color = vec3<f32>(0.39, 0.57, 1.0);
