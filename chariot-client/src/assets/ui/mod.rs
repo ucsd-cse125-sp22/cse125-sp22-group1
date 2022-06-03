@@ -65,6 +65,8 @@ const THIRD_PLACE: &[u8] = include_bytes!("placement/3rd.png");
 const FOURTH_PLACE: &[u8] = include_bytes!("placement/4th.png");
 pub const PLACE_IMAGES: [&[u8]; 4] = [FIRST_PLACE, SECOND_PLACE, THIRD_PLACE, FOURTH_PLACE];
 
+pub const RESULTS_BACKGROUND: &[u8] = include_bytes!("final-standings/results-background.png");
+
 // final standings placement cards
 const PLAYER_1_PLACEMENT_CARD: &[u8] = include_bytes!("final-standings/results-1.png");
 const PLAYER_2_PLACEMENT_CARD: &[u8] = include_bytes!("final-standings/results-2.png");

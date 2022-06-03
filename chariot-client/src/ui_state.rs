@@ -569,7 +569,27 @@ impl GraphicsManager {
     }
 
     pub fn display_final_standings(&mut self, positions: [u8; 4], chairs: [Chair; 4]) {
-        let mut layer_vec = vec![];
+        let background_handle = self.resources.import_texture_embedded(
+            &self.renderer,
+            "results background",
+            assets::ui::RESULTS_BACKGROUND,
+            ImageFormat::Png,
+        );
+
+        let background_texture = self
+            .resources
+            .textures
+            .get(&background_handle)
+            .expect("Results background doesn't exist!");
+
+        let mut layer_vec = vec![UILayerTechnique::new(
+            &self.renderer,
+            glam::vec2(0.0, 0.0),
+            glam::vec2(1.0, 1.0),
+            glam::vec2(0.0, 0.0),
+            glam::vec2(1.0, 1.0),
+            background_texture,
+        )];
 
         let mut player_nums: Vec<usize> = vec![0, 1, 2, 3];
         player_nums.sort_by(|&a, &b| positions[a].cmp(&positions[b]));
@@ -579,6 +599,21 @@ impl GraphicsManager {
                 &self.renderer,
                 format!("placement-{}", player_index + 1).as_str(),
                 assets::ui::PLACEMENT_CARDS[player_index],
+                ImageFormat::Png,
+            );
+
+            let texture_name = match positions[player_index] {
+                1 => "1st",
+                2 => "2nd",
+                3 => "3rd",
+                4 => "4th",
+                _ => "1st",
+            };
+
+            let placement_handle = self.resources.import_texture_embedded(
+                &self.renderer,
+                texture_name,
+                assets::ui::PLACE_IMAGES[positions[player_index] as usize],
                 ImageFormat::Png,
             );
 
@@ -595,6 +630,12 @@ impl GraphicsManager {
                 .get(&placement_card_handle)
                 .expect("placement card doesn't exist!");
 
+            let placement_text_texture = self
+                .resources
+                .textures
+                .get(&placement_handle)
+                .expect("Expected placement text image!");
+
             let chair_texture = self
                 .resources
                 .textures
@@ -610,6 +651,7 @@ impl GraphicsManager {
                 3 => glam::vec2(167.0 / 1280.0, 448.0 / 720.0),
                 _ => glam::vec2(167.0 / 1280.0, 148.0 / 720.0), // shouldn't happen :p
             };
+
             layer_vec.push(UILayerTechnique::new(
                 &self.renderer,
                 position,
@@ -621,8 +663,17 @@ impl GraphicsManager {
 
             layer_vec.push(UILayerTechnique::new(
                 &self.renderer,
-                position + glam::vec2(752.0 / 1280.0, 12.0 / 720.0),
-                glam::vec2(108.0 / 1280.0, 102.0 / 720.0),
+                position + glam::vec2(35.0 / 1280.0, 22.0 / 720.0),
+                glam::vec2(90.0 / 1280.0, 90.0 / 720.0),
+                glam::vec2(0.0, 0.0),
+                glam::vec2(1.0, 1.0),
+                &placement_text_texture,
+            ));
+
+            layer_vec.push(UILayerTechnique::new(
+                &self.renderer,
+                position + glam::vec2(754.0 / 1280.0, 10.0 / 720.0),
+                glam::vec2(104.0 / 1280.0, 98.0 / 720.0),
                 glam::vec2(0.0, 0.0),
                 glam::vec2(1.0, 1.0),
                 &chair_texture,
