@@ -77,6 +77,36 @@ const THIRD_PLACE: &[u8] = include_bytes!("placement/3rd.png");
 const FOURTH_PLACE: &[u8] = include_bytes!("placement/4th.png");
 pub const PLACE_IMAGES: [&[u8]; 4] = [FIRST_PLACE, SECOND_PLACE, THIRD_PLACE, FOURTH_PLACE];
 
+pub const RESULTS_BACKGROUND: &[u8] = include_bytes!("final-standings/results-background.png");
+
+// final standings placement cards
+const PLAYER_1_PLACEMENT_CARD: &[u8] = include_bytes!("final-standings/results-1.png");
+const PLAYER_2_PLACEMENT_CARD: &[u8] = include_bytes!("final-standings/results-2.png");
+const PLAYER_3_PLACEMENT_CARD: &[u8] = include_bytes!("final-standings/results-3.png");
+const PLAYER_4_PLACEMENT_CARD: &[u8] = include_bytes!("final-standings/results-4.png");
+pub const PLACEMENT_CARDS: [&[u8]; 4] = [
+    PLAYER_1_PLACEMENT_CARD,
+    PLAYER_2_PLACEMENT_CARD,
+    PLAYER_3_PLACEMENT_CARD,
+    PLAYER_4_PLACEMENT_CARD,
+];
+
+// final standings cropped chair images
+const SWIVEL_CHAIR_ICON: &[u8] = include_bytes!("final-standings/swivel-circle.png");
+const RECLINER_CHAIR_ICON: &[u8] = include_bytes!("final-standings/reclining-circle.png");
+const BEANBAG_CHAIR_ICON: &[u8] = include_bytes!("final-standings/beanbag-circle.png");
+const ERGONOMIC_CHAIR_ICON: &[u8] = include_bytes!("final-standings/ergonomic-circle.png");
+const FOLDING_CHAIR_ICON: &[u8] = include_bytes!("final-standings/folding-circle.png");
+
+pub fn get_chair_icon(chair: Chair) -> &'static [u8] {
+    match chair {
+        Chair::Swivel => SWIVEL_CHAIR_ICON,
+        Chair::Recliner => RECLINER_CHAIR_ICON,
+        Chair::Beanbag => BEANBAG_CHAIR_ICON,
+        Chair::Ergonomic => ERGONOMIC_CHAIR_ICON,
+        Chair::Folding => FOLDING_CHAIR_ICON,
+    }
+}
 // countdown
 const COUNTDOWN_3: &[u8] = include_bytes!("countdown/3.png");
 const COUNTDOWN_2: &[u8] = include_bytes!("countdown/2.png");
