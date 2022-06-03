@@ -91,7 +91,7 @@ impl TriggerEntity for FinishLine {
         if player.lap_info.zone == self.last_zone {
             if player.lap_info.lap == GLOBAL_CONFIG.number_laps {
                 player.lap_info.finished = true;
-                println!("Player has finished {}!", player.lap_info.placement + 1);
+                println!("Player has finished {}!", player.lap_info.placement);
             } else {
                 player.lap_info.lap += 1;
                 player.lap_info.zone = 0;

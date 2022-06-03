@@ -649,7 +649,9 @@ impl GameServer {
                         .collect::<Vec<Placement>>()
                         .try_into()
                         .unwrap();
-
+                    for (playa, placement) in final_placements.iter().enumerate() {
+                        println!("player {playa} finished {placement}!");
+                    }
                     for conn in &mut self.connections {
                         conn.push_outgoing(ClientBoundPacket::AllDone(final_placements.clone()));
                     }
@@ -724,6 +726,8 @@ impl GameServer {
                     self.connections[player_number]
                         .push_outgoing(ClientBoundPacket::PlacementUpdate(placement));
                 }
+
+                println!("{player_number} is in {placement} place!");
 
                 self.game_state.players[player_number].lap_info = lap_information;
 

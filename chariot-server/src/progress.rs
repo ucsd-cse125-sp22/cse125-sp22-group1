@@ -80,6 +80,7 @@ pub fn get_player_placement_array(
         let mut old_lap_info = players[player_num].lap_info;
         if !old_lap_info.finished {
             old_lap_info.placement = (i + 1) as u8;
+            println!("just made {player_num} reach {} place!", i + 1);
         };
 
         (player_num, old_lap_info)
