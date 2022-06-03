@@ -133,7 +133,7 @@ impl PlayerEntity {
             RampCollisionResult::Driveable { ramp } => ramp.get_height_at_coordinates(
                 self.entity_location.position.x,
                 self.entity_location.position.z,
-            ),
+            ) + 0.50,
         };
 
         let self_forces = self.sum_of_self_forces(ramp_collision_result);
