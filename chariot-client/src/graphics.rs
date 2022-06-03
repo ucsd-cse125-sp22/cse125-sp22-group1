@@ -938,9 +938,17 @@ impl GraphicsManager {
                 let ui_graph = background.render_graph(&render_context);
                 render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, ui_graph);
             }
-            UIState::FinalStandings { final_standings_ui } => {
+            UIState::FinalStandings {
+                final_standings_ui,
+                player_final_times,
+            } => {
                 let ui_graph = final_standings_ui.render_graph(&render_context);
                 render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, ui_graph);
+
+                for player_final_time in player_final_times {
+                    let time_graph = final_standings_ui.render_graph(&render_context);
+                    render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, time_graph);
+                }
             }
         }
 

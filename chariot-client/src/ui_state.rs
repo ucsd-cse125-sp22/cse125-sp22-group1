@@ -3,7 +3,6 @@ use std::time::{Duration, Instant};
 use glam::Vec2;
 use image::ImageFormat;
 use lazy_static::lazy_static;
-use ordinal::Ordinal;
 
 use chariot_core::player::choices::Chair;
 
@@ -54,6 +53,7 @@ pub enum UIState {
     },
     FinalStandings {
         final_standings_ui: UIDrawable,
+        player_final_times: [UIDrawable; 4],
     },
 }
 
@@ -79,6 +79,26 @@ lazy_static! {
         .alignment(StringAlignment::RIGHT)
         .content("00:00:000")
         .position(0.95, 0.9);
+    static ref P1_FINAL_TIME_TEXT: UIStringBuilder =
+        UIStringBuilder::new(*assets::fonts::PLACEMENT_FONT_SELECTION)
+            .alignment(StringAlignment::LEFT)
+            .content("00:00:000")
+            .position(688.0 / 1280.0, 173.0 / 720.0);
+    static ref P2_FINAL_TIME_TEXT: UIStringBuilder =
+        UIStringBuilder::new(*assets::fonts::PLACEMENT_FONT_SELECTION)
+            .alignment(StringAlignment::LEFT)
+            .content("00:00:000")
+            .position(688.0 / 1280.0, 273.0 / 720.0);
+    static ref P3_FINAL_TIME_TEXT: UIStringBuilder =
+        UIStringBuilder::new(*assets::fonts::PLACEMENT_FONT_SELECTION)
+            .alignment(StringAlignment::LEFT)
+            .content("00:00:000")
+            .position(688.0 / 1280.0, 373.0 / 720.0);
+    static ref P4_FINAL_TIME_TEXT: UIStringBuilder =
+        UIStringBuilder::new(*assets::fonts::PLACEMENT_FONT_SELECTION)
+            .alignment(StringAlignment::LEFT)
+            .content("00:00:000")
+            .position(688.0 / 1280.0, 473.0 / 720.0);
 }
 
 impl GraphicsManager {
@@ -565,7 +585,12 @@ impl GraphicsManager {
         }
     }
 
-    pub fn display_final_standings(&mut self, positions: [u8; 4], chairs: [Chair; 4]) {
+    pub fn display_final_standings(
+        &mut self,
+        positions: [u8; 4],
+        chairs: [Chair; 4],
+        times: [Duration; 4],
+    ) {
         let background_handle = self.resources.import_texture_embedded(
             &self.renderer,
             "results background",
@@ -679,6 +704,40 @@ impl GraphicsManager {
 
         let final_standings_ui = UIDrawable { layers: layer_vec };
 
-        self.ui = UIState::FinalStandings { final_standings_ui }
+        let player_final_times = [0, 1, 2, 3].map(|player_index| {
+            let time = times[player_index];
+            let minutes = time.as_secs() / 60;
+            let seconds = time.as_secs() % 60;
+            let millis = time.subsec_millis();
+            let time_str = format!("{:02}:{:02}:{:03}", minutes, seconds, millis);
+
+            // don't worry, i hate this code too
+            if player_index == 0 {
+                P1_FINAL_TIME_TEXT
+                    .clone()
+                    .content(&time_str)
+                    .build_drawable(&self.renderer, &mut self.resources)
+            } else if player_index == 1 {
+                P2_FINAL_TIME_TEXT
+                    .clone()
+                    .content(&time_str)
+                    .build_drawable(&self.renderer, &mut self.resources)
+            } else if player_index == 2 {
+                P3_FINAL_TIME_TEXT
+                    .clone()
+                    .content(&time_str)
+                    .build_drawable(&self.renderer, &mut self.resources)
+            } else {
+                P4_FINAL_TIME_TEXT
+                    .clone()
+                    .content(&time_str)
+                    .build_drawable(&self.renderer, &mut self.resources)
+            }
+        });
+
+        self.ui = UIState::FinalStandings {
+            final_standings_ui,
+            player_final_times,
+        }
     }
 }

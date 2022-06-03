@@ -71,7 +71,11 @@ pub enum ClientBoundPacket {
     SoundEffectEvent(SoundEffect),
 
     // After game
-    AllDone([Placement; 4]), // All players' final placements
+    AllDone {
+        placements: [Placement; 4],
+        #[serde(with = "serde_millis")]
+        times: [Duration; 4],
+    }, // All players' final placements
     StartNextGame,
 }
 
