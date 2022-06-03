@@ -64,6 +64,7 @@ pub enum UIState {
         interaction_ui: AnimatedUIDrawable,
         interaction_text: UIDrawable,
         interaction_state: InteractionState,
+        join_the_audience_image: UIDrawable,
     },
     FinalStandings {
         final_standings_ui: UIDrawable,
@@ -829,6 +830,30 @@ impl GraphicsManager {
 
         let minimap_ui = UIDrawable { layers: layer_vec };
 
+        let join_the_audience_handle = self.resources.import_texture_embedded(
+            &self.renderer,
+            "jointheaudience",
+            assets::ui::JOIN_THE_AUDIENCE,
+            ImageFormat::Png,
+        );
+
+        let join_the_audience_texture = self
+            .resources
+            .textures
+            .get(&join_the_audience_handle)
+            .expect("Expected join the audience image!");
+
+        let join_the_audience_image = UIDrawable {
+            layers: vec![UILayerTechnique::new(
+                &self.renderer,
+                glam::vec2(34.0 / 1280.0, 512.0 / 720.0),
+                glam::vec2(1.0, 1.0),
+                glam::vec2(0.0, 0.0),
+                glam::vec2(1.0, 1.0),
+                &join_the_audience_texture,
+            )],
+        };
+
         self.ui = UIState::InGameHUD {
             place_position_image,
             minimap_ui,
@@ -839,6 +864,7 @@ impl GraphicsManager {
             interaction_ui: AnimatedUIDrawable::new(),
             interaction_text: UIDrawable { layers: vec![] },
             interaction_state: InteractionState::None,
+            join_the_audience_image,
         }
     }
 
