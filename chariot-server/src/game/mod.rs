@@ -688,30 +688,35 @@ impl GameServer {
                 get_player_placement_array(&self.game_state.players, &map.checkpoints);
 
             let mut old_placement_map: HashMap<usize, (usize, LapInformation)> = HashMap::new();
+            let mut player_num_to_info: HashMap<usize, (usize, LapInformation)> = HashMap::new();
 
             for place_index in 0..4 {
                 let (player_id, lap_information) = previous_placement_state[place_index];
-                old_placement_map.insert(player_id, (place_index, lap_information));
+                old_placement_map.insert(place_index, (player_id, lap_information));
+
+                player_num_to_info.insert(player_id, (place_index, lap_information));
             }
 
-            for &(place_index, lap_information @ LapInformation { lap, placement, .. }) in
-                new_placement_array.iter()
+            for (
+                place_index,
+                &(player_number, lap_information @ LapInformation { lap, placement, .. }),
+            ) in new_placement_array.iter().enumerate()
             {
-                if self.connections.len() <= place_index {
+                if self.connections.len() <= player_number {
                     continue;
                 };
 
-                if old_placement_map.get(&place_index).unwrap().1.lap != lap {
-                    self.connections[place_index].push_outgoing(ClientBoundPacket::LapUpdate(lap));
-                } else if old_placement_map.get(&place_index).unwrap().1.placement != placement {
-                    // notify the player now in a different place that
-                    // their new placement is different; the one that used
-                    // to be there will get notified when it's their turn
-                    self.connections[place_index]
+                let old_lap_information = player_num_to_info.get(&player_number).unwrap().1;
+
+                if old_lap_information.lap != lap {
+                    self.connections[player_number]
+                        .push_outgoing(ClientBoundPacket::LapUpdate(lap));
+                } else if old_lap_information.placement != placement {
+                    self.connections[player_number]
                         .push_outgoing(ClientBoundPacket::PlacementUpdate(placement));
                 }
 
-                self.game_state.players[place_index].lap_info = lap_information;
+                self.game_state.players[player_number].lap_info = lap_information;
 
                 GameServer::broadcast_ws(
                     &mut self.ws_connections,
