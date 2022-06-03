@@ -71,3 +71,9 @@ const SECOND_PLACE: &[u8] = include_bytes!("placement/2nd.png");
 const THIRD_PLACE: &[u8] = include_bytes!("placement/3rd.png");
 const FOURTH_PLACE: &[u8] = include_bytes!("placement/4th.png");
 pub const PLACE_IMAGES: [&[u8]; 4] = [FIRST_PLACE, SECOND_PLACE, THIRD_PLACE, FOURTH_PLACE];
+
+// countdown
+const COUNTDOWN_3: &[u8] = include_bytes!("countdown/3.png");
+const COUNTDOWN_2: &[u8] = include_bytes!("countdown/2.png");
+const COUNTDOWN_1: &[u8] = include_bytes!("countdown/1.png");
+const COUNTDOWN_START: &[u8] = include_bytes!("countdown/start.png");
