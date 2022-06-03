@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use chariot_core::player::choices::Chair;
 use chariot_core::sound_effect::SoundEffect;
 use std::collections::HashSet;
@@ -261,6 +262,7 @@ impl Application {
                         .display_final_standings(placement_info, self.chairs, times);
                 }
                 ClientBoundPacket::StartNextGame => {
+                    self.game.pick_chair(self.graphics.player_choices[self.graphics.player_num].clone().unwrap().chair);
                     self.graphics.display_chairacter_select();
                 }
                 ClientBoundPacket::VotingCooldown => (),
