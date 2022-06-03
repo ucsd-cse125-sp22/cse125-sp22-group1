@@ -697,7 +697,7 @@ impl GameServer {
                             {
                                 finish_time
                             }
-							Duration::from_secs(1000)
+                            Duration::from_secs(1000)
                         })
                         .enumerate()
                         .collect::<Vec<(usize, Duration)>>();
