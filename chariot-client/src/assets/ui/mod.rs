@@ -1,13 +1,12 @@
 use crate::ui_state::CountdownState;
 use chariot_core::player::choices::Chair;
-use glam::{DVec2, Vec2};
-use std::time::Duration;
+use glam::Vec2;
 
 // main menu
 pub const HOME_BACKGROUND: &[u8] = include_bytes!("homebackground.png");
-pub const MAIN_MENU_BACKGROUND: &[u8] = include_bytes!("main-menu/BG.png");
-pub const MAIN_MENU_FOREGROUND: &[u8] = include_bytes!("main-menu/Chars.png");
-pub const MAIN_MENU_TITLE: &[u8] = include_bytes!("main-menu/Title.png");
+pub const _MAIN_MENU_BACKGROUND: &[u8] = include_bytes!("main-menu/BG.png");
+pub const _MAIN_MENU_FOREGROUND: &[u8] = include_bytes!("main-menu/Chars.png");
+pub const _MAIN_MENU_TITLE: &[u8] = include_bytes!("main-menu/Title.png");
 
 // icon
 pub const ICON: &[u8] = include_bytes!("icon.png");

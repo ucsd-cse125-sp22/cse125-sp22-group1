@@ -142,7 +142,7 @@ impl Light {
             -scene_radius,
             scene_radius,
             0.01,
-            scene_radius * 2.0,
+            scene_radius * 3.0,
         );
 
         (view, proj)

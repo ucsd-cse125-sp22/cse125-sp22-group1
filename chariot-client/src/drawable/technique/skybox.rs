@@ -48,7 +48,7 @@ impl Technique for SkyboxTechnique {
         ));
 
         if res.is_err() {
-            panic!("Can't register this technique twice!");
+            println!("Re-registering technique but not resetting static uniforms");
         }
     }
 

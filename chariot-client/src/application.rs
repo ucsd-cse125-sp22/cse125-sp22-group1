@@ -1,6 +1,6 @@
 use chariot_core::sound_effect::SoundEffect;
 use std::collections::HashSet;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use std::time::SystemTime;
 
@@ -16,7 +16,7 @@ use crate::graphics::GraphicsManager;
 
 use crate::audio::thread::context::AudioCtx;
 use crate::audio::thread::options::SourceOptions;
-use crate::ui_state::{AnnouncementState, CountdownState};
+use crate::ui_state::CountdownState;
 
 pub struct Application {
     // audio
@@ -78,14 +78,14 @@ impl Application {
             match changed_state {
                 CountdownState::One | CountdownState::Two | CountdownState::Three => {
                     self.sfx_manager.play(
-                        get_sfx(chariot_core::sound_effect::SoundEffect::CountdownGeneral),
+                        get_sfx(SoundEffect::CountdownGeneral),
                         &self.audio_context,
                         SourceOptions::new(),
                     );
                 }
                 CountdownState::Start => {
                     self.sfx_manager.play(
-                        get_sfx(chariot_core::sound_effect::SoundEffect::CountdownGo),
+                        get_sfx(SoundEffect::CountdownGo),
                         &self.audio_context,
                         SourceOptions::new(),
                     );
@@ -188,25 +188,11 @@ impl Application {
                 }
                 ClientBoundPacket::PowerupPickup => println!("we got a powerup!"),
                 ClientBoundPacket::VotingStarted {
-                    question,
                     time_until_vote_end,
+                    ..
                 } => {
-                    let vote_end_time = Instant::now() + time_until_vote_end;
-                    self.graphics.make_announcement(
-                        "The audience is deciding your fate",
-                        format!(
-                            "They decide in {} seconds",
-                            (vote_end_time - Instant::now()).as_secs()
-                        )
-                        .as_str(),
-                    );
-
-                    self.graphics.maybe_set_announcement_state(
-                        AnnouncementState::VotingInProgress {
-                            prompt: question.prompt,
-                            vote_end_time,
-                        },
-                    );
+                    // TODO: num_options constant
+                    self.graphics.begin_audience_voting(4, time_until_vote_end);
 
                     self.sfx_manager.play(
                         get_sfx(SoundEffect::InteractionVoteStart),
@@ -214,27 +200,19 @@ impl Application {
                         SourceOptions::new(),
                     );
                 }
+                ClientBoundPacket::VotingUpdate(tally) => {
+                    self.graphics.update_audience_votes(tally);
+                }
                 ClientBoundPacket::InteractionActivate {
                     question,
                     decision,
                     time_effect_is_live,
                 } => {
-                    let effect_end_time = Instant::now() + time_effect_is_live;
-                    self.graphics.make_announcement(
-                        format!("{} was chosen!", decision.label).as_str(),
-                        format!(
-                            "Effects will last for another {} seconds",
-                            (effect_end_time - Instant::now()).as_secs()
-                        )
-                        .as_str(),
+                    self.graphics.start_audience_interaction(
+                        question,
+                        decision,
+                        time_effect_is_live,
                     );
-
-                    self.graphics
-                        .maybe_set_announcement_state(AnnouncementState::VoteActiveTime {
-                            prompt: question.prompt,
-                            decision: decision.label,
-                            effect_end_time,
-                        });
 
                     self.sfx_manager.play(
                         get_sfx(SoundEffect::InteractionChosen),
@@ -270,9 +248,7 @@ impl Application {
                 ClientBoundPacket::StartNextGame => {
                     self.graphics.load_pregame();
                 }
-                ClientBoundPacket::VotingCooldown => self
-                    .graphics
-                    .maybe_set_announcement_state(AnnouncementState::None),
+                ClientBoundPacket::VotingCooldown => (),
             }
         }
     }
