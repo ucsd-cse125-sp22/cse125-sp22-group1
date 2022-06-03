@@ -7,6 +7,8 @@
 
 ![build status](https://img.shields.io/github/workflow/status/ucsd-cse125-sp22/cse125-sp22-group1/Build?style=for-the-badge)
 
+https://drive.google.com/drive/folders/1CDamUs4vD-82Iznqz1p0YjVacxm2wBK5?usp=sharing
+
 ### components
 
 1. [chariot-client](chariot-client) - graphics and input game engine
