@@ -697,8 +697,9 @@ impl GameServer {
                             {
                                 finish_time
                             } else {
-								Duration::from_secs(1000)
-							}
+                                // this is the site where josh lost all faith in git
+                                Duration::from_secs(1000)
+                            }
                         })
                         .enumerate()
                         .collect::<Vec<(usize, Duration)>>();
