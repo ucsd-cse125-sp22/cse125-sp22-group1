@@ -158,6 +158,14 @@ impl Chair {
                 _ => *Chair::default_stats().get(stat_name).unwrap(),
             },
             Chair::Folding => match stat_name {
+                // Folding don't fold very fast
+                Stat::MaxCarSpeed => GLOBAL_CONFIG.max_car_speed * 0.8,
+                // Folding chairs are light!
+                Stat::CarAccelerator => GLOBAL_CONFIG.car_accelerator * 1.5,
+                Stat::CarBrake => GLOBAL_CONFIG.car_brake,
+                Stat::DragCoefficient => GLOBAL_CONFIG.drag_coefficient,
+                Stat::RollingResistanceCoefficient => GLOBAL_CONFIG.rolling_resistance_coefficient,
+                Stat::Mass => 1.0,
                 _ => *Chair::default_stats().get(stat_name).unwrap(),
             },
         }
