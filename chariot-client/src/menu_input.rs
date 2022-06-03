@@ -204,7 +204,7 @@ impl Application {
 
     fn input_gamepad_final_standings(&mut self, event: Result<(Button, f32), (Axis, f32)>) {
         if let Ok(_) = event {
-            self.graphics.display_chairacter_select();
+            self.game.next_game();
             self.sfx_manager.play(
                 get_sfx(chariot_core::sound_effect::SoundEffect::ReadyUp),
                 &self.audio_context,
@@ -214,7 +214,7 @@ impl Application {
     }
 
     fn input_keyboard_final_standings(&mut self, _: VirtualKeyCode) {
-        self.graphics.display_chairacter_select();
+        self.game.next_game();
         self.sfx_manager.play(
             get_sfx(chariot_core::sound_effect::SoundEffect::ReadyUp),
             &self.audio_context,
