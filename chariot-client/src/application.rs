@@ -178,18 +178,17 @@ impl Application {
                         .as_str(),
                     );
 
-                    self.graphics.maybe_set_announcement_state(
-                        AnnouncementState::VotingInProgress {
-                            prompt: question.prompt,
-                            vote_end_time,
-                        },
-                    );
+                    // TODO: num_options constant
+                    self.graphics.begin_audience_voting(4, time_until_vote_end);
 
                     self.sfx_manager.play(
                         get_sfx(SoundEffect::InteractionVoteStart),
                         &self.audio_context,
                         SourceOptions::new(),
                     );
+                }
+                ClientBoundPacket::VotingUpdate(tally) => {
+                    self.graphics.update_audience_votes(tally);
                 }
                 ClientBoundPacket::InteractionActivate {
                     question,
@@ -206,12 +205,11 @@ impl Application {
                         .as_str(),
                     );
 
-                    self.graphics
-                        .maybe_set_announcement_state(AnnouncementState::VoteActiveTime {
-                            prompt: question.prompt,
-                            decision: decision.label,
-                            effect_end_time,
-                        });
+                    self.graphics.start_audience_interaction(
+                        question,
+                        decision,
+                        time_effect_is_live,
+                    );
 
                     self.sfx_manager.play(
                         get_sfx(SoundEffect::InteractionChosen),
@@ -247,7 +245,6 @@ impl Application {
                 ClientBoundPacket::StartNextGame => {
                     self.graphics.load_pregame();
                 }
-                ClientBoundPacket::VotingUpdate(_) => println!("Voting Update!"),
             }
         }
     }

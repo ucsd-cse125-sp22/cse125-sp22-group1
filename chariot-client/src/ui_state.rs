@@ -6,6 +6,7 @@ use image::ImageFormat;
 use lazy_static::lazy_static;
 
 use chariot_core::player::choices::Chair;
+use chariot_core::questions::{QuestionData, QuestionOption};
 
 use crate::drawable::AnimatedUIDrawable;
 use crate::renderer::Renderer;
@@ -34,6 +35,20 @@ pub enum AnnouncementState {
     },
 }
 
+pub enum InteractionState {
+    None,
+    Voting {
+        tally: Vec<u32>,
+        end_time: Instant,
+    },
+    Active {
+        question: QuestionData,
+        choice: QuestionOption,
+        end_time: Instant,
+        bar_filled: bool,
+    },
+}
+
 pub enum UIState {
     None,
     MainMenu {
@@ -50,11 +65,12 @@ pub enum UIState {
         minimap_ui: UIDrawable,
         timer_ui: UIDrawable,
         lap_ui: UIDrawable,
+        interaction_ui: AnimatedUIDrawable,
+        interaction_state: InteractionState,
         // to be deprecated
         game_announcement_title: UIDrawable,
         game_announcement_subtitle: UIDrawable,
         announcement_state: AnnouncementState,
-        interaction_ui: AnimatedUIDrawable,
     },
 }
 
@@ -125,9 +141,43 @@ impl GraphicsManager {
         self.update_voting_announcements();
         self.update_minimap();
 
-        if let UIState::InGameHUD { interaction_ui, .. } = &mut self.ui {
-            // interaction_ui.update(&mut self.renderer);
-            // commenting out for now — it's a little intrusive, but will bring back in a later PR
+        if let UIState::InGameHUD {
+            interaction_ui,
+            interaction_state,
+            ..
+        } = &mut self.ui
+        {
+            interaction_ui.update(&mut self.renderer);
+
+            if let InteractionState::Active {
+                end_time,
+                bar_filled,
+                ..
+            } = interaction_state
+            {
+                let now = Instant::now();
+                let last = interaction_ui.layers.len() - 1;
+                if !*bar_filled && interaction_ui.layers[last].2.is_none() {
+                    interaction_ui.layers.swap(0, last);
+                    interaction_ui.layers.truncate(1);
+                    let duration = *end_time - now;
+
+                    interaction_ui.pos_to(
+                        0,
+                        glam::vec2(0.5, Self::INTERACTION_VOTING_Y_POS),
+                        duration,
+                    );
+                    interaction_ui.size_to(
+                        0,
+                        self.renderer.pixel(0, Self::INTERACTION_VOTING_HEIGHT),
+                        duration,
+                    );
+                }
+                if now > *end_time {
+                    *interaction_state = InteractionState::None;
+                    interaction_ui.layers.clear();
+                }
+            }
         }
     }
 
@@ -214,75 +264,138 @@ impl GraphicsManager {
         }
     }
 
-    pub fn maybe_set_announcement_state(&mut self, new_announcement_state: AnnouncementState) {
+    const INTERACTION_VOTING_WIDTH: u32 = 600;
+    const INTERACTION_VOTING_HEIGHT: u32 = 20;
+    const INTERACTION_VOTING_Y_POS: f32 = 0.1;
+    const INTERACTION_SECTION_COLORS: [[f32; 4]; 4] = [
+        [254.0 / 255.0, 100.0 / 255.0, 100.0 / 255.0, 1.0],
+        [98.0 / 255.0, 87.0 / 255.0, 227.0 / 255.0, 1.0],
+        [137.0 / 255.0, 202.0 / 255.0, 127.0 / 255.0, 1.0],
+        [203.0 / 255.0, 157.0 / 255.0, 67.0 / 255.0, 1.0],
+    ];
+
+    pub fn begin_audience_voting(&mut self, num_options: usize, until_end: Duration) {
         if let UIState::InGameHUD {
-            announcement_state,
             interaction_ui,
+            interaction_state,
             ..
         } = &mut self.ui
         {
-            match &new_announcement_state {
-                AnnouncementState::VotingInProgress { vote_end_time, .. } => {
-                    interaction_ui.layers.clear();
-                    interaction_ui.push(UILayerTechnique::new(
-                        &mut self.renderer,
-                        glam::vec2(0.25, 0.0),
-                        glam::vec2(0.5, 0.2),
-                        glam::vec2(0.0, 0.0),
-                        glam::vec2(1.0, 1.0),
-                        self.resources.textures.get(&self.white_box_tex).unwrap(),
-                    ));
-                    interaction_ui
-                        .layers
-                        .last_mut()
-                        .unwrap()
-                        .0
-                        .update_color(&self.renderer, [0.0, 0.0, 0.0, 1.0]);
-                    interaction_ui.push(UILayerTechnique::new(
-                        &mut self.renderer,
-                        glam::vec2(0.26, 0.01),
-                        glam::vec2(0.48, 0.18),
-                        glam::vec2(0.0, 0.0),
-                        glam::vec2(1.0, 1.0),
-                        self.resources.textures.get(&self.white_box_tex).unwrap(),
-                    ));
-                    interaction_ui.push(UILayerTechnique::new(
-                        &mut self.renderer,
-                        glam::vec2(0.26, 0.01),
-                        glam::vec2(0.0, 0.18),
-                        glam::vec2(0.0, 0.0),
-                        glam::vec2(1.0, 1.0),
-                        self.resources.textures.get(&self.white_box_tex).unwrap(),
-                    ));
-                    interaction_ui
-                        .layers
-                        .last_mut()
-                        .unwrap()
-                        .0
-                        .update_color(&self.renderer, [0.527, 0.0, 0.082, 1.0]);
-                    interaction_ui.animate(
-                        2,
-                        None,
-                        Some(glam::vec2(0.48, 0.18)),
-                        *vote_end_time - Instant::now(),
-                    );
-                }
-                AnnouncementState::VoteActiveTime {
-                    prompt: _,
-                    decision,
-                    effect_end_time,
-                } => {
-                    interaction_ui.animate(
-                        2,
-                        None,
-                        Some(glam::vec2(0.0, 0.18)),
-                        *effect_end_time - Instant::now(),
-                    );
-                    ()
-                }
-                _ => interaction_ui.layers.clear(),
+            interaction_ui.layers.clear();
+
+            let local_origin = glam::vec2(
+                0.5 - self.renderer.pixel_x(Self::INTERACTION_VOTING_WIDTH / 2),
+                Self::INTERACTION_VOTING_Y_POS,
+            );
+
+            let EVEN_WIDTH = self
+                .renderer
+                .pixel_x(Self::INTERACTION_VOTING_WIDTH / num_options as u32);
+            for i in 0..num_options {
+                interaction_ui.push(UILayerTechnique::new(
+                    &self.renderer,
+                    local_origin + glam::vec2(EVEN_WIDTH * i as f32, 0.0),
+                    glam::vec2(
+                        EVEN_WIDTH,
+                        self.renderer.pixel_y(Self::INTERACTION_VOTING_HEIGHT),
+                    ),
+                    glam::vec2(0.0, 0.0),
+                    glam::vec2(1.0, 1.0),
+                    self.resources.textures.get(&self.white_box_tex).unwrap(),
+                ));
+                let color = {
+                    if i < 4 {
+                        Self::INTERACTION_SECTION_COLORS[i]
+                    } else {
+                        [1.0, 1.0, 1.0, 1.0]
+                    }
+                };
+                interaction_ui
+                    .layers
+                    .get_mut(i)
+                    .unwrap()
+                    .0
+                    .update_color(&self.renderer, color);
             }
-            *announcement_state = new_announcement_state;
+
+            *interaction_state = InteractionState::Voting {
+                tally: vec![0; num_options],
+                end_time: Instant::now() + until_end,
+            }
+        }
+    }
+
+    pub fn update_audience_votes(&mut self, new_tally: Vec<u32>) {
+        if let UIState::InGameHUD {
+            interaction_ui,
+            interaction_state,
+            ..
+        } = &mut self.ui
+        {
+            if let InteractionState::Voting { tally, .. } = interaction_state {
+                let local_origin = glam::vec2(
+                    0.5 - self.renderer.pixel_x(Self::INTERACTION_VOTING_WIDTH / 2),
+                    Self::INTERACTION_VOTING_Y_POS,
+                );
+
+                let sum: u32 = new_tally.iter().sum();
+                let mut sibling_push = 0;
+                for idx in 0..new_tally.len() {
+                    let width = Self::INTERACTION_VOTING_WIDTH * new_tally[idx] / sum;
+                    interaction_ui.layers[idx].0.update_pos(
+                        &self.renderer,
+                        local_origin + self.renderer.pixel(sibling_push, 0),
+                    );
+                    interaction_ui.layers[idx].0.update_size(
+                        &self.renderer,
+                        self.renderer.pixel(width, Self::INTERACTION_VOTING_HEIGHT),
+                    );
+                    sibling_push += width;
+                }
+
+                *tally = new_tally;
+            }
+        }
+    }
+
+    pub fn start_audience_interaction(
+        &mut self,
+        question: QuestionData,
+        choice: QuestionOption,
+        duration: Duration,
+    ) {
+        if let UIState::InGameHUD {
+            interaction_ui,
+            interaction_state,
+            ..
+        } = &mut self.ui
+        {
+            // TODO: fix hardcode
+            let VICTOR_IDX = 1;
+            let local_origin = glam::vec2(
+                0.5 - self.renderer.pixel_x(Self::INTERACTION_VOTING_WIDTH / 2),
+                Self::INTERACTION_VOTING_Y_POS,
+            );
+
+            interaction_ui.pos_to(VICTOR_IDX, local_origin, Duration::from_secs(1));
+            interaction_ui.size_to(
+                VICTOR_IDX,
+                self.renderer.pixel(
+                    Self::INTERACTION_VOTING_WIDTH,
+                    Self::INTERACTION_VOTING_HEIGHT,
+                ),
+                Duration::from_secs(1),
+            );
+
+            let last = interaction_ui.layers.len() - 1;
+            interaction_ui.layers.swap(VICTOR_IDX, last);
+
+            *interaction_state = InteractionState::Active {
+                question,
+                choice,
+                end_time: Instant::now() + duration,
+                bar_filled: false,
+            }
         }
     }
 
@@ -657,6 +770,7 @@ impl GraphicsManager {
             timer_ui,
             lap_ui,
             interaction_ui: AnimatedUIDrawable::new(),
+            interaction_state: InteractionState::None,
         }
     }
 }

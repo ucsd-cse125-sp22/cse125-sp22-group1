@@ -59,7 +59,7 @@ pub enum ClientBoundPacket {
         #[serde(with = "serde_millis")]
         time_until_vote_end: Duration,
     }, // Sent when the audience begins voting (suspense!)
-    VotingUpdate(Vec<QuestionResult>),
+    VotingUpdate(Vec<u32>),
     InteractionActivate {
         question: QuestionData,
         decision: QuestionOption,

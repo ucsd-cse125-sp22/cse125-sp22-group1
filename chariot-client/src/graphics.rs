@@ -930,6 +930,7 @@ impl GraphicsManager {
                 timer_ui,
                 lap_ui,
                 interaction_ui,
+                interaction_state,
             } => {
                 let position_graph = place_position_image.render_graph(&render_context);
                 render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, position_graph);
@@ -952,8 +953,8 @@ impl GraphicsManager {
                 render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, timer_ui_graph);
 
                 // commenting out now, will merge this in later
-                // let interaction_ui_graph = interaction_ui.render_graph(&render_context);
-                // render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, interaction_ui_graph);
+                let interaction_ui_graph = interaction_ui.render_graph(&render_context);
+                render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, interaction_ui_graph);
             }
             UIState::MainMenu { background } => {
                 let ui_graph = background.render_graph(&render_context);

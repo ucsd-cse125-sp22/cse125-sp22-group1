@@ -128,6 +128,28 @@ impl Renderer {
         }
     }
 
+    pub fn pixel(&self, x: u32, y: u32) -> glam::Vec2 {
+        let wind_size = self.context.window.inner_size();
+        glam::vec2(
+            (x as f32) / (wind_size.width as f32),
+            (y as f32) / (wind_size.height as f32),
+        )
+    }
+
+    pub fn pixel_x(&self, x: u32) -> f32 {
+        (x as f32) / (self.context.window.inner_size().width as f32)
+    }
+
+    pub fn pixel_y(&self, y: u32) -> f32 {
+        (y as f32) / (self.context.window.inner_size().height as f32)
+    }
+
+    pub fn pixel_scale(&self, coord: (u32, u32)) -> glam::Vec2 {
+        let width = 1280.0;
+        let height = 720.0;
+        glam::vec2((coord.0 as f32) / width, (coord.1 as f32) / height)
+    }
+
     // request the operating system redraw the window contents via winit
     // this triggers the RedrawRequested event which then calls this render() again
     pub fn request_redraw(&self) {
