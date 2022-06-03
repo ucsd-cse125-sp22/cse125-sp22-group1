@@ -135,6 +135,7 @@ impl Application {
                         .map = map;
                 }
                 ClientBoundPacket::PlayerReadyStatus(player_num, status) => {
+                    self.graphics.maybe_set_chair_readiness(player_num, status);
                     println!(
                         "Player #{} is no{} ready!",
                         player_num,

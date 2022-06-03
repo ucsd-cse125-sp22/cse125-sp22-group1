@@ -903,6 +903,7 @@ impl GraphicsManager {
                 chair_select_box,
                 chair_description,
                 player_chair_images,
+                chair_readiness,
             } => {
                 let background_graph = background.render_graph(&render_context);
                 render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, background_graph);
@@ -913,6 +914,13 @@ impl GraphicsManager {
                 for chair_image in player_chair_images.iter().flatten() {
                     let chair_graph = chair_image.render_graph(&render_context);
                     render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, chair_graph);
+                }
+
+                for maybe_chair_ready in chair_readiness {
+                    if let Some(chair_ready) = maybe_chair_ready {
+                        let ready_graph = chair_ready.render_graph(&render_context);
+                        render_job.merge_graph_after(SimpleFSQTechnique::PASS_NAME, ready_graph);
+                    }
                 }
 
                 let chair_description_box_graph = chair_description.render_graph(&render_context);

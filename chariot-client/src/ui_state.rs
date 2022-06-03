@@ -52,6 +52,7 @@ pub enum UIState {
         chair_select_box: UIDrawable,
         chair_description: UIDrawable,
         player_chair_images: Vec<Option<UIDrawable>>,
+        chair_readiness: [Option<UIDrawable>; 4],
     },
     InGameHUD {
         countdown_ui: Option<UIDrawable>,
@@ -73,6 +74,9 @@ pub enum UIState {
 // by initializing the builders statically,
 // we can quickly clone then and change their content to regenerate drawables
 lazy_static! {
+    static ref READY_TEXT: UIStringBuilder = UIStringBuilder::new(*assets::fonts::LAP_TEXT_FONT)
+        .alignment(StringAlignment::LEFT)
+        .content("Ready!");
     static ref ANNOUNCEMENT_TITLE: UIStringBuilder =
         UIStringBuilder::new(assets::fonts::PRIMARY_FONT)
             .alignment(StringAlignment::CENTERED)
@@ -597,6 +601,7 @@ impl GraphicsManager {
             chair_select_box,
             chair_description,
             player_chair_images: vec![None, None, None, None],
+            chair_readiness: [None, None, None, None],
         };
 
         (0..4).for_each(|i| self.maybe_display_chair(None, i));
@@ -667,6 +672,33 @@ impl GraphicsManager {
 
             for (player_id, choice) in self.player_choices.clone().iter().flatten().enumerate() {
                 self.maybe_display_chair(Some(choice.chair), player_id);
+            }
+        }
+    }
+
+    pub fn maybe_set_chair_readiness(&mut self, chair_num: usize, ready: bool) {
+        if let UIState::ChairacterSelect {
+            chair_readiness, ..
+        } = &mut self.ui
+        {
+            if chair_readiness[chair_num].is_some() && !ready {
+                chair_readiness[chair_num] = None;
+            } else if chair_readiness[chair_num].is_none() && ready {
+                let position = if chair_num == 0 {
+                    glam::vec2(196.0 / 1280.0, 141.0 / 720.0)
+                } else if chair_num == 1 {
+                    glam::vec2(457.0 / 1280.0, 129.0 / 720.0)
+                } else if chair_num == 2 {
+                    glam::vec2(725.0 / 1280.0, 141.0 / 720.0)
+                } else {
+                    glam::vec2(984.0 / 1280.0, 129.0 / 720.0)
+                };
+                let ready_drawable = READY_TEXT
+                    .clone()
+                    .position(position.x, position.y)
+                    .build_drawable(&self.renderer, &mut self.resources);
+
+                chair_readiness[chair_num] = Some(ready_drawable);
             }
         }
     }
