@@ -423,7 +423,7 @@ impl GameServer {
                         }
                     }
 
-                    println!("player #{player_id} in place {placement}");
+                    //println!("player #{player_id} in place {placement}");
                 }
 
                 let ramps = &self
@@ -479,6 +479,7 @@ impl GameServer {
                     .speedup_zones
                     .clone();
 
+
                 self.game_state.players = [0, 1, 2, 3].map(|n| {
                     let mut player = self.game_state.players[n].do_physics_step(
                         1.0,
@@ -492,6 +493,14 @@ impl GameServer {
                         speedup_zones,
                         per_player_current_ramps.get(n).unwrap(),
                     );
+
+					if let PlayerProgress::Racing { lap_info: LapInformation {lap: old_lap, ..}} = self.game_state.players[n].placement_data {
+						if let PlayerProgress::Racing { lap_info: LapInformation {lap: new_lap, ..}} = player.placement_data {
+							if old_lap != new_lap {
+								self.connections[n].push_outgoing(ClientBoundPacket::LapUpdate(new_lap));
+							}
+						}
+					}
 
                     // Restore original player inputs: without this, the server's inputs can change multiple times per client update
                     player.player_inputs = original_player_inputs.get(n).unwrap().to_owned();
@@ -589,6 +598,12 @@ impl GameServer {
                                 &decision.action,
                                 &mut self.game_state.players,
                             );
+
+							for (n, conn) in self.connections.iter_mut().enumerate() {
+								if let PlayerProgress::Racing { lap_info: LapInformation {lap, ..}} = self.game_state.players[n].placement_data {
+									conn.push_outgoing(ClientBoundPacket::LapUpdate(lap));
+								}
+							}
 
                             *voting_game_state = VotingState::VoteResultActive {
                                 decision,

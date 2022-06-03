@@ -26,9 +26,9 @@ impl PlayerProgress {
                 },
             ) => {
                 if self_lap_info.lap != other_lap_info.lap {
-                    self_lap_info.lap.cmp(&other_lap_info.lap)
+                    self_lap_info.lap.cmp(&other_lap_info.lap).reverse()
                 } else if self_lap_info.zone != other_lap_info.zone {
-                    self_lap_info.zone.cmp(&other_lap_info.zone)
+                    self_lap_info.zone.cmp(&other_lap_info.zone).reverse()
                 } else {
                     Ordering::Equal
                 }
