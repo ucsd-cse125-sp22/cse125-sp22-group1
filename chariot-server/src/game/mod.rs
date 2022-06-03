@@ -22,7 +22,6 @@ use crate::chairs::get_player_start_physics_properties;
 use crate::physics::physics_changes::PhysicsChange;
 use crate::physics::player_entity::PlayerEntity;
 use crate::physics::ramp::RampCollisionResult;
-use crate::progress::get_player_placement_array;
 
 use self::interactions::{
     get_physics_change_from_audience_action, get_stats_changes_from_audience_action,

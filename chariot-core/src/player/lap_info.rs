@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 
 pub type LapNumber = u8;
 pub type CheckpointID = u64;
@@ -10,8 +11,6 @@ pub struct LapInformation {
     pub lap: LapNumber,
     pub zone: ZoneID,
     pub last_checkpoint: CheckpointID,
-    pub placement: Placement,
-    pub finished: bool,
 }
 
 impl LapInformation {
@@ -20,8 +19,6 @@ impl LapInformation {
             lap: 1,
             zone: 0,
             last_checkpoint: 0,
-            placement: 0,
-            finished: false,
         }
     }
 }
