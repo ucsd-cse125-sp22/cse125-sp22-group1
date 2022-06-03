@@ -216,26 +216,47 @@ impl GraphicsManager {
         {
             match &new_announcement_state {
                 AnnouncementState::VotingInProgress { vote_end_time, .. } => {
+                    interaction_ui.layers.clear();
                     interaction_ui.push(UILayerTechnique::new(
                         &mut self.renderer,
-                        glam::vec2(0.25, 0.2),
-                        glam::vec2(0.0, 0.0),
+                        glam::vec2(0.25, 0.0),
+                        glam::vec2(0.5, 0.2),
                         glam::vec2(0.0, 0.0),
                         glam::vec2(1.0, 1.0),
                         self.resources.textures.get(&self.white_box_tex).unwrap(),
                     ));
+                    interaction_ui
+                        .layers
+                        .last_mut()
+                        .unwrap()
+                        .0
+                        .update_color(&self.renderer, [0.0, 0.0, 0.0, 1.0]);
                     interaction_ui.push(UILayerTechnique::new(
                         &mut self.renderer,
-                        glam::vec2(0.26, 0.21),
+                        glam::vec2(0.26, 0.01),
                         glam::vec2(0.48, 0.18),
                         glam::vec2(0.0, 0.0),
                         glam::vec2(1.0, 1.0),
                         self.resources.textures.get(&self.white_box_tex).unwrap(),
                     ));
+                    interaction_ui.push(UILayerTechnique::new(
+                        &mut self.renderer,
+                        glam::vec2(0.26, 0.01),
+                        glam::vec2(0.0, 0.18),
+                        glam::vec2(0.0, 0.0),
+                        glam::vec2(1.0, 1.0),
+                        self.resources.textures.get(&self.white_box_tex).unwrap(),
+                    ));
+                    interaction_ui
+                        .layers
+                        .last_mut()
+                        .unwrap()
+                        .0
+                        .update_color(&self.renderer, [0.527, 0.0, 0.082, 1.0]);
                     interaction_ui.animate(
-                        1,
+                        2,
                         None,
-                        Some(glam::vec2(0.0, 0.18)),
+                        Some(glam::vec2(0.48, 0.18)),
                         *vote_end_time - Instant::now(),
                     );
                 }
@@ -245,9 +266,9 @@ impl GraphicsManager {
                     effect_end_time,
                 } => {
                     interaction_ui.animate(
-                        1,
+                        2,
                         None,
-                        Some(glam::vec2(0.48, 0.18)),
+                        Some(glam::vec2(0.0, 0.18)),
                         *effect_end_time - Instant::now(),
                     );
                     ()

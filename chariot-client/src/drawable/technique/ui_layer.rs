@@ -15,6 +15,7 @@ pub struct UILayerTechnique {
     index_buffer: wgpu::Buffer,
     material: crate::resources::material::Material,
     pub tint_color: [f32; 4],
+    tint_buffer: usize,
     pub pos: glam::Vec2,
     pub size: glam::Vec2,
 }
@@ -49,7 +50,8 @@ impl UILayerTechnique {
 
     pub fn update_color(&mut self, renderer: &Renderer, color: [f32; 4]) {
         let raw_data: &[u8] = bytemuck::cast_slice(&color);
-        //self.material.bind_groups.get(&0).unwrap();
+        renderer.write_buffer(&self.material.buffers[self.tint_buffer], raw_data);
+        self.tint_color = color;
     }
 
     pub fn new(
@@ -94,13 +96,15 @@ impl UILayerTechnique {
                 usage: wgpu::BufferUsages::INDEX,
             });
 
+        let mut tint_buffer = 0;
+
         let material = MaterialBuilder::new_no_fb(renderer, Self::PASS_NAME)
             .texture_resource(
                 0,
                 0,
                 texture.create_view(&wgpu::TextureViewDescriptor::default()),
             )
-            .buffer_resource(
+            .remember_buffer_resource(
                 0,
                 1,
                 renderer
@@ -108,8 +112,9 @@ impl UILayerTechnique {
                     .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                         label: Some("ui_color"),
                         contents: bytemuck::cast_slice(&([1.0, 1.0, 1.0, 1.0] as [f32; 4])),
-                        usage: wgpu::BufferUsages::UNIFORM,
+                        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                     }),
+                &mut tint_buffer,
             )
             .produce();
 
@@ -119,6 +124,7 @@ impl UILayerTechnique {
             index_buffer,
             material,
             tint_color: [1.0, 1.0, 1.0, 1.0],
+            tint_buffer,
             pos,
             size,
         }
