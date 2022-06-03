@@ -35,8 +35,8 @@ pub fn get_chair_image(chair: Option<Chair>) -> &'static [u8] {
             Chair::Beanbag => CHAIR_BEANBAG,
             Chair::Ergonomic => CHAIR_ERGONOMIC,
             Chair::Folding => CHAIR_FOLDING,
-        }
-        None => CHAIR_NONE
+        },
+        None => CHAIR_NONE,
     }
 }
 
