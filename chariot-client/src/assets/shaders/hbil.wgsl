@@ -83,12 +83,13 @@ fn B4(x: u32, y: u32) -> u32 {
 // super super lazy version of HIBL: https://github.com/Patapom/GodComplex/blob/master/Tests/TestHBIL/2018%20Mayaux%20-%20Horizon-Based%20Indirect%20Lighting%20(HBIL).pdf
 // a lot of things missing but gosh it has the general idea
 fn update_horizon(nei_screen_pos: vec2<f32>, view_pos: vec3<f32>, cos_sin_alpha: vec2<f32>, view_normal: vec3<f32>, cos_theta: ptr<function, f32>) -> vec3<f32> {
-	let surface_size = textureDimensions(t_depth);
+	let surface_size = textureDimensions(t_depth) / vec2<i32>(2, 2);
 	let surface_sizef = vec2<f32>(surface_size);
 
 	let nei_tc = vec2<i32>(nei_screen_pos);
+	let nei_tc_us = nei_tc * vec2<i32>(2, 2);
 	let nei_tcn = vec2<f32>(nei_tc) / surface_sizef;
-	let nei_depth = textureLoad(t_depth, nei_tc, 0).r;
+	let nei_depth = textureLoad(t_depth, nei_tc_us, 0).r;
 	let nei_view_pos = view_pos_from_depth(nei_tcn, nei_depth);
 	let nei_z = nei_view_pos.z;
 
@@ -117,14 +118,19 @@ fn update_horizon(nei_screen_pos: vec2<f32>, view_pos: vec3<f32>, cos_sin_alpha:
 
 [[stage(fragment)]]
 fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
-	let surface_size = textureDimensions(t_depth);
+	let surface_size_us = textureDimensions(t_depth);
+	let surface_sizef_us = vec2<f32>(surface_size_us);
+
+	let surface_size = surface_size_us / vec2<i32>(2, 2);
 	let surface_sizef = vec2<f32>(surface_size);
 
 	let tc = vec2<i32>(in.xy);
 	let tcu = vec2<u32>(in.xy);
 	let tcn = in.xy / surface_sizef;
 
-	let depth = textureLoad(t_depth, tc, 0).r;
+	let tc_us = tc * vec2<i32>(2, 2);
+
+	let depth = textureLoad(t_depth, tc_us, 0).r;
 	if (depth == 1.0) { // skybox exit
 		return vec4<f32>(0.0, 0.0, 0.0, 1.0);
 	}
@@ -133,7 +139,7 @@ fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
 	let view_pos = view_pos_from_depth(tcn, depth);
 	let z = view_pos.z - 0.01;
 
-	let oct_normal_matid = textureLoad(t_normal, tc, 0).xyz;
+	let oct_normal_matid = textureLoad(t_normal, tc_us, 0).xyz;
 	let mat_id = oct_normal_matid.z;
 	if (mat_id > 0.1) {
 		return vec4<f32>(0.0, 0.0, 0.0, 1.0);

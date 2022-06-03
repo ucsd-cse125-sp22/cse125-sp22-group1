@@ -7,6 +7,7 @@ pub mod shadow;
 pub mod simple_fsq;
 pub mod skybox;
 pub mod ui_layer;
+pub mod wronski_aa;
 
 pub use bloom::*;
 pub use downsample::*;
@@ -17,6 +18,7 @@ pub use shadow::*;
 pub use simple_fsq::*;
 pub use skybox::*;
 pub use ui_layer::*;
+pub use wronski_aa::*;
 
 use crate::drawable::*;
 use crate::renderer::*;

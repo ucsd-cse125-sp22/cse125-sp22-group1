@@ -36,22 +36,27 @@ fn aces_film(x: vec3<f32>) -> vec3<f32>
 
 [[stage(fragment)]]
 fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
-	let surface_size = textureDimensions(t_color);
+	let surface_size = textureDimensions(t_shade_direct_color);
 	let surface_sizef = vec2<f32>(surface_size);
 
+	let surface_size_us = textureDimensions(t_color);
+	let surface_sizef_us = vec2<f32>(surface_size_us);
+
 	let tc = vec2<i32>(in.xy);
+	let tc_us = tc * vec2<i32>(2, 2);
+
 	let tcn = vec2<f32>(tc) / surface_sizef;
 
 	let shade_direct_color = textureLoad(t_shade_direct_color, tc, 0).rgb;
 	let blur_color = textureSample(t_blur_color, s_color, tcn).rgb;
-	let color = textureLoad(t_color, tc, 0).rgb;
+	let color = textureLoad(t_color, tc_us, 0).rgb;
 
-	let normal_mat_id = textureLoad(t_normal, tc, 0);
+	let normal_mat_id = textureLoad(t_normal, tc_us, 0);
 	let mat_id = normal_mat_id.z;
 	
 	let z_near = 0.1;
 	let z_far = 1000.0;
-	let depth = textureLoad(t_depth, tc, 0).r;
+	let depth = textureLoad(t_depth, tc_us, 0).r;
     let z_ndc = 2.0 * depth - 1.0;
     let z = 2.0 * z_near * z_far / (z_far + z_near - z_ndc * (z_far - z_near));
 

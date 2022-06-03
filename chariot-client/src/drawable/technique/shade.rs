@@ -20,7 +20,7 @@ pub struct ShadeDirectTechnique {
 }
 
 impl ShadeDirectTechnique {
-    const FRAMEBUFFER_NAME: &'static str = "shade_direct_out";
+    const FRAMEBUFFER_NAME: &'static str = "shade_direct_out_us";
     pub fn new(
         renderer: &Renderer,
         resources: &ResourceManager,

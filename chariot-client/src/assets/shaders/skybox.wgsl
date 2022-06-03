@@ -100,7 +100,7 @@ fn aces_film(x: vec3<f32>) -> vec3<f32>
 
 [[stage(fragment)]]
 fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
-	let surface_size = vec2<i32>(1280, 720); //textureDimensions(t_depth);
+	let surface_size = vec2<i32>(1920, 1080); //textureDimensions(t_depth);
 	let surface_sizef = vec2<f32>(surface_size);
 
 	let tcn = in.xy / surface_sizef;

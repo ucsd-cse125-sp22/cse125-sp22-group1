@@ -95,6 +95,7 @@ shader!(GEOMETRY_ACC_PROBES => "src/assets/shaders/geometry_acc_probes.wgsl");
 shader!(TEMPORAL_ACC_PROBES => "src/assets/shaders/geometry_acc_probes.wgsl");
 
 // util
+shader!(WRONSKI_AA => "src/assets/shaders/wronski_aa.wgsl");
 shader!(DOWNSAMPLE_MITCHELL => "src/assets/shaders/downsample_mitchell.wgsl");
 shader!(SIMPLE_FSQ => "src/assets/shaders/simple_fsq.wgsl");
 shader!(SURFEL_GEOMETRY => "src/assets/shaders/surfel_geometry.wgsl");
