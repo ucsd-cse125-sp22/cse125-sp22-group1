@@ -11,14 +11,7 @@
 
 chairiot is a 3d networked game, built from scratch in rust. It was made as part of [cse 125](https://cse125.ucsd.edu/), and was made over the course of 10 weeks.
 
-## who made this?
-- [Aaron James Eason](https://github.com/KNOXDEV)
-- [Alistair Gray](https://github.com/alistairgray42)
-- [Josh Cross](https://github.com/TheCrossBoy)
-- [Nick Nebel](https://github.com/nickwn)
-- [Jack Yang](https://github.com/caIcutec)
-- [Peter Liu](https://github.com/potor10)
-- [Ronak Shah](https://github.com/trulyronak)
+![Screenshots](chariot-client/src/assets/ui/main-menu/Title.png)
 
 ## how do I run this?
 
@@ -60,3 +53,12 @@ With rust. More info tbd.
 
 ### team mascot
 ![penguin](https://user-images.githubusercontent.com/15060061/161127445-b5096002-b680-4648-9d3b-1ba573febc46.png)
+
+## who made this?
+- [Aaron James Eason](https://github.com/KNOXDEV)
+- [Alistair Gray](https://github.com/alistairgray42)
+- [Josh Cross](https://github.com/TheCrossBoy)
+- [Nick Nebel](https://github.com/nickwn)
+- [Jack Yang](https://github.com/caIcutec)
+- [Peter Liu](https://github.com/potor10)
+- [Ronak Shah](https://github.com/trulyronak)
