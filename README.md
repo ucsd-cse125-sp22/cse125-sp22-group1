@@ -9,9 +9,11 @@
 
 ## what is this?
 
-chairiot is a 3d networked game, built from scratch in rust. It was made as part of [cse 125](https://cse125.ucsd.edu/), and was made over the course of 10 weeks.
+chairiot is a 3d networked game, built from scratch in rust. It was made as part of [cse 125](https://cse125.ucsd.edu/), and was made over the course of 10 weeks. You can watch a live demo [here](https://www.youtube.com/watch?v=iDiPYyJkVA8).
 
-![Screenshots](chariot-client/src/assets/ui/main-menu/Title.png)
+
+![screenshot of the game](https://user-images.githubusercontent.com/9388431/181864718-c658e8f4-8db3-4e02-90fb-2f7350d79fb9.png)
+
 
 ## how do I run this?
 
